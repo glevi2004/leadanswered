@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+tools/scraper/.venv/
+tools/scraper/__pycache__/
+
+# Secrets
+.env
+tools/scraper/.env
+
+# Scraper data + logs
+tools/scraper/data/
+tools/scraper/*.log
+
+# Client data (gitignore once real)
+clients/*
+!clients/README.md
+
+# OS
+.DS_Store
