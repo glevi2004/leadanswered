@@ -11,7 +11,7 @@ platform/
 ├── SCOPE.md            # the system specification — the build spec, source of truth
 ├── apps/
 │   ├── web/            # Next.js — onboarding UI + contractor dashboard (Vercel)              [Phase 3+]
-│   ├── api/            # Express — Twilio webhooks + the "Sarah" engine (Railway/Render)       [Phase 0]
+│   ├── api/            # Express — Twilio webhooks + the "Sarah" engine (Railway/Render)       [Phase 0–1 ✅]
 │   └── worker/         # Node + BullMQ/Redis — provisioning, cron, outbound engine             [Phase 3+]
 ├── packages/
 │   ├── db/             # Prisma schema + client
@@ -21,7 +21,7 @@ platform/
 
 The three-deployable split (`web` / `api` / `worker`) is deliberate — see `SCOPE.md` §3.1. Do not collapse them into one app, and keep all long-running / queued / scheduled work out of `web`.
 
-> Note: `apps/` and `packages/` don't exist yet — they're created as their phases arrive. Phase 0 starts the monorepo skeleton with only `apps/api` + `packages/db`.
+> Status: Phases 0–1 are built — `apps/api` (the "Sarah" engine), `packages/core` (pure domain logic), and `packages/db` (Prisma schema). `apps/web` and `apps/worker` arrive with their phases.
 
 ## Build order
 

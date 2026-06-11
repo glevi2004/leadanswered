@@ -1,0 +1,178 @@
+// Prisma schema for Lead Answered — Phase 1 data model (SCOPE §4).
+// Vertical-neutral field names; only Sarah's conversation copy is homeowner-flavored.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum NumberType {
+  toll_free
+  local
+}
+
+enum VerificationStatus {
+  pending
+  verified
+  failed
+}
+
+enum NumberStatus {
+  active
+  pending_swap
+  retired
+}
+
+enum LeadStatus {
+  new
+  contacted
+  qualifying
+  booked
+  disqualified
+  no_response
+}
+
+enum ConversationState {
+  greeting
+  qualifying
+  proposing_slots
+  confirming
+  done
+}
+
+enum MessageDirection {
+  inbound
+  outbound
+}
+
+enum AppointmentStatus {
+  proposed
+  confirmed
+  shown
+  no_show
+}
+
+enum NotificationEventType {
+  booking_confirmed
+  new_qualified_lead
+  new_inquiry
+  lead_unresponsive
+  disqualified_lead
+}
+
+enum NotificationChannel {
+  sms
+  email
+  both
+}
+
+model Contractor {
+  id                   String   @id @default(cuid())
+  name                 String
+  companyName          String
+  projectTypes         String[]
+  qualificationRules   Json     @default("{}")
+  standingAvailability Json     @default("{}")
+  sarahName            String   @default("Sarah")
+  sarahPersonaNotes    String?
+
+  // Structured service area (SCOPE §5.1) — never free-text.
+  baseLocations    Json     @default("[]") // [{ zip, radiusMiles }]
+  includeOverrides String[] @default([])
+  excludeOverrides String[] @default([])
+
+  // Telephony (SCOPE §9.5) — dedicated number per contractor.
+  twilioNumber        String?
+  messagingServiceSid String?
+  numberType          NumberType         @default(toll_free)
+  verificationStatus  VerificationStatus @default(pending)
+  numberStatus        NumberStatus       @default(active)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leads        Lead[]
+  appointments Appointment[]
+  recipients   NotificationRecipient[]
+}
+
+model NotificationRecipient {
+  id           String  @id @default(cuid())
+  contractorId String
+  name         String
+  phone        String?
+  email        String?
+
+  contractor    Contractor                 @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  subscriptions NotificationSubscription[]
+}
+
+model NotificationSubscription {
+  id          String                @id @default(cuid())
+  recipientId String
+  eventType   NotificationEventType
+  channels    NotificationChannel
+
+  recipient NotificationRecipient @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@unique([recipientId, eventType])
+}
+
+model Lead {
+  id           String     @id @default(cuid())
+  contractorId String
+  contactName  String
+  contactPhone String
+  projectHint  String?
+  serviceTown  String?
+  serviceZip   String?
+  fullAddress  String?
+  source       String     @default("manual")
+  status       LeadStatus @default(new)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  contractor   Contractor    @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  conversation Conversation?
+  appointments Appointment[]
+
+  @@index([contractorId, contactPhone])
+}
+
+model Conversation {
+  id        String            @id @default(cuid())
+  leadId    String            @unique
+  state     ConversationState @default(greeting)
+  gathered  Json              @default("{}") // accumulated extraction working-memory
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  lead     Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  messages Message[]
+}
+
+model Message {
+  id             String           @id @default(cuid())
+  conversationId String
+  direction      MessageDirection
+  body           String
+  providerSid    String?          @unique // Twilio MessageSid — idempotency (SCOPE §7)
+  createdAt      DateTime         @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model Appointment {
+  id           String            @id @default(cuid())
+  leadId       String
+  contractorId String
+  slotDatetime DateTime
+  status       AppointmentStatus @default(confirmed)
+  createdAt    DateTime          @default(now())
+
+  lead       Lead       @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  contractor Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+}
