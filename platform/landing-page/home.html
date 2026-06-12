@@ -1,0 +1,1971 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Answered — Every lead, answered in 60 seconds.</title>
+    <meta
+      name="description"
+      content="AI that texts your inbound leads within 60 seconds, qualifies them, and books them on your calendar. 24/7."
+    />
+    <link rel="icon" type="image/x-icon" href="./favicon.ico?v=2" />
+    <link rel="shortcut icon" href="./favicon.ico?v=2" />
+    <meta name="theme-color" content="#DDE2EE" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
+            },
+            colors: {
+              ink: {
+                900: "#0c1747",
+                800: "#1c1d22",
+                700: "#2e3038",
+                500: "#5e616e",
+                400: "#777a88",
+              },
+              paper: {
+                50: "#ffffff",
+                100: "#fafafa",
+                200: "#f2f4f9",
+                300: "#eaedf5",
+                400: "#dde2ee",
+                500: "#bbc5dd",
+              },
+              brand: {
+                50: "#f2f6ff",
+                100: "#e1eafd",
+                200: "#80b5ff",
+                500: "#3377ff",
+                600: "#3152f4",
+                700: "#1b73ee",
+                800: "#0c26a8",
+              },
+            },
+            boxShadow: {
+              card: "0 1px 2px rgba(12, 23, 71, 0.04), 0 4px 16px rgba(12, 23, 71, 0.04)",
+              "card-hover":
+                "0 1px 2px rgba(12, 23, 71, 0.04), 0 8px 24px rgba(12, 23, 71, 0.08)",
+              btn: "0 1px 2px rgba(49, 82, 244, 0.2), 0 2px 8px rgba(49, 82, 244, 0.16)",
+              "btn-hover":
+                "0 1px 2px rgba(49, 82, 244, 0.24), 0 4px 16px rgba(49, 82, 244, 0.28)",
+              inset: "inset 0 0 0 1px rgba(12, 23, 71, 0.06)",
+            },
+            animation: {
+              "fade-in-up": "fadeInUp 0.6s ease-out forwards",
+              "fade-in": "fadeIn 0.8s ease-out forwards",
+              marquee: "marquee 50s linear infinite",
+            },
+            keyframes: {
+              fadeInUp: {
+                "0%": { opacity: "0", transform: "translateY(12px)" },
+                "100%": { opacity: "1", transform: "translateY(0)" },
+              },
+              fadeIn: {
+                "0%": { opacity: "0" },
+                "100%": { opacity: "1" },
+              },
+              marquee: {
+                "0%": { transform: "translateX(0)" },
+                "100%": { transform: "translateX(-50%)" },
+              },
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        font-family:
+          "Inter",
+          system-ui,
+          -apple-system,
+          sans-serif;
+        background: #ffffff;
+        color: #1c1d22;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        font-feature-settings: "cv11", "ss01", "ss03";
+        overflow-x: hidden;
+      }
+
+      /* Hero gradient — Cluely signature pale-blue → white */
+      .hero-bg {
+        background: linear-gradient(
+          180deg,
+          #dde2ee 0%,
+          #dde2ee 60%,
+          #ffffff 100%
+        );
+      }
+      .hero-radial {
+        background-image: radial-gradient(
+          50% 43.2% at 50% 49.88%,
+          rgba(245, 246, 250, 0.6) 67%,
+          rgba(221, 226, 238, 0) 100%
+        );
+      }
+      .soft-blue-bg {
+        background: linear-gradient(180deg, #ffffff 0%, #f2f4f9 100%);
+      }
+
+      /* Headlines — Cluely-style: medium weight, tight tracking */
+      .display {
+        font-weight: 500;
+        letter-spacing: -0.03em;
+        line-height: 1.02;
+      }
+      .section-h {
+        font-weight: 500;
+        letter-spacing: -0.025em;
+        line-height: 1.05;
+      }
+
+      /* Subtle gradient text for accent */
+      .text-gradient {
+        background: linear-gradient(180deg, #1c1d22 0%, #3152f4 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .text-gradient-blue {
+        background: linear-gradient(135deg, #3152f4 0%, #3377ff 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .text-gradient-ink {
+        background: linear-gradient(90deg, #19191d 0%, #626275 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      /* Primary button — Cluely-style */
+      .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        background: linear-gradient(180deg, #80b5ff 0%, #3388ff 97%);
+        color: #ffffff;
+        font-size: 14px;
+        font-weight: 600;
+        padding: 10px 18px;
+        border-radius: 10px;
+        box-shadow:
+          0 1px 0 rgba(255, 255, 255, 0.3) inset,
+          0 1px 2px rgba(12, 23, 71, 0.08),
+          0 2px 8px rgba(49, 82, 244, 0.18);
+        transition: all 0.18s ease;
+        border: 1px solid #1b73ee;
+        line-height: 1.2;
+      }
+      .btn-primary:hover {
+        background: linear-gradient(180deg, #529aff 0%, #1b73ee 97%);
+        box-shadow:
+          0 1px 0 rgba(255, 255, 255, 0.3) inset,
+          0 1px 2px rgba(12, 23, 71, 0.1),
+          0 4px 14px rgba(49, 82, 244, 0.32);
+      }
+      .btn-primary-lg {
+        font-size: 15px;
+        padding: 12px 22px;
+        border-radius: 12px;
+      }
+      /* Initial-render fallback for the flip text — visible until the
+         framer-motion bundle finishes loading and React mounts the
+         FlipButton component below. The mount step replaces the entire
+         <a> element so these classes only show during the very brief
+         pre-hydration window. */
+      .flip-text {
+        display: inline-grid;
+        place-items: center;
+      }
+      .flip-text-face {
+        grid-area: 1 / 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .flip-text-face-back {
+        opacity: 0;
+      }
+
+      .btn-secondary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        background: #ffffff;
+        color: #1c1d22;
+        font-size: 14px;
+        font-weight: 600;
+        padding: 10px 18px;
+        border-radius: 10px;
+        border: 1px solid #e5e7eb;
+        transition: all 0.18s ease;
+        line-height: 1.2;
+      }
+      .btn-secondary:hover {
+        background: #f2f6ff;
+        border-color: #c7cdd9;
+      }
+      .btn-secondary-lg {
+        font-size: 15px;
+        padding: 12px 22px;
+        border-radius: 12px;
+      }
+
+      /* Cards */
+      .card {
+        background: #ffffff;
+        border: 1px solid rgba(12, 23, 71, 0.06);
+        border-radius: 16px;
+        transition: all 0.2s ease;
+      }
+      .card-hover:hover {
+        box-shadow:
+          0 1px 2px rgba(12, 23, 71, 0.04),
+          0 8px 24px rgba(12, 23, 71, 0.08);
+        border-color: rgba(49, 82, 244, 0.18);
+        transform: translateY(-1px);
+      }
+      .card-soft {
+        background: #f2f4f9;
+        border: 1px solid rgba(12, 23, 71, 0.04);
+        border-radius: 16px;
+      }
+
+      /* Badge */
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.7);
+        border: 1px solid rgba(12, 23, 71, 0.08);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border-radius: 999px;
+        padding: 5px 12px;
+        font-size: 12px;
+        font-weight: 500;
+        color: #2e3038;
+      }
+
+      /* Chat bubbles */
+      .bubble-them {
+        background: #f2f4f9;
+        color: #1c1d22;
+        border: 1px solid rgba(12, 23, 71, 0.04);
+      }
+      .bubble-us {
+        background: linear-gradient(180deg, #3377ff 0%, #3152f4 100%);
+        color: #ffffff;
+        box-shadow: 0 2px 8px rgba(49, 82, 244, 0.2);
+      }
+
+      /* Typing dots */
+      .typing-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #8591ac;
+        display: inline-block;
+        margin-right: 3px;
+        animation: typing 1.4s infinite ease-in-out;
+      }
+      .typing-dot:nth-child(1) {
+        animation-delay: 0s;
+      }
+      .typing-dot:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+      .typing-dot:nth-child(3) {
+        animation-delay: 0.4s;
+        margin-right: 0;
+      }
+      @keyframes typing {
+        0%,
+        60%,
+        100% {
+          opacity: 0.3;
+          transform: scale(0.8);
+        }
+        30% {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      /* Marquee */
+      .marquee-track {
+        display: flex;
+        width: max-content;
+        animation: marquee 50s linear infinite;
+      }
+
+      /* Reveal on scroll */
+      .reveal {
+        opacity: 0;
+        transform: translateY(12px);
+        transition:
+          opacity 0.6s ease-out,
+          transform 0.6s ease-out;
+      }
+      .reveal.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      /* FAQ */
+      details > summary {
+        list-style: none;
+        cursor: pointer;
+      }
+      details > summary::-webkit-details-marker {
+        display: none;
+      }
+      details[open] .faq-icon {
+        transform: rotate(45deg);
+      }
+      .faq-icon {
+        transition: transform 0.25s ease;
+      }
+
+      /* Range slider — Cluely blue */
+      input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        background: transparent;
+        cursor: pointer;
+        width: 100%;
+      }
+      input[type="range"]::-webkit-slider-runnable-track {
+        height: 4px;
+        background: #e1eafd;
+        border-radius: 999px;
+      }
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        background: linear-gradient(180deg, #80b5ff 0%, #3388ff 97%);
+        border: 2px solid #ffffff;
+        border-radius: 50%;
+        margin-top: -7px;
+        box-shadow:
+          0 1px 2px rgba(12, 23, 71, 0.1),
+          0 2px 6px rgba(49, 82, 244, 0.3);
+        transition: transform 0.15s ease;
+      }
+      input[type="range"]::-webkit-slider-thumb:hover {
+        transform: scale(1.1);
+      }
+
+      /* Logo wordmark accent */
+      .logo-accent {
+        background: linear-gradient(135deg, #3152f4 0%, #3377ff 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      /* Scroll fade for marquee */
+      .marquee-fade {
+        -webkit-mask-image: linear-gradient(
+          90deg,
+          transparent 0,
+          #000 10%,
+          #000 90%,
+          transparent 100%
+        );
+        mask-image: linear-gradient(
+          90deg,
+          transparent 0,
+          #000 10%,
+          #000 90%,
+          transparent 100%
+        );
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ============ NAV ============ -->
+    <header class="fixed top-0 inset-x-0 z-50">
+      <div class="max-w-6xl mx-auto px-5 pt-4">
+        <nav
+          id="nav"
+          class="flex items-center justify-between gap-8 bg-gray-100/80 backdrop-blur-sm rounded-xl px-6 py-3 transition-shadow"
+        >
+          <a href="#" class="flex items-center gap-2">
+            <img src="./logo.png" alt="Answered" class="h-5 w-auto" />
+            <span class="text-lg font-medium text-black">answered</span>
+          </a>
+          <div
+            class="hidden md:flex items-center gap-7 text-[14px] text-ink-700 font-medium"
+          >
+            <a href="#how" class="hover:text-brand-600 transition"
+              >How it works</a
+            >
+            <a href="#features" class="hover:text-brand-600 transition"
+              >Features</a
+            >
+            <a href="#calculator" class="hover:text-brand-600 transition"
+              >ROI</a
+            >
+            <a href="#faq" class="hover:text-brand-600 transition">FAQ</a>
+          </div>
+          <a href="#cta" class="btn-primary">
+            <span class="flip-text">
+              <span class="flip-text-face flip-text-face-front"
+                >Book a demo</span
+              >
+              <span class="flip-text-face flip-text-face-back"
+                >Book a demo</span
+              >
+            </span>
+            <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none">
+              <path
+                d="M3 8h10m0 0L9 4m4 4l-4 4"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </a>
+        </nav>
+      </div>
+    </header>
+
+    <!-- ============ HERO ============ -->
+    <section
+      class="hero-bg pt-28 pb-16 md:pt-32 md:pb-20 relative overflow-hidden"
+    >
+      <div class="hero-radial absolute inset-0"></div>
+      <div class="relative max-w-6xl mx-auto px-5">
+        <div
+          class="grid lg:grid-cols-[1.05fr_1fr] gap-10 lg:gap-14 items-center"
+        >
+          <!-- LEFT: text -->
+          <div class="text-center lg:text-left">
+            <div class="pill mb-5 animate-fade-in">
+              <span class="relative flex h-1.5 w-1.5">
+                <span
+                  class="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-600 opacity-60"
+                ></span>
+                <span
+                  class="relative inline-flex rounded-full h-1.5 w-1.5 bg-brand-600"
+                ></span>
+              </span>
+              Now booking 12+ businesses · April 2026
+            </div>
+
+            <h1
+              class="display text-[36px] sm:text-[42px] md:text-[48px] lg:text-[52px] text-ink-900 mb-4 animate-fade-in-up"
+            >
+              Every lead, answered<br />
+              <span
+                class="font-serif italic font-normal text-[28px] sm:text-[34px] md:text-[38px] lg:text-[42px]"
+                >in 60 seconds.</span
+              >
+            </h1>
+
+            <p
+              class="text-[16px] md:text-[17px] leading-[1.55] text-ink-500 max-w-[480px] mx-auto lg:mx-0 mb-7 animate-fade-in-up"
+              style="animation-delay: 0.08s"
+            >
+              AI that texts your inbound leads instantly, qualifies them
+              naturally, and books them straight on your calendar. 24/7.
+            </p>
+
+            <div
+              class="flex flex-col sm:flex-row items-center lg:items-start justify-center lg:justify-start gap-2.5 mb-8 animate-fade-in-up"
+              style="animation-delay: 0.16s"
+            >
+              <a href="#cta" class="btn-primary btn-primary-lg">
+                <span class="flip-text">
+                  <span class="flip-text-face flip-text-face-front"
+                    >Book a demo</span
+                  >
+                  <span class="flip-text-face flip-text-face-back"
+                    >Book a demo</span
+                  >
+                </span>
+                <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="M3 8h10m0 0L9 4m4 4l-4 4"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </a>
+              <a href="#demo" class="btn-secondary btn-secondary-lg">
+                See it answer a lead
+              </a>
+            </div>
+
+            <div
+              class="flex flex-wrap items-center justify-center lg:justify-start gap-x-5 gap-y-2 text-[12px] text-ink-500 animate-fade-in"
+              style="animation-delay: 0.32s"
+            >
+              <div class="flex items-center gap-1.5">
+                <svg
+                  class="w-3.5 h-3.5 text-brand-600"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M5 13l4 4L19 7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span>HIPAA & TCPA compliant</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <svg
+                  class="w-3.5 h-3.5 text-brand-600"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M5 13l4 4L19 7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span>Live in 48 hours</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <svg
+                  class="w-3.5 h-3.5 text-brand-600"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M5 13l4 4L19 7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span>No-code setup</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT: phone + live chat -->
+          <div
+            class="relative animate-fade-in-up"
+            style="animation-delay: 0.2s"
+          >
+            <!-- Phone shell -->
+            <div class="relative max-w-[380px] mx-auto">
+              <div
+                class="bg-gradient-to-b from-paper-300 to-paper-400 p-2 rounded-[2.5rem] shadow-card border border-white/60"
+              >
+                <div class="bg-white rounded-[2rem] p-3.5">
+                  <!-- Status bar -->
+                  <div
+                    class="flex items-center justify-between px-2 pb-2 text-[11px] text-ink-700 font-semibold"
+                  >
+                    <span>2:14</span>
+                    <span class="flex items-center gap-1">
+                      <svg
+                        class="w-3 h-3"
+                        viewBox="0 0 16 16"
+                        fill="currentColor"
+                      >
+                        <path
+                          d="M3 11h2v3H3v-3zm4-2h2v5H7V9zm4-2h2v7h-2V7zm4-2h2v9h-2V3z"
+                        />
+                      </svg>
+                      <svg
+                        class="w-3 h-3"
+                        viewBox="0 0 16 16"
+                        fill="currentColor"
+                      >
+                        <path
+                          d="M8 4a5 5 0 015 5h-1a4 4 0 00-4-4V4zm0-3a8 8 0 018 8h-1a7 7 0 00-7-7V1z"
+                        />
+                      </svg>
+                      <span class="font-bold">87</span>
+                    </span>
+                  </div>
+                  <!-- Contact header -->
+                  <div
+                    class="flex items-center justify-between pb-3 mb-3 border-b border-paper-300/60"
+                  >
+                    <div class="flex items-center gap-2.5">
+                      <div
+                        class="w-9 h-9 rounded-full bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center text-white font-semibold text-[12px]"
+                      >
+                        BA
+                      </div>
+                      <div>
+                        <div
+                          class="font-semibold text-[13px] text-ink-900 leading-tight"
+                        >
+                          Bella Aesthetics
+                        </div>
+                        <div
+                          class="text-[11px] text-ink-400 flex items-center gap-1"
+                        >
+                          <span
+                            class="w-1.5 h-1.5 rounded-full bg-emerald-500"
+                          ></span>
+                          Active now
+                        </div>
+                      </div>
+                    </div>
+                    <div class="text-[11px] text-brand-600 font-semibold">
+                      52s reply
+                    </div>
+                  </div>
+
+                  <!-- Chat -->
+                  <div
+                    id="chat-stream"
+                    class="space-y-2 h-[380px] overflow-hidden"
+                  ></div>
+
+                  <!-- Footer -->
+                  <div
+                    class="mt-3 pt-3 border-t border-paper-300/60 flex items-center justify-between"
+                  >
+                    <div class="text-[11px] text-ink-400">
+                      Form filled at 2:13 AM
+                    </div>
+                    <button
+                      id="replay-btn"
+                      class="text-[11px] text-ink-500 hover:text-brand-600 transition flex items-center gap-1 font-medium"
+                    >
+                      <svg
+                        class="w-3 h-3"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
+                      Replay
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Floating "booked" notification card -->
+              <div
+                class="absolute -bottom-3 -left-3 sm:-left-8 bg-white border border-paper-300/60 rounded-xl shadow-card-hover p-3 pr-4 flex items-center gap-2.5 animate-fade-in-up"
+                style="animation-delay: 1s"
+              >
+                <div
+                  class="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-200/60 flex items-center justify-center flex-shrink-0"
+                >
+                  <svg
+                    class="w-3.5 h-3.5 text-emerald-600"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.6"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      d="M5 13l4 4L19 7"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </div>
+                <div class="min-w-0">
+                  <div
+                    class="text-[12px] font-semibold text-ink-900 leading-tight"
+                  >
+                    Appointment booked
+                  </div>
+                  <div class="text-[10.5px] text-ink-400 leading-tight">
+                    Thursday 11am · added to calendar
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- decorative blue blob behind -->
+            <div class="absolute -z-10 inset-0 -m-8">
+              <div
+                class="absolute top-1/4 -right-8 w-40 h-40 bg-brand-200/40 rounded-full blur-3xl"
+              ></div>
+              <div
+                class="absolute bottom-1/4 -left-6 w-32 h-32 bg-brand-100 rounded-full blur-2xl"
+              ></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ MARQUEE ============ -->
+    <section class="bg-white py-10 border-b border-paper-300/60">
+      <div class="max-w-6xl mx-auto px-5">
+        <p
+          class="text-center text-[11px] uppercase tracking-[0.18em] text-ink-400 font-semibold mb-6"
+        >
+          Powering inbound for businesses across
+        </p>
+        <div class="marquee-fade overflow-hidden">
+          <div
+            class="marquee-track items-center gap-12 text-[20px] font-bold tracking-tight text-ink-700/40"
+          >
+            <span>Med Spas</span><span class="text-paper-500">●</span>
+            <span>Real Estate Teams</span><span class="text-paper-500">●</span>
+            <span>Insurance Agencies</span><span class="text-paper-500">●</span>
+            <span>Home Services</span><span class="text-paper-500">●</span>
+            <span>Fitness Studios</span><span class="text-paper-500">●</span>
+            <span>Dental Practices</span><span class="text-paper-500">●</span>
+            <span>Solar Installers</span><span class="text-paper-500">●</span>
+            <span>Auto Dealers</span><span class="text-paper-500">●</span>
+            <!-- loop -->
+            <span>Med Spas</span><span class="text-paper-500">●</span>
+            <span>Real Estate Teams</span><span class="text-paper-500">●</span>
+            <span>Insurance Agencies</span><span class="text-paper-500">●</span>
+            <span>Home Services</span><span class="text-paper-500">●</span>
+            <span>Fitness Studios</span><span class="text-paper-500">●</span>
+            <span>Dental Practices</span><span class="text-paper-500">●</span>
+            <span>Solar Installers</span><span class="text-paper-500">●</span>
+            <span>Auto Dealers</span><span class="text-paper-500">●</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ STATS / PROBLEM ============ -->
+    <section class="py-20 bg-white">
+      <div class="max-w-6xl mx-auto px-5">
+        <div class="text-center mb-12 reveal">
+          <p
+            class="text-[12px] uppercase tracking-[0.18em] text-brand-600 font-semibold mb-3"
+          >
+            The 5-minute window
+          </p>
+          <h2
+            class="section-h text-[32px] md:text-[44px] text-ink-900 max-w-[760px] mx-auto"
+          >
+            If you don't reply in 5 minutes,<br />
+            <span
+              class="font-serif italic font-normal text-[26px] md:text-[36px]"
+              >your lead is gone.</span
+            >
+          </h2>
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-4 reveal">
+          <div class="card-soft p-7">
+            <div
+              class="text-[44px] md:text-[56px] font-bold text-gradient-blue leading-none mb-3 tracking-tight"
+            >
+              21×
+            </div>
+            <p class="text-[14px] text-ink-700 leading-[1.55]">
+              More likely to qualify a lead when contacted within 5 minutes vs.
+              30 minutes.
+              <span class="text-ink-400">— Harvard Business Review</span>
+            </p>
+          </div>
+          <div class="card-soft p-7">
+            <div
+              class="text-[44px] md:text-[56px] font-bold text-gradient-blue leading-none mb-3 tracking-tight"
+            >
+              78%
+            </div>
+            <p class="text-[14px] text-ink-700 leading-[1.55]">
+              Of customers buy from the company that responds
+              <em class="not-italic font-semibold text-ink-900">first</em>. Not
+              the cheapest. The first.
+            </p>
+          </div>
+          <div class="card-soft p-7">
+            <div
+              class="text-[44px] md:text-[56px] font-bold text-gradient-blue leading-none mb-3 tracking-tight"
+            >
+              47h
+            </div>
+            <p class="text-[14px] text-ink-700 leading-[1.55]">
+              The industry average response time to a web lead. By then, your
+              prospect already called four competitors.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ FEATURES ============ -->
+    <section id="features" class="py-24 bg-white">
+      <div class="max-w-6xl mx-auto px-5">
+        <div class="text-center mb-14 reveal">
+          <p
+            class="text-[12px] uppercase tracking-[0.18em] text-brand-600 font-semibold mb-3"
+          >
+            What you get
+          </p>
+          <h2
+            class="section-h text-gradient-ink text-[32px] md:text-[44px] max-w-[720px] mx-auto"
+          >
+            Your best salesperson — minus the salary, breaks, and bad days.
+          </h2>
+        </div>
+
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4 reveal">
+          <div class="card card-hover p-6">
+            <div
+              class="w-10 h-10 rounded-lg bg-brand-50 border border-brand-100 flex items-center justify-center mb-4"
+            >
+              <svg
+                class="w-4 h-4 text-brand-600"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+            <h3 class="text-[16px] font-semibold text-ink-900 mb-1.5">
+              60-second response
+            </h3>
+            <p class="text-[13.5px] text-ink-500 leading-[1.55]">
+              The instant a lead fills out a form, calls a missed line, or
+              clicks an ad — they get a real text. Not an auto-reply.
+            </p>
+          </div>
+
+          <div class="card card-hover p-6">
+            <div
+              class="w-10 h-10 rounded-lg bg-brand-50 border border-brand-100 flex items-center justify-center mb-4"
+            >
+              <svg
+                class="w-4 h-4 text-brand-600"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+            <h3 class="text-[16px] font-semibold text-ink-900 mb-1.5">
+              Conversations, not scripts
+            </h3>
+            <p class="text-[13.5px] text-ink-500 leading-[1.55]">
+              Trained on your business. Handles pricing, objections, and FAQs
+              the way the receptionist you wish you had would.
+            </p>
+          </div>
+
+          <div class="card card-hover p-6">
+            <div
+              class="w-10 h-10 rounded-lg bg-brand-50 border border-brand-100 flex items-center justify-center mb-4"
+            >
+              <svg
+                class="w-4 h-4 text-brand-600"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+            <h3 class="text-[16px] font-semibold text-ink-900 mb-1.5">
+              Smart qualification
+            </h3>
+            <p class="text-[13.5px] text-ink-500 leading-[1.55]">
+              Define your ideal lead. We filter tire-kickers, surface
+              ready-to-buy ones, and tag everything in your CRM automatically.
+            </p>
+          </div>
+
+          <div class="card card-hover p-6">
+            <div
+              class="w-10 h-10 rounded-lg bg-brand-50 border border-brand-100 flex items-center justify-center mb-4"
+            >
+              <svg
+                class="w-4 h-4 text-brand-600"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+            <h3 class="text-[16px] font-semibold text-ink-900 mb-1.5">
+              Books on your calendar
+            </h3>
+            <p class="text-[13.5px] text-ink-500 leading-[1.55]">
+              Direct sync with Google, Outlook, Cal.com, Calendly, Acuity.
+              Confirmed appointments — not "leads to follow up with."
+            </p>
+          </div>
+
+          <div class="card card-hover p-6">
+            <div
+              class="w-10 h-10 rounded-lg bg-brand-50 border border-brand-100 flex items-center justify-center mb-4"
+            >
+              <svg
+                class="w-4 h-4 text-brand-600"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+            <h3 class="text-[16px] font-semibold text-ink-900 mb-1.5">
+              Plugs into your stack
+            </h3>
+            <p class="text-[13.5px] text-ink-500 leading-[1.55]">
+              HubSpot, Salesforce, Pipedrive, Follow Up Boss, Twilio, Zapier, Make.
+              If your tools speak webhooks, we speak them.
+            </p>
+          </div>
+
+          <div class="card card-hover p-6">
+            <div
+              class="w-10 h-10 rounded-lg bg-brand-50 border border-brand-100 flex items-center justify-center mb-4"
+            >
+              <svg
+                class="w-4 h-4 text-brand-600"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+            <h3 class="text-[16px] font-semibold text-ink-900 mb-1.5">
+              Know what's working
+            </h3>
+            <p class="text-[13.5px] text-ink-500 leading-[1.55]">
+              Live dashboard: response times, qualification rates, conversion %,
+              revenue attributed. The numbers your gut was guessing.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ HOW IT WORKS ============ -->
+    <section id="how" class="py-24 soft-blue-bg">
+      <div class="max-w-6xl mx-auto px-5">
+        <div class="text-center mb-14 reveal">
+          <p
+            class="text-[12px] uppercase tracking-[0.18em] text-brand-600 font-semibold mb-3"
+          >
+            From signup to first booking
+          </p>
+          <h2 class="section-h text-gradient-ink text-[32px] md:text-[44px]">
+            Live in 48 hours. No engineer needed.
+          </h2>
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-4 reveal">
+          <div class="card p-7">
+            <div
+              class="text-[40px] font-bold text-gradient-blue leading-none mb-4 tabular-nums tracking-tight"
+            >
+              01
+            </div>
+            <h3 class="text-[18px] font-semibold text-ink-900 mb-1.5">
+              Connect your sources
+            </h3>
+            <p class="text-[14px] text-ink-500 leading-[1.55]">
+              Point your form, Meta lead ads, Google ads, missed calls, and chat
+              widgets at us. 15-minute setup. We handle the plumbing.
+            </p>
+          </div>
+          <div class="card p-7">
+            <div
+              class="text-[40px] font-bold text-gradient-blue leading-none mb-4 tabular-nums tracking-tight"
+            >
+              02
+            </div>
+            <h3 class="text-[18px] font-semibold text-ink-900 mb-1.5">
+              We train your AI
+            </h3>
+            <p class="text-[14px] text-ink-500 leading-[1.55]">
+              One 30-min call. We learn your services, pricing, FAQs, and tone.
+              By tomorrow, your AI sounds like you wrote every word.
+            </p>
+          </div>
+          <div class="card p-7">
+            <div
+              class="text-[40px] font-bold text-gradient-blue leading-none mb-4 tabular-nums tracking-tight"
+            >
+              03
+            </div>
+            <h3 class="text-[18px] font-semibold text-ink-900 mb-1.5">
+              Watch bookings appear
+            </h3>
+            <p class="text-[14px] text-ink-500 leading-[1.55]">
+              Leads come in, get qualified, and land on your calendar. You walk
+              into your day with appointments — not a follow-up list.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ROI CALCULATOR ============ -->
+    <section id="calculator" class="py-24 bg-white">
+      <div class="max-w-5xl mx-auto px-5">
+        <div class="text-center mb-12 reveal">
+          <p
+            class="text-[12px] uppercase tracking-[0.18em] text-brand-600 font-semibold mb-3"
+          >
+            The unsexy math
+          </p>
+          <h2
+            class="section-h text-gradient-ink text-[32px] md:text-[44px] mb-3"
+          >
+            How much are slow replies costing you?
+          </h2>
+          <p
+            class="text-[16px] text-ink-500 max-w-[540px] mx-auto leading-[1.5]"
+          >
+            Plug in your numbers. We'll show you what last quarter actually
+            looked like.
+          </p>
+        </div>
+
+        <div class="card p-7 md:p-10 reveal">
+          <div class="grid md:grid-cols-2 gap-10">
+            <!-- Inputs -->
+            <div class="space-y-6">
+              <div>
+                <div class="flex items-center justify-between mb-2.5">
+                  <label class="text-[13px] text-ink-700 font-semibold"
+                    >Leads per month</label
+                  >
+                  <span
+                    id="leadsValue"
+                    class="text-[14px] text-brand-600 font-bold tabular-nums"
+                    >200</span
+                  >
+                </div>
+                <input
+                  type="range"
+                  id="leads"
+                  min="20"
+                  max="2000"
+                  step="10"
+                  value="200"
+                />
+                <div
+                  class="flex justify-between text-[11px] text-ink-400 mt-1.5"
+                >
+                  <span>20</span><span>2,000</span>
+                </div>
+              </div>
+
+              <div>
+                <div class="flex items-center justify-between mb-2.5">
+                  <label class="text-[13px] text-ink-700 font-semibold"
+                    >Average customer value</label
+                  >
+                  <span
+                    class="text-[14px] text-brand-600 font-bold tabular-nums"
+                    >$<span id="valueValue">800</span></span
+                  >
+                </div>
+                <input
+                  type="range"
+                  id="value"
+                  min="100"
+                  max="10000"
+                  step="50"
+                  value="800"
+                />
+                <div
+                  class="flex justify-between text-[11px] text-ink-400 mt-1.5"
+                >
+                  <span>$100</span><span>$10,000</span>
+                </div>
+              </div>
+
+              <div>
+                <div class="flex items-center justify-between mb-2.5">
+                  <label class="text-[13px] text-ink-700 font-semibold"
+                    >Current close rate</label
+                  >
+                  <span
+                    class="text-[14px] text-brand-600 font-bold tabular-nums"
+                    ><span id="closeValue">8</span>%</span
+                  >
+                </div>
+                <input
+                  type="range"
+                  id="close"
+                  min="1"
+                  max="40"
+                  step="1"
+                  value="8"
+                />
+                <div
+                  class="flex justify-between text-[11px] text-ink-400 mt-1.5"
+                >
+                  <span>1%</span><span>40%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Output -->
+            <div
+              class="card-soft p-7 flex flex-col justify-center bg-gradient-to-br from-brand-50 to-paper-200/50 border-brand-100"
+            >
+              <p
+                class="text-[11px] text-brand-600 uppercase tracking-[0.18em] font-bold mb-2"
+              >
+                Estimated extra revenue / year
+              </p>
+              <div
+                class="text-[44px] md:text-[52px] font-bold text-gradient-blue tabular-nums leading-none mb-5 tracking-tight"
+              >
+                $<span id="resultRevenue">76,800</span>
+              </div>
+              <div class="space-y-2 text-[13px] text-ink-700">
+                <div class="flex justify-between">
+                  <span class="text-ink-400">Extra closed deals / year</span
+                  ><span class="font-semibold tabular-nums" id="resultDeals"
+                    >96</span
+                  >
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-ink-400">Cost of Answered / year</span
+                  ><span class="font-semibold tabular-nums">$8,400</span>
+                </div>
+                <div
+                  class="flex justify-between pt-2.5 border-t border-paper-300"
+                >
+                  <span class="text-ink-700 font-semibold">Net ROI</span
+                  ><span
+                    class="font-bold text-brand-600 tabular-nums"
+                    id="resultROI"
+                    >9.1×</span
+                  >
+                </div>
+              </div>
+              <a href="#cta" class="btn-primary mt-6 justify-center">
+                <span class="flip-text">
+                  <span class="flip-text-face flip-text-face-front"
+                    >Lock in your demo</span
+                  >
+                  <span class="flip-text-face flip-text-face-back"
+                    >Lock in your demo</span
+                  >
+                </span>
+                <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="M3 8h10m0 0L9 4m4 4l-4 4"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </a>
+            </div>
+          </div>
+          <p
+            class="text-[11px] text-ink-400 text-center mt-6 max-w-[540px] mx-auto leading-[1.55]"
+          >
+            Based on a conservative 50% lift in qualified-to-booked rate from
+            speed-to-lead, derived from HBR's lead response study and our own
+            deployments.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ TESTIMONIALS ============ -->
+    <section class="py-24 soft-blue-bg">
+      <div class="max-w-6xl mx-auto px-5">
+        <div class="text-center mb-12 reveal">
+          <p
+            class="text-[12px] uppercase tracking-[0.18em] text-brand-600 font-semibold mb-3"
+          >
+            From operators who've been there
+          </p>
+          <h2 class="section-h text-gradient-ink text-[32px] md:text-[44px]">
+            They stopped losing leads. So can you.
+          </h2>
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-4 reveal">
+          <div class="card p-6">
+            <div class="flex gap-0.5 mb-4">
+              <svg
+                class="w-3.5 h-3.5 text-amber-400"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"
+                />
+              </svg>
+              <svg
+                class="w-3.5 h-3.5 text-amber-400"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"
+                />
+              </svg>
+              <svg
+                class="w-3.5 h-3.5 text-amber-400"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"
+                />
+              </svg>
+              <svg
+                class="w-3.5 h-3.5 text-amber-400"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"
+                />
+              </svg>
+              <svg
+                class="w-3.5 h-3.5 text-amber-400"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"
+                />
+              </svg>
+            </div>
+            <p class="text-[14.5px] text-ink-800 leading-[1.55] mb-5">
+              "We were burning $4K/month on Meta ads and converting maybe 8%.
+              After two weeks with Answered we were at 22%. The ROI was
+              instant."
+            </p>
+            <div
+              class="flex items-center gap-2.5 pt-4 border-t border-paper-300/60"
+            >
+              <div
+                class="w-9 h-9 rounded-full bg-gradient-to-br from-brand-200 to-brand-600"
+              ></div>
+              <div>
+                <div
+                  class="font-semibold text-[13px] text-ink-900 leading-tight"
+                >
+                  Maya R.
+                </div>
+                <div class="text-[11.5px] text-ink-400">
+                  Owner — Med Spa, Austin TX
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card p-6">
+            <div class="flex gap-0.5 mb-4">
+              <svg
+                class="w-3.5 h-3.5 text-amber-400"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"
+                />
+              </svg>
+              <svg
+                class="w-3.5 h-3.5 text-amber-400"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"
+                />
+              </svg>
+              <svg
+                class="w-3.5 h-3.5 text-amber-400"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"
+                />
+              </svg>
+              <svg
+                class="w-3.5 h-3.5 text-amber-400"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"
+                />
+              </svg>
+              <svg
+                class="w-3.5 h-3.5 text-amber-400"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"
+                />
+              </svg>
+            </div>
+            <p class="text-[14.5px] text-ink-800 leading-[1.55] mb-5">
+              "My team used to take 4 hours to call back a lead. Now they get a
+              confirmed appointment dropped on their calendar. We hired one less
+              ISA because of this."
+            </p>
+            <div
+              class="flex items-center gap-2.5 pt-4 border-t border-paper-300/60"
+            >
+              <div
+                class="w-9 h-9 rounded-full bg-gradient-to-br from-brand-500 to-brand-800"
+              ></div>
+              <div>
+                <div
+                  class="font-semibold text-[13px] text-ink-900 leading-tight"
+                >
+                  Devon K.
+                </div>
+                <div class="text-[11.5px] text-ink-400">
+                  Team Lead — RE/MAX, Phoenix AZ
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card p-6">
+            <div class="flex gap-0.5 mb-4">
+              <svg
+                class="w-3.5 h-3.5 text-amber-400"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"
+                />
+              </svg>
+              <svg
+                class="w-3.5 h-3.5 text-amber-400"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"
+                />
+              </svg>
+              <svg
+                class="w-3.5 h-3.5 text-amber-400"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"
+                />
+              </svg>
+              <svg
+                class="w-3.5 h-3.5 text-amber-400"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"
+                />
+              </svg>
+              <svg
+                class="w-3.5 h-3.5 text-amber-400"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"
+                />
+              </svg>
+            </div>
+            <p class="text-[14.5px] text-ink-800 leading-[1.55] mb-5">
+              "I was skeptical the AI would sound robotic. Three of my customers
+              told me my 'new receptionist' was great — they had no idea. That
+              sold me."
+            </p>
+            <div
+              class="flex items-center gap-2.5 pt-4 border-t border-paper-300/60"
+            >
+              <div
+                class="w-9 h-9 rounded-full bg-gradient-to-br from-brand-200 to-brand-700"
+              ></div>
+              <div>
+                <div
+                  class="font-semibold text-[13px] text-ink-900 leading-tight"
+                >
+                  Carlos M.
+                </div>
+                <div class="text-[11.5px] text-ink-400">
+                  Owner — HVAC, Denver CO
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ FAQ ============ -->
+    <section id="faq" class="py-24 bg-white">
+      <div class="max-w-3xl mx-auto px-5">
+        <div class="text-center mb-12 reveal">
+          <p
+            class="text-[12px] uppercase tracking-[0.18em] text-brand-600 font-semibold mb-3"
+          >
+            Questions, before they cost you sleep
+          </p>
+          <h2 class="section-h text-gradient-ink text-[32px] md:text-[40px]">
+            Frequently asked.
+          </h2>
+        </div>
+
+        <div class="space-y-2.5 reveal">
+          <details class="card p-5">
+            <summary class="flex items-center justify-between gap-4">
+              <span class="text-[15px] font-semibold text-ink-900"
+                >Will it actually sound human?</span
+              >
+              <span
+                class="faq-icon text-brand-600 text-[20px] font-light leading-none flex-shrink-0"
+                >+</span
+              >
+            </summary>
+            <p class="text-[14px] text-ink-500 mt-3 leading-[1.6]">
+              Yes. We're past the "Hi, I am a chatbot" era. Your AI is trained
+              on hundreds of your ideal interactions and uses your tone, slang,
+              and emojis. Most leads finish a conversation without realizing
+              they weren't texting a human.
+            </p>
+          </details>
+
+          <details class="card p-5">
+            <summary class="flex items-center justify-between gap-4">
+              <span class="text-[15px] font-semibold text-ink-900"
+                >What happens when a lead asks something complicated?</span
+              >
+              <span
+                class="faq-icon text-brand-600 text-[20px] font-light leading-none flex-shrink-0"
+                >+</span
+              >
+            </summary>
+            <p class="text-[14px] text-ink-500 mt-3 leading-[1.6]">
+              Two paths. If the question is in scope, the AI handles it. If it's
+              outside (custom medical concern, legal question, complex pricing),
+              it tells the lead a human will follow up shortly and pings your
+              team in Slack/SMS with full context.
+            </p>
+          </details>
+
+          <details class="card p-5">
+            <summary class="flex items-center justify-between gap-4">
+              <span class="text-[15px] font-semibold text-ink-900"
+                >What if I already use a CRM?</span
+              >
+              <span
+                class="faq-icon text-brand-600 text-[20px] font-light leading-none flex-shrink-0"
+                >+</span
+              >
+            </summary>
+            <p class="text-[14px] text-ink-500 mt-3 leading-[1.6]">
+              Perfect. We integrate with HubSpot, Salesforce, Pipedrive,
+              Follow Up Boss, and 30+ others. Contact info,
+              transcript, qualification status, and the booked appointment all
+              write back. Your reps live in their CRM.
+            </p>
+          </details>
+
+          <details class="card p-5">
+            <summary class="flex items-center justify-between gap-4">
+              <span class="text-[15px] font-semibold text-ink-900"
+                >How long until it's live?</span
+              >
+              <span
+                class="faq-icon text-brand-600 text-[20px] font-light leading-none flex-shrink-0"
+                >+</span
+              >
+            </summary>
+            <p class="text-[14px] text-ink-500 mt-3 leading-[1.6]">
+              48 hours from your training call. Day 1: 30-min discovery to learn
+              your services and qualification logic. Day 2: we ship a private
+              demo for you to test. Day 3: you flip the switch on live leads.
+            </p>
+          </details>
+
+          <details class="card p-5">
+            <summary class="flex items-center justify-between gap-4">
+              <span class="text-[15px] font-semibold text-ink-900"
+                >What does it cost?</span
+              >
+              <span
+                class="faq-icon text-brand-600 text-[20px] font-light leading-none flex-shrink-0"
+                >+</span
+              >
+            </summary>
+            <p class="text-[14px] text-ink-500 mt-3 leading-[1.6]">
+              A flat monthly fee smaller than the salary of one part-time
+              receptionist — and it works around the clock. Exact pricing
+              depends on lead volume and integrations. We'll quote you on the
+              demo call.
+            </p>
+          </details>
+
+          <details class="card p-5">
+            <summary class="flex items-center justify-between gap-4">
+              <span class="text-[15px] font-semibold text-ink-900"
+                >Is this TCPA / HIPAA compliant?</span
+              >
+              <span
+                class="faq-icon text-brand-600 text-[20px] font-light leading-none flex-shrink-0"
+                >+</span
+              >
+            </summary>
+            <p class="text-[14px] text-ink-500 mt-3 leading-[1.6]">
+              Yes. We only message leads who've opted in, every message includes
+              opt-out language, and we sign BAAs for healthcare clients.
+            </p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ FINAL CTA ============ -->
+    <section
+      id="cta"
+      class="py-24 bg-gradient-to-b from-paper-400 to-white relative overflow-hidden"
+    >
+      <div class="absolute inset-0 hero-radial"></div>
+      <div class="relative max-w-3xl mx-auto px-5 text-center reveal">
+        <h2 class="section-h text-[36px] md:text-[56px] text-ink-900 mb-4">
+          Stop losing leads to<br />
+          <span class="font-serif italic font-normal text-[28px] md:text-[44px]"
+            >slower competitors.</span
+          >
+        </h2>
+        <p
+          class="text-[16px] text-ink-500 max-w-[480px] mx-auto mb-8 leading-[1.5]"
+        >
+          Book a 20-minute demo. We'll show you what your AI receptionist would
+          say to your last 10 leads — and what bookings you missed.
+        </p>
+        <div
+          class="flex flex-col sm:flex-row items-center justify-center gap-2.5 mb-6"
+        >
+          <a
+            href="https://cal.com/leadanswered/demo"
+            class="btn-primary btn-primary-lg"
+          >
+            <span class="flip-text">
+              <span class="flip-text-face flip-text-face-front"
+                >Book a demo</span
+              >
+              <span class="flip-text-face flip-text-face-back"
+                >Book a demo</span
+              >
+            </span>
+            <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none">
+              <path
+                d="M3 8h10m0 0L9 4m4 4l-4 4"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </a>
+          <a
+            href="mailto:hello@leadanswered.com"
+            class="btn-secondary btn-secondary-lg"
+          >
+            Email us instead
+          </a>
+        </div>
+        <p class="text-[12px] text-ink-400">
+          No credit card. No commitment. Just numbers and a live demo.
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ FOOTER ============ -->
+    <footer class="py-10 bg-white border-t border-paper-300/60">
+      <div
+        class="max-w-6xl mx-auto px-5 flex flex-col md:flex-row items-center justify-between gap-5 text-[12.5px] text-ink-400"
+      >
+        <div class="flex items-center">
+          <span class="font-bold text-[13px] text-ink-800"
+            ><span class="logo-accent">Answered</span></span
+          >
+        </div>
+        <div class="flex flex-wrap items-center gap-5">
+          <a href="#how" class="hover:text-ink-800 transition">How it works</a>
+          <a href="#calculator" class="hover:text-ink-800 transition">ROI</a>
+          <a href="#features" class="hover:text-ink-800 transition">Features</a>
+          <a href="#faq" class="hover:text-ink-800 transition">FAQ</a>
+          <a href="/privacy" class="hover:text-ink-800 transition">Privacy</a>
+          <a href="/terms" class="hover:text-ink-800 transition">Terms</a>
+        </div>
+        <div>© 2026 Answered.</div>
+      </div>
+    </footer>
+
+    <script>
+      // Nav shadow on scroll
+      const nav = document.getElementById("nav");
+      window.addEventListener("scroll", () => {
+        if (window.scrollY > 16) {
+          nav.style.boxShadow =
+            "0 1px 2px rgba(12,23,71,0.04), 0 6px 24px rgba(12,23,71,0.06)";
+        } else {
+          nav.style.boxShadow = "";
+        }
+      });
+
+      // Scroll reveal
+      const reveals = document.querySelectorAll(".reveal");
+      const io = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add("visible");
+              io.unobserve(entry.target);
+            }
+          });
+        },
+        { threshold: 0.12 },
+      );
+      reveals.forEach((el) => io.observe(el));
+
+      // ===== SMS demo =====
+      const conversation = [
+        {
+          from: "them",
+          text: "Hi, I saw your ad for botox. How much is a forehead treatment?",
+          delay: 400,
+        },
+        {
+          from: "us",
+          text: "Hi! 👋 Glad you reached out. Forehead botox at Bella starts at $14/unit — usually 15-25 units, so $210–$350 per session.",
+          delay: 1500,
+        },
+        {
+          from: "us",
+          text: "Have you had botox before, or would this be your first time?",
+          delay: 700,
+        },
+        {
+          from: "them",
+          text: "First time. Is it painful? And how long does it last?",
+          delay: 1100,
+        },
+        {
+          from: "us",
+          text: "Totally normal question. Feels like a tiny pinch — under 10 minutes total. Results show in 5-7 days and last 3-4 months.",
+          delay: 1600,
+        },
+        {
+          from: "us",
+          text: "Want me to grab you a slot this week? Tuesday 4pm or Thursday 11am are open.",
+          delay: 800,
+        },
+        { from: "them", text: "Thursday 11am works", delay: 900 },
+        {
+          from: "us",
+          text: "Booked ✅ You'll get a text confirmation + intake form. See you Thursday!",
+          delay: 1300,
+        },
+      ];
+
+      function bubble(from, text) {
+        const wrap = document.createElement("div");
+        wrap.className = `flex ${from === "us" ? "justify-end" : "justify-start"}`;
+        const b = document.createElement("div");
+        b.className = `max-w-[82%] rounded-2xl px-3.5 py-2 text-[13.5px] leading-[1.4] ${from === "us" ? "bubble-us rounded-br-sm" : "bubble-them rounded-bl-sm"}`;
+        b.textContent = text;
+        wrap.appendChild(b);
+        wrap.style.opacity = "0";
+        wrap.style.transform = "translateY(6px)";
+        wrap.style.transition = "opacity 0.35s ease, transform 0.35s ease";
+        return wrap;
+      }
+
+      function typing(from) {
+        const wrap = document.createElement("div");
+        wrap.className = `flex ${from === "us" ? "justify-end" : "justify-start"}`;
+        const b = document.createElement("div");
+        b.className = `rounded-2xl px-3.5 py-2.5 ${from === "us" ? "bubble-us" : "bubble-them"}`;
+        b.innerHTML =
+          '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>';
+        wrap.appendChild(b);
+        return wrap;
+      }
+
+      let demoToken = 0;
+      let autoReplayTimer = null;
+      async function runDemo() {
+        demoToken++;
+        const myToken = demoToken;
+        if (autoReplayTimer) {
+          clearTimeout(autoReplayTimer);
+          autoReplayTimer = null;
+        }
+        const stream = document.getElementById("chat-stream");
+        stream.innerHTML = "";
+        for (const msg of conversation) {
+          if (myToken !== demoToken) return;
+          const t = typing(msg.from);
+          stream.appendChild(t);
+          stream.scrollTop = stream.scrollHeight;
+          await new Promise((r) => setTimeout(r, msg.delay));
+          if (myToken !== demoToken) return;
+          stream.removeChild(t);
+          const b = bubble(msg.from, msg.text);
+          stream.appendChild(b);
+          requestAnimationFrame(() => {
+            b.style.opacity = "1";
+            b.style.transform = "translateY(0)";
+          });
+          stream.scrollTop = stream.scrollHeight;
+          await new Promise((r) => setTimeout(r, 320));
+        }
+        // Auto-replay after a pause so the booking lands
+        autoReplayTimer = setTimeout(() => {
+          if (myToken === demoToken) runDemo();
+        }, 6000);
+      }
+
+      // Start immediately on load
+      runDemo();
+      document.getElementById("replay-btn").addEventListener("click", runDemo);
+
+      // ===== ROI calculator =====
+      const leadsEl = document.getElementById("leads");
+      const valueEl = document.getElementById("value");
+      const closeEl = document.getElementById("close");
+      const leadsValueEl = document.getElementById("leadsValue");
+      const valueValueEl = document.getElementById("valueValue");
+      const closeValueEl = document.getElementById("closeValue");
+      const resultRevenueEl = document.getElementById("resultRevenue");
+      const resultDealsEl = document.getElementById("resultDeals");
+      const resultROIEl = document.getElementById("resultROI");
+
+      const ANNUAL_COST = 8400;
+      const LIFT_FACTOR = 0.5;
+
+      function fmt(n) {
+        return n.toLocaleString("en-US");
+      }
+      function updateCalc() {
+        const leads = +leadsEl.value;
+        const value = +valueEl.value;
+        const close = +closeEl.value / 100;
+
+        leadsValueEl.textContent = fmt(leads);
+        valueValueEl.textContent = fmt(value);
+        closeValueEl.textContent = (close * 100).toFixed(0);
+
+        const existing = leads * 12 * close;
+        const lifted = leads * 12 * close * (1 + LIFT_FACTOR);
+        const extraDeals = Math.round(lifted - existing);
+        const extraRevenue = Math.round(extraDeals * value);
+        const roi =
+          extraRevenue > 0 ? (extraRevenue / ANNUAL_COST).toFixed(1) : "0.0";
+
+        resultRevenueEl.textContent = fmt(extraRevenue);
+        resultDealsEl.textContent = fmt(extraDeals);
+        resultROIEl.textContent = roi + "×";
+      }
+      [leadsEl, valueEl, closeEl].forEach((el) =>
+        el.addEventListener("input", updateCalc),
+      );
+      updateCalc();
+    </script>
+
+    <!-- Flip-button animation — uses React + framer-motion, the EXACT same
+         library Facet uses (`motion/react` is just a re-export of
+         framer-motion). Component tree below is a verbatim port of Facet's
+         FlipButton primitive at
+         facet-webapp/src/components/animate-ui/primitives/buttons/flip.tsx:
+         same variants, same `whileHover`/`whileTap`, same spring transition
+         (stiffness 280, damping 20). The only difference is React.createElement
+         in place of JSX, because this is a static HTML page with no build. -->
+    <script type="module">
+      import React from "https://esm.sh/react@19";
+      import { createRoot } from "https://esm.sh/react-dom@19/client";
+      import { motion } from "https://esm.sh/framer-motion@12?deps=react@19,react-dom@19";
+
+      const h = React.createElement;
+
+      const transition = { type: "spring", stiffness: 280, damping: 20 };
+
+      // from = 'top' (the Facet default in their hero)
+      const frontVariants = {
+        initial: { opacity: 1, rotateX: 0, y: "0%" },
+        hover: { opacity: 0, rotateX: 90, y: "50%" },
+      };
+      const backVariants = {
+        initial: { opacity: 0, rotateX: 90, y: "-50%" },
+        hover: { opacity: 1, rotateX: 0, y: "0%" },
+      };
+
+      const arrowPath = "M3 8h10m0 0L9 4m4 4l-4 4";
+
+      function FlipPrimaryButton({ href, text, className }) {
+        const isLarge = className.includes("btn-primary-lg");
+        const iconSize = isLarge ? 16 : 14;
+
+        return h(
+          motion.a,
+          {
+            href,
+            className,
+            initial: "initial",
+            whileHover: "hover",
+            whileTap: { scale: 0.95 },
+            transition,
+          },
+          h(
+            "span",
+            {
+              style: {
+                display: "inline-grid",
+                placeItems: "center",
+                perspective: "1000px",
+              },
+            },
+            h(
+              motion.span,
+              {
+                variants: frontVariants,
+                transition,
+                style: {
+                  gridArea: "1 / 1",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                },
+              },
+              text,
+            ),
+            h(
+              motion.span,
+              {
+                variants: backVariants,
+                transition,
+                style: {
+                  gridArea: "1 / 1",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                },
+              },
+              text,
+            ),
+          ),
+          h(
+            "svg",
+            {
+              width: iconSize,
+              height: iconSize,
+              viewBox: "0 0 16 16",
+              fill: "none",
+              style: { width: iconSize + "px", height: iconSize + "px" },
+            },
+            h("path", {
+              d: arrowPath,
+              stroke: "currentColor",
+              strokeWidth: 1.6,
+              strokeLinecap: "round",
+              strokeLinejoin: "round",
+            }),
+          ),
+        );
+      }
+
+      // Find every existing primary button, extract its props, then replace
+      // it with a React-mounted FlipPrimaryButton in the exact same spot.
+      document.querySelectorAll("a.btn-primary").forEach((btn) => {
+        const href = btn.getAttribute("href") || "#";
+        const className = btn.className;
+        const frontEl = btn.querySelector(".flip-text-face-front");
+        const text = frontEl
+          ? frontEl.textContent.trim()
+          : btn.textContent.trim();
+
+        const container = document.createElement("span");
+        container.style.display = "inline-flex";
+        btn.parentNode.insertBefore(container, btn);
+        btn.remove();
+
+        createRoot(container).render(
+          h(FlipPrimaryButton, { href, text, className }),
+        );
+      });
+    </script>
+  </body>
+</html>
