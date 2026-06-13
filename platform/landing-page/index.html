@@ -24,10 +24,16 @@
         --muted: #5e616e;
         --border: rgba(12, 23, 71, 0.08);
       }
-      * { box-sizing: border-box; }
+      * {
+        box-sizing: border-box;
+      }
       body {
         margin: 0;
-        font-family: Inter, system-ui, -apple-system, sans-serif;
+        font-family:
+          Inter,
+          system-ui,
+          -apple-system,
+          sans-serif;
         color: var(--ink-800);
         background: #ffffff;
         line-height: 1.65;
@@ -44,7 +50,9 @@
         width: clamp(190px, 48vw, 228px);
         height: auto;
         border-radius: 20px;
-        box-shadow: 0 1px 2px rgba(12, 23, 71, 0.06), 0 12px 32px rgba(12, 23, 71, 0.12);
+        box-shadow:
+          0 1px 2px rgba(12, 23, 71, 0.06),
+          0 12px 32px rgba(12, 23, 71, 0.12);
       }
       h1 {
         text-align: center;
@@ -67,13 +75,16 @@
         width: 100%;
         height: auto;
         border-radius: 14px;
-        box-shadow: 0 1px 2px rgba(12, 23, 71, 0.05), 0 8px 24px rgba(12, 23, 71, 0.08);
+        box-shadow:
+          0 1px 2px rgba(12, 23, 71, 0.05),
+          0 8px 24px rgba(12, 23, 71, 0.08);
         display: block;
       }
       figure.grad figcaption {
         margin-top: 11px;
         text-align: center;
-        font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+        font-family:
+          ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
         font-style: italic;
         font-size: 14px;
         color: var(--muted);
@@ -85,7 +96,9 @@
         font-weight: 600;
         text-decoration: none;
       }
-      a.linkedin:hover { text-decoration: underline; }
+      a.linkedin:hover {
+        text-decoration: underline;
+      }
 
       /* Sign-off: Answered logo + the scheduling CTA */
       .signoff {
@@ -98,7 +111,11 @@
         align-items: center;
         text-align: center;
       }
-      .signoff .mark { width: 52px; height: auto; display: block; }
+      .signoff .mark {
+        width: 52px;
+        height: auto;
+        display: block;
+      }
       .signoff .wordmark {
         margin-top: 14px;
         font-weight: 700;
@@ -106,7 +123,10 @@
         letter-spacing: -0.02em;
         color: var(--ink-900);
       }
-      .cta { margin-top: 34px; text-align: center; }
+      .cta {
+        margin-top: 34px;
+        text-align: center;
+      }
 
       /* Primary button — verbatim from the original landing page */
       .btn-primary {
@@ -136,16 +156,29 @@
           0 1px 2px rgba(12, 23, 71, 0.1),
           0 4px 14px rgba(49, 82, 244, 0.32);
       }
-      .btn-primary-lg { font-size: 15px; padding: 12px 22px; border-radius: 12px; }
-      .btn-primary svg { width: 16px; height: 16px; flex-shrink: 0; }
-      .flip-text { display: inline-grid; place-items: center; }
+      .btn-primary-lg {
+        font-size: 15px;
+        padding: 12px 22px;
+        border-radius: 12px;
+      }
+      .btn-primary svg {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+      }
+      .flip-text {
+        display: inline-grid;
+        place-items: center;
+      }
       .flip-text-face {
         grid-area: 1 / 1;
         display: inline-flex;
         align-items: center;
         justify-content: center;
       }
-      .flip-text-face-back { opacity: 0; }
+      .flip-text-face-back {
+        opacity: 0;
+      }
     </style>
   </head>
   <body>
@@ -154,31 +187,45 @@
       <h1>Hi, I'm Levi.</h1>
 
       <p>
-        I just graduated in Computer Science from Boston University, and I've spent the last 4 years
-        working as a software engineer — for early startups and for larger companies. I'm originally
-        from Brazil.
+        I just graduated in Computer Science from Boston University, and I've
+        spent the last 4 years working as a software developer — for early
+        startups and for larger companies. I'm originally from Brazil.
       </p>
       <p>
-        Right now I'm building Lead Answered, because I think the way home-service companies handle
-        their incoming leads is a problem that's being solved badly. Roofers lose real jobs every week
-        — not because they're not good, but because a lead comes in at 8pm, or while they're up on a
-        roof, and by the time they get back to it the homeowner already booked someone who replied
-        first. I'm building something that fixes that, without making you sound like a robot or handing
-        your customers off to one.
+        Right now I'm building Lead Answered, because I think the way
+        home-service companies handle their incoming leads is a problem that's
+        being solved badly. Roofers lose real jobs every week — not because
+        they're not good, but because a lead comes in at 8pm, or while they're
+        up on a roof, and by the time they get back to it the homeowner already
+        booked someone who replied first. I'm building something that fixes
+        that, without making you sound like a robot or handing your customers
+        off to one.
       </p>
       <p>
-        I'm talking to roofers directly before I build more of it — because the only way to build
-        something genuinely useful is to learn from the people who actually run the business.
+        I'm talking to roofers directly before I build more of it — because the
+        only way to build something genuinely useful is to learn from the people
+        who actually run the business.
       </p>
 
       <figure class="grad">
-        <img src="./levi-graduation.jpg" alt="Levi graduating in Computer Science from Boston University" />
-        <figcaption>Graduating in Computer Science — Boston University</figcaption>
+        <img
+          src="./levi-graduation.jpg"
+          alt="Levi graduating in Computer Science from Boston University"
+        />
+        <figcaption>
+          Graduating in Computer Science — Boston University
+        </figcaption>
       </figure>
 
       <p>
-        If you want to see more of my background and past work, here's my LinkedIn:<br />
-        <a class="linkedin" href="https://www.linkedin.com/in/gabrielleviramos/" target="_blank" rel="noopener">
+        If you want to see more of my background and past work, here's my
+        LinkedIn:<br />
+        <a
+          class="linkedin"
+          href="https://www.linkedin.com/in/gabrielleviramos/"
+          target="_blank"
+          rel="noopener"
+        >
           linkedin.com/in/gabrielleviramos
         </a>
       </p>
@@ -186,8 +233,12 @@
       <div class="cta">
         <a class="btn-primary btn-primary-lg" href="https://cal.com/leviramos">
           <span class="flip-text">
-            <span class="flip-text-face flip-text-face-front">Schedule a 10-minute call</span>
-            <span class="flip-text-face flip-text-face-back">Schedule a 10-minute call</span>
+            <span class="flip-text-face flip-text-face-front"
+              >Schedule a 10-minute call</span
+            >
+            <span class="flip-text-face flip-text-face-back"
+              >Schedule a 10-minute call</span
+            >
           </span>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path
@@ -230,17 +281,68 @@
         const iconSize = isLarge ? 16 : 14;
         return h(
           motion.a,
-          { href, className, initial: "initial", whileHover: "hover", whileTap: { scale: 0.95 }, transition },
+          {
+            href,
+            className,
+            initial: "initial",
+            whileHover: "hover",
+            whileTap: { scale: 0.95 },
+            transition,
+          },
           h(
             "span",
-            { style: { display: "inline-grid", placeItems: "center", perspective: "1000px" } },
-            h(motion.span, { variants: frontVariants, transition, style: { gridArea: "1 / 1", display: "inline-flex", alignItems: "center", justifyContent: "center" } }, text),
-            h(motion.span, { variants: backVariants, transition, style: { gridArea: "1 / 1", display: "inline-flex", alignItems: "center", justifyContent: "center" } }, text),
+            {
+              style: {
+                display: "inline-grid",
+                placeItems: "center",
+                perspective: "1000px",
+              },
+            },
+            h(
+              motion.span,
+              {
+                variants: frontVariants,
+                transition,
+                style: {
+                  gridArea: "1 / 1",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                },
+              },
+              text,
+            ),
+            h(
+              motion.span,
+              {
+                variants: backVariants,
+                transition,
+                style: {
+                  gridArea: "1 / 1",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                },
+              },
+              text,
+            ),
           ),
           h(
             "svg",
-            { width: iconSize, height: iconSize, viewBox: "0 0 16 16", fill: "none", style: { width: iconSize + "px", height: iconSize + "px" } },
-            h("path", { d: arrowPath, stroke: "currentColor", strokeWidth: 1.6, strokeLinecap: "round", strokeLinejoin: "round" }),
+            {
+              width: iconSize,
+              height: iconSize,
+              viewBox: "0 0 16 16",
+              fill: "none",
+              style: { width: iconSize + "px", height: iconSize + "px" },
+            },
+            h("path", {
+              d: arrowPath,
+              stroke: "currentColor",
+              strokeWidth: 1.6,
+              strokeLinecap: "round",
+              strokeLinejoin: "round",
+            }),
           ),
         );
       }
@@ -249,12 +351,16 @@
         const href = btn.getAttribute("href") || "#";
         const className = btn.className;
         const frontEl = btn.querySelector(".flip-text-face-front");
-        const text = frontEl ? frontEl.textContent.trim() : btn.textContent.trim();
+        const text = frontEl
+          ? frontEl.textContent.trim()
+          : btn.textContent.trim();
         const container = document.createElement("span");
         container.style.display = "inline-flex";
         btn.parentNode.insertBefore(container, btn);
         btn.remove();
-        createRoot(container).render(h(FlipPrimaryButton, { href, text, className }));
+        createRoot(container).render(
+          h(FlipPrimaryButton, { href, text, className }),
+        );
       });
     </script>
   </body>
