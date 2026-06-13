@@ -3,10 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Answered</title>
-    <meta name="description" content="Answered — AI lead response for home-service contractors." />
+    <title>Answered — Hi, I'm Levi</title>
+    <meta
+      name="description"
+      content="Hi, I'm Levi — I'm building Lead Answered so home-service companies never lose a job to a slow reply. I'm talking to roofers directly before I build more of it."
+    />
     <link rel="icon" type="image/x-icon" href="./favicon.ico?v=2" />
-    <meta name="theme-color" content="#dde2ee" />
+    <meta name="theme-color" content="#ffffff" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -17,38 +20,93 @@
       :root {
         --ink-900: #0c1747;
         --ink-800: #1c1d22;
+        --ink-700: #2e3038;
         --muted: #5e616e;
+        --border: rgba(12, 23, 71, 0.08);
       }
       * { box-sizing: border-box; }
-      html, body { height: 100%; }
       body {
         margin: 0;
         font-family: Inter, system-ui, -apple-system, sans-serif;
         color: var(--ink-800);
-        background: linear-gradient(180deg, #dde2ee 0%, #f4f6fb 44%, #ffffff 100%);
+        background: #ffffff;
+        line-height: 1.65;
         -webkit-font-smoothing: antialiased;
-        display: flex;
-        flex-direction: column;
-        min-height: 100vh;
-        min-height: 100svh;
       }
-      .stage {
-        flex: 1;
+      .letter {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 52px 24px 12px;
+      }
+      .headshot {
+        display: block;
+        margin: 0 auto;
+        width: clamp(190px, 48vw, 228px);
+        height: auto;
+        border-radius: 20px;
+        box-shadow: 0 1px 2px rgba(12, 23, 71, 0.06), 0 12px 32px rgba(12, 23, 71, 0.12);
+      }
+      h1 {
+        text-align: center;
+        font-size: clamp(26px, 7vw, 32px);
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: var(--ink-900);
+        margin: 26px 0 22px;
+      }
+      .letter p {
+        font-size: 16.5px;
+        line-height: 1.72;
+        color: var(--ink-700);
+        margin: 0 0 20px;
+      }
+      figure.grad {
+        margin: 30px 0 24px;
+      }
+      figure.grad img {
+        width: 100%;
+        height: auto;
+        border-radius: 14px;
+        box-shadow: 0 1px 2px rgba(12, 23, 71, 0.05), 0 8px 24px rgba(12, 23, 71, 0.08);
+        display: block;
+      }
+      figure.grad figcaption {
+        margin-top: 11px;
+        text-align: center;
+        font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+        font-style: italic;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      a.linkedin {
+        display: inline-block;
+        margin-top: 4px;
+        color: #3152f4;
+        font-weight: 600;
+        text-decoration: none;
+      }
+      a.linkedin:hover { text-decoration: underline; }
+
+      /* Sign-off: Answered logo + the scheduling CTA */
+      .signoff {
+        margin-top: 44px;
+        border-top: 1px solid var(--border);
+        background: linear-gradient(180deg, #f7f9fc 0%, #eef1f8 100%);
+        padding: 48px 24px 40px;
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
         text-align: center;
-        padding: 24px;
       }
-      .mark { width: 62px; height: auto; display: block; }
-      .wordmark {
-        margin-top: 18px;
+      .signoff .mark { width: 52px; height: auto; display: block; }
+      .signoff .wordmark {
+        margin-top: 14px;
         font-weight: 700;
-        font-size: 24px;
+        font-size: 22px;
         letter-spacing: -0.02em;
         color: var(--ink-900);
       }
+      .cta { margin-top: 34px; text-align: center; }
 
       /* Primary button — verbatim from the original landing page */
       .btn-primary {
@@ -80,9 +138,6 @@
       }
       .btn-primary-lg { font-size: 15px; padding: 12px 22px; border-radius: 12px; }
       .btn-primary svg { width: 16px; height: 16px; flex-shrink: 0; }
-      .stage .btn-primary { margin-top: 34px; }
-
-      /* Pre-hydration fallback for the flip text (React replaces the button on load) */
       .flip-text { display: inline-grid; place-items: center; }
       .flip-text-face {
         grid-area: 1 / 1;
@@ -91,38 +146,68 @@
         justify-content: center;
       }
       .flip-text-face-back { opacity: 0; }
-
-      footer { padding: 22px; text-align: center; font-size: 12.5px; color: var(--muted); }
-      footer a { color: var(--muted); text-decoration: none; margin: 0 8px; }
-      footer a:hover { color: var(--ink-800); text-decoration: underline; }
     </style>
   </head>
   <body>
-    <main class="stage">
+    <main class="letter">
+      <img class="headshot" src="./levi-headshot.jpg" alt="Levi Ramos" />
+      <h1>Hi, I'm Levi.</h1>
+
+      <p>
+        I just graduated in Computer Science from Boston University, and I've spent the last 4 years
+        working as a software engineer — for early startups and for larger companies. I'm originally
+        from Brazil.
+      </p>
+      <p>
+        Right now I'm building Lead Answered, because I think the way home-service companies handle
+        their incoming leads is a problem that's being solved badly. Roofers lose real jobs every week
+        — not because they're not good, but because a lead comes in at 8pm, or while they're up on a
+        roof, and by the time they get back to it the homeowner already booked someone who replied
+        first. I'm building something that fixes that, without making you sound like a robot or handing
+        your customers off to one.
+      </p>
+      <p>
+        I'm talking to roofers directly before I build more of it — because the only way to build
+        something genuinely useful is to learn from the people who actually run the business.
+      </p>
+
+      <figure class="grad">
+        <img src="./levi-graduation.jpg" alt="Levi graduating in Computer Science from Boston University" />
+        <figcaption>Graduating in Computer Science — Boston University</figcaption>
+      </figure>
+
+      <p>
+        If you want to see more of my background and past work, here's my LinkedIn:<br />
+        <a class="linkedin" href="https://www.linkedin.com/in/gabrielleviramos/" target="_blank" rel="noopener">
+          linkedin.com/in/gabrielleviramos
+        </a>
+      </p>
+
+      <div class="cta">
+        <a class="btn-primary btn-primary-lg" href="https://cal.com/leviramos">
+          <span class="flip-text">
+            <span class="flip-text-face flip-text-face-front">Schedule a 10-minute call</span>
+            <span class="flip-text-face flip-text-face-back">Schedule a 10-minute call</span>
+          </span>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path
+              d="M3 8h10m0 0L9 4m4 4l-4 4"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </a>
+      </div>
+    </main>
+
+    <section class="signoff">
       <img class="mark" src="./logo.png" alt="Answered" />
       <div class="wordmark">Answered</div>
-      <a class="btn-primary btn-primary-lg" href="https://cal.com/leviramos">
-        <span class="flip-text">
-          <span class="flip-text-face flip-text-face-front">Schedule a 15-minute call</span>
-          <span class="flip-text-face flip-text-face-back">Schedule a 15-minute call</span>
-        </span>
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <path
-            d="M3 8h10m0 0L9 4m4 4l-4 4"
-            stroke="currentColor"
-            stroke-width="1.6"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
-      </a>
-    </main>
-    <footer>
-      <a href="./privacy">Privacy</a>·<a href="./terms">Terms</a>
-    </footer>
+    </section>
 
-    <!-- Flip-button animation — the EXACT same React + framer-motion implementation
-         as the original landing page (same variants, same spring transition). -->
+    <!-- Flip-button animation — same React + framer-motion implementation as the original page. -->
     <script type="module">
       import React from "https://esm.sh/react@19";
       import { createRoot } from "https://esm.sh/react-dom@19/client";
@@ -130,7 +215,6 @@
 
       const h = React.createElement;
       const transition = { type: "spring", stiffness: 280, damping: 20 };
-
       const frontVariants = {
         initial: { opacity: 1, rotateX: 0, y: "0%" },
         hover: { opacity: 0, rotateX: 90, y: "50%" },
@@ -139,44 +223,19 @@
         initial: { opacity: 0, rotateX: 90, y: "-50%" },
         hover: { opacity: 1, rotateX: 0, y: "0%" },
       };
-
       const arrowPath = "M3 8h10m0 0L9 4m4 4l-4 4";
 
       function FlipPrimaryButton({ href, text, className }) {
         const isLarge = className.includes("btn-primary-lg");
         const iconSize = isLarge ? 16 : 14;
-
         return h(
           motion.a,
-          {
-            href,
-            className,
-            initial: "initial",
-            whileHover: "hover",
-            whileTap: { scale: 0.95 },
-            transition,
-          },
+          { href, className, initial: "initial", whileHover: "hover", whileTap: { scale: 0.95 }, transition },
           h(
             "span",
             { style: { display: "inline-grid", placeItems: "center", perspective: "1000px" } },
-            h(
-              motion.span,
-              {
-                variants: frontVariants,
-                transition,
-                style: { gridArea: "1 / 1", display: "inline-flex", alignItems: "center", justifyContent: "center" },
-              },
-              text,
-            ),
-            h(
-              motion.span,
-              {
-                variants: backVariants,
-                transition,
-                style: { gridArea: "1 / 1", display: "inline-flex", alignItems: "center", justifyContent: "center" },
-              },
-              text,
-            ),
+            h(motion.span, { variants: frontVariants, transition, style: { gridArea: "1 / 1", display: "inline-flex", alignItems: "center", justifyContent: "center" } }, text),
+            h(motion.span, { variants: backVariants, transition, style: { gridArea: "1 / 1", display: "inline-flex", alignItems: "center", justifyContent: "center" } }, text),
           ),
           h(
             "svg",
@@ -191,12 +250,10 @@
         const className = btn.className;
         const frontEl = btn.querySelector(".flip-text-face-front");
         const text = frontEl ? frontEl.textContent.trim() : btn.textContent.trim();
-
         const container = document.createElement("span");
         container.style.display = "inline-flex";
         btn.parentNode.insertBefore(container, btn);
         btn.remove();
-
         createRoot(container).render(h(FlipPrimaryButton, { href, text, className }));
       });
     </script>
