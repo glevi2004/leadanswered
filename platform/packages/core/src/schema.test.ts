@@ -7,7 +7,7 @@ describe("extractionToFields", () => {
       extractionToFields({
         project_type: "roof repair",
         service_town: "",
-        service_zip: "75093",
+        service_zip: "02459",
         full_address: "",
         is_decision_maker: "yes",
         chosen_slot: "",
@@ -15,7 +15,7 @@ describe("extractionToFields", () => {
     ).toEqual({
       projectType: "roof repair",
       serviceTown: null,
-      serviceZip: "75093",
+      serviceZip: "02459",
       fullAddress: null,
       isDecisionMaker: true,
       chosenSlot: null,

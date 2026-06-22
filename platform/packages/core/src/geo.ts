@@ -6,13 +6,19 @@ import type { LatLng } from "./types.js";
  * `geocodeZip` interface (SCOPE §5.1) — the qualification logic never changes.
  */
 const ZIP_CENTROIDS: Record<string, LatLng & { town: string }> = {
-  "75024": { lat: 33.078, lng: -96.747, town: "Plano" },
-  "75093": { lat: 33.035, lng: -96.806, town: "Plano" },
-  "75070": { lat: 33.197, lng: -96.69, town: "McKinney" },
-  "75201": { lat: 32.787, lng: -96.799, town: "Dallas" },
-  "76102": { lat: 32.753, lng: -97.332, town: "Fort Worth" },
-  "73301": { lat: 30.27, lng: -97.74, town: "Austin" },
-  "77002": { lat: 29.758, lng: -95.366, town: "Houston" },
+  "02458": { lat: 42.351, lng: -71.205, town: "Newton" }, // base
+  "02459": { lat: 42.315, lng: -71.192, town: "Newton Center" },
+  "02460": { lat: 42.351, lng: -71.207, town: "Newtonville" },
+  "02461": { lat: 42.318, lng: -71.206, town: "Newton Highlands" },
+  "02465": { lat: 42.35, lng: -71.23, town: "West Newton" },
+  "02467": { lat: 42.321, lng: -71.166, town: "Chestnut Hill" },
+  "02445": { lat: 42.323, lng: -71.128, town: "Brookline" },
+  "02472": { lat: 42.371, lng: -71.183, town: "Watertown" },
+  "02492": { lat: 42.28, lng: -71.235, town: "Needham" },
+  "02101": { lat: 42.361, lng: -71.057, town: "Boston" }, // inside radius, excluded
+  "01601": { lat: 42.262, lng: -71.802, town: "Worcester" }, // outside radius, include-override
+  "02601": { lat: 41.653, lng: -70.288, town: "Hyannis" }, // out of area (Cape Cod)
+  "01060": { lat: 42.319, lng: -72.631, town: "Northampton" }, // out of area (western MA)
 };
 
 export type Geocoder = (zip: string) => LatLng | null;

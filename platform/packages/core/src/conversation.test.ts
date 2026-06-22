@@ -21,10 +21,10 @@ describe("mergeGathered", () => {
   it("keeps prior values and overlays new non-null ones", () => {
     const merged = mergeGathered(
       { projectType: "roof repair", serviceZip: null },
-      { serviceZip: "75093", isDecisionMaker: true },
+      { serviceZip: "02459", isDecisionMaker: true },
     );
     expect(merged.projectType).toBe("roof repair");
-    expect(merged.serviceZip).toBe("75093");
+    expect(merged.serviceZip).toBe("02459");
     expect(merged.isDecisionMaker).toBe(true);
   });
 });
@@ -41,7 +41,7 @@ describe("decideTurn (CODE decides — SCOPE §5.1)", () => {
   });
 
   it("newly qualified → mark_qualified/proposing_slots", () => {
-    const d = decideTurn({ gathered: { serviceZip: "75093", projectType: "roof repair", isDecisionMaker: true }, qualification: qualified, slots, alreadyQualified: false });
+    const d = decideTurn({ gathered: { serviceZip: "02459", projectType: "roof repair", isDecisionMaker: true }, qualification: qualified, slots, alreadyQualified: false });
     expect(d).toMatchObject({ action: "mark_qualified", nextStage: "proposing_slots" });
   });
 
@@ -51,7 +51,7 @@ describe("decideTurn (CODE decides — SCOPE §5.1)", () => {
   });
 
   it("qualified + chosen slot + full address → book/done with the matched slot", () => {
-    const d = decideTurn({ gathered: { chosenSlot: slots[1].iso, fullAddress: "123 Oak St, Plano, TX 75093" }, qualification: qualified, slots, alreadyQualified: true });
+    const d = decideTurn({ gathered: { chosenSlot: slots[1].iso, fullAddress: "42 Commonwealth Ave, Newton, MA 02458" }, qualification: qualified, slots, alreadyQualified: true });
     expect(d.action).toBe("book");
     expect(d.nextStage).toBe("done");
     expect(d.bookingSlotIso).toBe(slots[1].iso);

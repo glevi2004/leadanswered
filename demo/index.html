@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Answered — Sarah demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  /* ----------------------------------------------------------------------------
+     Standalone sales-demo artifact. No backend, no network, no real SMS.
+     The conversation below is hardcoded from Apex Roofing's REAL Sarah logic
+     (prompt.ts directives + HARD_RULES, qualify(), Newton service area).
+     ------------------------------------------------------------------------- */
+  :root {
+    --bg: #0a0e14;
+    --bg2: #121826;
+    --phone: #ffffff;
+    --ink: #0b0b0f;
+    --sarah-bubble: #e9e9eb;     /* incoming (gray, left) */
+    --sarah-ink: #0b0b0f;
+    --mike-bubble: #1f8fff;       /* outgoing (blue, right) */
+    --mike-ink: #ffffff;
+    --accent: #21c45d;
+    --muted: #8a93a6;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #ffffff;
+    color: #1c1d22;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100%;
+    overflow-x: hidden;
+  }
+
+  /* ---- Controls bar (hide with H for clean recording) -------------------- */
+  .controls {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+    display: flex; gap: 14px; align-items: center; justify-content: center;
+    padding: 12px 16px;
+    background: rgba(10,14,20,.72);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    transition: transform .25s ease, opacity .25s ease;
+  }
+  .controls.hidden { transform: translateY(-110%); opacity: 0; }
+  .controls button, .controls .seg {
+    font: inherit; font-size: 14px; color: #fff;
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 10px; padding: 8px 14px; cursor: pointer;
+  }
+  .controls button.primary { background: var(--mike-bubble); border-color: var(--mike-bubble); font-weight: 600; }
+  .controls button:active { transform: translateY(1px); }
+  .seg { display: inline-flex; padding: 4px; gap: 4px; }
+  .seg .opt { padding: 5px 12px; border-radius: 7px; cursor: pointer; color: var(--muted); }
+  .seg .opt.active { background: rgba(255,255,255,.16); color: #fff; }
+  .controls .label { color: var(--muted); font-size: 13px; }
+
+  /* ---- Stage ------------------------------------------------------------- */
+  .stage {
+    display: flex; gap: 56px; align-items: center; justify-content: center;
+    width: 100%; max-width: 1100px; padding: 28px 24px; flex-wrap: wrap;
+    min-height: 100dvh;
+  }
+
+  /* ---- Phone ------------------------------------------------------------- */
+  .phone {
+    width: 408px; height: min(860px, calc(100dvh - 48px)); flex: 0 0 auto;
+    background: var(--phone); border-radius: 54px;
+    border: 12px solid #0d0d10;
+    box-shadow: 0 40px 120px rgba(0,0,0,.6), 0 0 0 2px rgba(255,255,255,.04);
+    position: relative; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .notch { position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+           width: 130px; height: 30px; background: #0d0d10; border-radius: 18px; z-index: 5; }
+  .statusbar { display: flex; justify-content: space-between; align-items: center;
+               padding: 17px 26px 5px; font-size: 15px; font-weight: 600; color: var(--ink); }
+  .statusbar .time { letter-spacing: .02em; }
+  .statusbar .right { display: flex; gap: 7px; align-items: center; }
+  .statusbar .right svg { display: block; fill: var(--ink); }
+  .statusbar .right .net { font-size: 14px; font-weight: 600; }
+
+  .chat-header {
+    text-align: center; padding: 6px 12px 12px; border-bottom: 1px solid #ececec;
+    color: var(--ink);
+  }
+  .avatar { width: 52px; height: 52px; border-radius: 50%; margin: 4px auto 4px;
+            background: linear-gradient(135deg,#2b6cff,#21c45d); color:#fff;
+            display:flex; align-items:center; justify-content:center; font-weight:700; font-size:20px; }
+  .chat-header .name { font-size: 15px; font-weight: 600; }
+  .chat-header .sub { font-size: 12px; color: var(--muted); }
+
+  .thread {
+    flex: 1; overflow-y: auto; padding: 14px 14px 22px;
+    display: flex; flex-direction: column; gap: 3px; scroll-behavior: smooth;
+    background: var(--phone);
+  }
+  .thread::-webkit-scrollbar { width: 0; }
+
+  .row { display: flex; margin-top: 9px; }
+  .row.in  { justify-content: flex-start; }
+  .row.out { justify-content: flex-end; }
+  .bubble {
+    max-width: 76%; padding: 10px 15px; font-size: 16px; line-height: 1.32;
+    border-radius: 20px; position: relative; word-wrap: break-word;
+    animation: pop .26s cubic-bezier(.18,.9,.32,1.2);
+  }
+  .row.in  .bubble { background: var(--sarah-bubble); color: var(--sarah-ink); border-bottom-left-radius: 6px; }
+  .row.out .bubble { background: var(--mike-bubble); color: var(--mike-ink); border-bottom-right-radius: 6px; }
+  @keyframes pop { from { transform: scale(.7) translateY(8px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+
+  .stamp { text-align: center; color: var(--muted); font-size: 11px; margin: 10px 0 2px; }
+
+  /* typing indicator */
+  .typing .bubble { padding: 14px 16px; }
+  .dots { display: inline-flex; gap: 5px; }
+  .dots i { width: 8px; height: 8px; border-radius: 50%; background: #9aa0aa; display: inline-block;
+            animation: blink 1.3s infinite ease-in-out; }
+  .dots i:nth-child(2){ animation-delay: .18s; } .dots i:nth-child(3){ animation-delay: .36s; }
+  @keyframes blink { 0%,80%,100%{ transform: translateY(0); opacity:.4; } 40%{ transform: translateY(-4px); opacity:1; } }
+
+  /* ---- Dashboard card ---------------------------------------------------- */
+  .dash { width: 380px; flex: 0 0 auto; opacity: 0; transform: translateX(40px) scale(.96);
+          transition: opacity .5s ease, transform .5s cubic-bezier(.18,.9,.32,1.2); }
+  .dash.show { opacity: 1; transform: translateX(0) scale(1); }
+  .dash .panel-label { color: var(--muted); font-size: 13px; letter-spacing:.04em; text-transform: uppercase; margin-bottom: 12px; }
+  .card {
+    background: #fff; color: var(--ink); border-radius: 20px; overflow: hidden;
+    box-shadow: 0 30px 80px rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.1);
+  }
+  .card .top { background: linear-gradient(135deg,#16a34a,#21c45d); color:#fff; padding: 18px 20px;
+               display:flex; align-items:center; gap: 12px; }
+  .card .top .check { width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,.25);
+                      display:flex; align-items:center; justify-content:center; font-size: 18px; }
+  .card .top .t1 { font-weight: 700; font-size: 16px; }
+  .card .top .t2 { font-size: 12px; opacity: .9; }
+  .card .body { padding: 18px 20px 20px; }
+  .card .lead-name { font-size: 22px; font-weight: 700; margin: 0 0 2px; }
+  .card .pill { display:inline-block; background:#eef6ff; color:#1f6fd6; font-size:12px; font-weight:600;
+                padding: 3px 10px; border-radius: 999px; margin-bottom: 14px; }
+  .kv { display:flex; gap: 10px; padding: 9px 0; border-top: 1px solid #f0f0f0; font-size: 14px; }
+  .kv .k { color: var(--muted); width: 88px; flex: 0 0 88px; }
+  .kv .v { color: var(--ink); font-weight: 600; }
+  .card .foot { padding: 12px 20px 18px; color: var(--muted); font-size: 12px; }
+
+  /* ---- Intro slide — matches the Answered landing-page design system -------
+     Inter · light "Cluely" hero gradient · medium-weight tight-tracked display
+     headline · navy ink · the verbatim .btn-primary blue gradient button.      */
+  .intro {
+    position: fixed; inset: 0; z-index: 100;
+    font-family: Inter, system-ui, -apple-system, sans-serif;
+    color: #1c1d22;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 6vh 24px;
+    background: #ffffff;
+    opacity: 1; transition: opacity .45s ease;
+  }
+  .intro.hide { opacity: 0; pointer-events: none; }
+  .intro h1 {
+    margin: 0 0 40px; max-width: 16ch;
+    font-size: clamp(36px, 6vw, 60px); font-weight: 500;
+    letter-spacing: -0.03em; line-height: 1.02; color: #0c1747;
+  }
+  .intro .bullets { text-align: left; margin: 0 auto; max-width: 560px;
+                    display: flex; flex-direction: column; gap: 22px; }
+  .intro .b { display: flex; align-items: flex-start; gap: 15px;
+              font-size: clamp(18px, 2.1vw, 23px); line-height: 1.4; font-weight: 400;
+              letter-spacing: -0.01em; color: #2e3038;
+              opacity: 0; transform: translateY(14px);
+              transition: opacity .5s ease, transform .5s cubic-bezier(.18,.9,.32,1.2); }
+  .intro .b.show { opacity: 1; transform: none; }
+  .intro .b .dot { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%;
+                   background: linear-gradient(180deg, #80b5ff 0%, #3388ff 97%); margin-top: .6em; }
+  .intro .cta { margin-top: 46px; opacity: 0; transform: translateY(12px);
+                transition: opacity .5s ease, transform .5s cubic-bezier(.18,.9,.32,1.2); }
+  .intro .cta.show { opacity: 1; transform: none; }
+  /* .btn-primary — verbatim from the landing page */
+  .intro .btn-primary {
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    background: linear-gradient(180deg, #80b5ff 0%, #3388ff 97%);
+    color: #ffffff; font: inherit; font-size: 16px; font-weight: 600;
+    padding: 14px 26px; border-radius: 12px; cursor: pointer; line-height: 1.2;
+    border: 1px solid #1b73ee;
+    box-shadow: 0 1px 0 rgba(255,255,255,.3) inset, 0 1px 2px rgba(12,23,71,.08), 0 2px 8px rgba(49,82,244,.18);
+    transition: all .18s ease;
+  }
+  .intro .btn-primary:hover {
+    background: linear-gradient(180deg, #529aff 0%, #1b73ee 97%);
+    box-shadow: 0 1px 0 rgba(255,255,255,.3) inset, 0 1px 2px rgba(12,23,71,.1), 0 4px 14px rgba(49,82,244,.32);
+  }
+  .intro .btn-primary:active { transform: translateY(1px); }
+  .intro .btn-primary svg { width: 17px; height: 17px; flex-shrink: 0; }
+
+  @media (max-width: 880px) { .stage { gap: 32px; } .dash { width: 360px; } }
+</style>
+</head>
+<body>
+
+  <!-- Intro slide: click / → / Space reveals bullets one at a time -->
+  <div class="intro" id="intro">
+    <h1>Hey, I'm Levi — I built this for roofers</h1>
+    <div class="bullets" id="bullets">
+      <div class="b"><span class="dot"></span><span>You're on a job. A lead comes in through your website.</span></div>
+      <div class="b"><span class="dot"></span><span>or calls you, and you can't pick up.</span></div>
+      <div class="b"><span class="dot"></span><span>It texts them back, qualifies the job, confirms your area, and books it.</span></div>
+    </div>
+    <div class="cta" id="cta">
+      <button class="btn-primary" id="ctaBtn">
+        Let me show you
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <!-- Phone -->
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="statusbar">
+        <span class="time">9:41</span>
+        <span class="right">
+          <svg width="18" height="12" viewBox="0 0 18 12" aria-hidden="true">
+            <rect x="0" y="8" width="3" height="4" rx="1"/>
+            <rect x="5" y="5.5" width="3" height="6.5" rx="1"/>
+            <rect x="10" y="3" width="3" height="9" rx="1"/>
+            <rect x="15" y="0" width="3" height="12" rx="1"/>
+          </svg>
+          <span class="net">5G</span>
+          <svg width="27" height="13" viewBox="0 0 27 13" aria-hidden="true">
+            <rect x="0.6" y="0.6" width="22" height="11.8" rx="3.2" fill="none" stroke="#000" stroke-opacity=".35"/>
+            <rect x="2" y="2" width="19.2" height="9" rx="1.6"/>
+            <rect x="24" y="4.2" width="2" height="4.6" rx="1"/>
+          </svg>
+        </span>
+      </div>
+      <div class="chat-header">
+        <div class="avatar">A</div>
+        <div class="name">Apex Roofing</div>
+        <div class="sub">Sarah · Text Message</div>
+      </div>
+      <div class="thread" id="thread"></div>
+    </div>
+
+    <!-- Contractor dashboard (slides in after booking) -->
+    <div class="dash" id="dash">
+      <div class="panel-label">Contractor dashboard</div>
+      <div class="card">
+        <div class="top">
+          <div class="check">✓</div>
+          <div>
+            <div class="t1">New job booked</div>
+            <div class="t2">Apex Roofing · owner alert</div>
+          </div>
+        </div>
+        <div class="body">
+          <p class="lead-name">Mike</p>
+          <span class="pill">Roof leak · storm damage</span>
+          <div class="kv"><span class="k">When</span><span class="v">Tue, Jun 23 · 2:00 PM</span></div>
+          <div class="kv"><span class="k">Address</span><span class="v">42 Commonwealth Ave, Newton, MA 02458</span></div>
+          <div class="kv"><span class="k">Phone</span><span class="v">(617) 555-0142</span></div>
+          <div class="kv"><span class="k">Type</span><span class="v">Free on-site estimate</span></div>
+        </div>
+        <div class="foot">📅 Auto-booked by Sarah · added to your calendar</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ===========================================================================
+   TUNE PLAYBACK HERE. All values are milliseconds (before the speed multiplier).
+   Lower speed factor = slower. Use the on-screen Speed control to override live.
+   =========================================================================== */
+const CONFIG = {
+  speedFactor:   1,      // global multiplier (Slow .6 / Normal 1 / Fast 1.8)
+  firstDelay:    700,    // pause before the very first message
+  typingPerChar: 42,     // ms of "Sarah is typing…" per character
+  typingMin:     1100,
+  typingMax:     3000,
+  mikeThink:     1600,   // pause representing Mike reading + thumb-typing his reply
+  afterMsg:      900,    // settle pause after a bubble lands
+  dashboardGap:  1500,   // pause after the final text before the card slides in
+};
+
+/* ---------------------------------------------------------------------------
+   THE CONVERSATION — hardcoded from Apex Roofing's real Sarah logic.
+   from: 'sarah' = incoming (gray, left) · 'mike' = outgoing (blue, right)
+   Each Sarah line obeys: one question at a time · never quotes price ·
+   asks for full street address before confirming · "free on-site estimate".
+   --------------------------------------------------------------------------- */
+const SCRIPT = [
+  { from: 'sarah', text: "Hi Mike, this is Sarah with Apex Roofing. Thanks so much for reaching out! So sorry to hear about the roof leak after that storm. Happy to get someone out to take a look. What's the town or ZIP where the property is?" },
+  { from: 'mike',  text: "Newton, MA. 02458. Water's coming through the upstairs bedroom ceiling." },
+  { from: 'sarah', text: "Got it, thanks Mike. And just to confirm, is this your own home?" },
+  { from: 'mike',  text: "Yep, it's my house." },
+  { from: 'sarah', text: "Perfect! I can get you on the calendar for a free on-site estimate. I've got Tuesday at 2:00 PM, Wednesday at 10:00 AM, or Thursday at 3:00 PM. Which works best?" },
+  { from: 'mike',  text: "Tuesday at 2 works." },
+  { from: 'sarah', text: "Great choice. What's the full street address so the team knows exactly where to go?" },
+  { from: 'mike',  text: "42 Commonwealth Ave, Newton, MA 02458" },
+  { from: 'sarah', text: "You're all set, Mike! Apex Roofing will see you Tuesday at 2:00 PM at 42 Commonwealth Ave for your free on-site estimate. We'll send a reminder beforehand. Talk soon!" },
+];
+
+const thread = document.getElementById('thread');
+const dash = document.getElementById('dash');
+let runToken = 0;                 // bumped on replay to cancel an in-flight run
+
+const ms = (base) => base / CONFIG.speedFactor;
+const sleep = (token, base) => new Promise(res => {
+  const t = setTimeout(() => res(), ms(base));
+  // if a new run starts, resolve early so the old loop unwinds
+  const check = setInterval(() => { if (token !== runToken) { clearTimeout(t); clearInterval(check); res(); } }, 40);
+});
+
+function clearThread() {
+  thread.innerHTML = '';
+  const stamp = document.createElement('div');
+  stamp.className = 'stamp';
+  stamp.innerHTML = '<b>Text Message</b> · Today 9:41 AM';
+  thread.appendChild(stamp);
+  dash.classList.remove('show');
+}
+
+function addBubble(from, text) {
+  const row = document.createElement('div');
+  row.className = 'row ' + (from === 'sarah' ? 'in' : 'out');
+  const b = document.createElement('div');
+  b.className = 'bubble';
+  b.textContent = text;
+  row.appendChild(b);
+  thread.appendChild(row);
+  thread.scrollTop = thread.scrollHeight;
+  return row;
+}
+
+function showTyping() {
+  const row = document.createElement('div');
+  row.className = 'row in typing';
+  row.innerHTML = '<div class="bubble"><span class="dots"><i></i><i></i><i></i></span></div>';
+  thread.appendChild(row);
+  thread.scrollTop = thread.scrollHeight;
+  return row;
+}
+
+function typingDuration(text) {
+  return Math.max(CONFIG.typingMin, Math.min(CONFIG.typingMax, text.length * CONFIG.typingPerChar));
+}
+
+async function play() {
+  const token = ++runToken;
+  clearThread();
+  await sleep(token, CONFIG.firstDelay);
+  if (token !== runToken) return;
+
+  for (const msg of SCRIPT) {
+    if (msg.from === 'sarah') {
+      const typing = showTyping();
+      await sleep(token, typingDuration(msg.text));
+      if (token !== runToken) return;
+      typing.remove();
+      addBubble('sarah', msg.text);
+    } else {
+      await sleep(token, CONFIG.mikeThink);
+      if (token !== runToken) return;
+      addBubble('mike', msg.text);
+    }
+    await sleep(token, CONFIG.afterMsg);
+    if (token !== runToken) return;
+  }
+
+  await sleep(token, CONFIG.dashboardGap);
+  if (token !== runToken) return;
+  dash.classList.add('show');
+}
+
+function skipToBooking() {
+  const token = ++runToken;          // cancel any running playback
+  clearThread();
+  for (const msg of SCRIPT) addBubble(msg.from, msg.text);
+  thread.scrollTop = thread.scrollHeight;
+  dash.classList.add('show');
+}
+
+/* ===========================================================================
+   INTRO SLIDE → PHONE transition. Bullets reveal one at a time (click / → /
+   Space / Enter), then "Let me show you →" starts the thread from the start.
+   Set INTRO.autoAdvanceMs > 0 to auto-reveal bullets on a tunable timer.
+   =========================================================================== */
+const INTRO = { autoAdvanceMs: 0 };   // 0 = manual reveal · e.g. 2800 = auto every 2.8s
+
+const intro     = document.getElementById('intro');
+const bulletEls  = Array.from(document.querySelectorAll('#bullets .b'));
+const cta        = document.getElementById('cta');
+const ctaBtn     = document.getElementById('ctaBtn');
+let view = 'intro';
+let bulletIdx = 0;
+let introToken = 0;
+
+function advanceBullet() {
+  if (bulletIdx >= bulletEls.length) return;
+  bulletEls[bulletIdx].classList.add('show');
+  bulletIdx++;
+  if (bulletIdx === bulletEls.length) cta.classList.add('show');
+}
+
+function showIntro() {                // also the "back to intro" reset for new takes
+  view = 'intro';
+  runToken++;                         // stop any phone playback in flight
+  introToken++; const tk = introToken;
+  bulletIdx = 0;
+  bulletEls.forEach((b) => b.classList.remove('show'));
+  cta.classList.remove('show');
+  clearThread();                      // reset the phone behind the overlay
+  intro.style.display = 'flex';
+  requestAnimationFrame(() => intro.classList.remove('hide'));
+  if (INTRO.autoAdvanceMs > 0) {
+    const step = () => {
+      if (tk !== introToken || view !== 'intro') return;
+      if (bulletIdx < bulletEls.length) { advanceBullet(); setTimeout(step, INTRO.autoAdvanceMs); }
+    };
+    setTimeout(step, INTRO.autoAdvanceMs);
+  }
+}
+
+function goToPhone() {
+  if (view === 'phone') return;
+  view = 'phone';
+  introToken++;                       // cancel any pending auto-advance
+  intro.classList.add('hide');
+  setTimeout(() => { intro.style.display = 'none'; }, 460);
+  play();                             // start the thread from the beginning
+}
+
+intro.addEventListener('click', (e) => {
+  if (e.target.closest('.cta')) return;            // the button handles itself
+  if (bulletIdx < bulletEls.length) advanceBullet();
+  else goToPhone();
+});
+ctaBtn.addEventListener('click', goToPhone);
+
+/* ---- Keyboard controls (no on-screen bar, for a clean recording frame) -----
+   Intro:  → / Space / Enter = next bullet, then start the demo
+   Phone:  R = replay · Space = skip to booking · 1/2/3 = speed · I or Esc = back to intro */
+window.addEventListener('keydown', (e) => {
+  if (view === 'intro') {
+    if (e.code === 'Space' || e.code === 'Enter' || e.code === 'ArrowRight') {
+      e.preventDefault();
+      if (bulletIdx < bulletEls.length) advanceBullet(); else goToPhone();
+    }
+    return;
+  }
+  if (e.key === 'i' || e.key === 'I' || e.code === 'Escape') showIntro();
+  else if (e.key === 'r' || e.key === 'R') play();
+  else if (e.code === 'Space') { e.preventDefault(); skipToBooking(); }
+  else if (e.key === '1') CONFIG.speedFactor = 0.6;   // Slow
+  else if (e.key === '2') CONFIG.speedFactor = 1;     // Normal
+  else if (e.key === '3') CONFIG.speedFactor = 1.8;   // Fast
+});
+
+showIntro();   // start on the intro slide
+</script>
+</body>
+</html>

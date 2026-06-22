@@ -10,12 +10,12 @@ export const testContractor: ContractorConfig = {
   companyName: "Apex Roofing",
   sarahName: "Sarah",
   personaNotes:
-    "Texas-friendly and reassuring. Always mentions the on-site estimate is free.",
+    "Warm and reassuring, with a local New England touch. Always mentions the on-site estimate is free.",
   projectTypes: ["roof_repair", "roof_replacement"],
   serviceArea: {
-    baseLocations: [{ zip: "75024", radiusMiles: 25 }],
-    includeOverrides: ["76102"],
-    excludeOverrides: ["75201"],
+    baseLocations: [{ zip: "02458", radiusMiles: 25 }], // Newton, MA
+    includeOverrides: ["01601"], // Worcester — always serve (outside radius)
+    excludeOverrides: ["02101"], // Boston proper — never serve (inside radius)
   },
   qualificationRules: { requireDecisionMaker: true },
   standingAvailability: {
@@ -24,6 +24,7 @@ export const testContractor: ContractorConfig = {
       { dayOfWeek: 1, time: "09:00" },
       { dayOfWeek: 1, time: "14:00" },
       { dayOfWeek: 2, time: "11:00" },
+      { dayOfWeek: 2, time: "14:00" },
       { dayOfWeek: 3, time: "10:00" },
       { dayOfWeek: 4, time: "15:00" },
     ],

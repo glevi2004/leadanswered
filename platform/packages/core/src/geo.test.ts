@@ -3,24 +3,24 @@ import { geocodeZip, normalizeZip, distanceMiles } from "./geo.js";
 
 describe("geo", () => {
   it("normalizeZip extracts a 5-digit zip", () => {
-    expect(normalizeZip("75024")).toBe("75024");
-    expect(normalizeZip("75024-1234")).toBe("75024");
-    expect(normalizeZip("zip is 75093 ok")).toBe("75093");
+    expect(normalizeZip("02458")).toBe("02458");
+    expect(normalizeZip("02458-1234")).toBe("02458");
+    expect(normalizeZip("zip is 02459 ok")).toBe("02459");
     expect(normalizeZip("nope")).toBeNull();
     expect(normalizeZip(null)).toBeNull();
   });
 
   it("geocodeZip returns a centroid for known zips, null otherwise", () => {
-    expect(geocodeZip("75024")).toEqual({ lat: 33.078, lng: -96.747 });
+    expect(geocodeZip("02458")).toEqual({ lat: 42.351, lng: -71.205 });
     expect(geocodeZip("99999")).toBeNull();
   });
 
   it("distanceMiles is ~0 for the same point and grows with separation", () => {
-    const a = { lat: 33.078, lng: -96.747 };
+    const a = { lat: 42.351, lng: -71.205 }; // Newton
     expect(distanceMiles(a, a)).toBeCloseTo(0, 5);
-    const plano = geocodeZip("75093")!;
-    const houston = geocodeZip("77002")!;
-    expect(distanceMiles(a, plano)).toBeLessThan(10);
-    expect(distanceMiles(a, houston)).toBeGreaterThan(150);
+    const newtonCenter = geocodeZip("02459")!;
+    const hyannis = geocodeZip("02601")!;
+    expect(distanceMiles(a, newtonCenter)).toBeLessThan(10);
+    expect(distanceMiles(a, hyannis)).toBeGreaterThan(40);
   });
 });

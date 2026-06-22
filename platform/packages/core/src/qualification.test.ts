@@ -14,9 +14,9 @@ const contractor: ContractorConfig = {
   sarahName: "Sarah",
   projectTypes: ["roof_repair", "roof_replacement"],
   serviceArea: {
-    baseLocations: [{ zip: "75024", radiusMiles: 25 }],
-    includeOverrides: ["76102"], // Fort Worth — always serve (outside radius)
-    excludeOverrides: ["75201"], // Dallas — never serve (inside radius)
+    baseLocations: [{ zip: "02458", radiusMiles: 25 }], // Newton, MA
+    includeOverrides: ["01601"], // Worcester — always serve (outside radius)
+    excludeOverrides: ["02101"], // Boston proper — never serve (inside radius)
   },
   qualificationRules: { requireDecisionMaker: true },
   standingAvailability: { timezone: "UTC", slots: [] },
@@ -25,22 +25,22 @@ const contractor: ContractorConfig = {
 describe("service area (SCOPE §5.1)", () => {
   const area = contractor.serviceArea;
   it("zip inside radius, not excluded → in", () => {
-    expect(isInServiceArea("75093", area)).toBe(true);
-    expect(isInServiceArea("75070", area)).toBe(true);
+    expect(isInServiceArea("02459", area)).toBe(true);
+    expect(isInServiceArea("02465", area)).toBe(true);
   });
   it("zip in exclude_overrides → out, even though inside radius", () => {
-    expect(isInServiceArea("75201", area)).toBe(false);
+    expect(isInServiceArea("02101", area)).toBe(false);
   });
   it("zip in include_overrides → in, even though outside radius", () => {
-    expect(isInServiceArea("76102", area)).toBe(true);
+    expect(isInServiceArea("01601", area)).toBe(true);
   });
   it("zip outside radius, not included → out", () => {
-    expect(isInServiceArea("73301", area)).toBe(false);
-    expect(isInServiceArea("77002", area)).toBe(false);
+    expect(isInServiceArea("02601", area)).toBe(false);
+    expect(isInServiceArea("01060", area)).toBe(false);
   });
   it("exclude beats include (zip in both) → out", () => {
-    const both = { ...area, includeOverrides: ["76102"], excludeOverrides: ["76102"] };
-    expect(isInServiceArea("76102", both)).toBe(false);
+    const both = { ...area, includeOverrides: ["01601"], excludeOverrides: ["01601"] };
+    expect(isInServiceArea("01601", both)).toBe(false);
   });
   it("no/unknown zip → null (not enough info)", () => {
     expect(isInServiceArea(null, area)).toBeNull();
@@ -76,7 +76,7 @@ describe("project-type normalization + synonym map", () => {
 describe("qualify() matrix", () => {
   it("happy path → qualified", () => {
     const r = qualify(
-      { serviceZip: "75093", projectType: "roof repair", isDecisionMaker: true },
+      { serviceZip: "02459", projectType: "roof repair", isDecisionMaker: true },
       contractor,
     );
     expect(r).toMatchObject({
@@ -90,7 +90,7 @@ describe("qualify() matrix", () => {
 
   it("out of area → disqualified", () => {
     const r = qualify(
-      { serviceZip: "73301", projectType: "roof repair", isDecisionMaker: true },
+      { serviceZip: "02601", projectType: "roof repair", isDecisionMaker: true },
       contractor,
     );
     expect(r.inArea).toBe(false);
@@ -100,7 +100,7 @@ describe("qualify() matrix", () => {
 
   it("project not offered → disqualified", () => {
     const r = qualify(
-      { serviceZip: "75093", projectType: "gutters", isDecisionMaker: true },
+      { serviceZip: "02459", projectType: "gutters", isDecisionMaker: true },
       contractor,
     );
     expect(r.projectOffered).toBe(false);
@@ -109,7 +109,7 @@ describe("qualify() matrix", () => {
 
   it("not the decision-maker → not qualified", () => {
     const r = qualify(
-      { serviceZip: "75093", projectType: "roof repair", isDecisionMaker: false },
+      { serviceZip: "02459", projectType: "roof repair", isDecisionMaker: false },
       contractor,
     );
     expect(r.qualified).toBe(false);
@@ -128,7 +128,7 @@ describe("qualify() matrix", () => {
       ...contractor,
       qualificationRules: { requireDecisionMaker: false },
     };
-    const r = qualify({ serviceZip: "75093", projectType: "roof repair" }, relaxed);
+    const r = qualify({ serviceZip: "02459", projectType: "roof repair" }, relaxed);
     expect(r.qualified).toBe(true);
   });
 });
