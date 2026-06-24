@@ -26,6 +26,12 @@ The core of the product — a sub-60-second AI SMS responder ("Sarah") that qual
 
 See `platform/SCOPE.md` §3 for the deployment boundaries — three separate deployables (`web` / `api` / `worker`) — and why they must not be collapsed into one app.
 
+## Compliance & consent
+
+SMS runs on registered A2P traffic through Twilio — toll-free verification now, 10DLC for local numbers later (SCOPE.md §9.6). Carrier registration is **separate from TCPA**: registration says we're *allowed* to send; TCPA is about *consent*.
+
+Our posture is inbound/solicited only (a homeowner submits the contractor's form asking to be contacted), with an explicit unchecked opt-in on the intake form (`/optin`) and automatic STOP/HELP handling. Crucially, the **contractor is contractually responsible** for obtaining valid consent and not submitting cold/purchased lists — bound in **Terms of Service §3**. Full posture, the division of responsibility, and open items live in [`ops/legal.md`](../ops/legal.md).
+
 ## Build philosophy
 
 Build one phase at a time, in order (SCOPE.md §6 / §12): Echo Bot (Twilio↔Claude roundtrip) → Sarah MVP → email-parse intake → onboarding UI → contractor dashboard → hardening. Each phase should be usable/demoable before starting the next. Don't pull future-phase features forward.

@@ -5,7 +5,7 @@ Stack costs, legal, weekly metrics.
 ## Will contain
 
 - `stack-costs.md` — what we pay for every tool, monthly run-rate
-- `legal.md` — entity status (operating as **Answered**, legal entity **Grovebox LLC**), contracts, TCPA / HIPAA compliance notes
+- [`legal.md`](legal.md) ✅ — entity status (**Answered** / **Grovebox LLC**), TCPA + carrier (10DLC / toll-free) compliance posture, the consent model, and the division of responsibility with contractors
 - `metrics.md` — what we track weekly
 
 ## Weekly metrics to track

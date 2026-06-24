@@ -32,6 +32,8 @@ This is the build spec for **Lead Answered**, an AI SMS lead-response service fo
 
 **Explicitly OUT of scope for v1:** inbound phone calls / voice; missed-call-text-back; giving quotes or pricing (Sarah books the on-site estimate, never quotes); post-booking communication beyond confirmation; CRM/calendar OAuth integrations; multi-channel (Facebook/Google LSA) lead sources; a self-serve customer dashboard.
 
+**Compliance & consent (must hold for every message):** SMS is sent **only** to homeowners who **affirmatively opted in** on the contractor's intake form — the `/optin` sample shows the model (an explicit, unchecked, optional consent checkbox). The lead/intake payload must carry that consent flag, and the system must **not** initiate SMS for a lead without it. Sending numbers are registered A2P traffic (toll-free verification now, 10DLC later — §9.6) with automatic STOP/HELP handling. The **contractor is contractually responsible** for obtaining consent and not submitting cold/purchased lists (Terms of Service §3). Full posture: `ops/legal.md`.
+
 ---
 
 ## 3. Architecture
