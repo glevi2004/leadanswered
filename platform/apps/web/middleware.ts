@@ -33,6 +33,7 @@ export async function middleware(request: NextRequest) {
   const protectedPath =
     path.startsWith("/admin") ||
     path.startsWith("/onboarding") ||
+    path.startsWith("/dashboard") ||
     path.startsWith("/status") ||
     path.startsWith("/set-password") ||
     path.startsWith("/reset-password");

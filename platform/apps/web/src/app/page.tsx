@@ -32,5 +32,5 @@ export default async function Home() {
     );
   }
 
-  redirect(contractor.onboardingComplete ? "/status" : "/onboarding");
+  redirect(contractor.onboardingComplete ? "/dashboard" : "/onboarding");
 }
