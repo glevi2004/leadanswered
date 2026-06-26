@@ -100,13 +100,6 @@ export type Stage =
   | "booked"
   | "done";
 
-export type ProposedAction =
-  | "none"
-  | "qualify"
-  | "propose_slots"
-  | "book"
-  | "disqualify";
-
 export type NotificationEventType =
   | "booking_confirmed"
   | "booking_rescheduled"

@@ -4,6 +4,8 @@
 
 This is the build spec for **Lead Answered**, an AI SMS lead-response service for home-service contractors (initial vertical: roofers). It is written to be handed to Claude Code as the source of truth for development. Build in the phases described; do not build ahead of the current phase.
 
+> **Status (current).** All three services are **deployed**: `apps/api` + `apps/worker` + Redis on **Railway**, `apps/web` on **Vercel** (`app.leadanswered.com`), Postgres on **Supabase** — see [`DEPLOY.md`](./DEPLOY.md). Auth is **email + password, invite-only** (Supabase Auth — *not* magic-link). Phases 1–3 (Sarah agent → email-parse intake → onboarding + admin) are live; the contractor **dashboard (Phase 4) is next.** Where sections below describe magic-link auth, a "Railway *or* Render" choice, or "run locally via ngrok" as the only path, this banner + `DEPLOY.md` are current.
+
 ---
 
 ## ⚙️ Architecture update (v2) — "Sarah" is now a tool-using agent

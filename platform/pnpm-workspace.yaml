@@ -1,3 +1,13 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# Allow these dependencies to run install scripts (pnpm 10 blocks them by default).
+# esbuild powers tsx (how api/worker run in prod); the rest need native/postinstall builds.
+onlyBuiltDependencies:
+  - esbuild
+  - "@prisma/engines"
+  - prisma
+  - msgpackr-extract
+  - protobufjs
+  - sharp

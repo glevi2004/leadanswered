@@ -20,7 +20,6 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.86",
     "@langfuse/otel": "^5.6.0",
-    "@langfuse/tracing": "^5.6.0",
     "@leadanswered/core": "workspace:*",
     "@leadanswered/db": "workspace:*",
     "@opentelemetry/sdk-node": "^0.219.0",

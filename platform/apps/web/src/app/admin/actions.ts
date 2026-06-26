@@ -20,7 +20,7 @@ function slugify(s: string) {
 export type ActionState = { error?: string; ok?: string };
 
 // Land on a client page so AuthHashHandler can consume implicit-flow hash tokens
-// and route by type (the server /auth/callback can't read the URL hash).
+// and route by type (a server route can't read the URL hash fragment).
 const INVITE_REDIRECT = (site: string) => `${site}/auth/land`;
 const siteUrl = () => process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3002";
 

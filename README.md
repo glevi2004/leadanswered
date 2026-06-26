@@ -30,5 +30,4 @@ Everything else: read on demand.
 
 ## Building the product
 
-The product lives in `platform/`. Start with `platform/SCOPE.md` — it's the build spec and source of truth. Build in the phases it defines, one at a time (Echo Bot → Sarah MVP → intake → onboarding → dashboard).
-# leadanswered
+The product lives in `platform/`. Start with `platform/SCOPE.md` — it's the build spec and source of truth. Build in the phases it defines, one at a time (Echo Bot → Sarah MVP → intake → onboarding → dashboard). It's deployed — see `platform/DEPLOY.md`.

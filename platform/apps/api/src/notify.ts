@@ -19,8 +19,9 @@ export interface NotifyDeps {
 
 /**
  * Fire a per-event contractor notification to all subscribed recipients (SCOPE §5.2).
- * Shared by the agent tools and (later) the worker. Never throws — `sendNotifications`
- * catches per-delivery failures so a bad send never blocks the conversation.
+ * Shared by the agent tools and the worker (the quiet-lead nudge fires
+ * `lead_unresponsive`). Never throws — `sendNotifications` catches per-delivery
+ * failures so a bad send never blocks the conversation.
  */
 export async function fireNotification(
   deps: NotifyDeps,
@@ -74,6 +75,14 @@ function buildPayload(
       emailBody: `Qualified lead: ${lead.contactName} / ${lead.contactPhone} / ${merged.projectType ?? ""} / ${merged.serviceZip ?? ""}`,
     };
   }
+  if (event === "lead_unresponsive") {
+    return {
+      subject: `Quiet lead — ${lead.contactName}`,
+      smsBody: `🔔 Quiet lead: ${lead.contactName} hasn't replied${merged.projectType ? ` about ${merged.projectType}` : ""} (${lead.contactPhone}). Sarah sent a follow-up.`,
+      emailBody: `Quiet lead (no reply after Sarah's follow-up): ${lead.contactName} / ${lead.contactPhone} / ${merged.projectType ?? "n/a"} / ${merged.serviceZip ?? "n/a"}`,
+    };
+  }
+  // Fallthrough = disqualified_lead.
   return {
     subject: `Lead turned away — ${lead.contactName}`,
     smsBody: `🚫 Sarah turned away ${lead.contactName} (${merged.serviceZip ?? "?"}, ${merged.projectType ?? "?"})`,

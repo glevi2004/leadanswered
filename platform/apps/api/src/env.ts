@@ -55,8 +55,6 @@ export const usePostgres = (): boolean => env.DATABASE_URL.length > 0;
 export const useTwilio = (): boolean =>
   env.TWILIO_ACCOUNT_SID.length > 0 && env.TWILIO_AUTH_TOKEN.length > 0;
 
-/** Email-parse intake is configured when the inbound webhook secret is set. */
-export const useEmailIntake = (): boolean => env.POSTMARK_INBOUND_SECRET.length > 0;
 
 /**
  * Dev/test affordance: let an inbound SMS from an unknown number auto-start a

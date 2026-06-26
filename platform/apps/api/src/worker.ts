@@ -3,7 +3,7 @@ import { env } from "./env.js";
 import { startTelemetry } from "./telemetry.js";
 import { PrismaStore } from "./store/prismaStore.js";
 import { TwilioSmsSender, ConsoleSmsSender } from "./sms.js";
-import { ConsoleEmailSender } from "./email.js";
+import { ConsoleEmailSender, PostmarkEmailSender } from "./email.js";
 import { runNudgeJob } from "./jobs/nudge.js";
 
 /**
@@ -17,6 +17,12 @@ export function runWorker(): Worker {
   startTelemetry();
   const store = new PrismaStore();
   const connection = { url: env.REDIS_URL };
+  // Same email wiring as the api (app.ts) so the nudge's `lead_unresponsive`
+  // alert can actually deliver by email, not just log to the console.
+  const email =
+    env.POSTMARK_SERVER_TOKEN
+      ? new PostmarkEmailSender(env.POSTMARK_SERVER_TOKEN, `sarah@${env.LEAD_EMAIL_DOMAIN}`)
+      : new ConsoleEmailSender();
 
   const worker = new Worker(
     "nudge",
@@ -29,7 +35,7 @@ export function runWorker(): Worker {
         env.TWILIO_ACCOUNT_SID && ctx.contractor.twilioNumber
           ? new TwilioSmsSender(ctx.contractor.twilioNumber)
           : new ConsoleSmsSender();
-      await runNudgeJob({ store, sms, email: new ConsoleEmailSender(), now: new Date() }, leadId);
+      await runNudgeJob({ store, sms, email, now: new Date() }, leadId);
     },
     { connection },
   );
