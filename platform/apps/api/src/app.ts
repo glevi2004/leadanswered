@@ -1,18 +1,21 @@
 import express, { type Express } from "express";
+import type { LanguageModel } from "ai";
 import type { EmailSender, SmsSender } from "@leadanswered/core";
 import { allowInboundLeads, usePostgres, useTwilio } from "./env.js";
 import type { Store } from "./store/types.js";
 import { MemoryStore } from "./store/memoryStore.js";
 import { ConsoleSmsSender, TwilioSmsSender } from "./sms.js";
-import { ConsoleEmailSender } from "./email.js";
-import { ClaudeAi, type SarahAi } from "./claude.js";
+import { ConsoleEmailSender, PostmarkEmailSender } from "./email.js";
+import { env } from "./env.js";
+import { getModel } from "./agent/provider.js";
 import { createLeadRoute } from "./routes/lead.js";
 import { createWebhookRoute } from "./routes/webhook.js";
+import { createEmailWebhookRoute } from "./routes/emailWebhook.js";
 import { testContractor, testRecipients } from "./seed.js";
 
 export interface BuildDeps {
   store?: Store;
-  ai?: SarahAi;
+  model?: LanguageModel;
   sms?: SmsSender;
   email?: EmailSender;
   now?: () => Date;
@@ -34,16 +37,20 @@ export async function buildStore(): Promise<Store> {
 
 export async function createApp(overrides: BuildDeps = {}): Promise<Express> {
   const store = overrides.store ?? (await buildStore());
-  const ai = overrides.ai ?? new ClaudeAi();
+  const model = overrides.model ?? getModel();
   const sms =
     overrides.sms ??
     (useTwilio()
       ? new TwilioSmsSender(testContractor.twilioNumber!)
       : new ConsoleSmsSender());
-  const email = overrides.email ?? new ConsoleEmailSender();
+  const email =
+    overrides.email ??
+    (env.POSTMARK_SERVER_TOKEN
+      ? new PostmarkEmailSender(env.POSTMARK_SERVER_TOKEN, `sarah@${env.LEAD_EMAIL_DOMAIN}`)
+      : new ConsoleEmailSender());
   const deps = {
     store,
-    ai,
+    model,
     sms,
     email,
     now: overrides.now,
@@ -59,6 +66,7 @@ export async function createApp(overrides: BuildDeps = {}): Promise<Express> {
   });
   app.post("/lead", createLeadRoute(deps));
   app.post("/webhooks/twilio/sms", createWebhookRoute(deps));
+  app.post("/webhooks/email/postmark/:secret", createEmailWebhookRoute(deps));
 
   return app;
 }

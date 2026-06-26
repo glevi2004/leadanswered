@@ -1,15 +1,12 @@
-import {
-  assembleSystemPrompt,
-  proposeSlots,
-  qualify,
-  type SmsSender,
-} from "@leadanswered/core";
+import type { SmsSender } from "@leadanswered/core";
+import type { LanguageModel } from "ai";
+import { generateAgentReply, type ChatTurn } from "./agent/runner.js";
+import type { ToolState } from "./agent/tools.js";
 import type { Store } from "./store/types.js";
-import type { SarahAi } from "./claude.js";
 
 export interface LeadDeps {
   store: Store;
-  ai: SarahAi;
+  model: LanguageModel;
   sms: SmsSender;
   now?: () => Date;
 }
@@ -19,17 +16,22 @@ export interface CreateLeadArgs {
   contactName: string;
   contactPhone: string;
   projectHint?: string | null;
+  /** Where the lead came from (e.g. "manual", "email"); defaults to "manual". */
+  source?: string;
+  /** Idempotency key for email intake (Postmark MessageID). */
+  sourceMessageId?: string | null;
 }
 
 /**
- * Lead intake (SCOPE §6 Phase 1): create the lead + conversation and fire Sarah's
- * opening SMS immediately (sub-60-second promise, SCOPE §7).
+ * Lead intake (SCOPE §6): create the lead + conversation and fire Sarah's opening
+ * SMS immediately (sub-60-second promise, SCOPE §7). The opening is a single agent
+ * turn — Sarah greets and asks for what she needs next.
  */
 export async function createLeadAndGreet(
   deps: LeadDeps,
   input: CreateLeadArgs,
 ): Promise<{ leadId: string; opening: string }> {
-  const { store, ai, sms } = deps;
+  const { store, sms } = deps;
   const now = (deps.now ?? (() => new Date()))();
 
   const ctx = await store.createLeadWithConversation({
@@ -37,40 +39,32 @@ export async function createLeadAndGreet(
     contactName: input.contactName,
     contactPhone: input.contactPhone,
     projectHint: input.projectHint ?? null,
-    source: "manual",
+    source: input.source ?? "manual",
+    sourceMessageId: input.sourceMessageId ?? null,
   });
 
-  const gathered = ctx.conversation.gathered;
-  const qualification = qualify(gathered, ctx.contractor);
-  const slots = proposeSlots(ctx.contractor.standingAvailability, 3, now);
-  const systemPrompt = assembleSystemPrompt({
+  const state: ToolState = {
     contractor: ctx.contractor,
-    leadName: ctx.lead.contactName,
-    gathered,
-    qualification,
-    slots,
-    stage: "greeting",
-  });
+    lead: ctx.lead,
+    conversation: ctx.conversation,
+    gathered: ctx.conversation.gathered ?? {},
+  };
+  const history: ChatTurn[] = [{ role: "user", content: openingTrigger(input.projectHint) }];
 
-  const out = await ai.generate(systemPrompt, [
-    { role: "user", content: openingTrigger(input.projectHint) },
-  ]);
+  const opening = await generateAgentReply({ ...deps, sms, now }, state, history);
 
-  await store.appendMessage(ctx.conversation.id, {
-    direction: "outbound",
-    body: out.reply,
-  });
-  await sms.send(ctx.lead.contactPhone, out.reply);
+  await store.appendMessage(ctx.conversation.id, { direction: "outbound", body: opening });
+  await sms.send(ctx.lead.contactPhone, opening);
   await store.updateLeadFields(ctx.lead.id, { status: "contacted" });
   await store.updateConversation(ctx.conversation.id, { state: "qualifying" });
 
-  return { leadId: ctx.lead.id, opening: out.reply };
+  return { leadId: ctx.lead.id, opening };
 }
 
 function openingTrigger(projectHint?: string | null): string {
   return (
     `[A new lead just came in through the website` +
     (projectHint ? ` about "${projectHint}"` : "") +
-    `. Send your warm opening text: introduce yourself, thank them for reaching out, and start gathering what you need.]`
+    `. Send your warm opening text: introduce yourself, thank them for reaching out, and ask for the property's full address — the street, city, and ZIP code, in one message — so you can check coverage and get the team out.]`
   );
 }

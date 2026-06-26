@@ -19,3 +19,7 @@ clients/*
 
 # OS
 .DS_Store
+
+# Agent tooling (local)
+.claude/
+.agents/

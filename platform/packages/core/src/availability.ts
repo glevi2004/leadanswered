@@ -7,28 +7,46 @@ export interface SlotOption {
   label: string;
 }
 
+export interface ProposeSlotsOptions {
+  /**
+   * Start searching from this date instead of `now` — lets the agent request a
+   * later window (e.g. "do you have next week?") without changing the rule that
+   * a slot must still be in the future relative to `now`.
+   */
+  fromDate?: Date;
+  /** How many days forward to search from the start date (default 21). */
+  horizonDays?: number;
+}
+
 /**
  * Generate the next `count` concrete appointment slots from a contractor's
  * standing weekly availability, after `now`. `now` is injected for determinism
- * (SCOPE §7.5). Computed in UTC for Phase 1; timezone-accurate rendering is a
+ * (SCOPE §7.5). `opts.fromDate` shifts where the search starts (for "next week"
+ * style requests). Computed in UTC for Phase 1; timezone-accurate rendering is a
  * later hardening item.
  */
 export function proposeSlots(
   availability: StandingAvailability,
   count: number,
   now: Date,
+  opts: ProposeSlotsOptions = {},
 ): SlotOption[] {
   const out: SlotOption[] = [];
   const slots = [...availability.slots].sort(
     (a, b) => a.dayOfWeek - b.dayOfWeek || a.time.localeCompare(b.time),
   );
 
-  for (let dayOffset = 0; dayOffset < 21 && out.length < count; dayOffset++) {
+  // Start from fromDate when it's in the future, else from now (back-compatible).
+  const start =
+    opts.fromDate && opts.fromDate.getTime() > now.getTime() ? opts.fromDate : now;
+  const horizonDays = opts.horizonDays ?? 21;
+
+  for (let dayOffset = 0; dayOffset < horizonDays && out.length < count; dayOffset++) {
     const day = new Date(
       Date.UTC(
-        now.getUTCFullYear(),
-        now.getUTCMonth(),
-        now.getUTCDate() + dayOffset,
+        start.getUTCFullYear(),
+        start.getUTCMonth(),
+        start.getUTCDate() + dayOffset,
       ),
     );
     const dow = day.getUTCDay();

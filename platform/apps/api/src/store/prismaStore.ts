@@ -34,6 +34,8 @@ function rowToContractor(r: any): ContractorConfig {
     standingAvailability:
       (r.standingAvailability as any) ?? { timezone: "UTC", slots: [] },
     twilioNumber: r.twilioNumber,
+    slug: r.slug ?? null,
+    escalationTopics: r.escalationTopics?.length ? r.escalationTopics : null,
   };
 }
 
@@ -86,6 +88,16 @@ export class PrismaStore implements Store {
     return r ? rowToContractor(r) : null;
   }
 
+  async getContractorBySlug(slug: string): Promise<ContractorConfig | null> {
+    const r = await this.db.contractor.findUnique({ where: { slug } });
+    return r ? rowToContractor(r) : null;
+  }
+
+  async findLeadBySourceMessageId(sourceMessageId: string): Promise<{ id: string } | null> {
+    const l = await this.db.lead.findUnique({ where: { sourceMessageId }, select: { id: true } });
+    return l ?? null;
+  }
+
   async getRecipients(contractorId: string): Promise<RecipientRecord[]> {
     const rs = await this.db.notificationRecipient.findMany({
       where: { contractorId },
@@ -113,6 +125,7 @@ export class PrismaStore implements Store {
         contactPhone: input.contactPhone,
         projectHint: input.projectHint ?? null,
         source: input.source ?? "manual",
+        sourceMessageId: input.sourceMessageId ?? null,
         status: "new",
       },
     });
@@ -227,5 +240,58 @@ export class PrismaStore implements Store {
       },
     });
     return { id: a.id };
+  }
+
+  async getActiveAppointmentByLead(leadId: string) {
+    const a = await this.db.appointment.findFirst({
+      where: { leadId, status: { in: ["confirmed", "proposed"] } },
+      orderBy: { createdAt: "desc" },
+    });
+    return a
+      ? { id: a.id, leadId: a.leadId, contractorId: a.contractorId, slotIso: a.slotDatetime.toISOString(), status: a.status }
+      : null;
+  }
+
+  async updateAppointment(
+    id: string,
+    patch: import("./types.js").AppointmentPatch,
+  ): Promise<void> {
+    await this.db.appointment.update({
+      where: { id },
+      data: {
+        slotDatetime: patch.slotIso !== undefined ? new Date(patch.slotIso) : undefined,
+        status: patch.status as any,
+        rescheduledFromIso: patch.rescheduledFromIso != null ? new Date(patch.rescheduledFromIso) : patch.rescheduledFromIso === null ? null : undefined,
+        cancelledAt: patch.cancelledAt != null ? new Date(patch.cancelledAt) : patch.cancelledAt === null ? null : undefined,
+        cancelReason: patch.cancelReason,
+      },
+    });
+  }
+
+  async createEscalation(input: {
+    leadId: string;
+    contractorId: string;
+    conversationId: string;
+    question: string;
+  }) {
+    const e = await this.db.escalation.create({ data: { ...input, status: "open" } });
+    return { id: e.id, leadId: e.leadId, contractorId: e.contractorId, conversationId: e.conversationId, question: e.question, status: e.status };
+  }
+
+  async findOpenEscalationByContractorReply(contractorId: string) {
+    const e = await this.db.escalation.findFirst({
+      where: { contractorId, status: "open" },
+      orderBy: { createdAt: "desc" },
+    });
+    return e
+      ? { id: e.id, leadId: e.leadId, contractorId: e.contractorId, conversationId: e.conversationId, question: e.question, status: e.status }
+      : null;
+  }
+
+  async resolveEscalation(id: string, answer: string): Promise<void> {
+    await this.db.escalation.update({
+      where: { id },
+      data: { answer, status: "resolved", resolvedAt: new Date() },
+    });
   }
 }

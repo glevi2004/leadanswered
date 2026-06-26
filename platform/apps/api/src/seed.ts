@@ -3,11 +3,14 @@ import type { RecipientRecord } from "./store/types.js";
 
 /** The single hardcoded test contractor for Phase 1 (SCOPE §6). */
 export const TEST_CONTRACTOR_ID = "contractor_apex";
+/** Email-routing slug — lead emails arrive at leads+apex@<LEAD_EMAIL_DOMAIN>. */
+export const TEST_CONTRACTOR_SLUG = "apex";
 
 export const testContractor: ContractorConfig = {
   id: TEST_CONTRACTOR_ID,
   name: "Marcus Reyes",
   companyName: "Apex Roofing",
+  slug: TEST_CONTRACTOR_SLUG,
   sarahName: "Sarah",
   personaNotes:
     "Warm and reassuring, with a local New England touch. Always mentions the on-site estimate is free.",
@@ -41,6 +44,8 @@ export const testRecipients: RecipientRecord[] = [
     email: "marcus@apexroofing.example",
     subscriptions: [
       { eventType: "booking_confirmed", channels: "both" },
+      { eventType: "booking_rescheduled", channels: "both" },
+      { eventType: "booking_cancelled", channels: "both" },
       { eventType: "new_qualified_lead", channels: "both" },
     ],
   },

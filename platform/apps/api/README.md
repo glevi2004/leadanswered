@@ -44,6 +44,8 @@ pnpm --filter @leadanswered/api test    # includes the end-to-end booking guardr
 
 ## Notes
 
-- Model defaults to `claude-haiku-4-5`; override with `CLAUDE_MODEL`.
-- **AI extracts, CODE decides** (SCOPE §5.1): Claude only extracts fields and phrases replies; every qualify/disqualify/book decision is deterministic code.
-- Sarah never quotes pricing — she redirects to the free on-site estimate (enforced in the system prompt).
+- **Sarah is a tool-using agent** on the Vercel AI SDK (`src/agent/`). Provider-agnostic: set `AI_PROVIDER` (default `anthropic`) + `AI_MODEL` (default `claude-haiku-4-5`); only `src/agent/provider.ts` imports a provider SDK, so OpenAI is a one-line add.
+- **AI orchestrates, TOOLS decide** (SCOPE §5.1): the model reasons and calls tools (`qualify_lead`, `get_availability`, `book_appointment`, `reschedule_appointment`, `cancel_appointment`, `escalate_to_contractor`); every qualify/book/reschedule decision is deterministic code inside the tool, and the tool result is authoritative.
+- Sarah never quotes pricing — she redirects to the free on-site estimate (enforced in the agent's hard rules).
+- Set `LANGFUSE_PUBLIC_KEY`/`LANGFUSE_SECRET_KEY` to trace every turn + tool call (no-op otherwise).
+- The quiet-lead nudge is enqueued here (`src/queue.ts`) and run by `apps/worker` — a no-op without `REDIS_URL`.

@@ -33,4 +33,24 @@ describe("proposeSlots", () => {
     expect(formatSlot("2026-06-15T09:00:00.000Z")).toContain("Monday");
     expect(formatSlot("2026-06-15T09:00:00.000Z")).toContain("9:00");
   });
+
+  it("regression (the lost-lead bug): fromDate returns NEXT week's slots, not this week's", () => {
+    const now = new Date("2026-06-15T08:00:00Z"); // Monday this week
+    const nextWeek = new Date("2026-06-22T00:00:00Z"); // the following Monday
+    const slots = proposeSlots(availability, 3, now, { fromDate: nextWeek });
+    // every returned slot is in next week or later — none from this week
+    expect(slots.length).toBeGreaterThan(0);
+    for (const s of slots) {
+      expect(new Date(s.iso).getTime()).toBeGreaterThanOrEqual(nextWeek.getTime());
+    }
+    expect(slots[0].iso).toBe("2026-06-22T09:00:00.000Z");
+  });
+
+  it("ignores fromDate when it is in the past (back-compatible default)", () => {
+    const now = new Date("2026-06-15T08:00:00Z");
+    const past = new Date("2026-06-01T00:00:00Z");
+    expect(proposeSlots(availability, 3, now, { fromDate: past })).toEqual(
+      proposeSlots(availability, 3, now),
+    );
+  });
 });

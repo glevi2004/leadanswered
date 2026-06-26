@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "main": "src/server.ts",
+  "exports": {
+    ".": "./src/server.ts",
+    "./worker": "./src/worker.ts"
+  },
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
@@ -14,12 +18,19 @@
     "seed": "tsx src/scripts/seedDb.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.104.1",
+    "@ai-sdk/anthropic": "^3.0.86",
+    "@langfuse/otel": "^5.6.0",
+    "@langfuse/tracing": "^5.6.0",
     "@leadanswered/core": "workspace:*",
     "@leadanswered/db": "workspace:*",
+    "@opentelemetry/sdk-node": "^0.219.0",
+    "ai": "^6.0.209",
+    "bullmq": "^5.79.1",
     "dotenv": "^17.4.2",
+    "dotenv-expand": "^13.0.0",
     "express": "^5.2.1",
-    "twilio": "^6.0.2"
+    "twilio": "^6.0.2",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",

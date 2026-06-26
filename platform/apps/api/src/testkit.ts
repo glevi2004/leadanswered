@@ -1,5 +1,6 @@
-import type { EmailSender, SarahOutput, SmsSender } from "@leadanswered/core";
-import type { ChatTurn, SarahAi } from "./claude.js";
+import type { EmailSender, SmsSender } from "@leadanswered/core";
+import type { LanguageModel } from "ai";
+import { MockLanguageModelV3 } from "ai/test";
 
 export class CapturingSms implements SmsSender {
   sent: { to: string; body: string }[] = [];
@@ -15,46 +16,58 @@ export class CapturingEmail implements EmailSender {
   }
 }
 
-/** A deterministic stand-in for Claude: returns queued outputs and records every call. */
-export class ScriptedAi implements SarahAi {
-  calls: { systemPrompt: string; history: ChatTurn[] }[] = [];
-  private queue: SarahOutput[];
-  constructor(outputs: SarahOutput[]) {
-    this.queue = [...outputs];
-  }
-  async generate(systemPrompt: string, history: ChatTurn[]): Promise<SarahOutput> {
-    this.calls.push({ systemPrompt, history });
-    const next = this.queue.shift();
-    if (!next) throw new Error("ScriptedAi: no more scripted outputs");
-    return next;
-  }
-  get lastSystemPrompt(): string {
-    return this.calls.at(-1)?.systemPrompt ?? "";
-  }
-}
+const USAGE = {
+  inputTokens: { total: 1, noCache: 1, cacheRead: undefined, cacheWrite: undefined },
+  outputTokens: { total: 1, text: 1, reasoning: undefined },
+};
 
-export class ThrowingAi implements SarahAi {
-  async generate(): Promise<SarahOutput> {
-    throw new Error("AI unavailable");
-  }
-}
+/** One scripted model step: either a tool call or the final assistant text. */
+export type ScriptStep =
+  | { tool: string; input: Record<string, unknown> }
+  | { text: string };
 
-/** Build a SarahOutput with sensible empty defaults for the extracted fields. */
-export function sarah(
-  reply: string,
-  extracted: Partial<SarahOutput["extracted"]> = {},
-  action: SarahOutput["proposed_action"] = "none",
-): SarahOutput {
-  return {
-    reply,
-    extracted: {
-      project_type: extracted.project_type ?? "",
-      service_town: extracted.service_town ?? "",
-      service_zip: extracted.service_zip ?? "",
-      full_address: extracted.full_address ?? "",
-      is_decision_maker: extracted.is_decision_maker ?? "unknown",
-      chosen_slot: extracted.chosen_slot ?? "",
+/**
+ * A deterministic stand-in for the LLM (replaces the old ScriptedAi). `steps` is
+ * consumed in order across EVERY doGenerate call — the opening turn, then each
+ * agent turn's tool loop. A `{tool}` step makes the agent call that real tool;
+ * a `{text}` step ends the turn. So tests exercise the real tool side-effects with
+ * a deterministic "brain", no network.
+ */
+export function scriptedModel(steps: ScriptStep[]): LanguageModel {
+  let i = 0;
+  return new MockLanguageModelV3({
+    doGenerate: async () => {
+      const step = steps[i++] ?? { text: "" };
+      if ("tool" in step) {
+        return {
+          content: [
+            {
+              type: "tool-call" as const,
+              toolCallId: `call_${i}`,
+              toolName: step.tool,
+              input: JSON.stringify(step.input),
+            },
+          ],
+          finishReason: { unified: "tool-calls" as const, raw: undefined },
+          usage: USAGE,
+          warnings: [],
+        };
+      }
+      return {
+        content: [{ type: "text" as const, text: step.text }],
+        finishReason: { unified: "stop" as const, raw: undefined },
+        usage: USAGE,
+        warnings: [],
+      };
     },
-    proposed_action: action,
-  };
+  });
+}
+
+/** A model that always fails — for the fail-safe test. */
+export function throwingModel(): LanguageModel {
+  return new MockLanguageModelV3({
+    doGenerate: async () => {
+      throw new Error("AI unavailable");
+    },
+  });
 }

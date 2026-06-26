@@ -19,7 +19,16 @@ export class MemoryStore implements Store {
   private conversations = new Map<string, ConversationRecord>();
   private convIdByLead = new Map<string, string>();
   private messages: MessageRecord[] = [];
-  private appointments: { id: string; leadId: string; contractorId: string; slotIso: string }[] = [];
+  private appointments: {
+    id: string;
+    leadId: string;
+    contractorId: string;
+    slotIso: string;
+    status: string;
+    rescheduledFromIso?: string | null;
+    cancelledAt?: string | null;
+    cancelReason?: string | null;
+  }[] = [];
 
   seedContractor(c: ContractorConfig, recipients: RecipientRecord[] = []): void {
     this.contractors.set(c.id, c);
@@ -37,6 +46,20 @@ export class MemoryStore implements Store {
       if (c.twilioNumber === toNumber) return c;
     }
     return null;
+  }
+
+  async getContractorBySlug(slug: string): Promise<ContractorConfig | null> {
+    for (const c of this.contractors.values()) {
+      if (c.slug === slug) return c;
+    }
+    return null;
+  }
+
+  private leadIdBySourceMessageId = new Map<string, string>();
+
+  async findLeadBySourceMessageId(sourceMessageId: string): Promise<{ id: string } | null> {
+    const id = this.leadIdBySourceMessageId.get(sourceMessageId);
+    return id ? { id } : null;
   }
 
   async getRecipients(contractorId: string): Promise<RecipientRecord[]> {
@@ -59,6 +82,7 @@ export class MemoryStore implements Store {
       status: "new",
     };
     this.leads.set(lead.id, lead);
+    if (input.sourceMessageId) this.leadIdBySourceMessageId.set(input.sourceMessageId, lead.id);
 
     const gathered: GatheredInfo = { projectType: input.projectHint ?? null };
     const conv: ConversationRecord = {
@@ -151,14 +175,75 @@ export class MemoryStore implements Store {
     contractorId: string;
     slotIso: string;
   }): Promise<{ id: string }> {
-    const appt = { id: randomUUID(), ...input };
+    const appt = { id: randomUUID(), ...input, status: "confirmed" };
     this.appointments.push(appt);
     return { id: appt.id };
+  }
+
+  async getActiveAppointmentByLead(leadId: string) {
+    const appt = [...this.appointments]
+      .reverse()
+      .find((a) => a.leadId === leadId && (a.status === "confirmed" || a.status === "proposed"));
+    return appt
+      ? { id: appt.id, leadId: appt.leadId, contractorId: appt.contractorId, slotIso: appt.slotIso, status: appt.status }
+      : null;
+  }
+
+  async updateAppointment(
+    id: string,
+    patch: import("./types.js").AppointmentPatch,
+  ): Promise<void> {
+    const appt = this.appointments.find((a) => a.id === id);
+    if (!appt) return;
+    if (patch.slotIso !== undefined) appt.slotIso = patch.slotIso;
+    if (patch.status !== undefined) appt.status = patch.status;
+    if (patch.rescheduledFromIso !== undefined) appt.rescheduledFromIso = patch.rescheduledFromIso;
+    if (patch.cancelledAt !== undefined) appt.cancelledAt = patch.cancelledAt;
+    if (patch.cancelReason !== undefined) appt.cancelReason = patch.cancelReason;
+  }
+
+  private escalations: {
+    id: string;
+    leadId: string;
+    contractorId: string;
+    conversationId: string;
+    question: string;
+    answer?: string | null;
+    status: string;
+  }[] = [];
+
+  async createEscalation(input: {
+    leadId: string;
+    contractorId: string;
+    conversationId: string;
+    question: string;
+  }) {
+    const esc = { id: randomUUID(), ...input, status: "open" };
+    this.escalations.push(esc);
+    return { id: esc.id, leadId: esc.leadId, contractorId: esc.contractorId, conversationId: esc.conversationId, question: esc.question, status: esc.status };
+  }
+
+  async findOpenEscalationByContractorReply(contractorId: string) {
+    const esc = [...this.escalations].reverse().find((e) => e.contractorId === contractorId && e.status === "open");
+    return esc
+      ? { id: esc.id, leadId: esc.leadId, contractorId: esc.contractorId, conversationId: esc.conversationId, question: esc.question, status: esc.status }
+      : null;
+  }
+
+  async resolveEscalation(id: string, answer: string): Promise<void> {
+    const esc = this.escalations.find((e) => e.id === id);
+    if (esc) {
+      esc.answer = answer;
+      esc.status = "resolved";
+    }
   }
 
   // ---- test/demo inspection helpers ----
   getAppointments() {
     return this.appointments;
+  }
+  getEscalations() {
+    return this.escalations;
   }
   getMessages() {
     return this.messages;

@@ -1,0 +1,11 @@
+zip-centroids.json and city-centroids.json are derived from the GeoNames
+postal-code dataset (http://download.geonames.org/export/zip/US.zip).
+
+GeoNames is licensed under the Creative Commons Attribution 4.0 License:
+https://creativecommons.org/licenses/by/4.0/
+
+Attribution: "This product uses data from GeoNames (https://www.geonames.org/),
+licensed under CC BY 4.0."
+
+Regenerate these files with:  node scripts/build-geo.mjs path/to/US.txt
+(see ../../scripts/build-geo.mjs)

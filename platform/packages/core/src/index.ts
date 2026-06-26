@@ -5,4 +5,6 @@ export * from "./availability.js";
 export * from "./prompt.js";
 export * from "./conversation.js";
 export * from "./notifications.js";
-export * from "./schema.js";
+export * from "./text.js";
+export * from "./leadEmail.js";
+export * from "./onboarding.js";

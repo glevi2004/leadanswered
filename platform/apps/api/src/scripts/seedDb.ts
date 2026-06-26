@@ -1,3 +1,4 @@
+import "../env.js"; // loads .env + expands ${DB_PASSWORD} before getPrisma reads it
 import { getPrisma } from "@leadanswered/db";
 import { testContractor, testRecipients } from "../seed.js";
 
@@ -12,11 +13,12 @@ async function main(): Promise<void> {
 
   await db.contractor.upsert({
     where: { id: c.id },
-    update: {},
+    update: { slug: c.slug ?? null }, // backfill the routing slug on an existing test contractor
     create: {
       id: c.id,
       name: c.name,
       companyName: c.companyName,
+      slug: c.slug ?? null,
       sarahName: c.sarahName,
       sarahPersonaNotes: c.personaNotes ?? null,
       projectTypes: c.projectTypes,

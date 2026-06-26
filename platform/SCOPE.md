@@ -6,6 +6,18 @@ This is the build spec for **Lead Answered**, an AI SMS lead-response service fo
 
 ---
 
+## ⚙️ Architecture update (v2) — "Sarah" is now a tool-using agent
+
+The conversation engine was rebuilt from the original procedural state machine (extract → hardcoded directive ladder → reply) into a **provider-agnostic, tool-using agent**. This note overrides the older procedural descriptions where they conflict; the principles below still hold.
+
+- **Agent, not a procedure.** Each turn, the model reasons and **chooses tools**; it does not follow a fixed code-driven sequence. Built on the **Vercel AI SDK** (`generateText` + `tool()` + `stopWhen`), so the provider is swappable in one line (`apps/api/src/agent/provider.ts` — defaults to Claude/Haiku; OpenAI is swap-ready, not yet installed). The old two-pass extraction + `buildDirective` ladder + `decideTurn` are retired.
+- **"AI extracts, CODE decides" → "AI orchestrates, TOOLS decide."** Every business decision still lives in deterministic code — now inside the **tools** (`apps/api/src/agent/tools.ts`): `qualify_lead`, `get_availability`, `book_appointment`, `reschedule_appointment`, `cancel_appointment`, `escalate_to_contractor`. Each wraps the same pure `packages/core` functions; the **tool result is authoritative**, and the model may never assert a fact (coverage, an available time, "you're booked") a tool didn't return.
+- **New capabilities:** open-ended availability ("do you have next week?"), **reschedule / cancel**, post-booking conversations, **escalation to the contractor** (loop in the owner; the owner texts back and the answer is relayed to the homeowner), and a **quiet-lead nudge**.
+- **Worker pulled forward.** The `apps/worker` deployable (BullMQ/Redis) now exists for delayed/async work (the nudge today). The escalation relay is webhook-driven (no worker needed). Notification senders + the Store are reused across api and worker.
+- **Observability:** Langfuse tracing (OpenTelemetry) on every agent turn + tool call (no-op unless `LANGFUSE_*` set).
+
+---
+
 ## 1. Product summary
 
 **One line:** When a homeowner submits a contractor's website contact form, Lead Answered texts them back within 60 seconds (as the contractor's assistant "Sarah"), qualifies the lead over SMS, proposes appointment slots from the contractor's standing availability, and notifies the contractor — with no action required from the contractor.

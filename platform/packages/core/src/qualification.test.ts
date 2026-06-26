@@ -132,3 +132,94 @@ describe("qualify() matrix", () => {
     expect(r.qualified).toBe(true);
   });
 });
+
+describe("location resolution + city fallback (SCOPE §5.1)", () => {
+  it("no town/zip yet → locationStatus need_location", () => {
+    const r = qualify({ projectType: "roof repair" }, contractor);
+    expect(r.locationStatus).toBe("need_location");
+    expect(r.inArea).toBeNull();
+  });
+
+  it("un-geocodable zip, no town → need_address (so Sarah asks for street + city)", () => {
+    const r = qualify(
+      { serviceZip: "99999", projectType: "roof repair", isDecisionMaker: true },
+      contractor,
+    );
+    expect(r.locationStatus).toBe("need_address");
+    expect(r.inArea).toBeNull();
+    expect(r.qualified).toBe(false);
+  });
+
+  it("falls back to the city when the zip can't be located → resolves + qualifies, but flags zipUnverified", () => {
+    const r = qualify(
+      { serviceZip: "99999", serviceTown: "Newton", projectType: "roof repair", isDecisionMaker: true },
+      contractor,
+    );
+    expect(r.locationStatus).toBe("resolved");
+    expect(r.inArea).toBe(true);
+    expect(r.qualified).toBe(true);
+    expect(r.zipUnverified).toBe(true); // Sarah should double-check the ZIP before booking
+  });
+
+  it("resolves an ambiguous city name to the one nearest a base (Newton, MA)", () => {
+    const r = qualify(
+      { serviceTown: "Newton", projectType: "roof repair", isDecisionMaker: true },
+      contractor,
+    );
+    expect(r.inArea).toBe(true);
+    expect(r.locationStatus).toBe("resolved");
+  });
+
+  it("a real but far city is out of area", () => {
+    const r = qualify(
+      { serviceTown: "Hyannis", projectType: "roof repair", isDecisionMaker: true },
+      contractor,
+    );
+    expect(r.inArea).toBe(false);
+    expect(isDisqualified(r)).toBe(true);
+  });
+
+  it("the real 02134 (Allston) that broke the live test is now in-area", () => {
+    const r = qualify(
+      { serviceZip: "02134", projectType: "roof leak", isDecisionMaker: true },
+      contractor,
+    );
+    expect(r.inArea).toBe(true);
+    expect(r.qualified).toBe(true);
+  });
+
+  it("a precise EXCLUDED zip overrides an in-area city guess (exclude wins, no flip)", () => {
+    // "Boston" the city geocodes in-area, but the exact ZIP 02101 is excluded.
+    const r = qualify(
+      { serviceTown: "Boston", serviceZip: "02101", projectType: "roof repair", isDecisionMaker: true },
+      contractor,
+    );
+    expect(r.inArea).toBe(false);
+    expect(isDisqualified(r)).toBe(true);
+  });
+
+  it("a precise FAR zip overrides an in-area city guess (the ZIP is the authority)", () => {
+    // "Boston" geocodes in-area, but the exact ZIP is 66 mi away → out.
+    const r = qualify(
+      { serviceTown: "Boston", serviceZip: "02601", projectType: "roof repair", isDecisionMaker: true },
+      contractor,
+    );
+    expect(r.inArea).toBe(false);
+  });
+
+  it("a locatable zip is NOT flagged as unverified", () => {
+    const r = qualify(
+      { serviceZip: "02459", serviceTown: "Newton", projectType: "roof repair", isDecisionMaker: true },
+      contractor,
+    );
+    expect(r.zipUnverified).toBe(false);
+  });
+
+  it("an override zip is treated as verified (decided explicitly, not flagged)", () => {
+    const r = qualify(
+      { serviceZip: "01601", projectType: "roof repair", isDecisionMaker: true },
+      contractor,
+    );
+    expect(r.zipUnverified).toBe(false);
+  });
+});

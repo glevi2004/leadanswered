@@ -11,17 +11,17 @@ platform/
 ├── SCOPE.md            # the system specification — the build spec, source of truth
 ├── apps/
 │   ├── web/            # Next.js — onboarding UI + contractor dashboard (Vercel)              [Phase 3+]
-│   ├── api/            # Express — Twilio webhooks + the "Sarah" engine (Railway/Render)       [Phase 0–1 ✅]
-│   └── worker/         # Node + BullMQ/Redis — provisioning, cron, outbound engine             [Phase 3+]
+│   ├── api/            # Express — Twilio webhooks + the "Sarah" tool-using agent (Railway/Render)  [built ✅]
+│   └── worker/         # Node + BullMQ/Redis — quiet-lead nudge + async jobs (Railway/Render)        [built ✅]
 ├── packages/
-│   ├── db/             # Prisma schema + client
-│   └── core/           # shared types, geo + qualification logic, system-prompt assembly
+│   ├── db/             # Prisma schema + client + Supabase
+│   └── core/           # shared types, geo + qualification logic, prompts, notifications (pure)
 └── landing-page/       # leadanswered.com marketing site (static, already wired to Vercel)
 ```
 
 The three-deployable split (`web` / `api` / `worker`) is deliberate — see `SCOPE.md` §3.1. Do not collapse them into one app, and keep all long-running / queued / scheduled work out of `web`.
 
-> Status: Phases 0–1 are built — `apps/api` (the "Sarah" engine), `packages/core` (pure domain logic), and `packages/db` (Prisma schema). `apps/web` and `apps/worker` arrive with their phases.
+> Status: the **tool-using "Sarah" agent** is built — `apps/api` (the agent + tools, Vercel AI SDK, provider-agnostic), `apps/worker` (BullMQ nudge), `packages/core` (pure domain logic), `packages/db` (Prisma on Supabase). See `SCOPE.md` → "Architecture update (v2)". `apps/web` arrives with its phase.
 
 ## Build order
 

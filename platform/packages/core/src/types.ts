@@ -45,6 +45,14 @@ export interface ContractorConfig {
   qualificationRules: QualificationRules;
   standingAvailability: StandingAvailability;
   twilioNumber?: string | null;
+  /** Email-routing key — lead emails arrive at leads+{slug}@<domain> (SCOPE §9). */
+  slug?: string | null;
+  /**
+   * Customer-question topics the contractor wants looped in on (escalated) rather
+   * than deflected. Editable per-contractor in the dashboard later; falls back to a
+   * sensible default when unset.
+   */
+  escalationTopics?: string[] | null;
 }
 
 /** Everything we've gathered about a lead so far (accumulated across turns). */
@@ -56,9 +64,21 @@ export interface GatheredInfo {
   isDecisionMaker?: boolean | null;
   /** ISO datetime of a slot the lead has agreed to, if any. */
   chosenSlot?: string | null;
+  /** Map of short id → ISO for the times last offered, so the agent books with a
+   *  reliable short id ("1") instead of echoing an error-prone full ISO string. */
+  offeredSlots?: Record<string, string> | null;
 }
 
 export type MissingField = "location" | "project" | "decision_maker";
+
+/**
+ * How far we got resolving the lead's location (SCOPE §5.1):
+ * - `resolved`     — we placed them on the map (via zip or city)
+ * - `need_location`— no town/zip given yet → ask for it
+ * - `need_address` — a zip/town was given but couldn't be located → ask for the
+ *                    full street address + city, then geocode the city
+ */
+export type LocationStatus = "resolved" | "need_location" | "need_address";
 
 export interface QualificationResult {
   inArea: boolean | null; // null = unknown (not enough info yet)
@@ -66,6 +86,10 @@ export interface QualificationResult {
   isDecisionMaker: boolean | null;
   qualified: boolean;
   missing: MissingField[];
+  locationStatus: LocationStatus;
+  /** True when a ZIP was given but we couldn't place it (resolved via town instead).
+   *  Signals a likely typo to confirm with the customer before booking (SCOPE §5.1). */
+  zipUnverified: boolean;
 }
 
 export type Stage =
@@ -73,6 +97,7 @@ export type Stage =
   | "qualifying"
   | "proposing_slots"
   | "confirming"
+  | "booked"
   | "done";
 
 export type ProposedAction =
@@ -84,6 +109,8 @@ export type ProposedAction =
 
 export type NotificationEventType =
   | "booking_confirmed"
+  | "booking_rescheduled"
+  | "booking_cancelled"
   | "new_qualified_lead"
   | "new_inquiry"
   | "lead_unresponsive"

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { geocodeZip, normalizeZip, distanceMiles } from "./geo.js";
+import { geocodeZip, geocodeCity, normalizeZip, distanceMiles } from "./geo.js";
 
 describe("geo", () => {
   it("normalizeZip extracts a 5-digit zip", () => {
@@ -11,16 +11,35 @@ describe("geo", () => {
   });
 
   it("geocodeZip returns a centroid for known zips, null otherwise", () => {
-    expect(geocodeZip("02458")).toEqual({ lat: 42.351, lng: -71.205 });
+    const p = geocodeZip("02458")!; // Newton, MA
+    expect(p.lat).toBeCloseTo(42.35, 1);
+    expect(p.lng).toBeCloseTo(-71.19, 1);
     expect(geocodeZip("99999")).toBeNull();
+    expect(geocodeZip("nope")).toBeNull();
+  });
+
+  it("geocodeCity resolves a city+state, flags ambiguous names, reports not_found", () => {
+    const newton = geocodeCity("Newton", "MA");
+    expect(newton.status).toBe("resolved");
+    expect(newton.point!.lat).toBeCloseTo(42.35, 1);
+
+    expect(geocodeCity("newton", "ma").status).toBe("resolved"); // case-insensitive
+
+    const springfield = geocodeCity("Springfield"); // many states, none given
+    expect(springfield.status).toBe("ambiguous");
+    expect(springfield.states).toContain("MA");
+    expect(springfield.states!.length).toBeGreaterThan(1);
+
+    expect(geocodeCity("Nowhereville", "MA").status).toBe("not_found");
+    expect(geocodeCity("").status).toBe("not_found");
   });
 
   it("distanceMiles is ~0 for the same point and grows with separation", () => {
-    const a = { lat: 42.351, lng: -71.205 }; // Newton
-    expect(distanceMiles(a, a)).toBeCloseTo(0, 5);
+    const newton = geocodeZip("02458")!;
+    expect(distanceMiles(newton, newton)).toBeCloseTo(0, 5);
     const newtonCenter = geocodeZip("02459")!;
     const hyannis = geocodeZip("02601")!;
-    expect(distanceMiles(a, newtonCenter)).toBeLessThan(10);
-    expect(distanceMiles(a, hyannis)).toBeGreaterThan(40);
+    expect(distanceMiles(newton, newtonCenter)).toBeLessThan(10);
+    expect(distanceMiles(newton, hyannis)).toBeGreaterThan(40);
   });
 });

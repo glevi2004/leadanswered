@@ -1,0 +1,82 @@
+import {
+  formatSlot,
+  sendNotifications,
+  type ContractorConfig,
+  type EmailSender,
+  type GatheredInfo,
+  type NotificationEventType,
+  type NotificationPayload,
+  type Recipient,
+  type SmsSender,
+} from "@leadanswered/core";
+import type { LeadRecord, Store } from "./store/types.js";
+
+export interface NotifyDeps {
+  store: Store;
+  sms: SmsSender;
+  email?: EmailSender;
+}
+
+/**
+ * Fire a per-event contractor notification to all subscribed recipients (SCOPE §5.2).
+ * Shared by the agent tools and (later) the worker. Never throws — `sendNotifications`
+ * catches per-delivery failures so a bad send never blocks the conversation.
+ */
+export async function fireNotification(
+  deps: NotifyDeps,
+  args: { contractor: ContractorConfig; lead: LeadRecord },
+  event: NotificationEventType,
+  merged: GatheredInfo,
+  slotIso: string | null,
+): Promise<void> {
+  const recipients: Recipient[] = (await deps.store.getRecipients(args.contractor.id)).map(
+    (r) => ({ id: r.id, name: r.name, phone: r.phone, email: r.email, subscriptions: r.subscriptions }),
+  );
+  const payload = buildPayload(event, args, merged, slotIso);
+  await sendNotifications(event, recipients, payload, { sms: deps.sms, email: deps.email });
+}
+
+function buildPayload(
+  event: NotificationEventType,
+  args: { contractor: ContractorConfig; lead: LeadRecord },
+  merged: GatheredInfo,
+  slotIso: string | null,
+): NotificationPayload {
+  const { lead, contractor } = args;
+  const when = slotIso ? formatSlot(slotIso) : "";
+  if (event === "booking_confirmed" || event === "booking_rescheduled") {
+    const verb = event === "booking_rescheduled" ? "Rescheduled" : "New booking";
+    const emailBody = [
+      `${verb} for ${contractor.companyName}:`,
+      `Name: ${lead.contactName}`,
+      `Phone: ${lead.contactPhone}`,
+      `Project: ${merged.projectType ?? "n/a"}`,
+      `Address: ${merged.fullAddress ?? "n/a"}`,
+      `When: ${when}`,
+    ].join("\n");
+    return {
+      subject: `${verb} — ${lead.contactName}`,
+      smsBody: `📅 ${verb}: ${lead.contactName}, ${merged.projectType ?? ""} @ ${when}. ${merged.fullAddress ?? ""} (${lead.contactPhone})`,
+      emailBody,
+    };
+  }
+  if (event === "booking_cancelled") {
+    return {
+      subject: `Booking cancelled — ${lead.contactName}`,
+      smsBody: `❌ Booking cancelled: ${lead.contactName} (${lead.contactPhone})`,
+      emailBody: `Cancelled: ${lead.contactName} / ${lead.contactPhone} / was ${merged.projectType ?? ""}`,
+    };
+  }
+  if (event === "new_qualified_lead") {
+    return {
+      subject: `New qualified lead — ${lead.contactName}`,
+      smsBody: `✅ Qualified lead: ${lead.contactName}, ${merged.projectType ?? ""}, ${merged.serviceZip ?? ""} (${lead.contactPhone})`,
+      emailBody: `Qualified lead: ${lead.contactName} / ${lead.contactPhone} / ${merged.projectType ?? ""} / ${merged.serviceZip ?? ""}`,
+    };
+  }
+  return {
+    subject: `Lead turned away — ${lead.contactName}`,
+    smsBody: `🚫 Sarah turned away ${lead.contactName} (${merged.serviceZip ?? "?"}, ${merged.projectType ?? "?"})`,
+    emailBody: `Disqualified: ${lead.contactName} / ${merged.serviceZip ?? ""} / ${merged.projectType ?? ""}`,
+  };
+}
