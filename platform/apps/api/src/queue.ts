@@ -25,6 +25,7 @@ export async function enqueueNudge(leadId: string, delayMs = NUDGE_DELAY_MS): Pr
   await q.add(
     "nudge",
     { leadId },
-    { delay: delayMs, jobId: `nudge:${leadId}`, removeOnComplete: true, removeOnFail: true },
+    // jobId must not contain ":" (BullMQ uses it as an internal key separator).
+    { delay: delayMs, jobId: `nudge-${leadId}`, removeOnComplete: true, removeOnFail: true },
   );
 }
