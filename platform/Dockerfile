@@ -15,8 +15,11 @@ COPY platform/ ./platform/
 WORKDIR /app/platform
 
 # Install ALL deps — tsx (a devDependency) runs the services in prod, so do NOT set
-# NODE_ENV=production before this. packages/db's postinstall runs `prisma generate`.
-RUN pnpm install --frozen-lockfile
+# NODE_ENV=production before this. packages/db's postinstall runs `prisma generate`,
+# which loads prisma.config.ts and needs DATABASE_URL present — generate doesn't
+# connect, so a placeholder is fine (Railway injects the real one at runtime).
+RUN DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/postgres" \
+    pnpm install --frozen-lockfile
 
 EXPOSE 3000
 # api by default (also runs migrations on boot); the worker service sets SERVICE_ROLE=worker.

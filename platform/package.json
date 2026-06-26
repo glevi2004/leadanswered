@@ -11,5 +11,15 @@
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "@prisma/engines",
+      "prisma",
+      "msgpackr-extract",
+      "protobufjs",
+      "sharp"
+    ]
   }
 }
