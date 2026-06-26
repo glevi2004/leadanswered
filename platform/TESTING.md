@@ -1,0 +1,172 @@
+# Lead Answered — Full Manual Test Plan
+
+A live-user QA pass over **every** current capability (frontend + backend). Work top-to-bottom; check each box as you confirm it. If something fails, note the test ID + what you saw.
+
+> Goal: confirm the whole product works end-to-end before we build new features.
+
+---
+
+## 0. Setup
+
+**URLs**
+- App (product): `https://app.leadanswered.com`
+- Marketing: `https://leadanswered.com`
+- API health: `https://leadanswered-production.up.railway.app/health`
+
+**Accounts**
+- Admin (you): `levi@leadanswered.com` / `LeadAnswered-e266051e`
+- Contractor (Apex Roofing owner): `levigabrielcramos@gmail.com` / `LeadAnswered-d50f2b4d`
+
+**You'll need**
+- A phone that can send/receive SMS (to play the "homeowner").
+- The contractor's **Twilio number** (shown on the dashboard / set in `/admin`).
+- An email account to forward a "lead" email from.
+
+**Known constraints (not bugs)**
+- **Postmark is in Test mode** → invite/reset/notification *emails* only deliver to `@leadanswered.com` addresses. To test email to a Gmail, set the password via the script instead, or request Postmark approval.
+- **Cold inbound is OFF in prod** (`ALLOW_INBOUND_LEADS` unset) → a text to the number from an *unknown* phone with *no existing conversation* is ignored. Start a Sarah conversation via the **email-intake** flow (§7) or reply within an existing thread. (Ask me to flip the flag if you want cold texts to auto-start.)
+
+**Quick smoke**
+- [ ] `GET /health` returns `{"status":"ok"}`.
+- [ ] `app.leadanswered.com/sign-in` loads, **styled** (green accents, Inter font).
+- [ ] `leadanswered.com` still shows the marketing page.
+
+---
+
+## 1. Authentication
+
+- [ ] **1.1 Sign in (happy path).** Sign in as the contractor → lands on `/dashboard`.
+- [ ] **1.2 Wrong password.** Bad password → inline error, no crash.
+- [ ] **1.3 Admin routing.** Sign in as admin → lands on `/admin` (not the dashboard).
+- [ ] **1.4 Gating.** While signed out, open `/dashboard`, `/admin`, `/onboarding` directly → each redirects to `/sign-in`.
+- [ ] **1.5 Sign out.** From the dashboard sidebar → "Sign out" → back to `/sign-in`; revisiting `/dashboard` redirects to sign-in.
+- [ ] **1.6 Forgot password.** `/sign-in` → "Forgot your password?" → enter the contractor email → "reset link on its way" confirmation. (Email only arrives if the address is `@leadanswered.com` — Postmark test mode.)
+- [ ] **1.7 Reset link (only if you got the email).** Click it → set a new password → signed in. (Then reset it back via the script if needed.)
+
+---
+
+## 2. Admin console (`/admin`)
+
+- [ ] **2.1 List.** Admin sees the contractor list with company, owner email, slug, verification badge, onboarded state.
+- [ ] **2.2 Create contractor.** Fill "New contractor" (company, a `levi+test@leadanswered.com` owner, a Twilio number, optional slug) → "Create + invite" → success message; new row appears.
+- [ ] **2.3 Invite email.** The `levi+test@leadanswered.com` owner gets a Postmark invite → link lands on the app → set password → redirected into onboarding. (Use a `+alias@leadanswered.com` so Postmark delivers.)
+- [ ] **2.4 Edit a contractor.** On a row, change the Twilio number / verification status / owner email → "Save & invite" → reload shows the change.
+- [ ] **2.5 Re-invite existing user.** Saving with an already-registered owner email doesn't error out the page.
+- [ ] **2.6 Admin can't see the dashboard.** As admin, opening `/dashboard` redirects to `/admin`.
+
+---
+
+## 3. Onboarding wizard (`/onboarding`)
+
+Sign in as the contractor and open `/onboarding` (it's pre-filled with current config).
+
+- [ ] **3.1 Step rail.** Left rail shows 6 steps (Business → Service area → Availability → Loop me in → Notifications → Review) with the current step active and prior steps green/checked.
+- [ ] **3.2 Mobile progress.** Narrow the window → the rail hides and a top progress bar ("Step X of 6") appears.
+- [ ] **3.3 Step 1 — Business.** Company name, assistant name, project types, persona notes are editable + pre-filled.
+- [ ] **3.4 Gating.** Clear "Company name" → "Continue" is disabled until refilled. (Step 2: clearing "Base ZIP" disables Continue.)
+- [ ] **3.5 Back/Continue.** Navigate forward and back — entered values persist across steps.
+- [ ] **3.6 Step 3 — Availability grid.** Tap time cells → they toggle green; selections persist when you leave and return to the step.
+- [ ] **3.7 Step 5 — Notifications.** Add a recipient, toggle event checkboxes.
+- [ ] **3.8 Step 6 — Review.** Shows an accurate read-only summary of all your entries.
+- [ ] **3.9 Finish.** "Finish setup" → saves → lands on `/dashboard`. Re-open `/onboarding` → your changes persisted.
+
+---
+
+## 4. Dashboard UI
+
+- [ ] **4.1 Sidebar items.** Overview, Leads, Appointments, Settings — each navigates correctly; the active item is highlighted.
+- [ ] **4.2 Collapse.** Click the trigger (top-left) → sidebar collapses to icons; labels appear as tooltips on hover.
+- [ ] **4.3 Persist.** Collapse it, reload the page → it stays collapsed.
+- [ ] **4.4 Mobile.** Narrow window → sidebar becomes a slide-in drawer (trigger opens it).
+- [ ] **4.5 Theme toggle.** Top-right sun/moon → flips light/dark across the whole app; reload keeps your choice.
+- [ ] **4.6 Overview.** KPI cards (Total leads / Qualifying / Booked / Upcoming visits) show real numbers; "Recent leads", "Your line" (number + verification), and "Upcoming appointments" render.
+- [ ] **4.7 Leads list.** `/dashboard/leads` → table of all leads (name, phone, project, town, status badge, first seen). Columns collapse responsively on narrow screens.
+- [ ] **4.8 Lead detail.** Click a lead → the **full Sarah ↔ homeowner SMS thread** as chat bubbles (homeowner left/grey, Sarah right/green, with names + times), plus that lead's appointments and any escalations.
+- [ ] **4.9 Appointments.** `/dashboard/appointments` → "Upcoming" and "Past & cancelled" sections with lead, time, status badge; lead names link to detail.
+- [ ] **4.10 Settings (decoupled).** `/dashboard/settings` → all config sections on one page as cards (NOT the wizard). Edit a field → "Save changes" → "Saved ✓"; reload shows the change.
+- [ ] **4.11 Equivalence.** A change saved in Settings shows up if you then open the wizard (`/onboarding`), and vice-versa.
+
+---
+
+## 5. Tenant isolation (security)
+
+- [ ] **5.1 Other tenant's lead 404s.** As the contractor, open `/dashboard/leads/<a-random-or-other-id>` → **404**, never another company's data.
+- [ ] **5.2 Scope.** The dashboard only ever shows leads/appointments belonging to the signed-in contractor.
+
+---
+
+## 6. Sarah — live SMS conversation (the core)
+
+The simplest way to talk to Sarah is to reply inside an existing conversation, or use the email-intake flow (§7) to start a fresh one. For each test, watch the **Lead detail** page update + the **Langfuse** trace.
+
+- [ ] **6.1 Reply flow.** Text the contractor's Twilio number from a phone that already has a conversation → Sarah replies within seconds; the new turns appear in Lead detail.
+- [ ] **6.2 Qualification — in area.** Tell Sarah a project type you serve + a ZIP inside your radius → she treats you as qualified and moves toward booking.
+- [ ] **6.3 Qualification — out of area.** Give a ZIP far outside the radius → Sarah politely declines / doesn't book (lead → disqualified). She never claims to serve an area a tool didn't confirm.
+- [ ] **6.4 Decision-maker.** If "only book the decision-maker" is on, and you say you're a tenant/not the owner → Sarah handles it per that rule.
+- [ ] **6.5 Get availability.** Ask "what do you have next week?" → Sarah offers real slots that match your availability grid (no invented times).
+- [ ] **6.6 Book.** Accept a slot → Sarah confirms; an **Appointment** appears (Overview "Upcoming", Appointments page, Lead detail) and the lead status → booked.
+- [ ] **6.7 Address required.** Sarah asks for the full street address before confirming (not just town/ZIP).
+- [ ] **6.8 Reschedule.** Ask to move the appointment → Sarah reschedules; the appointment reflects the new time / "rescheduled".
+- [ ] **6.9 Cancel.** Ask to cancel → Sarah cancels; status → cancelled (shows under Appointments "Past & cancelled").
+- [ ] **6.10 Idempotency (best-effort).** Rapidly identical inbound texts don't produce duplicate replies/messages.
+
+---
+
+## 7. Email-parse lead intake
+
+- [ ] **7.1 Forward a lead.** Send/forward an email to `leads+<slug>@leads.leadanswered.com` (slug from `/admin`). Include a lead **name + phone number** in the body (use *your* phone as the lead so Sarah texts you).
+- [ ] **7.2 Lead created.** A new lead appears on the dashboard (source = email).
+- [ ] **7.3 Opening SMS.** Sarah sends the opening text to the lead's phone within seconds.
+- [ ] **7.4 Continue.** Reply → full qualify/booking conversation works (re-run §6 against this lead).
+- [ ] **7.5 Idempotency.** Forwarding the same email twice does not create two leads (Postmark `MessageID` dedupe).
+
+---
+
+## 8. Escalation (loop-in)
+
+- [ ] **8.1 Trigger.** In a conversation, ask Sarah something in your **escalation topics** (e.g. "do you offer financing?") → instead of guessing, Sarah says she'll check with the team; an **open escalation** appears on the Lead detail.
+- [ ] **8.2 Owner alert.** The escalation is texted to the contractor/owner number.
+- [ ] **8.3 Relay.** Reply (as the owner) to that escalation text → your answer is relayed back to the homeowner; the escalation flips to **resolved**.
+
+---
+
+## 9. Quiet-lead nudge (worker + Redis)
+
+- [ ] **9.1 Go quiet.** Start a conversation, then stop replying. After the nudge delay (~30 min) the worker sends **one** gentle follow-up SMS to the lead.
+- [ ] **9.2 Alert.** If a recipient is subscribed to `lead_unresponsive`, they get a "Quiet lead" alert (SMS, and email if a Postmark-deliverable address) — and it reads as a *quiet-lead* nudge, **not** "turned away".
+- [ ] **9.3 No double-nudge.** Replying before the delay cancels/replaces the nudge (no follow-up fires).
+
+---
+
+## 10. Notifications
+
+- [ ] **10.1 Booking.** On a booking, recipients subscribed to `booking_confirmed` get a notification with the lead + time.
+- [ ] **10.2 Qualified.** On qualification, `new_qualified_lead` subscribers are notified.
+- [ ] **10.3 Channels.** SMS arrives for all; email arrives only for Postmark-deliverable (`@leadanswered.com`) addresses while in test mode.
+
+---
+
+## 11. Observability
+
+- [ ] **11.1 Langfuse traces.** In Langfuse (US cloud), each Sarah turn shows a trace with the model (`claude-haiku-4-5`) + the tool calls (`qualify_lead`, `get_availability`, `book_appointment`, etc.).
+- [ ] **11.2 Railway logs.** `railway logs` (api) shows inbound webhooks + agent activity; the worker logs `processing the nudge queue` with no errors.
+
+---
+
+## 12. Cross-cutting polish
+
+- [ ] **12.1 Light + dark.** Every page (auth, admin, wizard, dashboard, settings) looks right in both themes.
+- [ ] **12.2 Responsive.** Phone-width: sidebar drawer, wizard progress bar, leads table all behave.
+- [ ] **12.3 No console errors.** Browser devtools console is clean on each page.
+- [ ] **12.4 Deploy is live source of truth.** Everything above is tested on `app.leadanswered.com` (not localhost).
+
+---
+
+## Appendix — intentionally NOT built yet (don't test)
+
+- Manual messaging / human-takeover from the dashboard (read-only for now).
+- Reschedule/cancel/disqualify **from the UI** (Sarah does these via SMS; the dashboard is read-only).
+- Automated Twilio number provisioning (admin sets numbers manually).
+- Cold inbound in prod (flag off by default).
+- Postmark production sending to arbitrary domains (test mode until approval).
+- Pagination / search / CSV export on the leads table.
