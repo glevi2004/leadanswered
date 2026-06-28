@@ -23,7 +23,6 @@ A live-user QA pass over **every** current capability (frontend + backend). Work
 - An email account to forward a "lead" email from.
 
 **Known constraints (not bugs)**
-- **Postmark is in Test mode** → invite/reset/notification *emails* only deliver to `@leadanswered.com` addresses. To test email to a Gmail, set the password via the script instead, or request Postmark approval.
 - **Cold inbound is OFF in prod** (`ALLOW_INBOUND_LEADS` unset) → a text to the number from an *unknown* phone with *no existing conversation* is ignored. Start a Sarah conversation via the **email-intake** flow (§7) or reply within an existing thread. (Ask me to flip the flag if you want cold texts to auto-start.)
 
 **Quick smoke**
@@ -40,7 +39,7 @@ A live-user QA pass over **every** current capability (frontend + backend). Work
 - [ ] **1.3 Admin routing.** Sign in as admin → lands on `/admin` (not the dashboard).
 - [ ] **1.4 Gating.** While signed out, open `/dashboard`, `/admin`, `/onboarding` directly → each redirects to `/sign-in`.
 - [ ] **1.5 Sign out.** From the dashboard sidebar → "Sign out" → back to `/sign-in`; revisiting `/dashboard` redirects to sign-in.
-- [ ] **1.6 Forgot password.** `/sign-in` → "Forgot your password?" → enter the contractor email → "reset link on its way" confirmation. (Email only arrives if the address is `@leadanswered.com` — Postmark test mode.)
+- [ ] **1.6 Forgot password.** `/sign-in` → "Forgot your password?" → enter the contractor email → "reset link on its way" confirmation, and the reset email arrives (via Postmark).
 - [ ] **1.7 Reset link (only if you got the email).** Click it → set a new password → signed in. (Then reset it back via the script if needed.)
 
 ---
@@ -48,8 +47,8 @@ A live-user QA pass over **every** current capability (frontend + backend). Work
 ## 2. Admin console (`/admin`)
 
 - [ ] **2.1 List.** Admin sees the contractor list with company, owner email, slug, verification badge, onboarded state.
-- [ ] **2.2 Create contractor.** Fill "New contractor" (company, a `levi+test@leadanswered.com` owner, a Twilio number, optional slug) → "Create + invite" → success message; new row appears.
-- [ ] **2.3 Invite email.** The `levi+test@leadanswered.com` owner gets a Postmark invite → link lands on the app → set password → redirected into onboarding. (Use a `+alias@leadanswered.com` so Postmark delivers.)
+- [ ] **2.2 Create contractor.** Fill "New contractor" (company, an owner email you can check, a Twilio number, optional slug) → "Create + invite" → success message; new row appears.
+- [ ] **2.3 Invite email.** The owner gets a Postmark invite → link lands on the app → set password → redirected into onboarding.
 - [ ] **2.4 Edit a contractor.** On a row, change the Twilio number / verification status / owner email → "Save & invite" → reload shows the change.
 - [ ] **2.5 Re-invite existing user.** Saving with an already-registered owner email doesn't error out the page.
 - [ ] **2.6 Admin can't see the dashboard.** As admin, opening `/dashboard` redirects to `/admin`.
@@ -169,7 +168,7 @@ The simplest way to talk to Sarah is to reply inside an existing conversation, o
 
 - [ ] **10.1 Booking.** On a booking, recipients subscribed to `booking_confirmed` get a notification with the lead + time.
 - [ ] **10.2 Qualified.** On qualification, `new_qualified_lead` subscribers are notified.
-- [ ] **10.3 Channels.** SMS arrives for all; email arrives only for Postmark-deliverable (`@leadanswered.com`) addresses while in test mode.
+- [ ] **10.3 Channels.** SMS and email both arrive for subscribed recipients (Postmark is approved — emails deliver to any address).
 
 ---
 
@@ -195,5 +194,4 @@ The simplest way to talk to Sarah is to reply inside an existing conversation, o
 - Reschedule/cancel/disqualify **from the UI** (Sarah does these via SMS; the dashboard is read-only).
 - Automated Twilio number provisioning (admin sets numbers manually).
 - Cold inbound in prod (flag off by default).
-- Postmark production sending to arbitrary domains (test mode until approval).
 - Pagination / search / CSV export on the leads table.
