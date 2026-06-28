@@ -29,7 +29,7 @@ export interface MessageRow {
 
 export interface AppointmentRow {
   id: string;
-  slotDatetime: string;
+  startAt: string;
   status: string;
   cancelReason: string | null;
   createdAt: string;
@@ -97,7 +97,7 @@ export async function getLeadDetail(contractorId: string, leadId: string): Promi
     conversation: conv ? { state: conv.state, messages } : null,
     appointments: ((row.appointments ?? []) as AppointmentRow[])
       .slice()
-      .sort((a, b) => a.slotDatetime.localeCompare(b.slotDatetime)),
+      .sort((a, b) => a.startAt.localeCompare(b.startAt)),
     escalations: ((row.escalations ?? []) as EscalationRow[])
       .slice()
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
@@ -108,9 +108,9 @@ export async function listAppointments(contractorId: string): Promise<Appointmen
   const sb = createSupabaseAdmin();
   const { data, error } = await sb
     .from("Appointment")
-    .select("id, slotDatetime, status, cancelReason, createdAt, lead:Lead(id, contactName, contactPhone)")
+    .select("id, startAt, status, cancelReason, createdAt, lead:Lead(id, contactName, contactPhone)")
     .eq("contractorId", contractorId)
-    .order("slotDatetime", { ascending: true });
+    .order("startAt", { ascending: true });
   if (error) throw error;
   return ((data ?? []) as Record<string, any>[]).map((a) => ({
     ...(a as AppointmentRow),
@@ -133,7 +133,7 @@ export async function getDashboardSummary(contractorId: string, nowIso: string):
   for (const l of leads) counts[l.status] = (counts[l.status] ?? 0) + 1;
 
   const active = new Set(["proposed", "confirmed"]);
-  const upcomingAppointments = appts.filter((a) => active.has(a.status) && a.slotDatetime >= nowIso);
+  const upcomingAppointments = appts.filter((a) => active.has(a.status) && a.startAt >= nowIso);
 
   return {
     totalLeads: leads.length,

@@ -21,7 +21,7 @@ function ApptList({ items, tz, empty }: { items: AppointmentRow[]; tz: string; e
               ) : (
                 <span className="text-sm font-medium">Lead</span>
               )}
-              <p className="text-xs text-muted-foreground">{formatWhen(a.slotDatetime, tz)}</p>
+              <p className="text-xs text-muted-foreground">{formatWhen(a.startAt, tz)}</p>
             </div>
             <Badge variant={b.variant}>{b.label}</Badge>
           </div>
@@ -38,7 +38,7 @@ export default async function AppointmentsPage() {
   const now = new Date().toISOString();
 
   const isActiveUpcoming = (a: AppointmentRow) =>
-    a.slotDatetime >= now && (a.status === "proposed" || a.status === "confirmed");
+    a.startAt >= now && (a.status === "proposed" || a.status === "confirmed");
   const upcoming = appts.filter(isActiveUpcoming);
   const past = appts.filter((a) => !isActiveUpcoming(a)).reverse(); // most recent first
 

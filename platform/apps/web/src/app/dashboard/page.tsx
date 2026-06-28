@@ -101,7 +101,7 @@ export default async function OverviewPage() {
               <div key={a.id} className="flex items-center justify-between rounded-md px-2 py-2">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{a.lead?.contactName || a.lead?.contactPhone || "Lead"}</p>
-                  <p className="text-xs text-muted-foreground">{formatWhen(a.slotDatetime, tz)}</p>
+                  <p className="text-xs text-muted-foreground">{formatWhen(a.startAt, tz)}</p>
                 </div>
                 <Badge variant={b.variant}>{b.label}</Badge>
               </div>

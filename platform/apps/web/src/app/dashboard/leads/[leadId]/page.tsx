@@ -92,7 +92,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ lea
                   const ab = apptStatusBadge(a.status);
                   return (
                     <div key={a.id} className="flex items-center justify-between gap-2">
-                      <span className="text-sm">{formatWhen(a.slotDatetime, tz)}</span>
+                      <span className="text-sm">{formatWhen(a.startAt, tz)}</span>
                       <Badge variant={ab.variant}>{ab.label}</Badge>
                     </div>
                   );
