@@ -107,10 +107,11 @@ model Contractor {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  leads        Lead[]
-  appointments Appointment[]
-  recipients   NotificationRecipient[]
-  escalations  Escalation[]
+  leads               Lead[]
+  appointments        Appointment[]
+  recipients          NotificationRecipient[]
+  escalations         Escalation[]
+  calendarConnections CalendarConnection[]
 }
 
 model NotificationRecipient {
@@ -206,19 +207,62 @@ model Escalation {
   @@index([contractorId, status])
 }
 
+enum AppointmentSyncState {
+  local_only
+  pending_push
+  synced
+  push_failed
+}
+
 model Appointment {
-  id                String            @id @default(cuid())
-  leadId            String
-  contractorId      String
-  slotDatetime      DateTime
-  status            AppointmentStatus @default(confirmed)
-  rescheduledFromIso DateTime?        // prior slot, when this booking was moved
-  cancelledAt       DateTime?
-  cancelReason      String?
-  createdAt         DateTime          @default(now())
+  id           String            @id @default(cuid())
+  leadId       String
+  contractorId String
+  // Calendar-grade interval. UTC instants stored as timestamp; 60-min default for v1.
+  startAt      DateTime
+  endAt        DateTime
+  timezone     String            @default("UTC")
+  status       AppointmentStatus @default(confirmed)
+
+  // Calendar-sync seam — unused until a one-way CalendarSync adapter ships. Our DB is
+  // ALWAYS the source of truth; a provider (Google, etc.) is a push target + free/busy
+  // source, never the booking authority.
+  externalProvider   String?
+  externalCalendarId String?
+  externalEventId    String?
+  syncState          AppointmentSyncState @default(local_only)
+  syncedAt           DateTime?
+
+  rescheduledFromIso DateTime? // prior slot, when this booking was moved
+  cancelledAt        DateTime?
+  cancelReason       String?
+  createdAt          DateTime  @default(now())
 
   lead       Lead       @relation(fields: [leadId], references: [id], onDelete: Cascade)
   contractor Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
 
   @@index([leadId, status])
+  @@index([contractorId, startAt])
+  // NOTE: Booking integrity is enforced by RAW-SQL constraints in the migration that
+  // Prisma can't express: a btree_gist EXCLUDE that forbids two overlapping ACTIVE
+  // appointments per contractor, plus partial unique indexes (active start-per-contractor;
+  // one active per lead). Do NOT `prisma migrate dev` against prod — it would try to drop them.
+}
+
+/// Per-contractor calendar provider connection. Empty/unused until calendar sync ships.
+model CalendarConnection {
+  id                 String    @id @default(cuid())
+  contractorId       String
+  provider           String // 'google' | …
+  externalCalendarId String?
+  accessToken        String? // encrypted at rest once sync ships
+  refreshToken       String?
+  tokenExpiresAt     DateTime?
+  status             String    @default("disconnected")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  contractor Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+
+  @@unique([contractorId, provider])
 }

@@ -39,6 +39,22 @@ Production runs on **Railway** (api + worker + Redis) and **Vercel** (web). Post
 - `leadanswered.com` → landing page (A `216.198.79.1`)
 - `app.leadanswered.com` → web app (A `app` → `216.198.79.1`; **not** Vercel CLI's stale `76.76.21.21`)
 
+## Cutover runbook: booking-integrity migration (one-time)
+
+The `appointment_integrity` migration adds constraints that **cannot** be applied while
+duplicate/overlapping active appointments exist, so wipe lead data first:
+
+1. **Back up:** `pg_dump "$DATABASE_URL" > backup.sql`.
+2. **Wipe lead-scoped data** (preserves contractors + config + recipients):
+   `cd platform/apps/api && pnpm exec tsx scripts/wipe-lead-data.ts` (dry run) → re-run with `--yes`.
+3. **Migrate:** `pnpm --filter @leadanswered/db migrate:deploy` (adds `btree_gist` + the EXCLUDE/partial-unique constraints to the now-clean table).
+4. **Deploy the app** (api + worker) — the constraint-handling code and the constraints must ship together.
+5. **Prove it:** run the Tier-B suite against staging (see `TESTING.md` §5b), then live-smoke: book once, rapid double-text → exactly one appointment.
+
+Caveats:
+- **`btree_gist`** must be creatable (Supabase grants this). If ever blocked, the partial-unique index is the fallback (exact-start only; loses overlap protection).
+- **Advisory/transaction safety needs the session pooler (5432)** — do not move booking/lock code to the 6543 transaction pooler without re-validation.
+
 ## Gotchas hit (so we don't repeat them)
 
 - **Don't** set `NODE_ENV=production` before `pnpm install` in the Dockerfile — it drops `tsx` (a devDep) and nothing starts.

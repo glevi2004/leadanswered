@@ -76,3 +76,31 @@ export function formatSlot(dt: Date | string): string {
     timeZone: "UTC",
   }).format(d);
 }
+
+/** A busy interval [startAt, endAt). Returned by the Scheduler (local appts now, external free/busy later). */
+export interface TimeRange {
+  startAt: Date;
+  endAt: Date;
+}
+
+/** Default on-site-estimate duration (minutes). Per-contractor configurable later. */
+export const APPOINTMENT_DURATION_MIN = 60;
+
+/**
+ * Drop any candidate slot whose [start, start+duration) interval overlaps a busy
+ * range — so Sarah never *offers* a time that's already taken. Half-open overlap so
+ * back-to-back slots don't false-collide. Pure (unit-testable); the busy ranges come
+ * from the Scheduler. This is a UX guard; the DB EXCLUDE constraint is the real backstop.
+ */
+export function subtractBusy(
+  slots: SlotOption[],
+  busy: TimeRange[],
+  durationMinutes: number = APPOINTMENT_DURATION_MIN,
+): SlotOption[] {
+  if (busy.length === 0) return slots;
+  return slots.filter((s) => {
+    const start = new Date(s.iso).getTime();
+    const end = start + durationMinutes * 60_000;
+    return !busy.some((b) => start < b.endAt.getTime() && end > b.startAt.getTime());
+  });
+}

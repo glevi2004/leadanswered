@@ -5,6 +5,25 @@
  * odd templates can later be handled by a per-contractor parsing hint.
  */
 
+import { createHash } from "node:crypto";
+
+/**
+ * Stable idempotency key for an inbound lead email when Postmark's MessageID is
+ * absent — so two retries of the same header-less forward still dedupe (the
+ * `Lead.sourceMessageId @unique` constraint then guarantees one lead per email).
+ */
+export function synthesizeEmailKey(parts: {
+  contractorId: string;
+  from?: string | null;
+  subject?: string | null;
+  phone?: string | null;
+}): string {
+  const h = createHash("sha256")
+    .update([parts.contractorId, parts.from ?? "", parts.subject ?? "", parts.phone ?? ""].join("|"))
+    .digest("hex");
+  return `email:${h}`;
+}
+
 export interface LeadEmailInput {
   subject?: string | null;
   textBody?: string | null;

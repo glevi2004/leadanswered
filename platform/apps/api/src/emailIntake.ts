@@ -1,4 +1,4 @@
-import { parseLeadEmail, slugFromLeadAddress } from "@leadanswered/core";
+import { parseLeadEmail, slugFromLeadAddress, synthesizeEmailKey } from "@leadanswered/core";
 import { createLeadAndGreet, type LeadDeps } from "./leadService.js";
 
 /** The subset of Postmark's inbound webhook payload we read (SCOPE §9). */
@@ -56,21 +56,40 @@ export async function handleInboundEmail(
     return { status: "skipped", reason: "no_phone" };
   }
 
-  // Idempotency: a Postmark retry of the same email must not create a 2nd lead/text.
-  const messageId = payload.MessageID ?? null;
-  if (messageId && (await deps.store.findLeadBySourceMessageId(messageId))) {
-    console.log(`[email] duplicate inbound ${messageId} — ignored (idempotent)`);
+  // Idempotency: a Postmark retry must not create a 2nd lead/text. Use the MessageID, or a
+  // synthesized stable key when it's missing. The fast-path read is a courtesy; the
+  // `Lead.sourceMessageId @unique` constraint is the real guard (we catch its violation below),
+  // which makes this race-safe even under concurrent retries.
+  const key =
+    payload.MessageID ??
+    synthesizeEmailKey({
+      contractorId: contractor.id,
+      from: payload.From,
+      subject: payload.Subject,
+      phone: parsed.contactPhone,
+    });
+  if (await deps.store.findLeadBySourceMessageId(key)) {
+    console.log(`[email] duplicate inbound ${key} — ignored (idempotent)`);
     return { status: "skipped", reason: "duplicate" };
   }
 
-  const { leadId } = await createLeadAndGreet(deps, {
-    contractorId: contractor.id,
-    contactName: parsed.contactName ?? "there",
-    contactPhone: parsed.contactPhone,
-    projectHint: parsed.projectHint,
-    source: "email",
-    sourceMessageId: messageId,
-  });
+  let leadId: string;
+  try {
+    ({ leadId } = await createLeadAndGreet(deps, {
+      contractorId: contractor.id,
+      contactName: parsed.contactName ?? "there",
+      contactPhone: parsed.contactPhone,
+      projectHint: parsed.projectHint,
+      source: "email",
+      sourceMessageId: key,
+    }));
+  } catch (e) {
+    if ((e as { code?: string })?.code === "P2002") {
+      console.log(`[email] duplicate inbound ${key} — ignored (idempotent, raced)`);
+      return { status: "skipped", reason: "duplicate" };
+    }
+    throw e;
+  }
   console.log(`[email] new lead ${leadId} for ${contractor.companyName} from ${parsed.contactPhone}`);
   return { status: "ok", leadId };
 }

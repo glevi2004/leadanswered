@@ -49,7 +49,7 @@ describe("Sarah agent engine (SCOPE §5, §7.5)", () => {
 
     const appts = store.getAppointments();
     expect(appts).toHaveLength(1);
-    expect(appts[0].slotIso).toBe(MON_9);
+    expect(appts[0].startIso).toBe(MON_9);
 
     const ctx = await store.getContextByLeadId(lead.leadId);
     expect(ctx?.lead.status).toBe("booked");
@@ -82,12 +82,12 @@ describe("Sarah agent engine (SCOPE §5, §7.5)", () => {
     await createLeadAndGreet(deps, { contractorId: TEST_CONTRACTOR_ID, contactName: "Levi", contactPhone: FROM });
 
     await handleInbound(deps, { toNumber: TO, fromNumber: FROM, body: "roof leak at 100 Linden St Boston 02134, my home, Monday 9 works" });
-    expect(store.getAppointments()[0].slotIso).toBe(MON_9);
+    expect(store.getAppointments()[0].startIso).toBe(MON_9);
 
     // the booked lead texts back later — must still be found (state "booked", not "done")
     const r = await handleInbound(deps, { toNumber: TO, fromNumber: FROM, body: "actually can we do Monday afternoon instead?" });
     expect(r.status).toBe("ok");
-    expect(store.getAppointments()[0].slotIso).toBe(MON_2);
+    expect(store.getAppointments()[0].startIso).toBe(MON_2);
   });
 
   it("disqualifies an out-of-area lead and never books (CODE decides — §5.1)", async () => {

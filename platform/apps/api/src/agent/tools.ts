@@ -9,8 +9,10 @@ import {
   slotMatches,
   type ContractorConfig,
   type GatheredInfo,
+  type SlotOption,
 } from "@leadanswered/core";
 import { fireNotification, type NotifyDeps } from "../notify.js";
+import { Scheduler } from "../scheduler/scheduler.js";
 import type {
   ConversationRecord,
   LeadFieldPatch,
@@ -46,17 +48,31 @@ async function persistGathered(deps: ToolDeps, state: ToolState): Promise<void> 
   if (Object.keys(patch).length > 0) await deps.store.updateLeadFields(state.lead.id, patch);
 }
 
+const timezoneOf = (c: ContractorConfig) => c.standingAvailability?.timezone ?? "America/New_York";
+
+/** A valid (matches the standing grid) slot for `chosenIso`, or null. */
+function findValidSlot(deps: ToolDeps, state: ToolState, chosenIso: string): SlotOption | null {
+  const valid = proposeSlots(state.contractor.standingAvailability, 50, deps.now, { horizonDays: 28 });
+  return valid.find((s) => slotMatches(s, chosenIso)) ?? null;
+}
+
+/** Up to 3 genuinely-free slots to re-offer after a conflict. */
+async function freshSlots(deps: ToolDeps, state: ToolState, scheduler: Scheduler) {
+  const candidates = proposeSlots(state.contractor.standingAvailability, 9, deps.now);
+  const free = await scheduler.filterAvailable(state.contractor.id, candidates);
+  return free.slice(0, 3).map((s) => ({ iso: s.iso, label: s.label }));
+}
+
 /**
  * The agent's toolkit (SCOPE §5.1). The model orchestrates the conversation and
  * CHOOSES tools; every business decision is made by deterministic CODE inside the
- * tool body, and the tool RESULT is authoritative. The model may never assert a
- * fact (in/out of area, an available time, "you're booked") a tool didn't return.
- *
- * Determinism guards live here: `qualify_lead` decides coverage/qualification,
- * `get_availability` returns only real slots, `book_appointment` re-validates the
- * slot + qualification + address server-side before any DB write.
+ * tool body, and the tool RESULT is authoritative. Booking goes through the Scheduler,
+ * whose DB constraints make double-booking impossible; availability already subtracts
+ * booked times so Sarah can't even offer a taken slot.
  */
 export function buildTools(deps: ToolDeps, state: ToolState) {
+  const scheduler = new Scheduler(deps.store);
+
   return {
     qualify_lead: tool({
       description:
@@ -80,17 +96,25 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
 
         const q = qualify(state.gathered, state.contractor);
 
+        // Conditional transitions: the notification fires only if THIS call actually moved the
+        // lead's status (so concurrent turns / retries can't double-notify).
         if (isDisqualified(q)) {
-          if (state.lead.status !== "disqualified") {
+          const moved = await deps.store.transitionLeadStatus(
+            state.lead.id,
+            ["new", "contacted", "qualifying"],
+            "disqualified",
+          );
+          if (moved) {
             state.lead.status = "disqualified";
-            await deps.store.updateLeadFields(state.lead.id, { status: "disqualified" });
             await deps.store.updateConversation(state.conversation.id, { state: "done" });
             await fireNotification(deps, state, "disqualified_lead", state.gathered, null);
           }
-        } else if (q.qualified && (state.lead.status === "new" || state.lead.status === "contacted")) {
-          state.lead.status = "qualifying";
-          await deps.store.updateLeadFields(state.lead.id, { status: "qualifying" });
-          await fireNotification(deps, state, "new_qualified_lead", state.gathered, null);
+        } else if (q.qualified) {
+          const moved = await deps.store.transitionLeadStatus(state.lead.id, ["new", "contacted"], "qualifying");
+          if (moved) {
+            state.lead.status = "qualifying";
+            await fireNotification(deps, state, "new_qualified_lead", state.gathered, null);
+          }
         }
 
         return {
@@ -122,7 +146,11 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
         } else if (input.window === "next_week") {
           fromDate = new Date(deps.now.getTime() + 7 * 24 * 60 * 60 * 1000);
         }
-        const slots = proposeSlots(state.contractor.standingAvailability, count, deps.now, { fromDate });
+        // Over-fetch candidates, then subtract already-booked times so we still return `count` FREE slots.
+        const candidates = proposeSlots(state.contractor.standingAvailability, count * 4, deps.now, { fromDate });
+        const free = await scheduler.filterAvailable(state.contractor.id, candidates);
+        const slots = free.slice(0, count);
+
         // Return SHORT ids (not raw ISOs) so the model books reliably; remember the map.
         const map: Record<string, string> = {};
         const out = slots.map((s, i) => {
@@ -144,7 +172,6 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
         fullAddress: z.string().describe("Full street address for the visit"),
       }),
       execute: async (input) => {
-        // Resolve the short id to the real ISO (fall back to treating it as an ISO).
         const chosenIso = state.gathered.offeredSlots?.[input.slotIso] ?? input.slotIso;
         state.gathered = mergeGathered(state.gathered, {
           fullAddress: input.fullAddress ?? null,
@@ -157,33 +184,37 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
         if (!input.fullAddress || input.fullAddress.trim() === "")
           return { ok: false as const, reason: "need_address" };
 
-        // Re-validate the slot against real availability (the migrated decideTurn gate).
-        const valid = proposeSlots(state.contractor.standingAvailability, 50, deps.now, { horizonDays: 28 });
-        const match = valid.find((s) => slotMatches(s, chosenIso));
+        const match = findValidSlot(deps, state, chosenIso);
         if (!match)
-          return {
-            ok: false as const,
-            reason: "slot_unavailable",
-            slots: proposeSlots(state.contractor.standingAvailability, 3, deps.now).map((s) => ({ iso: s.iso, label: s.label })),
-          };
+          return { ok: false as const, reason: "slot_unavailable", slots: await freshSlots(deps, state, scheduler) };
 
-        // Idempotency: already booked at this slot → return it, don't double-insert.
-        if (state.lead.status === "booked" && state.gathered.chosenSlot === match.iso) {
-          return { ok: true as const, slotIso: match.iso, label: match.label, already: true };
-        }
-
-        await deps.store.createAppointment({
+        // The Scheduler + DB constraints are the authority: this can never double-book.
+        const res = await scheduler.book({
           leadId: state.lead.id,
           contractorId: state.contractor.id,
-          slotIso: match.iso,
+          startIso: match.iso,
+          timezone: timezoneOf(state.contractor),
         });
-        state.lead.status = "booked";
-        await deps.store.updateLeadFields(state.lead.id, { status: "booked" });
-        // "booked" (not "done") keeps the conversation reachable so the lead can
-        // text back later to reschedule or cancel (SCOPE §2, post-booking).
-        await deps.store.updateConversation(state.conversation.id, { state: "booked" });
-        await fireNotification(deps, state, "booking_confirmed", state.gathered, match.iso);
 
+        if (!res.ok) {
+          if (res.reason === "lead_has_active") {
+            // The lead already has a booking. Same slot → idempotent success; different → tell them.
+            const existing = await deps.store.getActiveAppointmentByLead(state.lead.id);
+            if (existing && slotMatches(match, existing.startIso))
+              return { ok: true as const, slotIso: match.iso, label: match.label, already: true };
+            return {
+              ok: false as const,
+              reason: "already_booked",
+              currentLabel: existing ? formatSlot(existing.startIso) : null,
+            };
+          }
+          // slot_taken (someone else holds it) — re-offer fresh times.
+          return { ok: false as const, reason: "slot_unavailable", slots: await freshSlots(deps, state, scheduler) };
+        }
+
+        // bookAppointment already flipped lead+conversation to booked inside its transaction.
+        state.lead.status = "booked";
+        await fireNotification(deps, state, "booking_confirmed", state.gathered, match.iso);
         return { ok: true as const, slotIso: match.iso, label: match.label };
       },
     }),
@@ -200,13 +231,12 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
         const newIso = state.gathered.offeredSlots?.[input.newSlotIso] ?? input.newSlotIso;
         const match = findValidSlot(deps, state, newIso);
         if (!match)
-          return { ok: false as const, reason: "slot_unavailable", slots: currentSlots(deps, state) };
+          return { ok: false as const, reason: "slot_unavailable", slots: await freshSlots(deps, state, scheduler) };
 
-        await deps.store.updateAppointment(appt.id, {
-          slotIso: match.iso,
-          status: "confirmed",
-          rescheduledFromIso: appt.slotIso,
-        });
+        const res = await scheduler.reschedule(appt.id, match.iso);
+        if (!res.ok)
+          return { ok: false as const, reason: "slot_unavailable", slots: await freshSlots(deps, state, scheduler) };
+
         state.gathered = mergeGathered(state.gathered, { chosenSlot: match.iso });
         await persistGathered(deps, state);
         await fireNotification(deps, state, "booking_rescheduled", state.gathered, match.iso);
@@ -215,8 +245,7 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
     }),
 
     cancel_appointment: tool({
-      description:
-        "Cancel the lead's existing booking. Only for leads who already have a booking.",
+      description: "Cancel the lead's existing booking. Only for leads who already have a booking.",
       inputSchema: z.object({
         reason: z.string().optional().describe("Why they're cancelling, if they said"),
       }),
@@ -224,16 +253,12 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
         const appt = await deps.store.getActiveAppointmentByLead(state.lead.id);
         if (!appt) return { ok: false as const, reason: "no_appointment" };
 
-        await deps.store.updateAppointment(appt.id, {
-          status: "cancelled",
-          cancelledAt: deps.now.toISOString(),
-          cancelReason: input.reason ?? null,
-        });
+        await scheduler.cancel(appt.id, input.reason ?? null, deps.now.toISOString());
         // Re-open the lead so they can rebook in the same thread if they want.
         state.lead.status = "contacted";
         await deps.store.updateLeadFields(state.lead.id, { status: "contacted" });
         await deps.store.updateConversation(state.conversation.id, { state: "qualifying" });
-        await fireNotification(deps, state, "booking_cancelled", state.gathered, appt.slotIso);
+        await fireNotification(deps, state, "booking_cancelled", state.gathered, appt.startIso);
         return { ok: true as const };
       },
     }),
@@ -251,7 +276,6 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
           conversationId: state.conversation.id,
           question: input.question,
         });
-        // Notify the contractor's people directly (a control message, not an event subscription).
         const recipients = await deps.store.getRecipients(state.contractor.id);
         const body = `❓ ${state.lead.contactName} (${state.lead.contactPhone}) asks: ${input.question}\nReply to this text to answer them.`;
         for (const r of recipients) {
@@ -267,13 +291,4 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
       },
     }),
   };
-}
-
-function findValidSlot(deps: ToolDeps, state: ToolState, slotIso: string) {
-  const valid = proposeSlots(state.contractor.standingAvailability, 50, deps.now, { horizonDays: 28 });
-  return valid.find((s) => slotMatches(s, slotIso)) ?? null;
-}
-
-function currentSlots(deps: ToolDeps, state: ToolState) {
-  return proposeSlots(state.contractor.standingAvailability, 3, deps.now).map((s) => ({ iso: s.iso, label: s.label }));
 }

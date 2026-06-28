@@ -95,6 +95,33 @@ Sign in as the contractor and open `/onboarding` (it's pre-filled with current c
 
 ---
 
+## 5b. Concurrency & data integrity (the guarantees)
+
+These are the bugs the integrity rebuild fixed (see SCOPE → "Data Integrity & Concurrency
+Invariants"). Manual checks:
+
+- [ ] **5b.1 No double-booking.** Book a slot; then try to book the **same** slot for a different
+  lead → refused (Sarah re-offers other times). Repeat the *same booking flow* several times fast →
+  you still end up with **exactly one** appointment, never duplicates.
+- [ ] **5b.2 Availability excludes booked.** After a slot is booked, ask Sarah for times → that slot
+  is no longer offered.
+- [ ] **5b.3 One booking per lead.** A lead with an active booking can't create a second — Sarah
+  treats a re-book as "you already have a time, want to move it?" (reschedule).
+- [ ] **5b.4 Reschedule/cancel hit the right one.** With a single active appointment, reschedule and
+  cancel act on it unambiguously; a cancelled slot frees up to be booked again.
+- [ ] **5b.5 Duplicate webhook = one reply.** (Hard to trigger by hand — covered by automated tests.)
+
+**Automated proof (the real guarantee):** the in-memory test store *cannot* enforce DB constraints,
+so integrity is proven only against real Postgres:
+- `pnpm -r test` → Tier-A logic (incl. `apps/api/src/integrity.test.ts`).
+- **Tier B** (keystone — concurrent booking of the same slot yields exactly one appointment):
+  ```
+  createdb leadanswered_test
+  DATABASE_URL=postgres://…/leadanswered_test pnpm --filter @leadanswered/db migrate:deploy
+  TEST_DATABASE_URL=postgres://…/leadanswered_test pnpm --filter @leadanswered/api test:integration
+  ```
+  Must be green before shipping booking changes.
+
 ## 6. Sarah — live SMS conversation (the core)
 
 The simplest way to talk to Sarah is to reply inside an existing conversation, or use the email-intake flow (§7) to start a fresh one. For each test, watch the **Lead detail** page update + the **Langfuse** trace.

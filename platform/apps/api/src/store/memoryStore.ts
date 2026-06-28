@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
-import type { ContractorConfig, GatheredInfo } from "@leadanswered/core";
+import type { ContractorConfig, GatheredInfo, Stage, TimeRange } from "@leadanswered/core";
+import { createConversationLock } from "./conversationLock.js";
 import type {
+  AppointmentPatch,
+  AppointmentRecord,
+  BookOutcome,
   ConversationRecord,
   CreateLeadInput,
   LeadContext,
@@ -11,7 +15,28 @@ import type {
   Store,
 } from "./types.js";
 
-/** In-memory Store for the demo mode and tests — no external services required. */
+type ApptRow = {
+  id: string;
+  leadId: string;
+  contractorId: string;
+  startIso: string;
+  endIso: string;
+  status: string;
+  rescheduledFromIso?: string | null;
+  cancelledAt?: string | null;
+  cancelReason?: string | null;
+};
+
+const isActive = (status: string) => status === "proposed" || status === "confirmed";
+const overlaps = (aStart: string, aEnd: string, start: number, end: number) =>
+  new Date(aStart).getTime() < end && new Date(aEnd).getTime() > start; // half-open
+
+/**
+ * In-memory Store for demo mode + tests. It MIMICS the DB integrity constraints
+ * (no overlapping active appointment per contractor; one active per lead) so logic
+ * tests behave like prod — but it cannot PROVE them under real concurrency. The
+ * race-proof guarantee is the Postgres EXCLUDE constraint, exercised by Tier-B tests.
+ */
 export class MemoryStore implements Store {
   private contractors = new Map<string, ContractorConfig>();
   private recipients = new Map<string, RecipientRecord[]>();
@@ -19,43 +44,32 @@ export class MemoryStore implements Store {
   private conversations = new Map<string, ConversationRecord>();
   private convIdByLead = new Map<string, string>();
   private messages: MessageRecord[] = [];
-  private appointments: {
-    id: string;
-    leadId: string;
-    contractorId: string;
-    slotIso: string;
-    status: string;
-    rescheduledFromIso?: string | null;
-    cancelledAt?: string | null;
-    cancelReason?: string | null;
-  }[] = [];
+  private appointments: ApptRow[] = [];
+  private leadIdBySourceMessageId = new Map<string, string>();
+  private lock = createConversationLock();
 
   seedContractor(c: ContractorConfig, recipients: RecipientRecord[] = []): void {
     this.contractors.set(c.id, c);
     this.recipients.set(c.id, recipients);
   }
 
+  withConversationLock<T>(conversationId: string, fn: () => Promise<T>): Promise<T> {
+    return this.lock(conversationId, fn);
+  }
+
   async getContractor(id: string): Promise<ContractorConfig | null> {
     return this.contractors.get(id) ?? null;
   }
 
-  async getContractorByTwilioNumber(
-    toNumber: string,
-  ): Promise<ContractorConfig | null> {
-    for (const c of this.contractors.values()) {
-      if (c.twilioNumber === toNumber) return c;
-    }
+  async getContractorByTwilioNumber(toNumber: string): Promise<ContractorConfig | null> {
+    for (const c of this.contractors.values()) if (c.twilioNumber === toNumber) return c;
     return null;
   }
 
   async getContractorBySlug(slug: string): Promise<ContractorConfig | null> {
-    for (const c of this.contractors.values()) {
-      if (c.slug === slug) return c;
-    }
+    for (const c of this.contractors.values()) if (c.slug === slug) return c;
     return null;
   }
-
-  private leadIdBySourceMessageId = new Map<string, string>();
 
   async findLeadBySourceMessageId(sourceMessageId: string): Promise<{ id: string } | null> {
     const id = this.leadIdBySourceMessageId.get(sourceMessageId);
@@ -69,6 +83,11 @@ export class MemoryStore implements Store {
   async createLeadWithConversation(input: CreateLeadInput): Promise<LeadContext> {
     const contractor = this.contractors.get(input.contractorId);
     if (!contractor) throw new Error(`unknown contractor ${input.contractorId}`);
+    if (input.sourceMessageId && this.leadIdBySourceMessageId.has(input.sourceMessageId)) {
+      const err: any = new Error("duplicate sourceMessageId");
+      err.code = "P2002";
+      throw err;
+    }
 
     const lead: LeadRecord = {
       id: randomUUID(),
@@ -85,12 +104,7 @@ export class MemoryStore implements Store {
     if (input.sourceMessageId) this.leadIdBySourceMessageId.set(input.sourceMessageId, lead.id);
 
     const gathered: GatheredInfo = { projectType: input.projectHint ?? null };
-    const conv: ConversationRecord = {
-      id: randomUUID(),
-      leadId: lead.id,
-      state: "greeting",
-      gathered,
-    };
+    const conv: ConversationRecord = { id: randomUUID(), leadId: lead.id, state: "greeting", gathered };
     this.conversations.set(conv.id, conv);
     this.convIdByLead.set(lead.id, conv.id);
 
@@ -106,10 +120,7 @@ export class MemoryStore implements Store {
     return { lead, contractor, conversation: conv, messages };
   }
 
-  async findActiveContextByPhones(
-    toNumber: string,
-    fromNumber: string,
-  ): Promise<LeadContext | null> {
+  async findActiveContextByPhones(toNumber: string, fromNumber: string): Promise<LeadContext | null> {
     let contractorId: string | null = null;
     for (const c of this.contractors.values()) {
       if (c.twilioNumber === toNumber) {
@@ -118,7 +129,6 @@ export class MemoryStore implements Store {
       }
     }
     if (!contractorId) return null;
-
     const candidates = [...this.leads.values()].filter(
       (l) => l.contractorId === contractorId && l.contactPhone === fromNumber,
     );
@@ -136,8 +146,15 @@ export class MemoryStore implements Store {
     return conv ? this.contextFor(conv) : null;
   }
 
-  async messageExistsByProviderSid(sid: string): Promise<boolean> {
-    return this.messages.some((m) => m.providerSid === sid);
+  async appendInboundIdempotent(
+    conversationId: string,
+    msg: { body: string; providerSid?: string | null },
+  ): Promise<{ inserted: boolean }> {
+    if (msg.providerSid && this.messages.some((m) => m.providerSid === msg.providerSid)) {
+      return { inserted: false };
+    }
+    await this.appendMessage(conversationId, { direction: "inbound", body: msg.body, providerSid: msg.providerSid });
+    return { inserted: true };
   }
 
   async appendMessage(
@@ -155,6 +172,15 @@ export class MemoryStore implements Store {
     return rec;
   }
 
+  async transitionLeadStatus(leadId: string, from: string[], to: string): Promise<boolean> {
+    const lead = this.leads.get(leadId);
+    if (lead && from.includes(lead.status)) {
+      lead.status = to;
+      return true;
+    }
+    return false;
+  }
+
   async updateLeadFields(leadId: string, patch: LeadFieldPatch): Promise<void> {
     const lead = this.leads.get(leadId);
     if (lead) Object.assign(lead, patch);
@@ -162,7 +188,7 @@ export class MemoryStore implements Store {
 
   async updateConversation(
     conversationId: string,
-    patch: { state?: import("@leadanswered/core").Stage; gathered?: GatheredInfo },
+    patch: { state?: Stage; gathered?: GatheredInfo },
   ): Promise<void> {
     const conv = this.conversations.get(conversationId);
     if (!conv) return;
@@ -170,32 +196,92 @@ export class MemoryStore implements Store {
     if (patch.gathered) conv.gathered = patch.gathered;
   }
 
-  async createAppointment(input: {
+  async bookAppointment(input: {
     leadId: string;
     contractorId: string;
-    slotIso: string;
-  }): Promise<{ id: string }> {
-    const appt = { id: randomUUID(), ...input, status: "confirmed" };
+    startIso: string;
+    endIso: string;
+    timezone: string;
+  }): Promise<BookOutcome> {
+    if (this.appointments.some((a) => a.leadId === input.leadId && isActive(a.status))) {
+      return { ok: false, reason: "lead_has_active" };
+    }
+    const start = new Date(input.startIso).getTime();
+    const end = new Date(input.endIso).getTime();
+    if (
+      this.appointments.some(
+        (a) => a.contractorId === input.contractorId && isActive(a.status) && overlaps(a.startIso, a.endIso, start, end),
+      )
+    ) {
+      return { ok: false, reason: "slot_taken" };
+    }
+    const appt: ApptRow = {
+      id: randomUUID(),
+      leadId: input.leadId,
+      contractorId: input.contractorId,
+      startIso: input.startIso,
+      endIso: input.endIso,
+      status: "confirmed",
+    };
     this.appointments.push(appt);
-    return { id: appt.id };
+    const lead = this.leads.get(input.leadId);
+    if (lead) lead.status = "booked";
+    const convId = this.convIdByLead.get(input.leadId);
+    const conv = convId ? this.conversations.get(convId) : undefined;
+    if (conv) conv.state = "booked";
+    return { ok: true, id: appt.id, startIso: input.startIso, endIso: input.endIso };
   }
 
-  async getActiveAppointmentByLead(leadId: string) {
-    const appt = [...this.appointments]
-      .reverse()
-      .find((a) => a.leadId === leadId && (a.status === "confirmed" || a.status === "proposed"));
+  async getBusyTimes(
+    contractorId: string,
+    window: { startIso: string; endIso: string },
+  ): Promise<TimeRange[]> {
+    const ws = new Date(window.startIso).getTime();
+    const we = new Date(window.endIso).getTime();
+    return this.appointments
+      .filter((a) => a.contractorId === contractorId && isActive(a.status) && overlaps(a.startIso, a.endIso, ws, we))
+      .map((a) => ({ startAt: new Date(a.startIso), endAt: new Date(a.endIso) }));
+  }
+
+  async getActiveAppointmentByLead(leadId: string): Promise<AppointmentRecord | null> {
+    const appt = [...this.appointments].reverse().find((a) => a.leadId === leadId && isActive(a.status));
     return appt
-      ? { id: appt.id, leadId: appt.leadId, contractorId: appt.contractorId, slotIso: appt.slotIso, status: appt.status }
+      ? {
+          id: appt.id,
+          leadId: appt.leadId,
+          contractorId: appt.contractorId,
+          startIso: appt.startIso,
+          endIso: appt.endIso,
+          status: appt.status,
+        }
       : null;
   }
 
-  async updateAppointment(
-    id: string,
-    patch: import("./types.js").AppointmentPatch,
-  ): Promise<void> {
+  async rescheduleAppointment(id: string, startIso: string, endIso: string): Promise<BookOutcome> {
+    const appt = this.appointments.find((a) => a.id === id);
+    if (!appt) return { ok: false, reason: "slot_taken" };
+    const start = new Date(startIso).getTime();
+    const end = new Date(endIso).getTime();
+    if (
+      this.appointments.some(
+        (a) =>
+          a.id !== id && a.contractorId === appt.contractorId && isActive(a.status) && overlaps(a.startIso, a.endIso, start, end),
+      )
+    ) {
+      return { ok: false, reason: "slot_taken" };
+    }
+    appt.rescheduledFromIso = appt.startIso;
+    appt.startIso = startIso;
+    appt.endIso = endIso;
+    appt.status = "confirmed";
+    return { ok: true, id: appt.id, startIso, endIso };
+  }
+
+  async updateAppointment(id: string, patch: AppointmentPatch): Promise<void> {
     const appt = this.appointments.find((a) => a.id === id);
     if (!appt) return;
-    if (patch.slotIso !== undefined) appt.slotIso = patch.slotIso;
+    if (patch.startIso !== undefined) appt.startIso = patch.startIso;
+    if (patch.endIso !== undefined) appt.endIso = patch.endIso;
     if (patch.status !== undefined) appt.status = patch.status;
     if (patch.rescheduledFromIso !== undefined) appt.rescheduledFromIso = patch.rescheduledFromIso;
     if (patch.cancelledAt !== undefined) appt.cancelledAt = patch.cancelledAt;
@@ -220,22 +306,38 @@ export class MemoryStore implements Store {
   }) {
     const esc = { id: randomUUID(), ...input, status: "open" };
     this.escalations.push(esc);
-    return { id: esc.id, leadId: esc.leadId, contractorId: esc.contractorId, conversationId: esc.conversationId, question: esc.question, status: esc.status };
+    return {
+      id: esc.id,
+      leadId: esc.leadId,
+      contractorId: esc.contractorId,
+      conversationId: esc.conversationId,
+      question: esc.question,
+      status: esc.status,
+    };
   }
 
   async findOpenEscalationByContractorReply(contractorId: string) {
     const esc = [...this.escalations].reverse().find((e) => e.contractorId === contractorId && e.status === "open");
     return esc
-      ? { id: esc.id, leadId: esc.leadId, contractorId: esc.contractorId, conversationId: esc.conversationId, question: esc.question, status: esc.status }
+      ? {
+          id: esc.id,
+          leadId: esc.leadId,
+          contractorId: esc.contractorId,
+          conversationId: esc.conversationId,
+          question: esc.question,
+          status: esc.status,
+        }
       : null;
   }
 
-  async resolveEscalation(id: string, answer: string): Promise<void> {
+  async resolveEscalationIfOpen(id: string, answer: string): Promise<boolean> {
     const esc = this.escalations.find((e) => e.id === id);
-    if (esc) {
+    if (esc && esc.status === "open") {
       esc.answer = answer;
       esc.status = "resolved";
+      return true;
     }
+    return false;
   }
 
   // ---- test/demo inspection helpers ----

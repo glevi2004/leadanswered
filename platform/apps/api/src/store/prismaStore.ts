@@ -4,8 +4,13 @@ import type {
   GatheredInfo,
   NotificationEventType,
   Stage,
+  TimeRange,
 } from "@leadanswered/core";
+import { createConversationLock } from "./conversationLock.js";
 import type {
+  AppointmentPatch,
+  AppointmentRecord,
+  BookOutcome,
   ConversationRecord,
   CreateLeadInput,
   LeadContext,
@@ -31,8 +36,7 @@ function rowToContractor(r: any): ContractorConfig {
       excludeOverrides: r.excludeOverrides,
     },
     qualificationRules: (r.qualificationRules as any) ?? {},
-    standingAvailability:
-      (r.standingAvailability as any) ?? { timezone: "UTC", slots: [] },
+    standingAvailability: (r.standingAvailability as any) ?? { timezone: "UTC", slots: [] },
     twilioNumber: r.twilioNumber,
     slug: r.slug ?? null,
     escalationTopics: r.escalationTopics?.length ? r.escalationTopics : null,
@@ -54,36 +58,55 @@ function mapLead(l: any): LeadRecord {
 }
 
 function mapConv(c: any): ConversationRecord {
-  return {
-    id: c.id,
-    leadId: c.leadId,
-    state: c.state as Stage,
-    gathered: (c.gathered as GatheredInfo) ?? {},
-  };
+  return { id: c.id, leadId: c.leadId, state: c.state as Stage, gathered: (c.gathered as GatheredInfo) ?? {} };
 }
 
 function mapMsg(m: any): MessageRecord {
+  return { id: m.id, conversationId: m.conversationId, direction: m.direction, body: m.body, providerSid: m.providerSid };
+}
+
+function mapAppt(a: any): AppointmentRecord {
   return {
-    id: m.id,
-    conversationId: m.conversationId,
-    direction: m.direction,
-    body: m.body,
-    providerSid: m.providerSid,
+    id: a.id,
+    leadId: a.leadId,
+    contractorId: a.contractorId,
+    startIso: a.startAt.toISOString(),
+    endIso: a.endAt.toISOString(),
+    status: a.status,
   };
+}
+
+/**
+ * Classify a Postgres integrity-constraint error from a booking write. Our constraints
+ * (defined in the migration) put their names in the error detail, so we match on them.
+ * Returns null for anything that isn't one of our booking conflicts (re-thrown).
+ */
+function classifyAppointmentConflict(e: unknown): "slot_taken" | "lead_has_active" | null {
+  const err = e as any;
+  const blob = `${err?.message ?? ""} ${JSON.stringify(err?.meta ?? "")} ${String(err?.cause ?? "")}`;
+  if (blob.includes("appt_one_active_per_lead")) return "lead_has_active";
+  if (blob.includes("appt_no_overlap_per_contractor") || blob.includes("appt_unique_active_start_per_contractor"))
+    return "slot_taken";
+  // 23P01 = exclusion_violation, 23505 = unique_violation; P2002 = Prisma unique. Default to slot_taken.
+  if (blob.includes("23P01") || blob.includes("23505") || err?.code === "P2002") return "slot_taken";
+  return null;
 }
 
 /** Production Store backed by Postgres via Prisma. Only constructed when DATABASE_URL is set. */
 export class PrismaStore implements Store {
   private db = getPrisma();
+  private lock = createConversationLock();
+
+  withConversationLock<T>(conversationId: string, fn: () => Promise<T>): Promise<T> {
+    return this.lock(conversationId, fn);
+  }
 
   async getContractor(id: string): Promise<ContractorConfig | null> {
     const r = await this.db.contractor.findUnique({ where: { id } });
     return r ? rowToContractor(r) : null;
   }
 
-  async getContractorByTwilioNumber(
-    toNumber: string,
-  ): Promise<ContractorConfig | null> {
+  async getContractorByTwilioNumber(toNumber: string): Promise<ContractorConfig | null> {
     const r = await this.db.contractor.findFirst({ where: { twilioNumber: toNumber } });
     return r ? rowToContractor(r) : null;
   }
@@ -133,28 +156,14 @@ export class PrismaStore implements Store {
     const conv = await this.db.conversation.create({
       data: { leadId: lead.id, state: "greeting", gathered: gathered as any },
     });
-    return {
-      lead: mapLead(lead),
-      contractor,
-      conversation: mapConv(conv),
-      messages: [],
-    };
+    return { lead: mapLead(lead), contractor, conversation: mapConv(conv), messages: [] };
   }
 
-  async findActiveContextByPhones(
-    toNumber: string,
-    fromNumber: string,
-  ): Promise<LeadContext | null> {
-    const contractor = await this.db.contractor.findFirst({
-      where: { twilioNumber: toNumber },
-    });
+  async findActiveContextByPhones(toNumber: string, fromNumber: string): Promise<LeadContext | null> {
+    const contractor = await this.db.contractor.findFirst({ where: { twilioNumber: toNumber } });
     if (!contractor) return null;
     const lead = await this.db.lead.findFirst({
-      where: {
-        contractorId: contractor.id,
-        contactPhone: fromNumber,
-        conversation: { state: { not: "done" } },
-      },
+      where: { contractorId: contractor.id, contactPhone: fromNumber, conversation: { state: { not: "done" } } },
       orderBy: { createdAt: "desc" },
       include: { conversation: { include: { messages: { orderBy: { createdAt: "asc" } } } } },
     });
@@ -183,9 +192,19 @@ export class PrismaStore implements Store {
     };
   }
 
-  async messageExistsByProviderSid(sid: string): Promise<boolean> {
-    const m = await this.db.message.findUnique({ where: { providerSid: sid } });
-    return m != null;
+  async appendInboundIdempotent(
+    conversationId: string,
+    msg: { body: string; providerSid?: string | null },
+  ): Promise<{ inserted: boolean }> {
+    try {
+      await this.db.message.create({
+        data: { conversationId, direction: "inbound", body: msg.body, providerSid: msg.providerSid ?? null },
+      });
+      return { inserted: true };
+    } catch (e) {
+      if ((e as any)?.code === "P2002") return { inserted: false }; // duplicate providerSid → already handled
+      throw e;
+    }
   }
 
   async appendMessage(
@@ -193,14 +212,17 @@ export class PrismaStore implements Store {
     msg: { direction: "inbound" | "outbound"; body: string; providerSid?: string | null },
   ): Promise<MessageRecord> {
     const m = await this.db.message.create({
-      data: {
-        conversationId,
-        direction: msg.direction,
-        body: msg.body,
-        providerSid: msg.providerSid ?? null,
-      },
+      data: { conversationId, direction: msg.direction, body: msg.body, providerSid: msg.providerSid ?? null },
     });
     return mapMsg(m);
+  }
+
+  async transitionLeadStatus(leadId: string, from: string[], to: string): Promise<boolean> {
+    const r = await this.db.lead.updateMany({
+      where: { id: leadId, status: { in: from as any } },
+      data: { status: to as any },
+    });
+    return r.count > 0;
   }
 
   async updateLeadFields(leadId: string, patch: LeadFieldPatch): Promise<void> {
@@ -226,43 +248,99 @@ export class PrismaStore implements Store {
     });
   }
 
-  async createAppointment(input: {
+  async bookAppointment(input: {
     leadId: string;
     contractorId: string;
-    slotIso: string;
-  }): Promise<{ id: string }> {
-    const a = await this.db.appointment.create({
-      data: {
-        leadId: input.leadId,
-        contractorId: input.contractorId,
-        slotDatetime: new Date(input.slotIso),
-        status: "confirmed",
-      },
-    });
-    return { id: a.id };
+    startIso: string;
+    endIso: string;
+    timezone: string;
+  }): Promise<BookOutcome> {
+    try {
+      const a = await this.db.$transaction(async (tx) => {
+        const appt = await tx.appointment.create({
+          data: {
+            leadId: input.leadId,
+            contractorId: input.contractorId,
+            startAt: new Date(input.startIso),
+            endAt: new Date(input.endIso),
+            timezone: input.timezone,
+            status: "confirmed",
+          },
+        });
+        await tx.lead.update({ where: { id: input.leadId }, data: { status: "booked" } });
+        await tx.conversation.update({ where: { leadId: input.leadId }, data: { state: "booked" } });
+        return appt;
+      });
+      return { ok: true, id: a.id, startIso: a.startAt.toISOString(), endIso: a.endAt.toISOString() };
+    } catch (e) {
+      const reason = classifyAppointmentConflict(e);
+      if (reason) return { ok: false, reason };
+      throw e;
+    }
   }
 
-  async getActiveAppointmentByLead(leadId: string) {
+  async getBusyTimes(
+    contractorId: string,
+    window: { startIso: string; endIso: string },
+  ): Promise<TimeRange[]> {
+    const rows = await this.db.appointment.findMany({
+      where: {
+        contractorId,
+        status: { in: ["proposed", "confirmed"] },
+        startAt: { lt: new Date(window.endIso) },
+        endAt: { gt: new Date(window.startIso) },
+      },
+      select: { startAt: true, endAt: true },
+    });
+    return rows.map((r) => ({ startAt: r.startAt, endAt: r.endAt }));
+  }
+
+  async getActiveAppointmentByLead(leadId: string): Promise<AppointmentRecord | null> {
     const a = await this.db.appointment.findFirst({
       where: { leadId, status: { in: ["confirmed", "proposed"] } },
       orderBy: { createdAt: "desc" },
     });
-    return a
-      ? { id: a.id, leadId: a.leadId, contractorId: a.contractorId, slotIso: a.slotDatetime.toISOString(), status: a.status }
-      : null;
+    return a ? mapAppt(a) : null;
   }
 
-  async updateAppointment(
-    id: string,
-    patch: import("./types.js").AppointmentPatch,
-  ): Promise<void> {
+  async rescheduleAppointment(id: string, startIso: string, endIso: string): Promise<BookOutcome> {
+    try {
+      const a = await this.db.$transaction(async (tx) => {
+        const cur = await tx.appointment.findUnique({ where: { id } });
+        if (!cur) throw new Error(`appointment ${id} not found`);
+        return tx.appointment.update({
+          where: { id },
+          data: {
+            startAt: new Date(startIso),
+            endAt: new Date(endIso),
+            status: "confirmed",
+            rescheduledFromIso: cur.startAt,
+          },
+        });
+      });
+      return { ok: true, id: a.id, startIso: a.startAt.toISOString(), endIso: a.endAt.toISOString() };
+    } catch (e) {
+      const reason = classifyAppointmentConflict(e);
+      if (reason) return { ok: false, reason };
+      throw e;
+    }
+  }
+
+  async updateAppointment(id: string, patch: AppointmentPatch): Promise<void> {
     await this.db.appointment.update({
       where: { id },
       data: {
-        slotDatetime: patch.slotIso !== undefined ? new Date(patch.slotIso) : undefined,
+        startAt: patch.startIso !== undefined ? new Date(patch.startIso) : undefined,
+        endAt: patch.endIso !== undefined ? new Date(patch.endIso) : undefined,
         status: patch.status as any,
-        rescheduledFromIso: patch.rescheduledFromIso != null ? new Date(patch.rescheduledFromIso) : patch.rescheduledFromIso === null ? null : undefined,
-        cancelledAt: patch.cancelledAt != null ? new Date(patch.cancelledAt) : patch.cancelledAt === null ? null : undefined,
+        rescheduledFromIso:
+          patch.rescheduledFromIso != null
+            ? new Date(patch.rescheduledFromIso)
+            : patch.rescheduledFromIso === null
+              ? null
+              : undefined,
+        cancelledAt:
+          patch.cancelledAt != null ? new Date(patch.cancelledAt) : patch.cancelledAt === null ? null : undefined,
         cancelReason: patch.cancelReason,
       },
     });
@@ -275,7 +353,14 @@ export class PrismaStore implements Store {
     question: string;
   }) {
     const e = await this.db.escalation.create({ data: { ...input, status: "open" } });
-    return { id: e.id, leadId: e.leadId, contractorId: e.contractorId, conversationId: e.conversationId, question: e.question, status: e.status };
+    return {
+      id: e.id,
+      leadId: e.leadId,
+      contractorId: e.contractorId,
+      conversationId: e.conversationId,
+      question: e.question,
+      status: e.status,
+    };
   }
 
   async findOpenEscalationByContractorReply(contractorId: string) {
@@ -284,14 +369,22 @@ export class PrismaStore implements Store {
       orderBy: { createdAt: "desc" },
     });
     return e
-      ? { id: e.id, leadId: e.leadId, contractorId: e.contractorId, conversationId: e.conversationId, question: e.question, status: e.status }
+      ? {
+          id: e.id,
+          leadId: e.leadId,
+          contractorId: e.contractorId,
+          conversationId: e.conversationId,
+          question: e.question,
+          status: e.status,
+        }
       : null;
   }
 
-  async resolveEscalation(id: string, answer: string): Promise<void> {
-    await this.db.escalation.update({
-      where: { id },
+  async resolveEscalationIfOpen(id: string, answer: string): Promise<boolean> {
+    const r = await this.db.escalation.updateMany({
+      where: { id, status: "open" },
       data: { answer, status: "resolved", resolvedAt: new Date() },
     });
+    return r.count > 0;
   }
 }

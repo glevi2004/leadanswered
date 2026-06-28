@@ -20,6 +20,43 @@ The conversation engine was rebuilt from the original procedural state machine (
 
 ---
 
+## 🔒 Data Integrity & Concurrency Invariants (DB-enforced, not convention)
+
+Booking is a reservation system, so correctness is guaranteed by the **database**, not by app
+code that a race or a retry could slip past. These invariants hold under concurrent webhooks:
+
+1. **No double-booking.** At most one *active* (`proposed`/`confirmed`) appointment per contractor
+   may occupy any time interval — enforced by a Postgres `btree_gist` **EXCLUDE** constraint on
+   `(contractorId, tsrange(startAt,endAt))` (+ a partial-unique on exact start). Two racing inserts:
+   one commits, the other fails cleanly as `slot_taken`.
+2. **One active appointment per lead** — partial unique index; reschedule/cancel are therefore
+   unambiguous.
+3. **Exactly-once webhook processing.** An inbound SMS is inserted *first* and its unique
+   `Message.providerSid` is the idempotency lock — a duplicate webhook is skipped before the agent
+   runs. Email intake dedupes on `Lead.sourceMessageId` (synthesized when Postmark's MessageID is
+   absent). Both rely on the unique constraint (catch the violation), not a check-then-write.
+4. **Exactly-once side effects.** Every status transition is a conditional `UPDATE … WHERE
+   status = <old>`; the notification fires only if a row actually moved. Escalation relays resolve
+   the escalation conditionally and relay only if they won.
+5. **Per-conversation serialization.** Turns for one conversation run one-at-a-time (in-process
+   lock); cross-instance correctness for bookings/webhooks is the DB constraints' job (so we never
+   hold a DB transaction across an LLM call).
+
+These are tested by a **real-Postgres Tier-B suite** (the in-memory store cannot prove them) — see
+`TESTING.md`. Rule: never weaken these to a JS-only check.
+
+### Scheduling-provider architecture (calendar-ready)
+
+Our `Appointment` table is **always** the booking source of truth. The agent tools book through a
+`Scheduler` (`apps/api/src/scheduler/`) whose DB constraints make double-booking impossible;
+availability = the standing weekly grid **minus** `getBusyTimes` (our active appointments). A
+calendar provider (Google, etc.) is a **future, optional, ONE-WAY sync target** — push booked
+events out + merge free/busy in — **never** the source of truth and never in the booking
+transaction. The seam exists today (`CalendarConnection` model + `Appointment.external*`/`syncState`
+columns + `scheduler/README.md`); no provider code is built yet.
+
+---
+
 ## 1. Product summary
 
 **One line:** When a homeowner submits a contractor's website contact form, Lead Answered texts them back within 60 seconds (as the contractor's assistant "Sarah"), qualifies the lead over SMS, proposes appointment slots from the contractor's standing availability, and notifies the contractor — with no action required from the contractor.

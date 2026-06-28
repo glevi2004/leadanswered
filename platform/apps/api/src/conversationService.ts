@@ -3,7 +3,7 @@ import type { LanguageModel } from "ai";
 import { generateAgentReply, type ChatTurn } from "./agent/runner.js";
 import type { ToolState } from "./agent/tools.js";
 import { enqueueNudge } from "./queue.js";
-import type { Store } from "./store/types.js";
+import type { LeadContext, Store } from "./store/types.js";
 
 export interface ConversationDeps {
   store: Store;
@@ -28,32 +28,21 @@ export interface InboundResult {
 }
 
 /**
- * The "Sarah" conversation engine (SCOPE §5), now a tool-using agent. Per inbound
- * SMS: idempotency-guard → load context → run the agent (the model reasons and
- * calls deterministic tools, which make every qualify/book decision) → persist +
- * send the reply. The directive ladder + two-pass extraction are gone; the tools
- * own the decisions (SCOPE §5.1).
+ * The "Sarah" conversation engine (SCOPE §5), a tool-using agent. Concurrency-safe:
+ * a contractor escalation reply is relayed at-most-once (conditional resolve); a lead's
+ * turns are serialized per conversation and the inbound message is inserted FIRST as the
+ * idempotency lock, so a retried/duplicate webhook can never double-run the agent or
+ * double-reply. Every qualify/book decision is made by deterministic tools (SCOPE §5.1).
  */
-export async function handleInbound(
-  deps: ConversationDeps,
-  input: InboundInput,
-): Promise<InboundResult> {
-  const { store, sms } = deps;
+export async function handleInbound(deps: ConversationDeps, input: InboundInput): Promise<InboundResult> {
+  const { store } = deps;
   const now = (deps.now ?? (() => new Date()))();
 
-  // Idempotency — a Twilio webhook delivered twice produces exactly one reply (SCOPE §7).
-  if (input.providerSid && (await store.messageExistsByProviderSid(input.providerSid))) {
-    console.log(`[sms] duplicate webhook ${input.providerSid} — ignored (idempotent)`);
-    return { status: "skipped" };
-  }
-
-  // Is this a CONTRACTOR replying to an open escalation? Relay their answer to the
-  // homeowner and resolve it (the async loop closes here). Gated on an open
-  // escalation, so a normal contractor text is ignored and resolving it is the
-  // idempotency guard against a retried relay.
-  const relayed = await maybeRelayContractorReply(deps, input, now);
+  // 1) Is this a CONTRACTOR replying to an open escalation? Relay at-most-once.
+  const relayed = await maybeRelayContractorReply(deps, input);
   if (relayed) return relayed;
 
+  // 2) Find (or, in dev, cold-start) the lead conversation.
   let ctx = await store.findActiveContextByPhones(input.toNumber, input.fromNumber);
   if (!ctx && deps.allowColdInbound) {
     const contractor = await store.getContractorByTwilioNumber(input.toNumber);
@@ -71,68 +60,70 @@ export async function handleInbound(
     console.log(`[sms] no active conversation for ${input.fromNumber} → ${input.toNumber}`);
     return { status: "skipped" };
   }
+  const conversationId = ctx.conversation.id;
+  const leadId = ctx.lead.id;
 
-  // Persist the inbound BEFORE the agent runs — so a Twilio retry re-enters and is
-  // skipped by the idempotency guard above, never double-processing (SCOPE §7).
-  await store.appendMessage(ctx.conversation.id, {
-    direction: "inbound",
-    body: input.body,
-    providerSid: input.providerSid ?? null,
-  });
-
-  const state: ToolState = {
-    contractor: ctx.contractor,
-    lead: ctx.lead,
-    conversation: ctx.conversation,
-    gathered: ctx.conversation.gathered ?? {},
-  };
-  const history: ChatTurn[] = [
-    ...ctx.messages
-      .filter((m) => m.body && m.body.trim() !== "") // never replay empty text (Anthropic 400s on it)
-      .map((m): ChatTurn => ({
-        role: m.direction === "inbound" ? "user" : "assistant",
-        content: m.body,
-      })),
-    { role: "user", content: input.body },
-  ];
-
-  let reply: string;
-  try {
-    reply = await generateAgentReply({ ...deps, sms, now }, state, history);
-  } catch (err) {
-    // Fail safe: log, don't crash the webhook, don't double-send (SCOPE §7).
-    console.error(`[sms] agent error for ${input.fromNumber} — no reply sent:`, err);
-    return { status: "error" };
-  }
-
-  await store.appendMessage(ctx.conversation.id, { direction: "outbound", body: reply });
-  try {
-    await sms.send(ctx.lead.contactPhone, reply);
-  } catch (err) {
-    console.error(`[sms] failed to send reply to ${ctx.lead.contactPhone}:`, err);
-  }
-
-  // If the lead is still mid-conversation, schedule a gentle follow-up in case they
-  // go quiet (no-op without REDIS_URL). Re-enqueuing resets the timer each turn.
-  if (state.lead.status !== "booked" && state.lead.status !== "disqualified") {
-    try {
-      await enqueueNudge(ctx.lead.id);
-    } catch (err) {
-      console.error("[nudge] enqueue failed:", err);
+  // 3) Serialize all turns for this conversation, then dedup + run the agent.
+  return store.withConversationLock(conversationId, async () => {
+    // Insert the inbound FIRST — its unique providerSid is the idempotency lock. A
+    // duplicate webhook stops here, before the agent runs or any SMS is sent.
+    const { inserted } = await store.appendInboundIdempotent(conversationId, {
+      body: input.body,
+      providerSid: input.providerSid ?? null,
+    });
+    if (!inserted) {
+      console.log(`[sms] duplicate webhook ${input.providerSid} — ignored (idempotent)`);
+      return { status: "skipped" };
     }
-  }
 
-  return { status: "ok", reply };
+    // Re-read inside the lock for a consistent snapshot (now includes the inbound we inserted).
+    const fresh = (await store.getContextByLeadId(leadId)) ?? ctx!;
+    const state: ToolState = {
+      contractor: fresh.contractor,
+      lead: fresh.lead,
+      conversation: fresh.conversation,
+      gathered: fresh.conversation.gathered ?? {},
+    };
+    const history: ChatTurn[] = fresh.messages
+      .filter((m) => m.body && m.body.trim() !== "") // never replay empty text (Anthropic 400s on it)
+      .map((m): ChatTurn => ({ role: m.direction === "inbound" ? "user" : "assistant", content: m.body }));
+
+    let reply: string;
+    try {
+      reply = await generateAgentReply({ ...deps, now }, state, history);
+    } catch (err) {
+      console.error(`[sms] agent error for ${input.fromNumber} — no reply sent:`, err);
+      return { status: "error" };
+    }
+
+    await store.appendMessage(conversationId, { direction: "outbound", body: reply });
+    try {
+      await deps.sms.send(fresh.lead.contactPhone, reply);
+    } catch (err) {
+      console.error(`[sms] failed to send reply to ${fresh.lead.contactPhone}:`, err);
+    }
+
+    // Schedule a gentle follow-up if they're still mid-conversation (no-op without REDIS_URL).
+    if (state.lead.status !== "booked" && state.lead.status !== "disqualified") {
+      try {
+        await enqueueNudge(leadId);
+      } catch (err) {
+        console.error("[nudge] enqueue failed:", err);
+      }
+    }
+
+    return { status: "ok", reply };
+  });
 }
 
 /**
- * If `input` is a contractor replying to an open escalation, relay their answer to
- * the homeowner and resolve the escalation. Returns the result if handled, else null.
+ * If `input` is a contractor replying to an open escalation, relay their answer to the
+ * homeowner — exactly once. We resolve the escalation with a conditional update FIRST and
+ * only relay if it actually flipped open→resolved, so a retried/concurrent reply no-ops.
  */
 async function maybeRelayContractorReply(
   deps: ConversationDeps,
   input: InboundInput,
-  _now: Date,
 ): Promise<InboundResult | null> {
   const { store, sms } = deps;
   const contractor = await store.getContractorByTwilioNumber(input.toNumber);
@@ -145,7 +136,11 @@ async function maybeRelayContractorReply(
   const esc = await store.findOpenEscalationByContractorReply(contractor.id);
   if (!esc) return null;
 
-  const leadCtx = await store.getContextByLeadId(esc.leadId);
+  // Win the resolve before relaying — the conditional update is the at-most-once guard.
+  const resolved = await store.resolveEscalationIfOpen(esc.id, input.body);
+  if (!resolved) return { status: "skipped" };
+
+  const leadCtx: LeadContext | null = await store.getContextByLeadId(esc.leadId);
   if (leadCtx) {
     const relay = `Hi ${leadCtx.lead.contactName}! Quick update from ${contractor.companyName}: ${input.body}`;
     await store.appendMessage(leadCtx.conversation.id, { direction: "outbound", body: relay });
@@ -155,7 +150,6 @@ async function maybeRelayContractorReply(
       console.error(`[relay] failed to reach ${leadCtx.lead.contactPhone}:`, err);
     }
   }
-  await store.resolveEscalation(esc.id, input.body);
   console.log(`[escalation] relayed contractor answer for escalation ${esc.id}`);
   return { status: "ok", reply: input.body };
 }

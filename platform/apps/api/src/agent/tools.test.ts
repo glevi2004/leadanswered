@@ -104,7 +104,7 @@ describe("agent tools", () => {
     // reschedule to a real later slot
     const rr = (await run("reschedule_appointment", { newSlotIso: MON_2 })) as any;
     expect(rr.ok).toBe(true);
-    expect(store.getAppointments()[0].slotIso).toBe(MON_2);
+    expect(store.getAppointments()[0].startIso).toBe(MON_2);
     expect(store.getAppointments()[0].rescheduledFromIso).toBe(MON_9);
     expect(sms.sent.some((s) => s.body.includes("Rescheduled"))).toBe(true);
 
