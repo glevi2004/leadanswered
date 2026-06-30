@@ -82,7 +82,10 @@ export default async function OverviewPage() {
           <CardContent className="flex flex-col items-start gap-2">
             <p className="text-2xl font-semibold tracking-tight">{contractor.twilioNumber ?? "—"}</p>
             <Badge variant={v.variant}>{v.text}</Badge>
-            <p className="mt-1 text-xs text-muted-foreground">Sarah answers and books from this number.</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Sarah answers and books from this number. The badge shows its carrier (toll-free)
+              verification status with Twilio.
+            </p>
           </CardContent>
         </Card>
       </div>

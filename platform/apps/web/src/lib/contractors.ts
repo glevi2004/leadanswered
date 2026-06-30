@@ -42,6 +42,80 @@ export async function getContractorByOwnerEmail(email: string) {
   return data;
 }
 
+/**
+ * Account lifecycle, DERIVED — never a stored column. no owner → "none"; finished the config
+ * wizard (onboardingComplete) → "live"; accepted the invite (email confirmed / signed in) →
+ * "accepted"; invite sent but not accepted → "invited". This is distinct from the manual Twilio
+ * line `verificationStatus`, and neither gates the agent (both are informational).
+ */
+export type AccountStatus = "none" | "invited" | "accepted" | "live";
+
+export interface ContractorListRowWithStatus extends ContractorListRow {
+  accountStatus: AccountStatus;
+}
+
+/** email(lowercased) → has the Supabase user accepted (email_confirmed_at or last_sign_in_at set)? */
+async function ownerAcceptanceMap(emails: string[]): Promise<Map<string, boolean>> {
+  const sb = createSupabaseAdmin();
+  const wanted = new Set(emails.map((e) => e.toLowerCase()));
+  const map = new Map<string, boolean>();
+  for (let page = 1; wanted.size > 0 && page <= 20; page++) {
+    const { data, error } = await sb.auth.admin.listUsers({ page, perPage: 200 });
+    if (error || !data?.users?.length) break;
+    for (const u of data.users) {
+      const em = u.email?.toLowerCase();
+      if (em && wanted.has(em)) {
+        map.set(em, Boolean(u.email_confirmed_at || u.last_sign_in_at));
+        wanted.delete(em);
+      }
+    }
+    if (data.users.length < 200) break;
+  }
+  return map;
+}
+
+function accountStatusFrom(
+  ownerEmail: string | null,
+  onboardingComplete: boolean,
+  accepted: boolean | undefined,
+): AccountStatus {
+  if (!ownerEmail) return "none";
+  if (onboardingComplete) return "live";
+  return accepted ? "accepted" : "invited";
+}
+
+export async function listContractorsWithStatus(): Promise<ContractorListRowWithStatus[]> {
+  const rows = await listContractors();
+  const emails = rows.map((r) => r.ownerEmail).filter((e): e is string => !!e);
+  const accepted = emails.length ? await ownerAcceptanceMap(emails) : new Map<string, boolean>();
+  return rows.map((r) => ({
+    ...r,
+    accountStatus: accountStatusFrom(
+      r.ownerEmail,
+      r.onboardingComplete,
+      r.ownerEmail ? accepted.get(r.ownerEmail.toLowerCase()) : undefined,
+    ),
+  }));
+}
+
+/** Full contractor row + derived accountStatus, for the /admin/[id] manage page. */
+export async function getContractorById(id: string) {
+  const sb = createSupabaseAdmin();
+  const { data, error } = await sb.from("Contractor").select("*").eq("id", id).maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const row = data as Record<string, any>;
+  const accepted = row.ownerEmail ? await ownerAcceptanceMap([row.ownerEmail]) : new Map<string, boolean>();
+  return {
+    ...row,
+    accountStatus: accountStatusFrom(
+      row.ownerEmail ?? null,
+      Boolean(row.onboardingComplete),
+      row.ownerEmail ? accepted.get(String(row.ownerEmail).toLowerCase()) : undefined,
+    ),
+  };
+}
+
 export async function createContractorShell(input: {
   companyName: string;
   slug: string;
@@ -69,6 +143,8 @@ export async function createContractorShell(input: {
 export async function updateContractorAdmin(
   id: string,
   patch: {
+    companyName?: string;
+    slug?: string;
     twilioNumber?: string;
     verificationStatus?: "pending" | "verified" | "failed";
     ownerEmail?: string;
@@ -76,6 +152,8 @@ export async function updateContractorAdmin(
 ): Promise<void> {
   const sb = createSupabaseAdmin();
   const data: Record<string, unknown> = { updatedAt: nowIso() };
+  if (patch.companyName !== undefined) data.companyName = patch.companyName;
+  if (patch.slug !== undefined) data.slug = patch.slug || null;
   if (patch.twilioNumber !== undefined) data.twilioNumber = patch.twilioNumber;
   if (patch.verificationStatus !== undefined) data.verificationStatus = patch.verificationStatus;
   if (patch.ownerEmail) data.ownerEmail = patch.ownerEmail.toLowerCase();

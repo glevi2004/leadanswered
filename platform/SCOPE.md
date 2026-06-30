@@ -154,6 +154,10 @@ This is the most important architectural decision in the doc. Claude Code must N
 
 - **contractor**: id, name, company_name, project_types (list), qualification_rules (JSON), standing_availability (JSON: weekly slots), sarah_persona_notes, twilio_number, messaging_service_sid, number_type (toll_free | local), verification_status (pending | verified | failed), number_status (active | pending_swap | retired)
   - NOTE: each contractor owns a DEDICATED number (never shared). The telephony fields support per-contractor provisioning, the toll-free verification lifecycle, and the future local-number upgrade/swap (see §9.5) without a schema migration.
+  - **Statuses (two independent dimensions — both INFORMATIONAL; neither gates the agent):**
+    - **Account lifecycle is DERIVED, never a stored column**: `Invited → Accepted → Live`, computed from Supabase auth (invite accepted = email confirmed / signed in) + `onboarding_complete`. Surfaced as the "Account" chip in `/admin`. Note that **"invite accepted" and "email verified" are the same event**, and there is **no separate onboarding-call status** — the admin invites + screenshare-guides during the call, so the call ending ≈ the wizard finishing (`Live`). A sales/CRM "I onboarded them" note would be a future CRM field, not a status.
+    - `verification_status` (pending|verified|failed) = the **Twilio toll-free carrier verification**, set **manually** by the admin to mirror Twilio (no auto-sync yet — see §9.6, the "Status (current)" note, and the deferred cron in §11). Surfaced as the "Line" chip in `/admin` + the contractor's "Your line" badge. It does **not** gate Sarah's texting; carrier deliverability is enforced by Twilio, not our code.
+    - `number_status` (active|pending_swap|retired) = reserved for the future local-number swap (§9.5); **not read by any code yet**.
   - **Service area is structured, NOT free-text** (see §5.1): `base_locations` (JSON: list of `{address_or_zip, radius_miles}`), `include_overrides` (list of towns/zips always in-area), `exclude_overrides` (list of towns/zips never served). Qualification is computed deterministically against these; the AI never judges geography.
   - Single `notify_phone`/`notify_email` are REMOVED — notifications are handled by the `notification_recipient` table below.
 - **notification_recipient**: id, contractor_id, name, phone, email
@@ -274,6 +278,8 @@ This is the most important architectural decision in the doc. Claude Code must N
 ### Phase 3 — Onboarding UI (contractor self-serve setup)
 
 A web app where a contractor sets themselves up without you touching the database. This is intentionally built EARLY (right after the Sarah core works) because it gives a premium experience and removes manual onboarding work. Collects everything the `contractor` record needs:
+
+> **Current admin flow (what's built — reconciles the auto-provisioning vision below).** Provisioning is **not** automated yet: you buy + configure the number in Twilio yourself, then in `/admin` **create the contractor + send one invite**. Managing an existing contractor happens on **`/admin/[id]`**, where **Save updates fields only — sending the invite is a separate "Resend invite" action** (the old fused "Save & invite" that re-invited on every edit is gone). The owner accepts the invite, then self-configures through the wizard. **Account status (Invited → Accepted → Live) is derived** (§4); **toll-free line verification is tracked manually** (§4, §9.6). The auto-provisioning chain in the "On submit →" bullet below remains the future vision.
 
 - Company name, contact info
 - Notification phone + email (where booking alerts go)
@@ -438,7 +444,7 @@ This is a deliberate product moment, not a backend afterthought — it should fe
 1. During onboarding, the UI collects everything Twilio requires to provision + submit verification for a toll-free number (business name, address, EIN/BRN, use-case description, opt-in details, sample messages). Most of these are fields the onboarding form already needs for the contractor profile.
 2. On submit, the backend calls the Twilio API to: provision a toll-free number → attach it to a Messaging Service → configure the inbound webhook → submit the toll-free verification request.
 3. The UI shows a brief loading/provisioning state, then presents: **"Here's your dedicated Lead Answered number: (833) XXX-XXXX"** — and ideally triggers a **first SMS from Sarah to the contractor's own phone** so they immediately see it working ("Hi, this is Sarah, [Company]'s new assistant — your Lead Answered line is live!"). That first-text moment is a high-impact trust/delight beat.
-4. Verification status is tracked on the contractor record and surfaced in the dashboard (pending → verified), since Twilio reports it via API/Console.
+4. Verification status is tracked on the contractor record and surfaced in the dashboard ("Your line" badge) + the `/admin` "Line" chip. **Today it's set manually** by the admin to mirror Twilio (which reports it via API/Console); the auto-sync poll is deferred (§11).
 
 ### Data model implication
 
@@ -471,6 +477,8 @@ The number setup is **fully integrated into onboarding via the Twilio API** — 
 5. The contractor proceeds into the dashboard; nothing is blocked on verification.
 
 ### Async verification handling
+
+> **Today this is manual** (the auto-provisioning chain isn't built — see the Phase 3 "Current admin flow" note). The admin sets `verification_status` by hand in `/admin/[id]` to mirror Twilio; the poll/callback auto-sync below is the deferred design (§11 cron).
 
 - Number purchase, webhook config, and the first send are **instant** (synchronous, within the onboarding request).
 - Verification **approval is asynchronous** (~3–5 business days). Twilio reports status via API/Console; poll or receive status callbacks and update `verification_status` (pending → verified | failed).

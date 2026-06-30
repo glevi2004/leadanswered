@@ -64,9 +64,16 @@ export async function createContractorAction(
   }
 }
 
-export async function updateContractorAction(formData: FormData): Promise<void> {
+/**
+ * Save contractor fields. Editing NEVER emails — inviting is a separate, explicit action
+ * (resendInviteAction). This fixes the old "Save & invite" that re-invited on every edit.
+ */
+export async function saveContractorAction(formData: FormData): Promise<void> {
   await requireAdmin();
   const id = String(formData.get("id"));
+  const companyName = String(formData.get("companyName") ?? "").trim() || undefined;
+  const rawSlug = String(formData.get("slug") ?? "").trim();
+  const slug = rawSlug ? slugify(rawSlug) : undefined;
   const twilioNumber = String(formData.get("twilioNumber") ?? "").trim() || undefined;
   const verificationStatus = (String(formData.get("verificationStatus") ?? "") || undefined) as
     | "pending"
@@ -75,15 +82,23 @@ export async function updateContractorAction(formData: FormData): Promise<void> 
     | undefined;
   const ownerEmail = String(formData.get("ownerEmail") ?? "").trim().toLowerCase() || undefined;
 
-  await updateContractorAdmin(id, { twilioNumber, verificationStatus, ownerEmail });
-
-  // If an owner email was set/changed, send an invite (to set a password). An
-  // already-registered owner just signs in — ignore that error.
-  if (ownerEmail) {
-    const sb = createSupabaseAdmin();
-    await sb.auth.admin
-      .inviteUserByEmail(ownerEmail, { redirectTo: INVITE_REDIRECT(siteUrl()) })
-      .catch(() => {});
-  }
+  await updateContractorAdmin(id, { companyName, slug, twilioNumber, verificationStatus, ownerEmail });
   revalidatePath("/admin");
+  revalidatePath(`/admin/${id}`);
+}
+
+/** Send (or resend) the owner invite — explicit, never triggered by a field save. */
+export async function resendInviteAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const ownerEmail = String(formData.get("ownerEmail") ?? "").trim().toLowerCase();
+  const id = String(formData.get("id") ?? "");
+  if (!ownerEmail) return;
+  const sb = createSupabaseAdmin();
+  // An already-registered owner just signs in — that error is fine.
+  const { error } = await sb.auth.admin.inviteUserByEmail(ownerEmail, {
+    redirectTo: INVITE_REDIRECT(siteUrl()),
+  });
+  if (error && !isAlreadyRegistered(error)) throw new Error(error.message);
+  revalidatePath("/admin");
+  if (id) revalidatePath(`/admin/${id}`);
 }

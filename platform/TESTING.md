@@ -41,8 +41,8 @@ A live-user QA pass over **every** current capability (frontend + backend). Work
 - [X] **1.5 Sign out.** From the dashboard sidebar → "Sign out" → back to `/sign-in`; revisiting `/dashboard` redirects to sign-in.
 - [X] **1.6 Forgot password.** `/sign-in` → "Forgot your password?" → enter the contractor email → "reset link on its way" confirmation, and the reset email arrives (via Postmark).
 - [X] **1.7 Reset link (only if you got the email).** Click it → set a new password → signed in. (Then reset it back via the script if needed.)
-- [ ] **1.8 Reset email is branded** (`platform/EMAIL.md` applied to Supabase). Trigger a reset (1.6); the email shows the **"A" logo + "Lead Answered"** header, the **green CTA button**, body copy per §2.1, the raw-link fallback, and the **"Every lead, answered in 60 seconds" + "© 2026 Lead Answered"** footer.
-- [ ] **1.9 Email renders everywhere.** That same email looks correct in **Gmail desktop + Gmail mobile** (logo loads, button is tappable, layout doesn't break, no clipped/forwarded look).
+- [X] **1.8 Reset email is branded** (`platform/EMAIL.md` applied to Supabase). Trigger a reset (1.6); the email shows the **"A" logo + "Lead Answered"** header, the **green CTA button**, body copy per §2.1, the raw-link fallback, and the **"Every lead, answered in 60 seconds" + "© 2026 Lead Answered"** footer.
+- [X] **1.9 Email renders everywhere.** That same email looks correct in **Gmail desktop + Gmail mobile** (logo loads, button is tappable, layout doesn't break, no clipped/forwarded look).
 - [ ] **1.10 Invite email is branded.** When you run 2.3, the invite email uses the same template (invite subject/copy per §2.1) — not Supabase's plain default.
 - [ ] **1.11 Personal signature.** An email you send from your Hostinger mailbox carries the §3 signature (the "A" logo, green divider, name/title, `leadanswered.com`, tagline).
 
@@ -50,12 +50,12 @@ A live-user QA pass over **every** current capability (frontend + backend). Work
 
 ## 2. Admin console (`/admin`)
 
-- [ ] **2.1 List.** Admin sees the contractor list with company, owner email, slug, verification badge, onboarded state.
-- [ ] **2.2 Create contractor.** Fill "New contractor" (company, an owner email you can check, a Twilio number, optional slug) → "Create + invite" → success message; new row appears.
-- [ ] **2.3 Invite email.** The owner gets a Postmark invite → link lands on the app → set password → redirected into onboarding.
-- [ ] **2.4 Edit a contractor.** On a row, change the Twilio number / verification status / owner email → "Save & invite" → reload shows the change.
-- [ ] **2.5 Re-invite existing user.** Saving with an already-registered owner email doesn't error out the page.
-- [ ] **2.6 Admin can't see the dashboard.** As admin, opening `/dashboard` redirects to `/admin`.
+- [ ] **2.1 List + status chips.** Each contractor is a card showing company, owner email, slug, number, and **two chips**: **Account** (Invited / Accepted / Live) + **Line** (Line pending / verified / failed). Apex Roofing reads **Live** (it's onboarded) + its Line status. Hovering a chip shows its meaning.
+- [ ] **2.2 Create contractor.** Fill "New contractor" (company, an owner email you can check, a Twilio number, optional slug) → "Create + invite" → success message; the new row appears with an **Invited** account chip.
+- [ ] **2.3 Invite email (branded).** The owner gets a Postmark invite (branded per EMAIL.md — see 1.10) → link lands on the app → set password → redirected into onboarding. After they accept, the list chip flips **Invited → Accepted** (→ **Live** once they finish the wizard).
+- [ ] **2.4 Manage page — Save ≠ invite.** Click a contractor ("Manage →") → `/admin/[id]`. Change company / owner email / number / slug / line-verification → **Save changes** → reload shows the change, **and NO email is sent** (Postmark outbound count doesn't move). This is the core fix — editing never re-invites.
+- [ ] **2.5 Resend invite (separate action).** On the Manage page, **Resend invite** sends exactly one invite; an already-registered owner doesn't error the page. The button reads "Send invite" before acceptance, "Resend invite" after.
+- [X] **2.6 Admin can't see the dashboard.** As admin, opening `/dashboard` redirects to `/admin`.
 
 ---
 
@@ -82,7 +82,7 @@ Sign in as the contractor and open `/onboarding` (it's pre-filled with current c
 - [ ] **4.3 Persist.** Collapse it, reload the page → it stays collapsed.
 - [ ] **4.4 Mobile.** Narrow window → sidebar becomes a slide-in drawer (trigger opens it).
 - [ ] **4.5 Theme toggle.** Top-right sun/moon → flips light/dark across the whole app; reload keeps your choice.
-- [ ] **4.6 Overview.** KPI cards (Total leads / Qualifying / Booked / Upcoming visits) show real numbers; "Recent leads", "Your line" (number + verification), and "Upcoming appointments" render.
+- [ ] **4.6 Overview.** KPI cards (Total leads / Qualifying / Booked / Upcoming visits) show real numbers; "Recent leads", "Your line" (number + its Twilio toll-free line-verification badge), and "Upcoming appointments" render.
 - [ ] **4.7 Leads list.** `/dashboard/leads` → table of all leads (name, phone, project, town, status badge, first seen). Columns collapse responsively on narrow screens.
 - [ ] **4.8 Lead detail.** Click a lead → the **full Sarah ↔ homeowner SMS thread** as chat bubbles (homeowner left/grey, Sarah right/green, with names + times), plus that lead's appointments and any escalations.
 - [ ] **4.9 Appointments.** `/dashboard/appointments` → "Upcoming" and "Past & cancelled" sections with lead, time, status badge; lead names link to detail.
