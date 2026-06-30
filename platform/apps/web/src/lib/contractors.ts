@@ -98,8 +98,19 @@ export async function listContractorsWithStatus(): Promise<ContractorListRowWith
   }));
 }
 
+export interface ContractorAdminDetail {
+  id: string;
+  companyName: string;
+  slug: string | null;
+  twilioNumber: string | null;
+  ownerEmail: string | null;
+  verificationStatus: string;
+  onboardingComplete: boolean;
+  accountStatus: AccountStatus;
+}
+
 /** Full contractor row + derived accountStatus, for the /admin/[id] manage page. */
-export async function getContractorById(id: string) {
+export async function getContractorById(id: string): Promise<ContractorAdminDetail | null> {
   const sb = createSupabaseAdmin();
   const { data, error } = await sb.from("Contractor").select("*").eq("id", id).maybeSingle();
   if (error) throw error;
@@ -107,7 +118,13 @@ export async function getContractorById(id: string) {
   const row = data as Record<string, any>;
   const accepted = row.ownerEmail ? await ownerAcceptanceMap([row.ownerEmail]) : new Map<string, boolean>();
   return {
-    ...row,
+    id: row.id,
+    companyName: row.companyName,
+    slug: row.slug ?? null,
+    twilioNumber: row.twilioNumber ?? null,
+    ownerEmail: row.ownerEmail ?? null,
+    verificationStatus: row.verificationStatus,
+    onboardingComplete: Boolean(row.onboardingComplete),
     accountStatus: accountStatusFrom(
       row.ownerEmail ?? null,
       Boolean(row.onboardingComplete),
