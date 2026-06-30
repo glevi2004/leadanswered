@@ -38,7 +38,7 @@ export type OnboardingState = {
   company: string;
   sarahName: string;
   persona: string;
-  projectTypes: string; // comma-separated
+  projectTypes: string[]; // verbatim labels (chip picker)
   baseZip: string;
   radius: number;
   include: string;
@@ -76,7 +76,7 @@ export function stateFromInitial(initial: OnboardingInitial): OnboardingState {
     company: initial.companyName,
     sarahName: initial.sarahName || "Sarah",
     persona: initial.personaNotes ?? "",
-    projectTypes: (initial.projectTypes?.length ? initial.projectTypes : ["roof_repair", "roof_replacement"]).join(", "),
+    projectTypes: initial.projectTypes?.length ? initial.projectTypes : ["Roof repair", "Roof replacement"],
     baseZip: initial.baseLocations?.[0]?.zip ?? "",
     radius: initial.baseLocations?.[0]?.radiusMiles ?? 25,
     include: (initial.includeOverrides ?? []).join(", "),
@@ -104,7 +104,7 @@ export function buildConfig(s: OnboardingState) {
     companyName: s.company,
     sarahName: s.sarahName,
     personaNotes: s.persona || null,
-    projectTypes: splitList(s.projectTypes),
+    projectTypes: s.projectTypes,
     serviceArea: {
       baseLocations: [{ zip: s.baseZip, radiusMiles: Number(s.radius) }],
       includeOverrides: splitList(s.include),

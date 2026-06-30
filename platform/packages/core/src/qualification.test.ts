@@ -107,6 +107,18 @@ describe("qualify() matrix", () => {
     expect(isDisqualified(r)).toBe(true);
   });
 
+  it("contractor types stored as FRIENDLY LABELS still match a homeowner's loose wording", () => {
+    // Contractor offers human labels (not slugs); a homeowner says "leak". Both reduce to
+    // roof_repair internally → matched. Proves storage/display can be verbatim labels.
+    const labelled: ContractorConfig = { ...contractor, projectTypes: ["Roof repair", "Roof replacement"] };
+    const r = qualify(
+      { serviceZip: "02459", projectType: "leak", isDecisionMaker: true },
+      labelled,
+    );
+    expect(r.projectOffered).toBe(true);
+    expect(r.qualified).toBe(true);
+  });
+
   it("not the decision-maker → not qualified", () => {
     const r = qualify(
       { serviceZip: "02459", projectType: "roof repair", isDecisionMaker: false },

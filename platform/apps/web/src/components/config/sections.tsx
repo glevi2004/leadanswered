@@ -1,12 +1,13 @@
 "use client";
 
-import { NOTIFICATION_EVENT_TYPES } from "@/lib/config";
+import { NOTIFICATION_EVENT_TYPES, DEFAULT_PROJECT_TYPES } from "@/lib/config";
 import { DAYS, TIMES, splitList, type OnboardingState } from "@/lib/onboarding-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
+import { TagInput } from "./TagInput";
 
 export type SectionProps = {
   state: OnboardingState;
@@ -20,15 +21,20 @@ export function BusinessSection({ state, update }: SectionProps) {
         <Label htmlFor="company">Company name</Label>
         <Input id="company" value={state.company} onChange={(e) => update({ company: e.target.value })} />
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-2">
-          <Label htmlFor="sarahName">Assistant name</Label>
-          <Input id="sarahName" value={state.sarahName} onChange={(e) => update({ sarahName: e.target.value })} />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="projectTypes">Project types (comma-separated)</Label>
-          <Input id="projectTypes" value={state.projectTypes} onChange={(e) => update({ projectTypes: e.target.value })} />
-        </div>
+      <div className="grid gap-2">
+        <Label htmlFor="sarahName">Assistant name</Label>
+        <Input id="sarahName" value={state.sarahName} onChange={(e) => update({ sarahName: e.target.value })} />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="projectTypes">Project types</Label>
+        <TagInput
+          id="projectTypes"
+          value={state.projectTypes}
+          onChange={(projectTypes) => update({ projectTypes })}
+          suggestions={DEFAULT_PROJECT_TYPES}
+          placeholder="e.g. Roof repair — or pick a suggestion below"
+        />
+        <p className="text-xs text-muted-foreground">The services you offer. Pick a suggestion or type your own.</p>
       </div>
       <div className="grid gap-2">
         <Label htmlFor="persona">Assistant persona notes</Label>
@@ -186,7 +192,7 @@ export function ReviewSummary({ state }: { state: OnboardingState }) {
   const rows: [string, string][] = [
     ["Company", state.company || "—"],
     ["Assistant", state.sarahName],
-    ["Project types", splitList(state.projectTypes).join(", ") || "—"],
+    ["Project types", state.projectTypes.join(", ") || "—"],
     ["Service area", `${state.baseZip || "—"} · ${state.radius} mi`],
     ["Availability", `${state.slots.size} time slot${state.slots.size === 1 ? "" : "s"}`],
     ["Escalate", splitList(state.escalation).join(", ") || "—"],

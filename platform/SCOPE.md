@@ -159,6 +159,7 @@ This is the most important architectural decision in the doc. Claude Code must N
     - `verification_status` (pending|verified|failed) = the **Twilio toll-free carrier verification**, set **manually** by the admin to mirror Twilio (no auto-sync yet — see §9.6, the "Status (current)" note, and the deferred cron in §11). Surfaced as the "Line" chip in `/admin` + the contractor's "Your line" badge. It does **not** gate Sarah's texting; carrier deliverability is enforced by Twilio, not our code.
     - `number_status` (active|pending_swap|retired) = reserved for the future local-number swap (§9.5); **not read by any code yet**.
     - **Coming later — a third dimension, subscription status** (active|past_due|canceled), Stripe-driven. Unlike these two, it **will gate the product** (pause Sarah on churn) and is where offboarding/churn lives. Soft-cancel keeps the account; hard-delete is reserved for test resets / GDPR. See §11 "Billing, subscriptions & offboarding".
+  - **`project_types` are human labels, entered + shown verbatim** (e.g. "Roof repair") — not slugs. Onboarding/settings present them as a chip picker (curated suggestions + free-text add); the lead-matching normalization (§5.1) is internal and never rewrites them.
   - **Service area is structured, NOT free-text** (see §5.1): `base_locations` (JSON: list of `{address_or_zip, radius_miles}`), `include_overrides` (list of towns/zips always in-area), `exclude_overrides` (list of towns/zips never served). Qualification is computed deterministically against these; the AI never judges geography.
   - Single `notify_phone`/`notify_email` are REMOVED — notifications are handled by the `notification_recipient` table below.
 - **notification_recipient**: id, contractor_id, name, phone, email
@@ -220,7 +221,7 @@ This is the most important architectural decision in the doc. Claude Code must N
 3. **Geocoding:** use a geocoding provider (e.g., Google Geocoding API, or a US Census/zip-centroid dataset for a free offline option). Cache results. This lives in `packages/core` as a `geo` module; it is called by the qualification service, NOT by Claude.
 4. **If extraction is ambiguous** (lead hasn't given a town yet): Claude's job is to _ask_ for it naturally; code doesn't decide area until a location is extracted.
 
-**Project-type check:** code matches the extracted `project_type` against the contractor's `project_types` list (with a small synonym map, e.g. "new roof" → replacement). Not an AI judgment.
+**Project-type check:** the contractor's `project_types` are stored + shown **verbatim** — human labels like "Roof repair", never slugs. Matching is invisible: code reduces **both** the lead's extracted `project_type` **and** each of the contractor's labels through a small synonym map (e.g. "new roof"/"leak" → `roof_repair`) to a shared key, in-memory for this one check, then compares (`normalizeProjectType` in `packages/core/qualification.ts`). It never alters what's stored or displayed. Not an AI judgment. A *custom* label that doesn't hit a synonym won't deterministically match loose wording → it falls through to the AI/escalation path (see §11 for per-contractor synonyms).
 
 **Decision-maker check:** Claude extracts signals ("it's my house" / "I'd need to ask my landlord"); code applies the contractor's rule (e.g., require decision-maker = true to book). Phrased neutrally so it carries to non-homeowner verticals.
 
@@ -550,6 +551,7 @@ The logged-in web app. All data already exists in the schema from Phase 1, so th
 - **Pre-warmed number inventory pool** — maintain a rolling pool of pre-provisioned/pre-verified numbers for instant assignment and to avoid grace-period caps; build around ~20+ contractors / larger clients.
 - **Alternative telephony provider eval** — if local-number provisioning speed becomes a bottleneck, evaluate a specialized 10DLC provider (e.g., Telgorithm, ~72h approvals) vs. staying on Twilio.
 - **Show-confirmation + reminders** — day-before/day-of confirmation texts to reduce no-shows.
+- **Project-type catalog + custom-type matching** — make the curated suggestion catalog (`DEFAULT_PROJECT_TYPES`) **admin-editable** (per-vertical, stored globally) instead of a code constant; and let a contractor attach **synonyms** to a custom type they add, so an off-catalog service (e.g. "Skylight installation") matches a homeowner's loose wording deterministically instead of falling through to the AI path (§5.1).
 
 ---
 

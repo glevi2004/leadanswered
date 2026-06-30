@@ -14,7 +14,7 @@ export const testContractor: ContractorConfig = {
   sarahName: "Sarah",
   personaNotes:
     "Warm and reassuring, with a local New England touch. Always mentions the on-site estimate is free.",
-  projectTypes: ["roof_repair", "roof_replacement"],
+  projectTypes: ["Roof repair", "Roof replacement"],
   serviceArea: {
     baseLocations: [{ zip: "02458", radiusMiles: 25 }], // Newton, MA
     includeOverrides: ["01601"], // Worcester — always serve (outside radius)

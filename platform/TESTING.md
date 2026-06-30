@@ -50,9 +50,9 @@ A live-user QA pass over **every** current capability (frontend + backend). Work
 
 ## 2. Admin console (`/admin`)
 
-- [ ] **2.1 List + status chips.** Each contractor is a card showing company, owner email, slug, number, and **two chips**: **Account** (Invited / Accepted / Live) + **Line** (Line pending / verified / failed). Apex Roofing reads **Live** (it's onboarded) + its Line status. Hovering a chip shows its meaning.
-- [ ] **2.2 Create contractor.** Fill "New contractor" (company, an owner email you can check, a Twilio number, optional slug) → "Create + invite" → success message; the new row appears with an **Invited** account chip.
-- [ ] **2.3 Invite email (branded).** The owner gets a Postmark invite (branded per EMAIL.md — see 1.10) → link lands on the app → set password → redirected into onboarding. After they accept, the list chip flips **Invited → Accepted** (→ **Live** once they finish the wizard).
+- [X] **2.1 List + status chips.** Each contractor is a card showing company, owner email, slug, number, and **two chips**: **Account** (Invited / Accepted / Live) + **Line** (Line pending / verified / failed). Apex Roofing reads **Live** (it's onboarded) + its Line status. Hovering a chip shows its meaning.
+- [X] **2.2 Create contractor.** Fill "New contractor" (company, an owner email you can check, a Twilio number, optional slug) → "Create + invite" → success message; the new row appears with an **Invited** account chip.
+- [X] **2.3 Invite email (branded).** The owner gets a Postmark invite (branded per EMAIL.md — see 1.10) → link lands on the app → set password → redirected into onboarding. After they accept, the list chip flips **Invited → Accepted** (→ **Live** once they finish the wizard).
 - [ ] **2.4 Manage page — Save ≠ invite.** Click a contractor ("Manage →") → `/admin/[id]`. Change company / owner email / number / slug / line-verification → **Save changes** → reload shows the change, **and NO email is sent** (Postmark outbound count doesn't move). This is the core fix — editing never re-invites.
 - [ ] **2.5 Resend invite (separate action).** On the Manage page, **Resend invite** sends exactly one invite; an already-registered owner doesn't error the page. The button reads "Send invite" before acceptance, "Resend invite" after.
 - [X] **2.6 Admin can't see the dashboard.** As admin, opening `/dashboard` redirects to `/admin`.
@@ -65,7 +65,7 @@ Sign in as the contractor and open `/onboarding` (it's pre-filled with current c
 
 - [ ] **3.1 Step rail.** Left rail shows 6 steps (Business → Service area → Availability → Loop me in → Notifications → Review) with the current step active and prior steps green/checked.
 - [ ] **3.2 Mobile progress.** Narrow the window → the rail hides and a top progress bar ("Step X of 6") appears.
-- [ ] **3.3 Step 1 — Business.** Company name, assistant name, project types, persona notes are editable + pre-filled.
+- [ ] **3.3 Step 1 — Business.** Company name, assistant name, persona notes editable + pre-filled. **Project types are a chip picker** (NOT a comma text box, NO underscores): defaults show as removable chips ("Roof repair", "Roof replacement"); clickable suggestions add a chip; typing a custom one + Enter adds it verbatim; the × removes one. Saved/reloaded values round-trip exactly as typed.
 - [ ] **3.4 Gating.** Clear "Company name" → "Continue" is disabled until refilled. (Step 2: clearing "Base ZIP" disables Continue.)
 - [ ] **3.5 Back/Continue.** Navigate forward and back — entered values persist across steps.
 - [ ] **3.6 Step 3 — Availability grid.** Tap time cells → they toggle green; selections persist when you leave and return to the step.

@@ -173,8 +173,14 @@ export function qualify(
   const inArea = sa.inArea;
 
   const canonical = normalizeProjectType(gathered.projectType);
-  const projectOffered =
-    canonical == null ? null : config.projectTypes.includes(canonical);
+  // Reduce the contractor's offered services through the SAME normalizer so a friendly label
+  // ("Roof repair") lines up with the homeowner's normalized project ("leak" → roof_repair).
+  // In-memory, for this yes/no check only — it never changes what's stored or displayed. Legacy
+  // slug values reduce to themselves, so this is backward-compatible.
+  const offered = new Set(
+    config.projectTypes.map((t) => normalizeProjectType(t)).filter((t): t is string => !!t),
+  );
+  const projectOffered = canonical == null ? null : offered.has(canonical);
 
   const requireDM = config.qualificationRules.requireDecisionMaker !== false;
   const isDecisionMaker =

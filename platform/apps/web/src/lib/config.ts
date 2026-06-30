@@ -17,6 +17,19 @@ export const NOTIFICATION_EVENT_TYPES = [
 ] as const;
 export type NotificationEventType = (typeof NOTIFICATION_EVENT_TYPES)[number];
 
+/**
+ * Curated project-type suggestions shown as one-click chips in onboarding/settings. These are just
+ * starting points — contractors can remove them and add their own free-text. (Roofing-flavored for
+ * now; making this catalog admin-editable is a roadmap item — SCOPE §11.)
+ */
+export const DEFAULT_PROJECT_TYPES = [
+  "Roof repair",
+  "Roof replacement",
+  "Gutters",
+  "Inspection",
+  "Storm damage",
+] as const;
+
 const zip5 = z.string().regex(/^\d{5}$/, "must be a 5-digit ZIP");
 const timeHHMM = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "must be a time like 09:00");
 
