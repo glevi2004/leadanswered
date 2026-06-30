@@ -23,8 +23,11 @@ export default function ForgotPasswordPage() {
       redirectTo: `${window.location.origin}/auth/land`,
     });
     setLoading(false);
-    if (error) setError(error.message);
-    else setSent(true);
+    if (error) {
+      const m = (error.message ?? "").trim();
+      // Supabase returns a useless "{}" body on an SMTP/gateway timeout — show something human.
+      setError(m && m !== "{}" ? m : "We couldn't send the email right now — please try again in a moment.");
+    } else setSent(true);
   }
 
   return (
