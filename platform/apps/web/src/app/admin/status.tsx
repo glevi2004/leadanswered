@@ -1,37 +1,28 @@
+"use client";
+
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { AccountStatus } from "@/lib/contractors";
+import { accountMeta, lineMeta, type Variant } from "./status-meta";
 
-type Variant = "default" | "secondary" | "destructive" | "outline";
-
-/** Account lifecycle (DERIVED): invite sent → accepted → finished setup. Informational only. */
-export const accountMeta: Record<AccountStatus, { label: string; variant: Variant; hint: string }> = {
-  live: { label: "Live", variant: "default", hint: "Finished setup — Sarah is configured and running." },
-  accepted: { label: "Accepted", variant: "outline", hint: "Accepted the invite; hasn't finished onboarding yet." },
-  invited: { label: "Invited", variant: "secondary", hint: "Invite sent; the owner hasn't accepted yet." },
-  none: { label: "No owner", variant: "destructive", hint: "No owner email assigned — can't invite." },
-};
-
-/** Twilio toll-free line verification (MANUAL). Informational only — doesn't gate sending. */
-export const lineMeta: Record<string, { label: string; variant: Variant; hint: string }> = {
-  verified: { label: "Line verified", variant: "default", hint: "Twilio toll-free verification complete." },
-  pending: { label: "Line pending", variant: "secondary", hint: "Twilio toll-free verification still in progress." },
-  failed: { label: "Line failed", variant: "destructive", hint: "Twilio verification failed — check Twilio." },
-};
+/** A status chip whose meaning shows in a real tooltip on hover/focus (delay 0). */
+function Chip({ label, variant, hint }: { label: string; variant: Variant; hint: string }) {
+  return (
+    <TooltipProvider delay={0}>
+      <Tooltip>
+        <TooltipTrigger render={<Badge variant={variant}>{label}</Badge>} />
+        <TooltipContent>{hint}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
 
 export function AccountBadge({ status }: { status: AccountStatus }) {
   const a = accountMeta[status] ?? accountMeta.none;
-  return (
-    <Badge variant={a.variant} title={a.hint}>
-      {a.label}
-    </Badge>
-  );
+  return <Chip label={a.label} variant={a.variant} hint={a.hint} />;
 }
 
 export function LineBadge({ status }: { status: string }) {
   const l = lineMeta[status] ?? lineMeta.pending;
-  return (
-    <Badge variant={l.variant} title={l.hint}>
-      {l.label}
-    </Badge>
-  );
+  return <Chip label={l.label} variant={l.variant} hint={l.hint} />;
 }
