@@ -39,8 +39,9 @@ A live-user QA pass over **every** current capability (frontend + backend). Work
 - [X] **1.3 Admin routing.** Sign in as admin → lands on `/admin` (not the dashboard).
 - [X] **1.4 Gating.** While signed out, open `/dashboard`, `/admin`, `/onboarding` directly → each redirects to `/sign-in`.
 - [X] **1.5 Sign out.** From the dashboard sidebar → "Sign out" → back to `/sign-in`; revisiting `/dashboard` redirects to sign-in.
-- [ ] **1.6 Forgot password.** `/sign-in` → "Forgot your password?" → enter the contractor email → "reset link on its way" confirmation, and the reset email arrives (via Postmark).
-- [ ] **1.7 Reset link (only if you got the email).** Click it → set a new password → signed in. (Then reset it back via the script if needed.)
+- [X] **1.6 Forgot password.** `/sign-in` → "Forgot your password?" → enter the contractor email → "reset link on its way" confirmation, and the reset email arrives (via Postmark).
+- [X] **1.7 Reset link (only if you got the email).** Click it → set a new password → signed in. (Then reset it back via the script if needed.)
+- [ ] **1.8 Branded email structure** (`platform/EMAIL.md`). After pasting the EMAIL.md template into Supabase's email templates (Authentication → Emails → Templates), trigger a reset (1.6) and confirm the email matches the brand: the **"A" logo + "Lead Answered"** wordmark in the header, the **green CTA button**, body copy per §2.1, and the **"Every lead, answered in 60 seconds" + "© 2026 Lead Answered"** footer — and that it renders correctly in **Gmail + on mobile**. Signature: your Hostinger mailbox uses the §3 signature, so a normal email you send carries the same logo/green/tagline.
 
 ---
 
