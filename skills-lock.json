@@ -1,6 +1,54 @@
 {
   "version": 1,
   "skills": {
+    "billing": {
+      "source": "hostinger/hostinger-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/billing/SKILL.md",
+      "computedHash": "c15d137903bc75a8feb623d7bdba8571ffd851d6c31b6fee89237624c6a42205"
+    },
+    "dns": {
+      "source": "hostinger/hostinger-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/dns/SKILL.md",
+      "computedHash": "54e996e34719dd776ee49dc319e810b10488e5c802586c13f43da4a02739ade3"
+    },
+    "domains": {
+      "source": "hostinger/hostinger-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/domains/SKILL.md",
+      "computedHash": "f99769a118f0b935c82ae03002a1ca64f44efb342f7f494c153c533e581396a4"
+    },
+    "ecommerce": {
+      "source": "hostinger/hostinger-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/ecommerce/SKILL.md",
+      "computedHash": "ef9eb8b20c8a23eb4f1c0a6c7fc987208c85ff2c8c91d3a724e44fdfc6d79e8a"
+    },
+    "horizons": {
+      "source": "hostinger/hostinger-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/horizons/SKILL.md",
+      "computedHash": "350d768795050ab57e59fe970a121dbb0e41d18b37f20f7255f16d74bf447d4f"
+    },
+    "hosting": {
+      "source": "hostinger/hostinger-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/hosting/SKILL.md",
+      "computedHash": "23960a324ca5edec30cb6490845ea5461261ba53080c52db1eb54dd167066a77"
+    },
+    "postmark": {
+      "source": "ActiveCampaign/postmark-skills",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "b1c3e9e12fa0785e3aa55c3b4488a24a8dc1d9bf5dbde1c6dd835cac0e4817fb"
+    },
+    "reach": {
+      "source": "hostinger/hostinger-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/reach/SKILL.md",
+      "computedHash": "eea37cae96ae8d814665722a44e42cdefe7d97592a0a06a09390d77df19c10e1"
+    },
     "supabase": {
       "source": "supabase/agent-skills",
       "sourceType": "github",
@@ -12,6 +60,12 @@
       "sourceType": "github",
       "skillPath": "skills/supabase-postgres-best-practices/SKILL.md",
       "computedHash": "0d2c4857a7d6fdcd3fbc46e458fa4c497f029cab89a01548b3defce203003932"
+    },
+    "vps": {
+      "source": "hostinger/hostinger-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/vps/SKILL.md",
+      "computedHash": "e778d1966568d59839e0c0ac72b682bda17e927f68120a94b07cc712b3583e31"
     }
   }
 }

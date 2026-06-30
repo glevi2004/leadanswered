@@ -19,9 +19,9 @@ function slugify(s: string) {
 
 export type ActionState = { error?: string; ok?: string };
 
-// Land on a client page so AuthHashHandler can consume implicit-flow hash tokens
-// and route by type (a server route can't read the URL hash fragment).
-const INVITE_REDIRECT = (site: string) => `${site}/auth/land`;
+// Land on a client page so AuthHashHandler can consume the auth link (PKCE ?code= or
+// implicit hash tokens) and route by type — a server route can't read the hash fragment.
+const INVITE_REDIRECT = (site: string) => `${site}/auth/land?type=invite`;
 const siteUrl = () => process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3002";
 
 /** Supabase signals an existing user a couple of ways — treat it as "fine, they can sign in". */

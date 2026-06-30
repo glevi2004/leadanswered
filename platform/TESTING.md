@@ -26,19 +26,19 @@ A live-user QA pass over **every** current capability (frontend + backend). Work
 - **Cold inbound is OFF in prod** (`ALLOW_INBOUND_LEADS` unset) → a text to the number from an *unknown* phone with *no existing conversation* is ignored. Start a Sarah conversation via the **email-intake** flow (§7) or reply within an existing thread. (Ask me to flip the flag if you want cold texts to auto-start.)
 
 **Quick smoke**
-- [ ] `GET /health` returns `{"status":"ok"}`.
-- [ ] `app.leadanswered.com/sign-in` loads, **styled** (green accents, Inter font).
-- [ ] `leadanswered.com` still shows the marketing page.
+- [X] `GET /health` returns `{"status":"ok"}`.
+- [X] `app.leadanswered.com/sign-in` loads, **styled** (green accents, Inter font).
+- [X] `leadanswered.com` still shows the marketing page.
 
 ---
 
 ## 1. Authentication
 
-- [ ] **1.1 Sign in (happy path).** Sign in as the contractor → lands on `/dashboard`.
-- [ ] **1.2 Wrong password.** Bad password → inline error, no crash.
-- [ ] **1.3 Admin routing.** Sign in as admin → lands on `/admin` (not the dashboard).
-- [ ] **1.4 Gating.** While signed out, open `/dashboard`, `/admin`, `/onboarding` directly → each redirects to `/sign-in`.
-- [ ] **1.5 Sign out.** From the dashboard sidebar → "Sign out" → back to `/sign-in`; revisiting `/dashboard` redirects to sign-in.
+- [X] **1.1 Sign in (happy path).** Sign in as the contractor → lands on `/dashboard`.
+- [X] **1.2 Wrong password.** Bad password → inline error, no crash.
+- [X] **1.3 Admin routing.** Sign in as admin → lands on `/admin` (not the dashboard).
+- [X] **1.4 Gating.** While signed out, open `/dashboard`, `/admin`, `/onboarding` directly → each redirects to `/sign-in`.
+- [X] **1.5 Sign out.** From the dashboard sidebar → "Sign out" → back to `/sign-in`; revisiting `/dashboard` redirects to sign-in.
 - [ ] **1.6 Forgot password.** `/sign-in` → "Forgot your password?" → enter the contractor email → "reset link on its way" confirmation, and the reset email arrives (via Postmark).
 - [ ] **1.7 Reset link (only if you got the email).** Click it → set a new password → signed in. (Then reset it back via the script if needed.)
 
@@ -96,22 +96,15 @@ Sign in as the contractor and open `/onboarding` (it's pre-filled with current c
 
 ## 5b. Concurrency & data integrity (the guarantees)
 
-These are the bugs the integrity rebuild fixed (see SCOPE → "Data Integrity & Concurrency
-Invariants"). Manual checks:
+These are the bugs the integrity rebuild fixed (see SCOPE → "Data Integrity & Concurrency Invariants"). Manual checks:
 
-- [ ] **5b.1 No double-booking.** Book a slot; then try to book the **same** slot for a different
-  lead → refused (Sarah re-offers other times). Repeat the *same booking flow* several times fast →
-  you still end up with **exactly one** appointment, never duplicates.
-- [ ] **5b.2 Availability excludes booked.** After a slot is booked, ask Sarah for times → that slot
-  is no longer offered.
-- [ ] **5b.3 One booking per lead.** A lead with an active booking can't create a second — Sarah
-  treats a re-book as "you already have a time, want to move it?" (reschedule).
-- [ ] **5b.4 Reschedule/cancel hit the right one.** With a single active appointment, reschedule and
-  cancel act on it unambiguously; a cancelled slot frees up to be booked again.
+- [ ] **5b.1 No double-booking.** Book a slot; then try to book the **same** slot for a different lead → refused (Sarah re-offers other times). Repeat the *same booking flow* several times fast → you still end up with **exactly one** appointment, never duplicates.
+- [ ] **5b.2 Availability excludes booked.** After a slot is booked, ask Sarah for times → that slot is no longer offered.
+- [ ] **5b.3 One booking per lead.** A lead with an active booking can't create a second — Sarah treats a re-book as "you already have a time, want to move it?" (reschedule).
+- [ ] **5b.4 Reschedule/cancel hit the right one.** With a single active appointment, reschedule and cancel act on it unambiguously; a cancelled slot frees up to be booked again.
 - [ ] **5b.5 Duplicate webhook = one reply.** (Hard to trigger by hand — covered by automated tests.)
 
-**Automated proof (the real guarantee):** the in-memory test store *cannot* enforce DB constraints,
-so integrity is proven only against real Postgres:
+**Automated proof (the real guarantee):** the in-memory test store *cannot* enforce DB constraints, so integrity is proven only against real Postgres:
 - `pnpm -r test` → Tier-A logic (incl. `apps/api/src/integrity.test.ts`).
 - **Tier B** (keystone — concurrent booking of the same slot yields exactly one appointment):
   ```
