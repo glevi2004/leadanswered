@@ -41,7 +41,10 @@ A live-user QA pass over **every** current capability (frontend + backend). Work
 - [X] **1.5 Sign out.** From the dashboard sidebar → "Sign out" → back to `/sign-in`; revisiting `/dashboard` redirects to sign-in.
 - [X] **1.6 Forgot password.** `/sign-in` → "Forgot your password?" → enter the contractor email → "reset link on its way" confirmation, and the reset email arrives (via Postmark).
 - [X] **1.7 Reset link (only if you got the email).** Click it → set a new password → signed in. (Then reset it back via the script if needed.)
-- [ ] **1.8 Branded email structure** (`platform/EMAIL.md`). After pasting the EMAIL.md template into Supabase's email templates (Authentication → Emails → Templates), trigger a reset (1.6) and confirm the email matches the brand: the **"A" logo + "Lead Answered"** wordmark in the header, the **green CTA button**, body copy per §2.1, and the **"Every lead, answered in 60 seconds" + "© 2026 Lead Answered"** footer — and that it renders correctly in **Gmail + on mobile**. Signature: your Hostinger mailbox uses the §3 signature, so a normal email you send carries the same logo/green/tagline.
+- [ ] **1.8 Reset email is branded** (`platform/EMAIL.md` applied to Supabase). Trigger a reset (1.6); the email shows the **"A" logo + "Lead Answered"** header, the **green CTA button**, body copy per §2.1, the raw-link fallback, and the **"Every lead, answered in 60 seconds" + "© 2026 Lead Answered"** footer.
+- [ ] **1.9 Email renders everywhere.** That same email looks correct in **Gmail desktop + Gmail mobile** (logo loads, button is tappable, layout doesn't break, no clipped/forwarded look).
+- [ ] **1.10 Invite email is branded.** When you run 2.3, the invite email uses the same template (invite subject/copy per §2.1) — not Supabase's plain default.
+- [ ] **1.11 Personal signature.** An email you send from your Hostinger mailbox carries the §3 signature (the "A" logo, green divider, name/title, `leadanswered.com`, tagline).
 
 ---
 
