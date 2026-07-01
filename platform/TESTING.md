@@ -119,20 +119,31 @@ These are the bugs the integrity rebuild fixed (see SCOPE → "Data Integrity & 
   ```
   Must be green before shipping booking changes.
 
-## 6. Sarah — live SMS conversation (the core)
+## 6. Sarah — conversational behavior (now automated)
 
-The simplest way to talk to Sarah is to reply inside an existing conversation, or use the email-intake flow (§7) to start a fresh one. For each test, watch the **Lead detail** page update + the **Langfuse** trace.
+**Sarah's conversational behavior is covered by the automated E2E suite** — real Claude driven through
+full conversations, asserting on outcomes + a Sonnet judge. It's the source of truth for the specific
+scenarios (qualification in/out of area + referral escalation, tenant → homeowner hand-off, availability
+windows, timezone-correct booking incl. "8 am books 8 AM local", reschedule/cancel, idempotency,
+price/tone/service-area guardrails, escalation relay). See `apps/api/src/e2e/README.md`.
 
-- [X] **6.1 Reply flow.** Text the contractor's Twilio number from a phone that already has a conversation → Sarah replies within seconds; the new turns appear in Lead detail.
-- [X] **6.2 Qualification — in area.** Tell Sarah a project type you serve + a ZIP inside your radius → she treats you as qualified and moves toward booking.
-- [ ] **6.3 Qualification — out of area (+ follow-up).** Give a ZIP far outside the radius (e.g. `02601`) → Sarah politely declines / doesn't book (lead → disqualified), never claiming to serve it. **Then text a follow-up** ("any recommendations?") → she still **replies** (the message is saved to the thread) and **escalates the referral to the contractor** rather than going silent.
-- [X] **6.4 Decision-maker → homeowner hand-off (code-guaranteed).** With "only book the decision-maker" on, Sarah asks about **ownership** ("are you the homeowner?"). Say you're a **tenant/renter** → she asks for the **homeowner's name + phone**. Give a number → **you (the contractor) get pinged with that number** — a "🏠 … isn't the homeowner. Homeowner contact: …" SMS — **every time.** This fires from **code**, not the model's discretion (so it can't be skipped), and works even if you just text the number without her asking cleanly. She then thanks the tenant and says the team will reach the owner (no booking).
-- [ ] **6.5 Availability — windows + correct timezone.** With the contractor set to Eastern and painted 6–11 AM, ask "what's your availability next week?" → Sarah **describes the open windows** across the *real next week* (e.g. "Tue & Fri mornings, Wed afternoon"), NOT three times on one day, and the hours match the contractor's **local** time (6 AM ET, not 2 AM). Ask about a **specific day** ("what about Monday?") → she lists Monday's actual local times **starting at 6 AM** (never invents "no Monday slots", never drops the earliest hour). 
-- [ ] **6.6 Book — right hour, right zone.** Say **"8 am"** → Sarah books exactly **8:00 AM local** (not 6 AM — the deterministic slot fix), the confirmation + the contractor's notification SMS both read 8:00 AM, and the dashboard **Appointment** (Overview "Upcoming", Appointments page, Lead detail) shows 8:00 AM in the contractor's timezone; lead status → booked.
-- [X] **6.7 Address required.** Sarah asks for the full street address before confirming (not just town/ZIP).
-- [ ] **6.8 Reschedule — right hour, right zone.** Ask to move to a specific time (e.g. "Tuesday at 8 am") → Sarah reschedules to exactly that **local** hour (the 6.8 bug: "8 am" booked 6 am — now fixed by code, not the model), and the appointment reflects the new local time / "rescheduled". (Timezone note: all offered/booked/notified times are DST-correct in the contractor's zone — verified by the core `timezone`/`availability` test suites incl. EDT vs EST.)
-- [ ] **6.9 Cancel.** Ask to cancel → Sarah cancels; status → cancelled (shows under Appointments "Past & cancelled").
-- [ ] **6.10 Idempotency (best-effort).** Rapidly identical inbound texts don't produce duplicate replies/messages.
+```bash
+RUN_E2E=1 pnpm --filter @leadanswered/api test:e2e      # run before shipping any agent change
+```
+
+Run it **per feature** as you finish it — that replaces most of the old manual §6 typing. What still
+needs a **human** (things E2E can't see) is below:
+
+- [ ] **6.1 Real SMS delivery.** From an actual phone, text the contractor's Twilio number in an existing
+  thread → Sarah's reply actually arrives on the handset within seconds (proves Twilio send/receive, not
+  just the agent logic the E2E suite covers).
+- [ ] **6.2 Dashboard reflects a booking.** After a booked conversation, the **Appointment** shows in
+  Overview "Upcoming", the Appointments page, and Lead detail — with the time in the contractor's
+  timezone — and the lead status badge reads **Booked**.
+- [ ] **6.3 Contractor notification arrives.** The owner's real phone/email actually receives the
+  "New booking / Qualified lead / turn-away / hand-off / escalation" message (delivery, not just capture).
+- [ ] **6.4 Langfuse trace.** A live conversation produces a readable trace (tool calls, timings) in
+  Langfuse for debugging.
 
 ---
 

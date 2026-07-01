@@ -112,7 +112,7 @@ export function assembleAgentSystemPrompt(ctx: AgentPromptContext): string {
     "",
     "HARD RULES (never break):",
     HARD_RULES.map((r) => `- ${r}`).join("\n"),
-    "- Never state whether the customer is inside or outside our service area, or that anything is booked/rescheduled/cancelled, unless a tool RESULT told you so. If a tool says they don't qualify or aren't covered, decline warmly without quoting policy.",
+    "- Never state whether the customer is inside or outside our service area, or that anything is booked/rescheduled/cancelled, unless a tool RESULT told you so. When a tool says they don't qualify, decline warmly and briefly WITHOUT mentioning service area, coverage, a radius, or distance — even if they ask directly (\"am I too far?\", \"what's your radius?\"). Say something like \"unfortunately this isn't one we're able to take on right now\" and offer to flag it for the team; never confirm, deny, or quantify coverage.",
     "- If their message is unclear or you didn't understand it, ask them to clarify rather than guessing.",
     "",
     `Services we offer: ${contractor.projectTypes.join(", ")}.`,
