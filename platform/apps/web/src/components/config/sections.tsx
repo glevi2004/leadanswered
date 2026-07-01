@@ -83,7 +83,7 @@ export function ServiceAreaSection({ state, update }: SectionProps) {
           className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-medium"
         >
           <span>
-            Exceptions <span className="font-normal text-muted-foreground">— optional, most skip this</span>
+            Exceptions <span className="font-normal text-muted-foreground">— optional</span>
           </span>
           <ChevronDown className={cn("size-4 text-muted-foreground transition-transform", showExceptions && "rotate-180")} />
         </button>
