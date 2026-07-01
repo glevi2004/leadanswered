@@ -8,6 +8,8 @@ export interface ExtractionFields {
   serviceZip?: string | null;
   fullAddress?: string | null;
   isDecisionMaker?: boolean | null;
+  ownerName?: string | null;
+  ownerPhone?: string | null;
   chosenSlot?: string | null;
 }
 
@@ -27,6 +29,9 @@ export function mergeGathered(
       ext.isDecisionMaker != null
         ? ext.isDecisionMaker
         : (prev.isDecisionMaker ?? null),
+    ownerName: pick(ext.ownerName, prev.ownerName),
+    ownerPhone: pick(ext.ownerPhone, prev.ownerPhone),
+    ownerHandoffDone: prev.ownerHandoffDone ?? null, // code-set flag, carried through
     chosenSlot: pick(ext.chosenSlot, prev.chosenSlot),
     offeredSlots: prev.offeredSlots ?? null, // carried through; written by get_availability
   };

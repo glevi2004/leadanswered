@@ -2,6 +2,7 @@ import type { EmailSender, SmsSender } from "@leadanswered/core";
 import type { LanguageModel } from "ai";
 import { generateAgentReply, type ChatTurn } from "./agent/runner.js";
 import type { ToolState } from "./agent/tools.js";
+import { extractPhone, handOffOwnerIfReady } from "./agent/ownerHandoff.js";
 import { enqueueNudge } from "./queue.js";
 import type { LeadContext, Store } from "./store/types.js";
 
@@ -101,6 +102,21 @@ export async function handleInbound(deps: ConversationDeps, input: InboundInput)
       await deps.sms.send(fresh.lead.contactPhone, reply);
     } catch (err) {
       console.error(`[sms] failed to send reply to ${fresh.lead.contactPhone}:`, err);
+    }
+
+    // DETERMINISTIC backstop: a not-the-homeowner lead who texts a phone number → capture it + hand
+    // off to the contractor, whether or not the model passed it to qualify_lead. Code, not model.
+    if (
+      state.gathered.isDecisionMaker === false &&
+      !state.gathered.ownerHandoffDone &&
+      !state.gathered.ownerPhone
+    ) {
+      const phone = extractPhone(input.body);
+      if (phone) {
+        state.gathered = { ...state.gathered, ownerPhone: phone };
+        await store.updateConversation(conversationId, { gathered: state.gathered });
+        await handOffOwnerIfReady({ store, sms: deps.sms }, state);
+      }
     }
 
     // Schedule a gentle follow-up if they're still mid-conversation (no-op without REDIS_URL).

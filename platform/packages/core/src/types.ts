@@ -63,6 +63,11 @@ export interface GatheredInfo {
   serviceZip?: string | null;
   fullAddress?: string | null;
   isDecisionMaker?: boolean | null;
+  /** When the lead ISN'T the homeowner: the homeowner's name + phone to hand off to the contractor. */
+  ownerName?: string | null;
+  ownerPhone?: string | null;
+  /** Set once the code has fired the not-the-homeowner hand-off (fires exactly once). */
+  ownerHandoffDone?: boolean | null;
   /** ISO datetime of a slot the lead has agreed to, if any. */
   chosenSlot?: string | null;
   /** Map of short id → ISO for the times last offered, so the agent books with a

@@ -14,6 +14,7 @@ import {
 } from "@leadanswered/core";
 import { fireNotification, type NotifyDeps } from "../notify.js";
 import { InternalCalendarProvider, type CalendarProvider } from "../calendar/provider.js";
+import { handOffOwnerIfReady } from "./ownerHandoff.js";
 import type {
   ConversationRecord,
   LeadFieldPatch,
@@ -116,6 +117,8 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
           .boolean()
           .optional()
           .describe("True ONLY if they OWN the home or are the authorized decision-maker for the work; a tenant/renter is false"),
+        ownerName: z.string().optional().describe("If they're NOT the homeowner: the homeowner's name, if given"),
+        ownerPhone: z.string().optional().describe("If they're NOT the homeowner: the homeowner's phone number, if given"),
       }),
       execute: async (input) => {
         state.gathered = mergeGathered(state.gathered, {
@@ -124,6 +127,8 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
           serviceTown: input.town ?? null,
           fullAddress: input.fullAddress ?? null,
           isDecisionMaker: input.isDecisionMaker ?? null,
+          ownerName: input.ownerName ?? null,
+          ownerPhone: input.ownerPhone ?? null,
         });
         await persistGathered(deps, state);
 
@@ -149,6 +154,15 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
           }
         }
 
+        // Not the homeowner → DETERMINISTIC hand-off. Once we have the owner's phone, code (not the
+        // model) pings the contractor. Until then, tell the model to ask for the owner's name + phone.
+        let ownerHandoff: "need_owner_contact" | "done" | undefined;
+        const requireDM = state.contractor.qualificationRules?.requireDecisionMaker !== false;
+        if (requireDM && q.isDecisionMaker === false) {
+          await handOffOwnerIfReady({ store: deps.store, sms: deps.sms }, state);
+          ownerHandoff = state.gathered.ownerHandoffDone ? "done" : "need_owner_contact";
+        }
+
         return {
           qualified: q.qualified,
           inArea: q.inArea,
@@ -157,6 +171,7 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
           missing: q.missing,
           locationStatus: q.locationStatus,
           zipUnverified: q.zipUnverified,
+          ...(ownerHandoff ? { ownerHandoff } : {}),
         };
       },
     }),

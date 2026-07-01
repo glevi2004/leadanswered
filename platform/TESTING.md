@@ -126,8 +126,8 @@ The simplest way to talk to Sarah is to reply inside an existing conversation, o
 - [X] **6.1 Reply flow.** Text the contractor's Twilio number from a phone that already has a conversation → Sarah replies within seconds; the new turns appear in Lead detail.
 - [X] **6.2 Qualification — in area.** Tell Sarah a project type you serve + a ZIP inside your radius → she treats you as qualified and moves toward booking.
 - [ ] **6.3 Qualification — out of area (+ follow-up).** Give a ZIP far outside the radius (e.g. `02601`) → Sarah politely declines / doesn't book (lead → disqualified), never claiming to serve it. **Then text a follow-up** ("any recommendations?") → she still **replies** (the message is saved to the thread) and **escalates the referral to the contractor** rather than going silent.
-- [ ] **6.4 Decision-maker (ownership).** With "only book the decision-maker" on, Sarah asks about **ownership** ("are you the homeowner?"), not a vague "is this your home?". Say you're a **tenant/renter** → she treats you as NOT the decision-maker and handles it per that rule.
-- [ ] **6.5 Availability — windows, not slot spam.** Ask "what's your availability next week?" → Sarah **describes the open windows** across the *real next week* (e.g. "Tue & Fri mornings, Wed afternoon"), NOT three times on one day. Ask about a **specific day** ("what about Monday?") → she gives Monday's actual times (never invents "no Monday slots" when Monday's open). Pick a time → she books that exact hour.
+- [ ] **6.4 Decision-maker → homeowner hand-off (code-guaranteed).** With "only book the decision-maker" on, Sarah asks about **ownership** ("are you the homeowner?"). Say you're a **tenant/renter** → she asks for the **homeowner's name + phone**. Give a number → **you (the contractor) get pinged with that number** — a "🏠 … isn't the homeowner. Homeowner contact: …" SMS — **every time.** This fires from **code**, not the model's discretion (so it can't be skipped), and works even if you just text the number without her asking cleanly. She then thanks the tenant and says the team will reach the owner (no booking).
+- [X] **6.5 Availability — windows, not slot spam.** Ask "what's your availability next week?" → Sarah **describes the open windows** across the *real next week* (e.g. "Tue & Fri mornings, Wed afternoon"), NOT three times on one day. Ask about a **specific day** ("what about Monday?") → she gives Monday's actual times (never invents "no Monday slots" when Monday's open). Pick a time → she books that exact hour.
 - [X] **6.6 Book.** Accept a slot → Sarah confirms; an **Appointment** appears (Overview "Upcoming", Appointments page, Lead detail) and the lead status → booked.
 - [X] **6.7 Address required.** Sarah asks for the full street address before confirming (not just town/ZIP).
 - [ ] **6.8 Reschedule.** Ask to move the appointment → Sarah reschedules; the appointment reflects the new time / "rescheduled".
@@ -141,7 +141,7 @@ The simplest way to talk to Sarah is to reply inside an existing conversation, o
 - [X] **7.1 Forward a lead.** Send/forward an email to `leads+<slug>@leads.leadanswered.com` (slug from `/admin`). Include a lead **name + phone number** in the body (use *your* phone as the lead so Sarah texts you).
 - [ ] **7.2 Lead created.** A new lead appears on the dashboard (source = email).
 - [X] **7.3 Opening SMS.** Sarah sends the opening text to the lead's phone within seconds.
-- [ ] **7.4 Continue.** Reply → full qualify/booking conversation works (re-run §6 against this lead).
+- [X] **7.4 Continue.** Reply → full qualify/booking conversation works (re-run §6 against this lead).
 - [ ] **7.5 Idempotency.** Forwarding the same email twice does not create two leads (Postmark `MessageID` dedupe).
 
 ---

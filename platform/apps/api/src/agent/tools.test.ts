@@ -55,6 +55,25 @@ describe("agent tools", () => {
     expect(ctx?.lead.status).toBe("disqualified");
   });
 
+  it("qualify_lead: not the homeowner + owner phone → deterministic hand-off pings the contractor once", async () => {
+    const { store, sms } = setup();
+    const { run } = await makeTools(store, sms, new CapturingEmail());
+    const r = (await run("qualify_lead", { projectType: "roof leak", zip: "02134", isDecisionMaker: false, ownerPhone: "+16175551234" })) as any;
+    expect(r.ownerHandoff).toBe("done");
+    expect(sms.sent.filter((s) => s.body.includes("isn't the homeowner") && s.body.includes("+16175551234"))).toHaveLength(1);
+    // idempotent — a second qualify_lead does NOT re-ping
+    await run("qualify_lead", { projectType: "roof leak", isDecisionMaker: false, ownerPhone: "+16175551234" });
+    expect(sms.sent.filter((s) => s.body.includes("isn't the homeowner"))).toHaveLength(1);
+  });
+
+  it("qualify_lead: not the homeowner but no phone yet → need_owner_contact, no ping", async () => {
+    const { store, sms } = setup();
+    const { run } = await makeTools(store, sms, new CapturingEmail());
+    const r = (await run("qualify_lead", { projectType: "roof leak", zip: "02134", isDecisionMaker: false })) as any;
+    expect(r.ownerHandoff).toBe("need_owner_contact");
+    expect(sms.sent.some((s) => s.body.includes("isn't the homeowner"))).toBe(false);
+  });
+
   it("check_availability: overview returns windows; a focused day returns bookable times with ids", async () => {
     const { store, sms } = setup();
     const { run, state } = await makeTools(store, sms, new CapturingEmail());

@@ -109,6 +109,27 @@ describe("Sarah agent engine (SCOPE §5, §7.5)", () => {
     expect(sms.sent.filter((s) => s.to === OWNER_PHONE)).toHaveLength(0); // owner not subscribed to disqualified
   });
 
+  it("deterministic hand-off: a not-homeowner lead who texts a number pings the contractor even if the model doesn't", async () => {
+    const store = seed();
+    const sms = new CapturingSms();
+    const model = scriptedModel([
+      { text: "Hi! What's the property address?" }, // opening
+      { tool: "qualify_lead", input: { projectType: "roof leak", town: "Boston", zip: "02134", isDecisionMaker: false } },
+      { text: "Got it — since you're not the owner, can you share the homeowner's name and phone?" },
+      // the tenant texts the owner's number; the model just replies (never passes ownerPhone) → code backstop fires
+      { text: "Thanks! I'll pass this along to the team." },
+    ]);
+    const deps = { store, model, sms, email: new CapturingEmail(), now: () => NOW };
+    await createLeadAndGreet(deps, { contractorId: TEST_CONTRACTOR_ID, contactName: "Sam", contactPhone: FROM });
+
+    await handleInbound(deps, { toNumber: TO, fromNumber: FROM, body: "roof leak at 100 Linden St Boston 02134, I just rent here" });
+    await handleInbound(deps, { toNumber: TO, fromNumber: FROM, body: "the owner is Jane, her number is 617-555-9090" });
+
+    expect(
+      sms.sent.some((s) => s.to === OWNER_PHONE && s.body.includes("isn't the homeowner") && s.body.includes("6175559090")),
+    ).toBe(true);
+  });
+
   it("escalation loop: agent escalates → contractor notified → contractor's reply relayed to the homeowner", async () => {
     const store = seed();
     const sms = new CapturingSms();
