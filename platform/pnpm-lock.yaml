@@ -160,10 +160,16 @@ importers:
 
   packages/core:
     dependencies:
+      luxon:
+        specifier: ^3.5.0
+        version: 3.7.2
       zod:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@types/luxon':
+        specifier: ^3.4.2
+        version: 3.7.2
       '@types/node':
         specifier: ^25.9.2
         version: 25.9.2
@@ -1493,6 +1499,9 @@ packages:
 
   '@types/http-errors@2.0.5':
     resolution: {integrity: sha512-r8Tayk8HJnX0FztbZN7oVqGccWgw98T/0neJphO91KkmOzug1KkofZURD4UaD5uH8AqcFLfdPErnBod0u71/qg==}
+
+  '@types/luxon@3.7.2':
+    resolution: {integrity: sha512-gW+Oib+vUtGJBtNC8V9Reww0oIpusw+4m81uncg9REGZAJfqOQHfo/nkabnc7w0QReXyPqjrbWMJk6NuAkiX3Q==}
 
   '@types/methods@1.1.4':
     resolution: {integrity: sha512-ymXWVrDiCxTBE3+RIrrP533E70eA+9qu7zdWoHuOmGujkYtzf4HQF96b8nwHLqhuf4ykX61IGRIB38CC6/sImQ==}
@@ -4788,6 +4797,8 @@ snapshots:
       '@types/serve-static': 2.2.0
 
   '@types/http-errors@2.0.5': {}
+
+  '@types/luxon@3.7.2': {}
 
   '@types/methods@1.1.4': {}
 

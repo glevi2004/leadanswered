@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { currentUser, isAdminEmail } from "@/lib/auth";
 import { getContractorByOwnerEmail } from "@/lib/contractors";
+import { DEFAULT_TIMEZONE } from "@/lib/config";
 
 /**
  * Resolve the signed-in owner's contractor for the dashboard, or redirect:
@@ -21,4 +22,4 @@ export async function requireContractor(): Promise<Record<string, any>> {
 
 /** The contractor's configured timezone (falls back to ET). */
 export const contractorTz = (c: Record<string, any>): string =>
-  c?.standingAvailability?.timezone ?? "America/New_York";
+  c?.standingAvailability?.timezone ?? DEFAULT_TIMEZONE;

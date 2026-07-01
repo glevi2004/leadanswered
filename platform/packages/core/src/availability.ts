@@ -1,4 +1,12 @@
 import type { AvailabilityWindow } from "./types.js";
+import {
+  DEFAULT_TIMEZONE,
+  localDatesInRange,
+  localWallToUtc,
+  nextLocalMondayStartUtc,
+  safeZone,
+  zonedParts,
+} from "./timezone.js";
 
 /** Default on-site-estimate duration (minutes). Per-contractor configurable later. */
 export const APPOINTMENT_DURATION_MIN = 60;
@@ -31,11 +39,11 @@ export function subtractBusy(
 
 /** An open, bookable stretch of time (a continuous free segment ≥ one appointment). */
 export interface OpenWindow {
-  /** UTC calendar date, YYYY-MM-DD. */
+  /** LOCAL calendar date in the contractor's tz, YYYY-MM-DD. */
   date: string;
   startIso: string;
   endIso: string;
-  /** Human label Sarah can read/rephrase, e.g. "Mon, Jul 6 · 6:00-11:00 AM". */
+  /** Human label Sarah can read/rephrase, e.g. "Mon, Jul 6 · 6:00-11:00 AM" (in the contractor's tz). */
   label: string;
 }
 
@@ -56,23 +64,16 @@ const toMin = (hhmm: string): number => {
   return h * 60 + (m || 0);
 };
 
-const dateUTC = (y: number, mo: number, d: number, min = 0): Date =>
-  new Date(Date.UTC(y, mo, d, Math.floor(min / 60), min % 60));
-
-/** morning < 12:00, afternoon 12:00-17:00, evening ≥ 17:00 (minutes from midnight). */
+/** morning < 12:00, afternoon 12:00-17:00, evening ≥ 17:00 (minutes from LOCAL midnight). */
 export function partOfDayBounds(part: PartOfDay): { startMin: number; endMin: number } {
   if (part === "morning") return { startMin: 0, endMin: 12 * 60 };
   if (part === "afternoon") return { startMin: 12 * 60, endMin: 17 * 60 };
   return { startMin: 17 * 60, endMin: 24 * 60 };
 }
 
-/** 00:00 UTC on the next calendar Monday strictly after `now` (never mid-week). */
-export function nextWeekStart(now: Date): Date {
-  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  // getUTCDay: 0=Sun..6=Sat. Days until next Monday (1), always ≥1 so it's a future Monday.
-  const delta = ((8 - d.getUTCDay()) % 7) || 7;
-  d.setUTCDate(d.getUTCDate() + delta);
-  return d;
+/** 00:00 on the next LOCAL Monday strictly after `now` in `timezone`, as a UTC instant. */
+export function nextWeekStart(now: Date, timezone: string = DEFAULT_TIMEZONE): Date {
+  return nextLocalMondayStartUtc(timezone, now);
 }
 
 /** Subtract busy intervals from [start,end], returning the free sub-ranges (ms boundaries). */
@@ -96,53 +97,56 @@ function subtractIntervals(start: number, end: number, busy: TimeRange[]): Array
 }
 
 /**
- * The open, bookable windows in [fromIso, toIso): the contractor's standing weekly windows,
- * intersected with the query range + optional day/part-of-day filter, MINUS busy time, keeping only
- * segments long enough to hold a full appointment. Pure + UTC (timezone-accurate rendering is a
- * separate hardening item). This is what Sarah reads to describe availability like an employee with
- * the calendar open — she does NOT get a list of discrete slots.
+ * The open, bookable windows in [fromIso, toIso): the contractor's standing weekly windows (LOCAL
+ * wall-clock hours in `timezone`), intersected with the query range + optional day/part-of-day filter,
+ * MINUS busy time, keeping only segments long enough to hold a full appointment. Windows are converted
+ * to UTC instants per calendar date via luxon (DST-correct). This is what Sarah reads to describe
+ * availability like an employee with the calendar open — she does NOT get a list of discrete slots.
  */
 export function computeOpenWindows(
   standingWindows: AvailabilityWindow[],
   query: AvailabilityQuery,
   busy: TimeRange[],
   now: Date,
+  timezone: string = DEFAULT_TIMEZONE,
   durationMin: number = APPOINTMENT_DURATION_MIN,
 ): OpenWindow[] {
+  const tz = safeZone(timezone);
   const from = Math.max(new Date(query.fromIso).getTime(), now.getTime());
   const to = new Date(query.toIso).getTime();
   if (!(to > from)) return [];
   const pod = query.partOfDay ? partOfDayBounds(query.partOfDay) : null;
 
   const out: OpenWindow[] = [];
-  // Walk each UTC day from `from` to `to`.
-  const cursor = new Date(Date.UTC(new Date(from).getUTCFullYear(), new Date(from).getUTCMonth(), new Date(from).getUTCDate()));
-  for (let guard = 0; cursor.getTime() < to && guard < 60; guard++) {
-    const y = cursor.getUTCFullYear(), mo = cursor.getUTCMonth(), d = cursor.getUTCDate();
-    const dow = cursor.getUTCDay();
-    if (query.dayOfWeek == null || query.dayOfWeek === dow) {
-      for (const w of standingWindows.filter((s) => s.dayOfWeek === dow)) {
-        let wStart = toMin(w.start), wEnd = toMin(w.end);
-        if (pod) {
-          wStart = Math.max(wStart, pod.startMin);
-          wEnd = Math.min(wEnd, pod.endMin);
-        }
-        if (wEnd - wStart < durationMin) continue;
-        const rangeStart = Math.max(dateUTC(y, mo, d, wStart).getTime(), from);
-        const rangeEnd = Math.min(dateUTC(y, mo, d, wEnd).getTime(), to);
-        if (rangeEnd - rangeStart < durationMin * 60_000) continue;
-        for (const [s, e] of subtractIntervals(rangeStart, rangeEnd, busy)) {
-          if (e - s < durationMin * 60_000) continue;
-          out.push({
-            date: `${y}-${String(mo + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
-            startIso: new Date(s).toISOString(),
-            endIso: new Date(e).toISOString(),
-            label: `${formatDayLabel(new Date(s))} · ${formatClock(new Date(s))}-${formatClock(new Date(e))}`,
-          });
-        }
+  for (const { y, month1, d, dow } of localDatesInRange(tz, from, to)) {
+    if (query.dayOfWeek != null && query.dayOfWeek !== dow) continue;
+    for (const w of standingWindows.filter((s) => s.dayOfWeek === dow)) {
+      let wStart = toMin(w.start);
+      let wEnd = toMin(w.end);
+      if (pod) {
+        wStart = Math.max(wStart, pod.startMin);
+        wEnd = Math.min(wEnd, pod.endMin);
+      }
+      if (wEnd - wStart < durationMin) continue;
+      // Convert the LOCAL window edges on this local date to UTC instants (luxon normalizes day+1).
+      const winStartMs = localWallToUtc(tz, y, month1, d, Math.floor(wStart / 60), wStart % 60).getTime();
+      const winEndMs =
+        wEnd >= 1440
+          ? localWallToUtc(tz, y, month1, d + 1, 0, 0).getTime()
+          : localWallToUtc(tz, y, month1, d, Math.floor(wEnd / 60), wEnd % 60).getTime();
+      const rangeStart = Math.max(winStartMs, from);
+      const rangeEnd = Math.min(winEndMs, to);
+      if (rangeEnd - rangeStart < durationMin * 60_000) continue;
+      for (const [s, e] of subtractIntervals(rangeStart, rangeEnd, busy)) {
+        if (e - s < durationMin * 60_000) continue;
+        out.push({
+          date: `${y}-${String(month1).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
+          startIso: new Date(s).toISOString(),
+          endIso: new Date(e).toISOString(),
+          label: `${formatDayLabel(new Date(s), tz)} · ${formatClock(new Date(s), tz)}-${formatClock(new Date(e), tz)}`,
+        });
       }
     }
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
   return out.sort((a, b) => a.startIso.localeCompare(b.startIso));
 }
@@ -150,6 +154,7 @@ export function computeOpenWindows(
 /** Concrete bookable start times inside an open window (every `stepMin`, each fitting `durationMin`). */
 export function windowStarts(
   open: OpenWindow,
+  timezone: string = DEFAULT_TIMEZONE,
   stepMin = 60,
   durationMin: number = APPOINTMENT_DURATION_MIN,
 ): SlotOption[] {
@@ -160,27 +165,28 @@ export function windowStarts(
     t + durationMin * 60_000 <= end;
     t += stepMin * 60_000
   ) {
-    out.push({ iso: new Date(t).toISOString(), label: formatSlot(new Date(t)) });
+    out.push({ iso: new Date(t).toISOString(), label: formatSlot(new Date(t), timezone) });
   }
   return out;
 }
 
-/** True if a `durationMin` appointment starting at `startIso` fits entirely inside a standing window. */
+/** True if a `durationMin` appointment starting at `startIso` fits inside a standing window (LOCAL tz). */
 export function isWithinStandingWindow(
   standingWindows: AvailabilityWindow[],
   startIso: string,
+  timezone: string = DEFAULT_TIMEZONE,
   durationMin: number = APPOINTMENT_DURATION_MIN,
 ): boolean {
-  const start = new Date(startIso);
-  if (Number.isNaN(start.getTime())) return false;
-  const startMin = start.getUTCHours() * 60 + start.getUTCMinutes();
+  if (Number.isNaN(new Date(startIso).getTime())) return false;
+  const p = zonedParts(startIso, timezone);
+  const startMin = p.hh * 60 + p.mm;
   const endMin = startMin + durationMin;
   return standingWindows.some(
-    (w) => w.dayOfWeek === start.getUTCDay() && toMin(w.start) <= startMin && endMin <= toMin(w.end),
+    (w) => w.dayOfWeek === p.dow && toMin(w.start) <= startMin && endMin <= toMin(w.end),
   );
 }
 
-/** Human weekly-availability summary for the system prompt, e.g. "Mon 6-11am, Wed 11am-4pm". */
+/** Human weekly-availability summary for the system prompt, e.g. "Mon 6-11am, Wed 11am-4pm" (local). */
 export function formatWeeklyAvailability(standingWindows: AvailabilityWindow[]): string {
   const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const byDay = new Map<number, string[]>();
@@ -197,12 +203,12 @@ export function formatWeeklyAvailability(standingWindows: AvailabilityWindow[]):
     .join(", ");
 }
 
-// --- small formatters (UTC) ---
-function formatDayLabel(dt: Date): string {
-  return new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }).format(dt);
+// --- small formatters (rendered in the contractor's timezone) ---
+function formatDayLabel(dt: Date, timezone: string): string {
+  return new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: safeZone(timezone) }).format(dt);
 }
-function formatClock(dt: Date): string {
-  return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" }).format(dt);
+function formatClock(dt: Date, timezone: string): string {
+  return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: safeZone(timezone) }).format(dt);
 }
 /** "06:00"→"6am", "11:30"→"11:30am", "16:00"→"4pm". */
 function clockShort(hhmm: string): string {
@@ -212,7 +218,8 @@ function clockShort(hhmm: string): string {
   return m ? `${h12}:${String(m).padStart(2, "0")}${period}` : `${h12}${period}`;
 }
 
-export function formatSlot(dt: Date | string): string {
+/** Full slot label for SMS/notifications, e.g. "Monday, July 6 at 8:00 AM" in the contractor's tz. */
+export function formatSlot(dt: Date | string, timezone: string = DEFAULT_TIMEZONE): string {
   const d = typeof dt === "string" ? new Date(dt) : dt;
   if (Number.isNaN(d.getTime())) return typeof dt === "string" ? dt : "";
   return new Intl.DateTimeFormat("en-US", {
@@ -221,6 +228,6 @@ export function formatSlot(dt: Date | string): string {
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
-    timeZone: "UTC",
+    timeZone: safeZone(timezone),
   }).format(d);
 }

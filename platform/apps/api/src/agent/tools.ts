@@ -1,19 +1,19 @@
 import { tool } from "ai";
 import { z } from "zod";
 import {
-  computeOpenWindows,
   formatSlot,
   isDisqualified,
   isWithinStandingWindow,
   mergeGathered,
   nextWeekStart,
   qualify,
+  resolveChosenSlot,
   windowStarts,
   type ContractorConfig,
   type GatheredInfo,
 } from "@leadanswered/core";
 import { fireNotification, type NotifyDeps } from "../notify.js";
-import { InternalCalendarProvider, type CalendarProvider } from "../calendar/provider.js";
+import { InternalCalendarProvider } from "../calendar/provider.js";
 import { handOffOwnerIfReady } from "./ownerHandoff.js";
 import type {
   ConversationRecord,
@@ -56,17 +56,18 @@ const standingWindows = (c: ContractorConfig) => c.standingAvailability?.windows
 const sameInstant = (a: string, b: string) =>
   Math.abs(new Date(a).getTime() - new Date(b).getTime()) < 60_000;
 
-/** Resolve the [from,to] search range from the model's request. */
+/** Resolve the [from,to] search range from the model's request (week boundaries in the contractor tz). */
 function resolveRange(
   input: { range?: string; fromIso?: string; toIso?: string; dayOfWeek?: number; partOfDay?: string },
   now: Date,
+  tz: string,
 ): { fromIso: string; toIso: string } {
   if (input.range === "next_week") {
-    const from = nextWeekStart(now);
+    const from = nextWeekStart(now, tz);
     return { fromIso: from.toISOString(), toIso: new Date(from.getTime() + 7 * DAY_MS).toISOString() };
   }
   if (input.range === "this_week") {
-    return { fromIso: now.toISOString(), toIso: nextWeekStart(now).toISOString() };
+    return { fromIso: now.toISOString(), toIso: nextWeekStart(now, tz).toISOString() };
   }
   if (input.range === "specific" && input.fromIso) {
     const from = new Date(input.fromIso);
@@ -84,7 +85,8 @@ function resolveRange(
  * are the double-booking backstop; open windows already subtract booked time.
  */
 export function buildTools(deps: ToolDeps, state: ToolState) {
-  const calendar: CalendarProvider = new InternalCalendarProvider(deps.store, state.contractor, deps.now);
+  const calendar = new InternalCalendarProvider(deps.store, state.contractor, deps.now);
+  const tz = calendar.tz(); // the contractor's IANA timezone — all offered/booked times are in it
 
   /** A few genuinely-free start times (one per day, spread) to re-offer after a booking conflict. */
   async function freshTimes(): Promise<{ id: string; label: string }[]> {
@@ -92,7 +94,7 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
       fromIso: deps.now.toISOString(),
       toIso: new Date(deps.now.getTime() + 14 * DAY_MS).toISOString(),
     });
-    const picks = windows.slice(0, 3).map((w) => windowStarts(w)[0]).filter(Boolean);
+    const picks = windows.slice(0, 3).map((w) => windowStarts(w, tz)[0]).filter(Boolean);
     const map: Record<string, string> = {};
     const out = picks.map((s, i) => {
       const id = String(i + 1);
@@ -187,7 +189,7 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
         toIso: z.string().optional().describe("For range:'specific' — ISO end"),
       }),
       execute: async (input) => {
-        const { fromIso, toIso } = resolveRange(input, deps.now);
+        const { fromIso, toIso } = resolveRange(input, deps.now, tz);
         const windows = await calendar.getAvailability({
           fromIso,
           toIso,
@@ -198,7 +200,7 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
 
         const focused = input.dayOfWeek != null || input.partOfDay != null;
         if (focused) {
-          const starts = windows.flatMap((w) => windowStarts(w)).slice(0, 6);
+          const starts = windows.flatMap((w) => windowStarts(w, tz)).slice(0, 6);
           const map: Record<string, string> = {};
           const times = starts.map((s, i) => {
             const id = String(i + 1);
@@ -216,13 +218,13 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
 
     book_appointment: tool({
       description:
-        "Book the free on-site estimate at a time the lead picked. Pass the short id of the chosen time from check_availability (e.g. '1'), plus their full street address. It re-checks everything; trust its result before telling the customer anything is booked.",
+        "Book the free on-site estimate at a time the lead picked. Pass `chosenTime` = the time the customer chose — their own words ('8 am', 'Tuesday at 9'), the option label, or the short id from check_availability — plus their full street address. Code resolves it to the exact slot; trust its result before telling the customer anything is booked.",
       inputSchema: z.object({
-        slotId: z.string().describe("The short id of the chosen time from check_availability (e.g. '1')"),
+        chosenTime: z.string().describe("The time the customer chose, in their words or the offered label/id (e.g. '8 am', '1')"),
         fullAddress: z.string().describe("Full street address for the visit"),
       }),
       execute: async (input) => {
-        const chosenIso = state.gathered.offeredSlots?.[input.slotId] ?? input.slotId;
+        const chosenIso = resolveChosenSlot(state.gathered.offeredSlots, input.chosenTime, tz);
         state.gathered = mergeGathered(state.gathered, {
           fullAddress: input.fullAddress ?? null,
           chosenSlot: chosenIso,
@@ -233,7 +235,7 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
         if (!q.qualified) return { ok: false as const, reason: "not_qualified", missing: q.missing };
         if (!input.fullAddress || input.fullAddress.trim() === "")
           return { ok: false as const, reason: "need_address" };
-        if (!isWithinStandingWindow(standingWindows(state.contractor), chosenIso))
+        if (!chosenIso || !isWithinStandingWindow(standingWindows(state.contractor), chosenIso, tz))
           return { ok: false as const, reason: "slot_unavailable", times: await freshTimes() };
 
         const res = await calendar.book({ leadId: state.lead.id, startIso: chosenIso });
@@ -241,11 +243,11 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
           if (res.reason === "lead_has_active") {
             const existing = await deps.store.getActiveAppointmentByLead(state.lead.id);
             if (existing && sameInstant(chosenIso, existing.startIso))
-              return { ok: true as const, slotIso: chosenIso, label: formatSlot(chosenIso), already: true };
+              return { ok: true as const, slotIso: chosenIso, label: formatSlot(chosenIso, tz), already: true };
             return {
               ok: false as const,
               reason: "already_booked",
-              currentLabel: existing ? formatSlot(existing.startIso) : null,
+              currentLabel: existing ? formatSlot(existing.startIso, tz) : null,
             };
           }
           return { ok: false as const, reason: "slot_unavailable", times: await freshTimes() };
@@ -253,7 +255,7 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
 
         state.lead.status = "booked";
         await fireNotification(deps, state, "booking_confirmed", state.gathered, chosenIso);
-        return { ok: true as const, slotIso: chosenIso, label: formatSlot(chosenIso) };
+        return { ok: true as const, slotIso: chosenIso, label: formatSlot(chosenIso, tz) };
       },
     }),
 
@@ -261,13 +263,13 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
       description:
         "Move the lead's existing booking to a new time they picked (from check_availability). Only for leads who already have a booking.",
       inputSchema: z.object({
-        newSlotId: z.string().describe("The short id of the new chosen time from check_availability (e.g. '1')"),
+        chosenTime: z.string().describe("The new time the customer chose, in their words or the offered label/id (e.g. '8 am', '1')"),
       }),
       execute: async (input) => {
         const appt = await deps.store.getActiveAppointmentByLead(state.lead.id);
         if (!appt) return { ok: false as const, reason: "no_appointment" };
-        const newIso = state.gathered.offeredSlots?.[input.newSlotId] ?? input.newSlotId;
-        if (!isWithinStandingWindow(standingWindows(state.contractor), newIso))
+        const newIso = resolveChosenSlot(state.gathered.offeredSlots, input.chosenTime, tz);
+        if (!newIso || !isWithinStandingWindow(standingWindows(state.contractor), newIso, tz))
           return { ok: false as const, reason: "slot_unavailable", times: await freshTimes() };
 
         const res = await calendar.reschedule(appt.id, newIso);
@@ -277,7 +279,7 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
         state.gathered = mergeGathered(state.gathered, { chosenSlot: newIso });
         await persistGathered(deps, state);
         await fireNotification(deps, state, "booking_rescheduled", state.gathered, newIso);
-        return { ok: true as const, slotIso: newIso, label: formatSlot(newIso) };
+        return { ok: true as const, slotIso: newIso, label: formatSlot(newIso, tz) };
       },
     }),
 

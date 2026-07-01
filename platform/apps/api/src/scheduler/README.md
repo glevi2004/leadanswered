@@ -3,8 +3,11 @@
 `Scheduler` is the **booking authority**. Our Postgres `Appointment` table is **always** the
 source of truth; `book()` relies on DB constraints (a `btree_gist` EXCLUDE preventing
 overlapping active appointments per contractor, plus partial unique indexes) — not JS checks —
-to make double-booking impossible even under concurrency. Availability = the standing weekly
-grid (`proposeSlots`) minus `getBusyTimes` (our active appointments).
+to make double-booking impossible even under concurrency. Availability = the contractor's standing
+weekly **windows** — **local wall-clock** times in their IANA timezone, converted to UTC instants
+(DST-correct, via luxon in `packages/core/timezone.ts`) by `computeOpenWindows` — minus `getBusyTimes`
+(our active appointments). Appointment `startAt/endAt` are stored as **UTC instants**; the
+`Appointment.timezone` column records the zone booked in.
 
 ## Calendar integration (DEFERRED — seam only today)
 

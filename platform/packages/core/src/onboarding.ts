@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { geocodeZip } from "./geo.js";
+import { DEFAULT_TIMEZONE, isValidZone } from "./timezone.js";
 import type { NotificationEventType } from "./types.js";
 
 /**
@@ -52,7 +53,10 @@ export const contractorConfigSchema = z.object({
   }),
   qualificationRules: z.object({ requireDecisionMaker: z.boolean().default(true) }),
   standingAvailability: z.object({
-    timezone: z.string().min(1).default("America/New_York"),
+    timezone: z
+      .string()
+      .default(DEFAULT_TIMEZONE)
+      .refine((tz) => isValidZone(tz), { message: "must be a valid IANA timezone" }),
     windows: z
       .array(z.object({ dayOfWeek: z.number().int().min(0).max(6), start: timeHHMM, end: timeHHMM }))
       .min(1, "add at least one available time"),

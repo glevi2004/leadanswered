@@ -1,4 +1,5 @@
 import { getPrisma } from "@leadanswered/db";
+import { DEFAULT_TIMEZONE } from "@leadanswered/core";
 import type {
   ContractorConfig,
   GatheredInfo,
@@ -36,7 +37,7 @@ function rowToContractor(r: any): ContractorConfig {
       excludeOverrides: r.excludeOverrides,
     },
     qualificationRules: (r.qualificationRules as any) ?? {},
-    standingAvailability: (r.standingAvailability as any) ?? { timezone: "UTC", windows: [] },
+    standingAvailability: (r.standingAvailability as any) ?? { timezone: DEFAULT_TIMEZONE, windows: [] },
     twilioNumber: r.twilioNumber,
     slug: r.slug ?? null,
     escalationTopics: r.escalationTopics?.length ? r.escalationTopics : null,
@@ -73,6 +74,7 @@ function mapAppt(a: any): AppointmentRecord {
     startIso: a.startAt.toISOString(),
     endIso: a.endAt.toISOString(),
     status: a.status,
+    timezone: a.timezone,
   };
 }
 

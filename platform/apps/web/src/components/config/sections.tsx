@@ -111,6 +111,11 @@ export function ServiceAreaSection({ state, update }: SectionProps) {
   );
 }
 
+const TIMEZONES: string[] =
+  typeof (Intl as unknown as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf === "function"
+    ? (Intl as unknown as { supportedValuesOf: (k: string) => string[] }).supportedValuesOf("timeZone")
+    : ["America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles", "America/Phoenix", "America/Anchorage", "Pacific/Honolulu", "UTC"];
+
 export function AvailabilitySection({ state, update }: SectionProps) {
   // Drag-to-paint: mousedown decides add vs erase (opposite of the first cell); dragging applies it.
   // We mutate a working Set in a ref so rapid pointerenter events during a drag don't race React state.
@@ -138,9 +143,27 @@ export function AvailabilitySection({ state, update }: SectionProps) {
 
   return (
     <div className="flex flex-col gap-3">
+      <div className="grid gap-2">
+        <Label htmlFor="timezone">Timezone</Label>
+        <select
+          id="timezone"
+          value={state.timezone}
+          onChange={(e) => update({ timezone: e.target.value })}
+          className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        >
+          {TIMEZONES.map((tz) => (
+            <option key={tz} value={tz}>
+              {tz.replace(/_/g, " ")}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-muted-foreground">
+          Your local timezone. All availability + appointment times are in this zone.
+        </p>
+      </div>
       <p className="text-xs text-muted-foreground">
-        Click and drag to paint the times you can take on-site estimates — half-hours and split shifts are
-        fine. Sarah only offers these. Drag over green to clear.
+        Click and drag to paint the times you can take on-site estimates (shown in <b>{state.timezone.replace(/_/g, " ")}</b>) —
+        half-hours and split shifts are fine. Sarah only offers these. Drag over green to clear.
       </p>
       <div className="overflow-x-auto">
         <div
@@ -269,6 +292,7 @@ export function ReviewSummary({ state }: { state: OnboardingState }) {
     ["Assistant", state.sarahName],
     ["Project types", state.projectTypes.join(", ") || "—"],
     ["Service area", `${state.baseZip || "—"} · ${state.radius} mi`],
+    ["Timezone", state.timezone.replace(/_/g, " ")],
     ["Availability", availability],
     ["Escalate", splitList(state.escalation).join(", ") || "—"],
     ["Notify", state.recipients.filter((r) => r.name.trim()).map((r) => r.name.trim()).join(", ") || "—"],

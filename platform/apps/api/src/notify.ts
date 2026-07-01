@@ -1,5 +1,6 @@
 import {
   formatSlot,
+  safeZone,
   sendNotifications,
   type ContractorConfig,
   type EmailSender,
@@ -44,7 +45,8 @@ function buildPayload(
   slotIso: string | null,
 ): NotificationPayload {
   const { lead, contractor } = args;
-  const when = slotIso ? formatSlot(slotIso) : "";
+  // Contractor-facing times are in the contractor's own timezone.
+  const when = slotIso ? formatSlot(slotIso, safeZone(contractor.standingAvailability?.timezone)) : "";
   if (event === "booking_confirmed" || event === "booking_rescheduled") {
     const verb = event === "booking_rescheduled" ? "Rescheduled" : "New booking";
     const emailBody = [

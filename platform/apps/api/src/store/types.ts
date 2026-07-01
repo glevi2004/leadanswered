@@ -72,6 +72,8 @@ export interface AppointmentRecord {
   startIso: string;
   endIso: string;
   status: string;
+  /** IANA timezone the contractor was in when booked (for correct display if their tz later changes). */
+  timezone?: string;
 }
 
 export type AppointmentPatch = Partial<{

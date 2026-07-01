@@ -1,4 +1,5 @@
 /** Pure presentation helpers for the dashboard — status → badge + datetime formatting. */
+import { DEFAULT_TIMEZONE } from "@/lib/config";
 
 type BadgeVariant = "default" | "secondary" | "destructive";
 export type StatusBadge = { label: string; variant: BadgeVariant };
@@ -27,7 +28,7 @@ export const leadStatusBadge = (status: string): StatusBadge =>
 export const apptStatusBadge = (status: string): StatusBadge =>
   APPT_STATUS[status] ?? { label: status, variant: "secondary" };
 
-const DEFAULT_TZ = "America/New_York";
+const DEFAULT_TZ = DEFAULT_TIMEZONE;
 
 /** Human-readable date+time in the contractor's timezone, e.g. "Tue, Jul 1 · 2:00 PM". */
 export function formatWhen(iso: string | null | undefined, timezone = DEFAULT_TZ): string {

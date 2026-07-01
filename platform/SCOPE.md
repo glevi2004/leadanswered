@@ -61,6 +61,17 @@ Sarah reads the calendar like an employee: for a general question she describes 
 1-hour start times. The system prompt gives her today's date + the standing weekly pattern so she can
 reason about any day.
 
+**Timezone (first-class, DST-correct).** Availability windows are **local wall-clock** times in the
+contractor's IANA timezone (`standingAvailability.timezone`, set in onboarding). All conversion between
+local wall-time and UTC instants goes through one layer (`packages/core/timezone.ts`, backed by
+**luxon**) so DST is always correct — `computeOpenWindows`, `nextWeekStart`, `isWithinStandingWindow`,
+and the formatters all take the timezone. **Appointments are stored as UTC instants** (`startAt/endAt`;
+the `Appointment.timezone` column records the zone booked in); a UTC contractor is the identity case.
+Every time shown to a customer, the contractor (SMS/email + dashboard), and the prompt's "today" is
+rendered in the contractor's zone. Slot selection is **deterministic in code** (`resolveChosenSlot`):
+the customer's stated time ("8 am", a label, or an id) is matched to the exact offered instant — the
+model never picks the slot id itself.
+
 The contractor's real **Google Calendar** is a **future adapter behind the same port** (that's where
 MCP fits) — a drop-in with ZERO agent changes; it's a ONE-WAY sync target, never the booking authority,
 never inside the booking transaction. The seam exists today (`CalendarConnection` model +

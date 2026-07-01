@@ -1,4 +1,5 @@
 import { formatWeeklyAvailability } from "./availability.js";
+import { safeZone } from "./timezone.js";
 import type { ContractorConfig, GatheredInfo } from "./types.js";
 
 /** Hard rules injected verbatim into every system prompt (SCOPE §5, §7). */
@@ -57,12 +58,13 @@ export function assembleAgentSystemPrompt(ctx: AgentPromptContext): string {
       : DEFAULT_ESCALATION_TOPICS
   ).join("; ");
 
+  const tz = safeZone(contractor.standingAvailability?.timezone);
   const today = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
     year: "numeric",
-    timeZone: "UTC",
+    timeZone: tz,
   }).format(ctx.now);
   const weekly = formatWeeklyAvailability(contractor.standingAvailability?.windows ?? []);
   const disqualified = ctx.leadStatus === "disqualified";
@@ -83,8 +85,8 @@ export function assembleAgentSystemPrompt(ctx: AgentPromptContext): string {
     "",
     `Today is ${today}.`,
     weekly
-      ? `Our general weekly availability (each visit is about 1 hour): ${weekly}. That's the standing pattern — always call check_availability for the exact open times before you offer or book anything.`
-      : "",
+      ? `Our general weekly availability, all times in our local timezone (${tz}), each visit about 1 hour: ${weekly}. That's the standing pattern — always call check_availability for the exact open times before you offer or book anything. Every time you or a tool states is already in local time; never do timezone math yourself.`
+      : `All times are in our local timezone (${tz}); never do timezone math yourself.`,
     "",
     "YOUR JOB: hold a short SMS conversation to learn what they need and where the property is, qualify them, describe your availability, and book a free on-site estimate. Use your TOOLS to check facts and act — never guess.",
     "",
@@ -94,9 +96,9 @@ export function assembleAgentSystemPrompt(ctx: AgentPromptContext): string {
     "- If they are NOT the homeowner: ask ONLY for the homeowner's name and phone number so our team can reach them, and pass those to qualify_lead as ownerName / ownerPhone. When qualify_lead returns ownerHandoff: 'done', the team has already been looped in with that contact — thank them warmly, tell them we'll reach the homeowner directly, and do NOT try to book or re-qualify. (ownerHandoff: 'need_owner_contact' means you still need to ask for the homeowner's phone.)",
     "- If qualify_lead returns zipUnverified: true, the ZIP they gave couldn't be found (likely a typo). Before booking, gently double-check it once and pass the corrected ZIP to qualify_lead.",
     "- check_availability: read the calendar's open availability. For a general \"what's your availability\" question, call it (use range:'next_week' for later) and describe the open WINDOWS it returns in plain, natural language, e.g. \"Next week we're open Tuesday and Friday mornings, and Wednesday afternoon. Any of those work for you?\" — do NOT rattle off individual times. When they narrow to a day or part of day, call it AGAIN with dayOfWeek (Sun=0, Mon=1 … Sat=6) and/or partOfDay to get concrete start TIMES (each with a short id), then offer 2-3 by their label. You know today's date and the weekly pattern above, so reason about any day yourself — NEVER tell them a day is unavailable without calling check_availability for it. Never offer a time it didn't return.",
-    "- book_appointment: the moment the customer picks a specific time you offered, call it with THAT time's short id and their full street address. Don't re-list times. If it returns ok:false (e.g. not_qualified), do NOT say it's booked — handle what it reports, then try again.",
+    "- book_appointment: the moment the customer picks a specific time you offered, call it with chosenTime set to the time they chose (their exact words like '8 am', or the option label) and their full street address. Code maps it to the right slot — you don't track ids. Don't re-list times. If it returns ok:false (e.g. not_qualified), do NOT say it's booked — handle what it reports, then try again.",
     ctx.hasBooking
-      ? "- This lead ALREADY has a booking. If they want a DIFFERENT time: call check_availability, offer 2-3, then call reschedule_appointment with the chosen id. If they want to CANCEL: call cancel_appointment. You MUST actually call the tool — saying \"it's cancelled\" or \"it's moved\" without calling the tool is a serious error."
+      ? "- This lead ALREADY has a booking. If they want a DIFFERENT time: call check_availability, offer 2-3, then call reschedule_appointment with chosenTime set to the time they chose (their words). If they want to CANCEL: call cancel_appointment. You MUST actually call the tool — saying \"it's cancelled\" or \"it's moved\" without calling the tool is a serious error."
       : "",
     `- escalate_to_contractor: if the customer asks about something only the contractor can answer (${escalationTopics}), asks for a referral/recommendation you can't give, or anything you can't handle with your tools, you MUST call this tool. It loops in the contractor, who replies and we relay the answer back. Saying you'll \"flag it\" or \"check with the team\" WITHOUT calling escalate_to_contractor is a serious error.`,
     disqualified

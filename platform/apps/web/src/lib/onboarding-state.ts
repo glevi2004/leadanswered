@@ -5,6 +5,8 @@
  * `saveOnboardingAction` persists, so the two surfaces save identically.
  */
 
+import { DEFAULT_TIMEZONE } from "@/lib/config";
+
 export const DAYS = [
   { n: 1, label: "Mon" },
   { n: 2, label: "Tue" },
@@ -80,6 +82,7 @@ export type OnboardingInitial = {
   includeOverrides?: string[];
   excludeOverrides?: string[];
   requireDecisionMaker?: boolean;
+  timezone?: string;
   windows?: AvailabilityWindow[];
   escalationTopics?: string[];
   recipients?: { name: string; phone?: string | null; email?: string | null; subscriptions?: { eventType: string }[] }[];
@@ -95,6 +98,7 @@ export type OnboardingState = {
   include: string;
   exclude: string;
   requireDM: boolean;
+  timezone: string; // IANA zone — availability windows are wall-clock times in this zone
   slots: Set<string>; // "dayOfWeek|HH:MM"
   escalation: string;
   recipients: RecipientRow[];
@@ -111,6 +115,7 @@ export function initialFromContractor(c: Record<string, any>): OnboardingInitial
     includeOverrides: c.includeOverrides ?? [],
     excludeOverrides: c.excludeOverrides ?? [],
     requireDecisionMaker: c.qualificationRules?.requireDecisionMaker ?? true,
+    timezone: c.standingAvailability?.timezone,
     windows: c.standingAvailability?.windows ?? [],
     escalationTopics: c.escalationTopics ?? [],
     recipients: (c.recipients ?? []).map((r: any) => ({
@@ -133,6 +138,7 @@ export function stateFromInitial(initial: OnboardingInitial): OnboardingState {
     include: (initial.includeOverrides ?? []).join(", "),
     exclude: (initial.excludeOverrides ?? []).join(", "),
     requireDM: initial.requireDecisionMaker ?? true,
+    timezone: initial.timezone || DEFAULT_TIMEZONE,
     slots: windowsToCells(initial.windows ?? []),
     escalation: (initial.escalationTopics?.length
       ? initial.escalationTopics
@@ -163,7 +169,7 @@ export function buildConfig(s: OnboardingState) {
     },
     qualificationRules: { requireDecisionMaker: s.requireDM },
     standingAvailability: {
-      timezone: "America/New_York",
+      timezone: s.timezone,
       windows: cellsToWindows(s.slots),
     },
     escalationTopics: splitList(s.escalation),

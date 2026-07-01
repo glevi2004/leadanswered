@@ -99,18 +99,18 @@ describe("agent tools", () => {
     const { run, leadId } = await makeTools(store, sms, new CapturingEmail());
 
     // not qualified yet → refused
-    expect((await run("book_appointment", { slotId: MON_9, fullAddress: "100 Linden St" })) as any).toMatchObject({ ok: false, reason: "not_qualified" });
+    expect((await run("book_appointment", { chosenTime: MON_9, fullAddress: "100 Linden St" })) as any).toMatchObject({ ok: false, reason: "not_qualified" });
 
     await run("qualify_lead", { projectType: "roof leak", zip: "02134", isDecisionMaker: true });
 
     // qualified but a time outside any standing window → refused
-    expect((await run("book_appointment", { slotId: "2030-01-01T00:00:00.000Z", fullAddress: "100 Linden St" })) as any).toMatchObject({ ok: false, reason: "slot_unavailable" });
+    expect((await run("book_appointment", { chosenTime: "2030-01-01T00:00:00.000Z", fullAddress: "100 Linden St" })) as any).toMatchObject({ ok: false, reason: "slot_unavailable" });
 
     // qualified but no address → refused
-    expect((await run("book_appointment", { slotId: MON_9, fullAddress: "" })) as any).toMatchObject({ ok: false, reason: "need_address" });
+    expect((await run("book_appointment", { chosenTime: MON_9, fullAddress: "" })) as any).toMatchObject({ ok: false, reason: "need_address" });
 
     // real in-window time + address → booked + owner notified
-    const ok = (await run("book_appointment", { slotId: MON_9, fullAddress: "100 Linden St, Boston, MA 02134" })) as any;
+    const ok = (await run("book_appointment", { chosenTime: MON_9, fullAddress: "100 Linden St, Boston, MA 02134" })) as any;
     expect(ok.ok).toBe(true);
     expect(ok.slotIso).toBe(MON_9);
     expect(store.getAppointments()).toHaveLength(1);
@@ -124,20 +124,20 @@ describe("agent tools", () => {
     const { store, sms } = setup();
     const { run } = await makeTools(store, sms, new CapturingEmail());
     await run("qualify_lead", { projectType: "roof leak", zip: "02134", isDecisionMaker: true });
-    await run("book_appointment", { slotId: MON_9, fullAddress: "100 Linden St" });
+    await run("book_appointment", { chosenTime: MON_9, fullAddress: "100 Linden St" });
 
-    const rr = (await run("reschedule_appointment", { newSlotId: MON_2 })) as any;
+    const rr = (await run("reschedule_appointment", { chosenTime: MON_2 })) as any;
     expect(rr.ok).toBe(true);
     expect(store.getAppointments()[0].startIso).toBe(MON_2);
     expect(store.getAppointments()[0].rescheduledFromIso).toBe(MON_9);
     expect(sms.sent.some((s) => s.body.includes("Rescheduled"))).toBe(true);
 
-    expect((await run("reschedule_appointment", { newSlotId: "2030-01-01T00:00:00.000Z" })) as any).toMatchObject({ ok: false, reason: "slot_unavailable" });
+    expect((await run("reschedule_appointment", { chosenTime: "2030-01-01T00:00:00.000Z" })) as any).toMatchObject({ ok: false, reason: "slot_unavailable" });
 
     expect((await run("cancel_appointment", { reason: "changed my mind" })) as any).toMatchObject({ ok: true });
     expect(store.getAppointments()[0].status).toBe("cancelled");
     expect(sms.sent.some((s) => s.body.includes("cancelled"))).toBe(true);
 
-    expect((await run("reschedule_appointment", { newSlotId: MON_9 })) as any).toMatchObject({ ok: false, reason: "no_appointment" });
+    expect((await run("reschedule_appointment", { chosenTime: MON_9 })) as any).toMatchObject({ ok: false, reason: "no_appointment" });
   });
 });

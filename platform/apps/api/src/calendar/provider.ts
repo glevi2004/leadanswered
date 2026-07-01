@@ -1,5 +1,6 @@
 import {
   computeOpenWindows,
+  safeZone,
   type AvailabilityQuery,
   type ContractorConfig,
   type OpenWindow,
@@ -37,8 +38,9 @@ export class InternalCalendarProvider implements CalendarProvider {
     this.scheduler = new Scheduler(store);
   }
 
-  private tz(): string {
-    return this.contractor.standingAvailability?.timezone ?? "America/New_York";
+  /** The contractor's IANA timezone — availability windows are wall-clock times in this zone. */
+  tz(): string {
+    return safeZone(this.contractor.standingAvailability?.timezone);
   }
 
   getBusy(range: { startIso: string; endIso: string }): Promise<TimeRange[]> {
@@ -47,7 +49,13 @@ export class InternalCalendarProvider implements CalendarProvider {
 
   async getAvailability(query: AvailabilityQuery): Promise<OpenWindow[]> {
     const busy = await this.getBusy({ startIso: query.fromIso, endIso: query.toIso });
-    return computeOpenWindows(this.contractor.standingAvailability?.windows ?? [], query, busy, this.now);
+    return computeOpenWindows(
+      this.contractor.standingAvailability?.windows ?? [],
+      query,
+      busy,
+      this.now,
+      this.tz(),
+    );
   }
 
   book(input: { leadId: string; startIso: string; durationMin?: number }): Promise<BookOutcome> {

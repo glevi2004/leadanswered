@@ -6,6 +6,18 @@ import { z } from "zod";
  * cleanly for Next). The resulting shape maps 1:1 onto what the agent consumes.
  */
 
+/** The one fallback timezone (mirrors core DEFAULT_TIMEZONE; kept literal to keep this file dep-light). */
+export const DEFAULT_TIMEZONE = "America/New_York";
+/** IANA-zone check via native Intl — no library needed for the web schema. */
+const isIanaZone = (tz: string): boolean => {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 export const NOTIFICATION_EVENT_TYPES = [
   "booking_confirmed",
   "booking_rescheduled",
@@ -58,7 +70,10 @@ export const contractorConfigSchema = z.object({
   }),
   qualificationRules: z.object({ requireDecisionMaker: z.boolean().default(true) }),
   standingAvailability: z.object({
-    timezone: z.string().min(1).default("America/New_York"),
+    timezone: z
+      .string()
+      .default(DEFAULT_TIMEZONE)
+      .refine(isIanaZone, { message: "must be a valid IANA timezone" }),
     windows: z
       .array(z.object({ dayOfWeek: z.number().int().min(0).max(6), start: timeHHMM, end: timeHHMM }))
       .min(1, "add at least one available time"),
