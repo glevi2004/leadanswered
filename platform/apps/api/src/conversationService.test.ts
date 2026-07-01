@@ -29,10 +29,10 @@ describe("Sarah agent engine (SCOPE §5, §7.5)", () => {
       { text: "Hi Levi! I'm Sarah with Apex Roofing. What's the full address of the property?" }, // opening
       // turn 1: learns everything, qualifies, offers times
       { tool: "qualify_lead", input: { projectType: "roof leak", town: "Boston", zip: "02134", fullAddress: ADDR, isDecisionMaker: true } },
-      { tool: "get_availability", input: {} },
+      { tool: "check_availability", input: {} },
       { text: "Great! I can do Monday 9am, Monday 2pm, or Tuesday 11am. Which works?" },
       // turn 2: books the chosen slot
-      { tool: "book_appointment", input: { slotIso: MON_9, fullAddress: ADDR } },
+      { tool: "book_appointment", input: { slotId: MON_9, fullAddress: ADDR } },
       { text: "You're all set for Monday at 9am! See you then." },
     ]);
     const deps = { store, model, sms, email, now: () => NOW };
@@ -72,10 +72,10 @@ describe("Sarah agent engine (SCOPE §5, §7.5)", () => {
     const model = scriptedModel([
       { text: "Hi Levi! What's the property address?" }, // opening
       { tool: "qualify_lead", input: { projectType: "roof leak", town: "Boston", zip: "02134", fullAddress: ADDR, isDecisionMaker: true } },
-      { tool: "book_appointment", input: { slotIso: MON_9, fullAddress: ADDR } },
+      { tool: "book_appointment", input: { slotId: MON_9, fullAddress: ADDR } },
       { text: "You're booked for Monday at 9am!" },
       // ...later, the lead texts back to reschedule
-      { tool: "reschedule_appointment", input: { newSlotIso: MON_2 } },
+      { tool: "reschedule_appointment", input: { newSlotId: MON_2 } },
       { text: "Done — I moved you to Monday at 2pm." },
     ]);
     const deps = { store, model, sms, email: new CapturingEmail(), now: () => NOW };

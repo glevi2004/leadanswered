@@ -47,15 +47,24 @@ These are tested by a **real-Postgres Tier-B suite** (the in-memory store cannot
 
 ### Scheduling-provider architecture (calendar-ready)
 
-Our `Appointment` table is **always** the booking source of truth. The agent tools book through a
-`Scheduler` (`apps/api/src/scheduler/`) whose DB constraints make double-booking impossible;
-availability = the standing weekly **windows** (recurring `{dayOfWeek, start, end}` ranges) expanded
-into 60-min appointment starts at a 30-min cadence (`proposeSlots`), **minus** `getBusyTimes` (our
-active appointments). Appointments stay 60 minutes. A
-calendar provider (Google, etc.) is a **future, optional, ONE-WAY sync target** — push booked
-events out + merge free/busy in — **never** the source of truth and never in the booking
-transaction. The seam exists today (`CalendarConnection` model + `Appointment.external*`/`syncState`
-columns + `scheduler/README.md`); no provider code is built yet.
+The agent reads + writes availability through a **`CalendarProvider` port** (Ports & Adapters) — the
+single contract the tools call: `getAvailability(range/day/part) → open windows`, `book`, `reschedule`,
+`cancel`, `getBusy`. Today the only adapter is **`InternalCalendarProvider`** (`apps/api/src/calendar/`):
+availability = the contractor's standing weekly **windows** (`{dayOfWeek, start, end}`) MINUS
+`getBusyTimes` (our active appointments), computed by the pure `computeOpenWindows`
+(`packages/core/availability.ts`); booking delegates to the `Scheduler`, whose DB EXCLUDE constraints
+make double-booking impossible. Our `Appointment` table is **always** the booking source of truth;
+appointments stay 60 minutes.
+
+Sarah reads the calendar like an employee: for a general question she describes the **open windows**
+(day + time range), and only when the customer narrows to a day/part-of-day does she offer concrete
+1-hour start times. The system prompt gives her today's date + the standing weekly pattern so she can
+reason about any day.
+
+The contractor's real **Google Calendar** is a **future adapter behind the same port** (that's where
+MCP fits) — a drop-in with ZERO agent changes; it's a ONE-WAY sync target, never the booking authority,
+never inside the booking transaction. The seam exists today (`CalendarConnection` model +
+`Appointment.external*`/`syncState` columns + `scheduler/README.md`); no Google code is built yet.
 
 ---
 

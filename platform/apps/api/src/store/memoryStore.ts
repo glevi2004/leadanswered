@@ -135,7 +135,7 @@ export class MemoryStore implements Store {
     for (const lead of candidates.reverse()) {
       const convId = this.convIdByLead.get(lead.id);
       const conv = convId ? this.conversations.get(convId) : undefined;
-      if (conv && conv.state !== "done") return this.contextFor(conv);
+      if (conv) return this.contextFor(conv); // any state — disqualified/terminal follow-ups still handled
     }
     return null;
   }

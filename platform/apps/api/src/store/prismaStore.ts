@@ -163,7 +163,9 @@ export class PrismaStore implements Store {
     const contractor = await this.db.contractor.findFirst({ where: { twilioNumber: toNumber } });
     if (!contractor) return null;
     const lead = await this.db.lead.findFirst({
-      where: { contractorId: contractor.id, contactPhone: fromNumber, conversation: { state: { not: "done" } } },
+      // Match the lead's conversation regardless of state — a disqualified/terminal lead's follow-up
+      // must still be persisted + answered, never silently dropped (state was "done" pre-fix).
+      where: { contractorId: contractor.id, contactPhone: fromNumber, conversation: { isNot: null } },
       orderBy: { createdAt: "desc" },
       include: { conversation: { include: { messages: { orderBy: { createdAt: "asc" } } } } },
     });

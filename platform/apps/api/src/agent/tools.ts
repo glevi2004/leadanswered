@@ -1,18 +1,19 @@
 import { tool } from "ai";
 import { z } from "zod";
 import {
+  computeOpenWindows,
   formatSlot,
   isDisqualified,
+  isWithinStandingWindow,
   mergeGathered,
-  proposeSlots,
+  nextWeekStart,
   qualify,
-  slotMatches,
+  windowStarts,
   type ContractorConfig,
   type GatheredInfo,
-  type SlotOption,
 } from "@leadanswered/core";
 import { fireNotification, type NotifyDeps } from "../notify.js";
-import { Scheduler } from "../scheduler/scheduler.js";
+import { InternalCalendarProvider, type CalendarProvider } from "../calendar/provider.js";
 import type {
   ConversationRecord,
   LeadFieldPatch,
@@ -33,6 +34,8 @@ export interface ToolState {
   gathered: GatheredInfo;
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 function buildLeadPatch(g: GatheredInfo): LeadFieldPatch {
   const patch: LeadFieldPatch = {};
   if (g.projectType != null) patch.projectHint = g.projectType;
@@ -48,41 +51,71 @@ async function persistGathered(deps: ToolDeps, state: ToolState): Promise<void> 
   if (Object.keys(patch).length > 0) await deps.store.updateLeadFields(state.lead.id, patch);
 }
 
-const timezoneOf = (c: ContractorConfig) => c.standingAvailability?.timezone ?? "America/New_York";
+const standingWindows = (c: ContractorConfig) => c.standingAvailability?.windows ?? [];
+const sameInstant = (a: string, b: string) =>
+  Math.abs(new Date(a).getTime() - new Date(b).getTime()) < 60_000;
 
-/** A valid (matches the standing grid) slot for `chosenIso`, or null. */
-function findValidSlot(deps: ToolDeps, state: ToolState, chosenIso: string): SlotOption | null {
-  const valid = proposeSlots(state.contractor.standingAvailability, 50, deps.now, { horizonDays: 28 });
-  return valid.find((s) => slotMatches(s, chosenIso)) ?? null;
-}
-
-/** Up to 3 genuinely-free slots to re-offer after a conflict. */
-async function freshSlots(deps: ToolDeps, state: ToolState, scheduler: Scheduler) {
-  const candidates = proposeSlots(state.contractor.standingAvailability, 9, deps.now);
-  const free = await scheduler.filterAvailable(state.contractor.id, candidates);
-  return free.slice(0, 3).map((s) => ({ iso: s.iso, label: s.label }));
+/** Resolve the [from,to] search range from the model's request. */
+function resolveRange(
+  input: { range?: string; fromIso?: string; toIso?: string; dayOfWeek?: number; partOfDay?: string },
+  now: Date,
+): { fromIso: string; toIso: string } {
+  if (input.range === "next_week") {
+    const from = nextWeekStart(now);
+    return { fromIso: from.toISOString(), toIso: new Date(from.getTime() + 7 * DAY_MS).toISOString() };
+  }
+  if (input.range === "this_week") {
+    return { fromIso: now.toISOString(), toIso: nextWeekStart(now).toISOString() };
+  }
+  if (input.range === "specific" && input.fromIso) {
+    const from = new Date(input.fromIso);
+    const to = input.toIso ? new Date(input.toIso) : new Date(from.getTime() + 7 * DAY_MS);
+    return { fromIso: from.toISOString(), toIso: to.toISOString() };
+  }
+  // Default (incl. a bare day/part-of-day request): scan the next two weeks.
+  return { fromIso: now.toISOString(), toIso: new Date(now.getTime() + 14 * DAY_MS).toISOString() };
 }
 
 /**
- * The agent's toolkit (SCOPE §5.1). The model orchestrates the conversation and
- * CHOOSES tools; every business decision is made by deterministic CODE inside the
- * tool body, and the tool RESULT is authoritative. Booking goes through the Scheduler,
- * whose DB constraints make double-booking impossible; availability already subtracts
- * booked times so Sarah can't even offer a taken slot.
+ * The agent's toolkit (SCOPE §5.1). The model orchestrates + CHOOSES tools; every business decision is
+ * deterministic CODE inside the tool body, and the RESULT is authoritative. Availability + booking go
+ * through the CalendarProvider port (internal adapter now, Google later) — the DB EXCLUDE constraints
+ * are the double-booking backstop; open windows already subtract booked time.
  */
 export function buildTools(deps: ToolDeps, state: ToolState) {
-  const scheduler = new Scheduler(deps.store);
+  const calendar: CalendarProvider = new InternalCalendarProvider(deps.store, state.contractor, deps.now);
+
+  /** A few genuinely-free start times (one per day, spread) to re-offer after a booking conflict. */
+  async function freshTimes(): Promise<{ id: string; label: string }[]> {
+    const windows = await calendar.getAvailability({
+      fromIso: deps.now.toISOString(),
+      toIso: new Date(deps.now.getTime() + 14 * DAY_MS).toISOString(),
+    });
+    const picks = windows.slice(0, 3).map((w) => windowStarts(w)[0]).filter(Boolean);
+    const map: Record<string, string> = {};
+    const out = picks.map((s, i) => {
+      const id = String(i + 1);
+      map[id] = s.iso;
+      return { id, label: s.label };
+    });
+    state.gathered = { ...state.gathered, offeredSlots: map };
+    await persistGathered(deps, state);
+    return out;
+  }
 
   return {
     qualify_lead: tool({
       description:
-        "Record what you've learned about the lead and check if they qualify. Call this whenever you learn their project, town/ZIP/address, or whether it's their own home. Returns what is still missing and whether they qualify. You decide what to SAY; this decides the facts.",
+        "Record what you've learned about the lead and check if they qualify. Call this whenever you learn their project, town/ZIP/address, or whether they own the home. Returns what is still missing and whether they qualify. You decide what to SAY; this decides the facts.",
       inputSchema: z.object({
         projectType: z.string().optional().describe("The work they need, in their words (e.g. roof leak, replacement, gutters)"),
         zip: z.string().optional().describe("5-digit ZIP of the property"),
         town: z.string().optional().describe("Town/city of the property"),
         fullAddress: z.string().optional().describe("Full street address if given"),
-        isDecisionMaker: z.boolean().optional().describe("True if it's their own home or they're the decision-maker"),
+        isDecisionMaker: z
+          .boolean()
+          .optional()
+          .describe("True ONLY if they OWN the home or are the authorized decision-maker for the work; a tenant/renter is false"),
       }),
       execute: async (input) => {
         state.gathered = mergeGathered(state.gathered, {
@@ -96,8 +129,8 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
 
         const q = qualify(state.gathered, state.contractor);
 
-        // Conditional transitions: the notification fires only if THIS call actually moved the
-        // lead's status (so concurrent turns / retries can't double-notify).
+        // Conditional transitions: the notification fires only if THIS call actually moved the lead's
+        // status (so concurrent turns / retries can't double-notify).
         if (isDisqualified(q)) {
           const moved = await deps.store.transitionLeadStatus(
             state.lead.id,
@@ -106,7 +139,6 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
           );
           if (moved) {
             state.lead.status = "disqualified";
-            await deps.store.updateConversation(state.conversation.id, { state: "done" });
             await fireNotification(deps, state, "disqualified_lead", state.gathered, null);
           }
         } else if (q.qualified) {
@@ -129,50 +161,53 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
       },
     }),
 
-    get_availability: tool({
+    check_availability: tool({
       description:
-        "Get real open appointment times to offer the lead. Use window:'next_week' (or afterIso) if they ask about later. Only the times returned here may be offered.",
+        "Read the calendar's OPEN availability. For a general question ('what's next week?') it returns open WINDOWS (a day + a time range) — describe those in plain language, don't list individual times. Pass dayOfWeek and/or partOfDay to focus on a specific day/time — it then returns concrete start TIMES (each with a short id) you can offer and book. Never offer anything it didn't return.",
       inputSchema: z.object({
-        window: z.enum(["this_week", "next_week", "any"]).optional(),
-        count: z.number().int().optional().describe("How many times to return (1-6, default 3)"),
-        afterIso: z.string().optional().describe("Only return times after this ISO datetime"),
+        range: z.enum(["this_week", "next_week", "specific"]).optional(),
+        dayOfWeek: z.number().int().min(0).max(6).optional().describe("Focus on one weekday: Sun=0, Mon=1, … Sat=6"),
+        partOfDay: z.enum(["morning", "afternoon", "evening"]).optional(),
+        fromIso: z.string().optional().describe("For range:'specific' — ISO start"),
+        toIso: z.string().optional().describe("For range:'specific' — ISO end"),
       }),
       execute: async (input) => {
-        const count = Math.min(Math.max(input.count ?? 3, 1), 6);
-        let fromDate: Date | undefined;
-        if (input.afterIso) {
-          const d = new Date(input.afterIso);
-          if (!Number.isNaN(d.getTime())) fromDate = d;
-        } else if (input.window === "next_week") {
-          fromDate = new Date(deps.now.getTime() + 7 * 24 * 60 * 60 * 1000);
-        }
-        // Over-fetch candidates, then subtract already-booked times so we still return `count` FREE slots.
-        const candidates = proposeSlots(state.contractor.standingAvailability, count * 4, deps.now, { fromDate });
-        const free = await scheduler.filterAvailable(state.contractor.id, candidates);
-        const slots = free.slice(0, count);
-
-        // Return SHORT ids (not raw ISOs) so the model books reliably; remember the map.
-        const map: Record<string, string> = {};
-        const out = slots.map((s, i) => {
-          const id = String(i + 1);
-          map[id] = s.iso;
-          return { id, label: s.label };
+        const { fromIso, toIso } = resolveRange(input, deps.now);
+        const windows = await calendar.getAvailability({
+          fromIso,
+          toIso,
+          dayOfWeek: input.dayOfWeek,
+          partOfDay: input.partOfDay,
         });
-        state.gathered = { ...state.gathered, offeredSlots: map };
-        await persistGathered(deps, state);
-        return { slots: out };
+        if (windows.length === 0) return { windows: [], times: [] };
+
+        const focused = input.dayOfWeek != null || input.partOfDay != null;
+        if (focused) {
+          const starts = windows.flatMap((w) => windowStarts(w)).slice(0, 6);
+          const map: Record<string, string> = {};
+          const times = starts.map((s, i) => {
+            const id = String(i + 1);
+            map[id] = s.iso;
+            return { id, label: s.label };
+          });
+          state.gathered = { ...state.gathered, offeredSlots: map };
+          await persistGathered(deps, state);
+          return { times }; // concrete bookable times for a specific day/part
+        }
+        // Overview: describe these open windows (day + range); ask which day/time they'd like.
+        return { windows: windows.slice(0, 8).map((w) => w.label) };
       },
     }),
 
     book_appointment: tool({
       description:
-        "Book the free on-site estimate at a time the lead picked. Pass the short id of the chosen time (e.g. '1') from get_availability's result, plus their full street address. It re-checks everything; trust its result before telling the customer anything is booked.",
+        "Book the free on-site estimate at a time the lead picked. Pass the short id of the chosen time from check_availability (e.g. '1'), plus their full street address. It re-checks everything; trust its result before telling the customer anything is booked.",
       inputSchema: z.object({
-        slotIso: z.string().describe("The short id of the chosen time from get_availability (e.g. '1')"),
+        slotId: z.string().describe("The short id of the chosen time from check_availability (e.g. '1')"),
         fullAddress: z.string().describe("Full street address for the visit"),
       }),
       execute: async (input) => {
-        const chosenIso = state.gathered.offeredSlots?.[input.slotIso] ?? input.slotIso;
+        const chosenIso = state.gathered.offeredSlots?.[input.slotId] ?? input.slotId;
         state.gathered = mergeGathered(state.gathered, {
           fullAddress: input.fullAddress ?? null,
           chosenSlot: chosenIso,
@@ -183,64 +218,51 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
         if (!q.qualified) return { ok: false as const, reason: "not_qualified", missing: q.missing };
         if (!input.fullAddress || input.fullAddress.trim() === "")
           return { ok: false as const, reason: "need_address" };
+        if (!isWithinStandingWindow(standingWindows(state.contractor), chosenIso))
+          return { ok: false as const, reason: "slot_unavailable", times: await freshTimes() };
 
-        const match = findValidSlot(deps, state, chosenIso);
-        if (!match)
-          return { ok: false as const, reason: "slot_unavailable", slots: await freshSlots(deps, state, scheduler) };
-
-        // The Scheduler + DB constraints are the authority: this can never double-book.
-        const res = await scheduler.book({
-          leadId: state.lead.id,
-          contractorId: state.contractor.id,
-          startIso: match.iso,
-          timezone: timezoneOf(state.contractor),
-        });
-
+        const res = await calendar.book({ leadId: state.lead.id, startIso: chosenIso });
         if (!res.ok) {
           if (res.reason === "lead_has_active") {
-            // The lead already has a booking. Same slot → idempotent success; different → tell them.
             const existing = await deps.store.getActiveAppointmentByLead(state.lead.id);
-            if (existing && slotMatches(match, existing.startIso))
-              return { ok: true as const, slotIso: match.iso, label: match.label, already: true };
+            if (existing && sameInstant(chosenIso, existing.startIso))
+              return { ok: true as const, slotIso: chosenIso, label: formatSlot(chosenIso), already: true };
             return {
               ok: false as const,
               reason: "already_booked",
               currentLabel: existing ? formatSlot(existing.startIso) : null,
             };
           }
-          // slot_taken (someone else holds it) — re-offer fresh times.
-          return { ok: false as const, reason: "slot_unavailable", slots: await freshSlots(deps, state, scheduler) };
+          return { ok: false as const, reason: "slot_unavailable", times: await freshTimes() };
         }
 
-        // bookAppointment already flipped lead+conversation to booked inside its transaction.
         state.lead.status = "booked";
-        await fireNotification(deps, state, "booking_confirmed", state.gathered, match.iso);
-        return { ok: true as const, slotIso: match.iso, label: match.label };
+        await fireNotification(deps, state, "booking_confirmed", state.gathered, chosenIso);
+        return { ok: true as const, slotIso: chosenIso, label: formatSlot(chosenIso) };
       },
     }),
 
     reschedule_appointment: tool({
       description:
-        "Move the lead's existing booking to a new time they picked (from get_availability). Only for leads who already have a booking.",
+        "Move the lead's existing booking to a new time they picked (from check_availability). Only for leads who already have a booking.",
       inputSchema: z.object({
-        newSlotIso: z.string().describe("The short id of the new chosen time from get_availability (e.g. '1')"),
+        newSlotId: z.string().describe("The short id of the new chosen time from check_availability (e.g. '1')"),
       }),
       execute: async (input) => {
         const appt = await deps.store.getActiveAppointmentByLead(state.lead.id);
         if (!appt) return { ok: false as const, reason: "no_appointment" };
-        const newIso = state.gathered.offeredSlots?.[input.newSlotIso] ?? input.newSlotIso;
-        const match = findValidSlot(deps, state, newIso);
-        if (!match)
-          return { ok: false as const, reason: "slot_unavailable", slots: await freshSlots(deps, state, scheduler) };
+        const newIso = state.gathered.offeredSlots?.[input.newSlotId] ?? input.newSlotId;
+        if (!isWithinStandingWindow(standingWindows(state.contractor), newIso))
+          return { ok: false as const, reason: "slot_unavailable", times: await freshTimes() };
 
-        const res = await scheduler.reschedule(appt.id, match.iso);
+        const res = await calendar.reschedule(appt.id, newIso);
         if (!res.ok)
-          return { ok: false as const, reason: "slot_unavailable", slots: await freshSlots(deps, state, scheduler) };
+          return { ok: false as const, reason: "slot_unavailable", times: await freshTimes() };
 
-        state.gathered = mergeGathered(state.gathered, { chosenSlot: match.iso });
+        state.gathered = mergeGathered(state.gathered, { chosenSlot: newIso });
         await persistGathered(deps, state);
-        await fireNotification(deps, state, "booking_rescheduled", state.gathered, match.iso);
-        return { ok: true as const, slotIso: match.iso, label: match.label };
+        await fireNotification(deps, state, "booking_rescheduled", state.gathered, newIso);
+        return { ok: true as const, slotIso: newIso, label: formatSlot(newIso) };
       },
     }),
 
@@ -253,7 +275,7 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
         const appt = await deps.store.getActiveAppointmentByLead(state.lead.id);
         if (!appt) return { ok: false as const, reason: "no_appointment" };
 
-        await scheduler.cancel(appt.id, input.reason ?? null, deps.now.toISOString());
+        await calendar.cancel(appt.id, input.reason ?? null, deps.now.toISOString());
         // Re-open the lead so they can rebook in the same thread if they want.
         state.lead.status = "contacted";
         await deps.store.updateLeadFields(state.lead.id, { status: "contacted" });
@@ -265,7 +287,7 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
 
     escalate_to_contractor: tool({
       description:
-        "Use this when you genuinely cannot resolve something yourself — a tool keeps failing, the customer asks something only the contractor can answer, or an unusual situation. It notifies the contractor with the question; they will text back an answer that gets relayed to the customer. After calling this, tell the customer you've flagged it for the team and someone will be right back to them. Never promise a human follow-up without calling this first.",
+        "Use this when you genuinely cannot resolve something yourself — a tool keeps failing, the customer asks something only the contractor can answer, they ask for a referral/recommendation you can't give, or an unusual situation. It notifies the contractor with the question; they text back an answer that gets relayed to the customer. After calling this, tell the customer you've flagged it for the team and someone will be right back to them. Never promise a human follow-up without calling this first.",
       inputSchema: z.object({
         question: z.string().describe("The question or issue, phrased for the contractor, including the relevant context"),
       }),

@@ -40,6 +40,8 @@ export async function generateAgentReply(
     contractor: state.contractor,
     leadName: state.lead.contactName,
     gathered: state.gathered,
+    now: deps.now,
+    leadStatus: state.lead.status,
     hasBooking: state.lead.status === "booked",
   });
   // Langfuse trace context: sessionId groups every turn of one lead's SMS thread,

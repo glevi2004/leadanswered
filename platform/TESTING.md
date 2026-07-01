@@ -79,11 +79,11 @@ Onboarding is **admin-led**: in `/admin`, open a contractor and click **Onboard*
 ## 4. Dashboard UI
 
 - [X] **4.1 Sidebar items.** Overview, Leads, Appointments, Settings — each navigates correctly; the active item is highlighted.
-- [ ] **4.2 Collapse.** Click the trigger (top-left) → sidebar collapses to icons; labels appear as tooltips on hover.
-- [ ] **4.3 Persist.** Collapse it, reload the page → it stays collapsed.
-- [ ] **4.4 Mobile.** Narrow window → sidebar becomes a slide-in drawer (trigger opens it).
-- [ ] **4.5 Theme toggle.** Top-right sun/moon → flips light/dark across the whole app; reload keeps your choice.
-- [ ] **4.6 Overview.** KPI cards (Total leads / Qualifying / Booked / Upcoming visits) show real numbers; "Recent leads", "Your line" (number + its Twilio toll-free line-verification badge), and "Upcoming appointments" render.
+- [X] **4.2 Collapse.** Click the trigger (top-left) → sidebar collapses to icons; labels appear as tooltips on hover.
+- [X] **4.3 Persist.** Collapse it, reload the page → it stays collapsed.
+- [X] **4.4 Mobile.** Narrow window → sidebar becomes a slide-in drawer (trigger opens it).
+- [X] **4.5 Theme toggle.** Top-right sun/moon → flips light/dark across the whole app; reload keeps your choice.
+- [X] **4.6 Overview.** KPI cards (Total leads / Qualifying / Booked / Upcoming visits) show real numbers; "Recent leads", "Your line" (number + its Twilio toll-free line-verification badge), and "Upcoming appointments" render.
 - [ ] **4.7 Leads list.** `/dashboard/leads` → table of all leads (name, phone, project, town, status badge, first seen). Columns collapse responsively on narrow screens.
 - [ ] **4.8 Lead detail.** Click a lead → the **full Sarah ↔ homeowner SMS thread** as chat bubbles (homeowner left/grey, Sarah right/green, with names + times), plus that lead's appointments and any escalations.
 - [ ] **4.9 Appointments.** `/dashboard/appointments` → "Upcoming" and "Past & cancelled" sections with lead, time, status badge; lead names link to detail.
@@ -123,13 +123,13 @@ These are the bugs the integrity rebuild fixed (see SCOPE → "Data Integrity & 
 
 The simplest way to talk to Sarah is to reply inside an existing conversation, or use the email-intake flow (§7) to start a fresh one. For each test, watch the **Lead detail** page update + the **Langfuse** trace.
 
-- [ ] **6.1 Reply flow.** Text the contractor's Twilio number from a phone that already has a conversation → Sarah replies within seconds; the new turns appear in Lead detail.
-- [ ] **6.2 Qualification — in area.** Tell Sarah a project type you serve + a ZIP inside your radius → she treats you as qualified and moves toward booking.
-- [ ] **6.3 Qualification — out of area.** Give a ZIP far outside the radius → Sarah politely declines / doesn't book (lead → disqualified). She never claims to serve an area a tool didn't confirm.
-- [ ] **6.4 Decision-maker.** If "only book the decision-maker" is on, and you say you're a tenant/not the owner → Sarah handles it per that rule.
-- [ ] **6.5 Get availability.** Ask "what do you have next week?" → Sarah offers real slots that match your availability grid (no invented times).
-- [ ] **6.6 Book.** Accept a slot → Sarah confirms; an **Appointment** appears (Overview "Upcoming", Appointments page, Lead detail) and the lead status → booked.
-- [ ] **6.7 Address required.** Sarah asks for the full street address before confirming (not just town/ZIP).
+- [X] **6.1 Reply flow.** Text the contractor's Twilio number from a phone that already has a conversation → Sarah replies within seconds; the new turns appear in Lead detail.
+- [X] **6.2 Qualification — in area.** Tell Sarah a project type you serve + a ZIP inside your radius → she treats you as qualified and moves toward booking.
+- [ ] **6.3 Qualification — out of area (+ follow-up).** Give a ZIP far outside the radius (e.g. `02601`) → Sarah politely declines / doesn't book (lead → disqualified), never claiming to serve it. **Then text a follow-up** ("any recommendations?") → she still **replies** (the message is saved to the thread) and **escalates the referral to the contractor** rather than going silent.
+- [ ] **6.4 Decision-maker (ownership).** With "only book the decision-maker" on, Sarah asks about **ownership** ("are you the homeowner?"), not a vague "is this your home?". Say you're a **tenant/renter** → she treats you as NOT the decision-maker and handles it per that rule.
+- [ ] **6.5 Availability — windows, not slot spam.** Ask "what's your availability next week?" → Sarah **describes the open windows** across the *real next week* (e.g. "Tue & Fri mornings, Wed afternoon"), NOT three times on one day. Ask about a **specific day** ("what about Monday?") → she gives Monday's actual times (never invents "no Monday slots" when Monday's open). Pick a time → she books that exact hour.
+- [X] **6.6 Book.** Accept a slot → Sarah confirms; an **Appointment** appears (Overview "Upcoming", Appointments page, Lead detail) and the lead status → booked.
+- [X] **6.7 Address required.** Sarah asks for the full street address before confirming (not just town/ZIP).
 - [ ] **6.8 Reschedule.** Ask to move the appointment → Sarah reschedules; the appointment reflects the new time / "rescheduled".
 - [ ] **6.9 Cancel.** Ask to cancel → Sarah cancels; status → cancelled (shows under Appointments "Past & cancelled").
 - [ ] **6.10 Idempotency (best-effort).** Rapidly identical inbound texts don't produce duplicate replies/messages.
@@ -138,9 +138,9 @@ The simplest way to talk to Sarah is to reply inside an existing conversation, o
 
 ## 7. Email-parse lead intake
 
-- [ ] **7.1 Forward a lead.** Send/forward an email to `leads+<slug>@leads.leadanswered.com` (slug from `/admin`). Include a lead **name + phone number** in the body (use *your* phone as the lead so Sarah texts you).
+- [X] **7.1 Forward a lead.** Send/forward an email to `leads+<slug>@leads.leadanswered.com` (slug from `/admin`). Include a lead **name + phone number** in the body (use *your* phone as the lead so Sarah texts you).
 - [ ] **7.2 Lead created.** A new lead appears on the dashboard (source = email).
-- [ ] **7.3 Opening SMS.** Sarah sends the opening text to the lead's phone within seconds.
+- [X] **7.3 Opening SMS.** Sarah sends the opening text to the lead's phone within seconds.
 - [ ] **7.4 Continue.** Reply → full qualify/booking conversation works (re-run §6 against this lead).
 - [ ] **7.5 Idempotency.** Forwarding the same email twice does not create two leads (Postmark `MessageID` dedupe).
 
