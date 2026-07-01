@@ -1,5 +1,8 @@
 "use client";
 
+import { useState } from "react";
+import { ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { NOTIFICATION_EVENT_TYPES, DEFAULT_PROJECT_TYPES } from "@/lib/config";
 import { DAYS, TIMES, splitList, type OnboardingState } from "@/lib/onboarding-state";
 import { Input } from "@/components/ui/input";
@@ -51,6 +54,11 @@ export function BusinessSection({ state, update }: SectionProps) {
 }
 
 export function ServiceAreaSection({ state, update }: SectionProps) {
+  // Start expanded only if there are already exceptions to show — otherwise keep it out of the way.
+  const [showExceptions, setShowExceptions] = useState(
+    () => state.include.trim().length > 0 || state.exclude.trim().length > 0,
+  );
+
   return (
     <div className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
@@ -63,16 +71,38 @@ export function ServiceAreaSection({ state, update }: SectionProps) {
           <Input id="radius" type="number" value={state.radius} onChange={(e) => update({ radius: Number(e.target.value) })} />
         </div>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-2">
-          <Label htmlFor="include">Always-serve ZIPs</Label>
-          <Input id="include" value={state.include} onChange={(e) => update({ include: e.target.value })} placeholder="01601" />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="exclude">Never-serve ZIPs</Label>
-          <Input id="exclude" value={state.exclude} onChange={(e) => update({ exclude: e.target.value })} placeholder="02101" />
-        </div>
+      <p className="text-xs text-muted-foreground">
+        Sarah serves anywhere within this radius of the base ZIP — for most contractors that's all you need.
+      </p>
+
+      {/* Optional exceptions — collapsed by default; most contractors leave this alone. */}
+      <div className="rounded-lg border">
+        <button
+          type="button"
+          onClick={() => setShowExceptions((v) => !v)}
+          className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-medium"
+        >
+          <span>
+            Exceptions <span className="font-normal text-muted-foreground">— optional, most skip this</span>
+          </span>
+          <ChevronDown className={cn("size-4 text-muted-foreground transition-transform", showExceptions && "rotate-180")} />
+        </button>
+        {showExceptions && (
+          <div className="flex flex-col gap-4 border-t px-3 py-3">
+            <div className="grid gap-2">
+              <Label htmlFor="include">Always serve these ZIPs</Label>
+              <Input id="include" value={state.include} onChange={(e) => update({ include: e.target.value })} placeholder="01601" />
+              <p className="text-xs text-muted-foreground">Towns you'll take even though they're outside your radius.</p>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="exclude">Never serve these ZIPs</Label>
+              <Input id="exclude" value={state.exclude} onChange={(e) => update({ exclude: e.target.value })} placeholder="02101" />
+              <p className="text-xs text-muted-foreground">Towns you refuse even though they're inside your radius.</p>
+            </div>
+          </div>
+        )}
       </div>
+
       <label className="flex items-center gap-2 text-sm">
         <Checkbox checked={state.requireDM} onCheckedChange={(v) => update({ requireDM: v === true })} />
         Only book the homeowner / decision-maker
