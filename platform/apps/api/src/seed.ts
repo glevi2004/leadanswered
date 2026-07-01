@@ -23,13 +23,12 @@ export const testContractor: ContractorConfig = {
   qualificationRules: { requireDecisionMaker: true },
   standingAvailability: {
     timezone: "UTC",
-    slots: [
-      { dayOfWeek: 1, time: "09:00" },
-      { dayOfWeek: 1, time: "14:00" },
-      { dayOfWeek: 2, time: "11:00" },
-      { dayOfWeek: 2, time: "14:00" },
-      { dayOfWeek: 3, time: "10:00" },
-      { dayOfWeek: 4, time: "15:00" },
+    windows: [
+      { dayOfWeek: 1, start: "09:00", end: "17:00" },
+      { dayOfWeek: 2, start: "09:00", end: "17:00" },
+      { dayOfWeek: 3, start: "09:00", end: "17:00" },
+      { dayOfWeek: 4, start: "09:00", end: "17:00" },
+      { dayOfWeek: 5, start: "09:00", end: "17:00" },
     ],
   },
   twilioNumber: "+18444157642",

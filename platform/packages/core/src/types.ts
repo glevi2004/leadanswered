@@ -23,15 +23,16 @@ export interface QualificationRules {
   requireDecisionMaker?: boolean;
 }
 
-/** 0 = Sunday … 6 = Saturday; time is "HH:MM" (24h). */
-export interface AvailabilitySlot {
+/** A weekly availability window. 0 = Sunday … 6 = Saturday; start/end are "HH:MM" (24h), start < end. */
+export interface AvailabilityWindow {
   dayOfWeek: number;
-  time: string;
+  start: string;
+  end: string;
 }
 
 export interface StandingAvailability {
   timezone: string;
-  slots: AvailabilitySlot[];
+  windows: AvailabilityWindow[];
 }
 
 export interface ContractorConfig {

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NOTIFICATION_EVENT_TYPES, DEFAULT_PROJECT_TYPES } from "@/lib/config";
-import { DAYS, TIMES, splitList, type OnboardingState } from "@/lib/onboarding-state";
+import { DAYS, TIMES, splitList, cellsToWindows, type OnboardingState } from "@/lib/onboarding-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -112,47 +112,81 @@ export function ServiceAreaSection({ state, update }: SectionProps) {
 }
 
 export function AvailabilitySection({ state, update }: SectionProps) {
-  const toggle = (key: string) => {
-    const next = new Set(state.slots);
-    next.has(key) ? next.delete(key) : next.add(key);
-    update({ slots: next });
+  // Drag-to-paint: mousedown decides add vs erase (opposite of the first cell); dragging applies it.
+  // We mutate a working Set in a ref so rapid pointerenter events during a drag don't race React state.
+  const paint = useRef<{ mode: "add" | "erase"; set: Set<string> } | null>(null);
+
+  useEffect(() => {
+    const end = () => {
+      paint.current = null;
+    };
+    window.addEventListener("pointerup", end);
+    return () => window.removeEventListener("pointerup", end);
+  }, []);
+
+  const applyCell = (key: string) => {
+    const p = paint.current;
+    if (!p) return;
+    if (p.mode === "add") p.set.add(key);
+    else p.set.delete(key);
+    update({ slots: new Set(p.set) });
   };
+  const startPaint = (key: string) => {
+    paint.current = { mode: state.slots.has(key) ? "erase" : "add", set: new Set(state.slots) };
+    applyCell(key);
+  };
+
   return (
-    <div>
-      <p className="mb-3 text-xs text-muted-foreground">Tap the times you can take on-site estimates. Sarah only offers these.</p>
+    <div className="flex flex-col gap-3">
+      <p className="text-xs text-muted-foreground">
+        Click and drag to paint the times you can take on-site estimates — half-hours and split shifts are
+        fine. Sarah only offers these. Drag over green to clear.
+      </p>
       <div className="overflow-x-auto">
-        <table className="text-xs">
-          <thead>
-            <tr>
-              <th></th>
-              {TIMES.map((t) => (
-                <th key={t} className="px-1 py-1 font-normal text-muted-foreground">{t.slice(0, 5)}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {DAYS.map((d) => (
-              <tr key={d.n}>
-                <td className="pr-2 text-muted-foreground">{d.label}</td>
-                {TIMES.map((t) => {
+        <div
+          className="grid min-w-[28rem] select-none"
+          style={{ gridTemplateColumns: `3rem repeat(${DAYS.length}, minmax(2.5rem, 1fr))` }}
+        >
+          <div />
+          {DAYS.map((d) => (
+            <div key={d.n} className="pb-1 text-center text-xs font-medium text-muted-foreground">
+              {d.label}
+            </div>
+          ))}
+
+          {TIMES.map((t, ti) => {
+            const isHour = t.endsWith(":00");
+            return (
+              <Fragment key={t}>
+                <div className="-translate-y-1.5 pr-2 text-right text-[10px] leading-none text-muted-foreground">
+                  {isHour ? t : ""}
+                </div>
+                {DAYS.map((d) => {
                   const key = `${d.n}|${t}`;
                   const on = state.slots.has(key);
+                  const onAbove = ti > 0 && state.slots.has(`${d.n}|${TIMES[ti - 1]}`);
+                  const onBelow = ti < TIMES.length - 1 && state.slots.has(`${d.n}|${TIMES[ti + 1]}`);
                   return (
-                    <td key={t} className="p-0.5">
-                      <button
-                        type="button"
-                        onClick={() => toggle(key)}
-                        className={`h-6 w-7 rounded ${on ? "bg-primary" : "bg-muted hover:bg-muted-foreground/20"}`}
-                        aria-pressed={on}
-                        aria-label={`${d.label} ${t}`}
-                      />
-                    </td>
+                    <div
+                      key={d.n}
+                      onPointerDown={() => startPaint(key)}
+                      onPointerEnter={() => applyCell(key)}
+                      aria-label={`${d.label} ${t}`}
+                      className={cn(
+                        "h-5 cursor-pointer border-l border-t border-l-border/25",
+                        isHour ? "border-t-border/60" : "border-t-border/20",
+                        on ? "bg-primary" : "hover:bg-muted/70",
+                        on && onAbove && "border-t-transparent",
+                        on && !onAbove && "rounded-t-sm",
+                        on && !onBelow && "rounded-b-sm",
+                      )}
+                    />
                   );
                 })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+              </Fragment>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -219,12 +253,23 @@ export const SECTIONS = [
 
 /** Read-only recap for the wizard's final step. */
 export function ReviewSummary({ state }: { state: OnboardingState }) {
+  const trim = (hhmm: string) => hhmm.replace(/^0/, "");
+  const byDay = new Map<number, string[]>();
+  for (const w of cellsToWindows(state.slots)) {
+    (byDay.get(w.dayOfWeek) ?? byDay.set(w.dayOfWeek, []).get(w.dayOfWeek)!).push(
+      `${trim(w.start)}–${trim(w.end)}`,
+    );
+  }
+  const availability = byDay.size
+    ? DAYS.filter((d) => byDay.has(d.n)).map((d) => `${d.label} ${byDay.get(d.n)!.join(", ")}`).join(" · ")
+    : "—";
+
   const rows: [string, string][] = [
     ["Company", state.company || "—"],
     ["Assistant", state.sarahName],
     ["Project types", state.projectTypes.join(", ") || "—"],
     ["Service area", `${state.baseZip || "—"} · ${state.radius} mi`],
-    ["Availability", `${state.slots.size} time slot${state.slots.size === 1 ? "" : "s"}`],
+    ["Availability", availability],
     ["Escalate", splitList(state.escalation).join(", ") || "—"],
     ["Notify", state.recipients.filter((r) => r.name.trim()).map((r) => r.name.trim()).join(", ") || "—"],
   ];

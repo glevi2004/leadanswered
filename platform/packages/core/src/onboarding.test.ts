@@ -1,10 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  contractorConfigSchema,
-  validateServiceAreaZips,
-  slotsToGrid,
-  gridToSlots,
-} from "./onboarding.js";
+import { contractorConfigSchema, validateServiceAreaZips } from "./onboarding.js";
 
 const validInput = {
   companyName: "Apex Roofing",
@@ -16,7 +11,7 @@ const validInput = {
     excludeOverrides: [],
   },
   qualificationRules: { requireDecisionMaker: true },
-  standingAvailability: { timezone: "America/New_York", slots: [{ dayOfWeek: 1, time: "09:00" }] },
+  standingAvailability: { timezone: "America/New_York", windows: [{ dayOfWeek: 1, start: "09:00", end: "17:00" }] },
   recipients: [
     { name: "Marcus", phone: "+18335559999", subscriptions: [{ eventType: "booking_confirmed", channels: "both" }] },
   ],
@@ -42,7 +37,7 @@ describe("contractorConfigSchema", () => {
     expect(
       contractorConfigSchema.safeParse({
         ...validInput,
-        standingAvailability: { timezone: "UTC", slots: [{ dayOfWeek: 1, time: "9am" }] },
+        standingAvailability: { timezone: "UTC", windows: [{ dayOfWeek: 1, start: "9am", end: "17:00" }] },
       }).success,
     ).toBe(false);
   });
@@ -62,24 +57,5 @@ describe("validateServiceAreaZips", () => {
   });
   it("flags a base ZIP that can't be located", () => {
     expect(validateServiceAreaZips({ baseLocations: [{ zip: "99999" }] }).length).toBe(1);
-  });
-});
-
-describe("availability grid <-> slots", () => {
-  it("round-trips slots through the grid", () => {
-    const slots = [
-      { dayOfWeek: 1, time: "09:00" },
-      { dayOfWeek: 1, time: "14:00" },
-      { dayOfWeek: 3, time: "10:00" },
-    ];
-    expect(gridToSlots(slotsToGrid(slots))).toEqual(slots);
-  });
-  it("de-duplicates and sorts when flattening the grid", () => {
-    const grid = { 3: ["10:00"], 1: ["14:00", "09:00", "09:00"] };
-    expect(gridToSlots(grid)).toEqual([
-      { dayOfWeek: 1, time: "09:00" },
-      { dayOfWeek: 1, time: "14:00" },
-      { dayOfWeek: 3, time: "10:00" },
-    ]);
   });
 });

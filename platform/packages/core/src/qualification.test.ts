@@ -19,7 +19,7 @@ const contractor: ContractorConfig = {
     excludeOverrides: ["02101"], // Boston proper — never serve (inside radius)
   },
   qualificationRules: { requireDecisionMaker: true },
-  standingAvailability: { timezone: "UTC", slots: [] },
+  standingAvailability: { timezone: "UTC", windows: [] },
 };
 
 describe("service area (SCOPE §5.1)", () => {

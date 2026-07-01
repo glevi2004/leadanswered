@@ -37,7 +37,7 @@ run("DB integrity (real Postgres) — the constraints prove themselves", () => {
         name: "Test",
         companyName: "Test Co",
         projectTypes: [],
-        standingAvailability: { timezone: "UTC", slots: [] },
+        standingAvailability: { timezone: "UTC", windows: [] },
       },
     });
     contractorId = c.id;

@@ -49,7 +49,9 @@ These are tested by a **real-Postgres Tier-B suite** (the in-memory store cannot
 
 Our `Appointment` table is **always** the booking source of truth. The agent tools book through a
 `Scheduler` (`apps/api/src/scheduler/`) whose DB constraints make double-booking impossible;
-availability = the standing weekly grid **minus** `getBusyTimes` (our active appointments). A
+availability = the standing weekly **windows** (recurring `{dayOfWeek, start, end}` ranges) expanded
+into 60-min appointment starts at a 30-min cadence (`proposeSlots`), **minus** `getBusyTimes` (our
+active appointments). Appointments stay 60 minutes. A
 calendar provider (Google, etc.) is a **future, optional, ONE-WAY sync target** — push booked
 events out + merge free/busy in — **never** the source of truth and never in the booking
 transaction. The seam exists today (`CalendarConnection` model + `Appointment.external*`/`syncState`
@@ -152,7 +154,7 @@ This is the most important architectural decision in the doc. Claude Code must N
 
 ## 4. Data model (initial)
 
-- **contractor**: id, name, company_name, project_types (list), qualification_rules (JSON), standing_availability (JSON: weekly slots), sarah_persona_notes, twilio_number, messaging_service_sid, number_type (toll_free | local), verification_status (pending | verified | failed), number_status (active | pending_swap | retired)
+- **contractor**: id, name, company_name, project_types (list), qualification_rules (JSON), standing_availability (JSON: `{timezone, windows: [{dayOfWeek, start, end}]}` — recurring weekly availability ranges), sarah_persona_notes, twilio_number, messaging_service_sid, number_type (toll_free | local), verification_status (pending | verified | failed), number_status (active | pending_swap | retired)
   - NOTE: each contractor owns a DEDICATED number (never shared). The telephony fields support per-contractor provisioning, the toll-free verification lifecycle, and the future local-number upgrade/swap (see §9.5) without a schema migration.
   - **Statuses (two independent dimensions — both INFORMATIONAL; neither gates the agent):**
     - **Account lifecycle is DERIVED, never a stored column**: `New → Invited → Live`, computed from Supabase auth (has the owner accepted = email confirmed / signed in) + `onboarding_complete`. Onboarding is **admin-led and precedes the invite** (§3): `New` = created, awaiting the admin-run wizard; the admin **finishing the wizard sends the invite** → `Invited` (a rare `Onboarded` state covers "onboarded but the invite hasn't gone out"); `Live` = accepted + signed in. Surfaced as the "Account" chip in `/admin`. There is **no separate onboarding-call status** — the admin runs the wizard on the call, so the call ≈ the onboarding. A sales/CRM "I onboarded them" note would be a future CRM field, not a status.
@@ -288,7 +290,7 @@ A web app where a contractor sets themselves up without you touching the databas
 - Service area (zips/towns)
 - Project types offered
 - Qualification rules
-- **Availability via a simple in-app calendar/weekly-grid UI** — the contractor clicks/fills their standing weekly availability (e.g., a week grid where they mark available blocks). This is NOT Google Calendar integration — it's a self-contained availability editor that writes to `standing_availability` JSON. (Google Calendar sync is a later enhancement; this gets the same outcome with zero integration.)
+- **Availability via a drag-to-paint week calendar** — a Google-Calendar-style week view (days as columns, 06:00–21:00 in 30-min rows) where you click-drag to paint available blocks; supports half-hours, split shifts, and any hours in range. Stored as `standing_availability` **windows** (`{dayOfWeek, start, end}` ranges); Sarah offers 60-min starts that fit within them (§5). This is NOT Google Calendar *integration* — it's a self-contained editor. (Calendar sync is a later enhancement; this gets the same outcome with zero integration.)
 - Sarah's name + persona tweaks
 - On submit → creates the contractor record + provisions their setup via the Twilio API: assigns a dedicated toll-free number, attaches a Messaging Service, configures the inbound webhook, submits toll-free verification, assigns the unique lead-forwarding address, then shows the number and fires the "your line is live" first SMS from Sarah to the contractor's own phone. **Full API chain, UX sequence, async verification handling, and the verification-failure fallback are specified in §9.6 — build per that section.**
 - **Done when:** a brand-new contractor can sign up, get their own dedicated number provisioned + sending (grace period), see it + receive Sarah's first text, and fully configure themselves through the UI, with their Sarah live.
@@ -379,7 +381,7 @@ Testing is specified up front deliberately: it keeps the build sustainable and s
 **Onboarding & dashboard (`web`) — RTL + Playwright:**
 
 - Playwright E2E: a new contractor completes onboarding → sees their provisioned number → (mocked) first SMS path triggered → lands in dashboard. The critical revenue path; must stay green.
-- Availability grid writes correct `standing_availability` JSON.
+- Availability calendar writes correct `standing_availability` **windows** JSON (contiguous 30-min cells merge into `{dayOfWeek, start, end}` ranges; round-trips exactly).
 - Settings edits persist and re-assemble Sarah's prompt / qualification config.
 
 **Booking flow (end-to-end, integration):**

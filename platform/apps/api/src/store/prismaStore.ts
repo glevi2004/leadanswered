@@ -36,7 +36,7 @@ function rowToContractor(r: any): ContractorConfig {
       excludeOverrides: r.excludeOverrides,
     },
     qualificationRules: (r.qualificationRules as any) ?? {},
-    standingAvailability: (r.standingAvailability as any) ?? { timezone: "UTC", slots: [] },
+    standingAvailability: (r.standingAvailability as any) ?? { timezone: "UTC", windows: [] },
     twilioNumber: r.twilioNumber,
     slug: r.slug ?? null,
     escalationTopics: r.escalationTopics?.length ? r.escalationTopics : null,

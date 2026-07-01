@@ -11,7 +11,7 @@ const contractor: ContractorConfig = {
   projectTypes: ["roof_repair", "roof_replacement"],
   serviceArea: { baseLocations: [], includeOverrides: [], excludeOverrides: [] },
   qualificationRules: { requireDecisionMaker: true },
-  standingAvailability: { timezone: "UTC", slots: [] },
+  standingAvailability: { timezone: "UTC", windows: [] },
 };
 
 describe("assembleAgentSystemPrompt (tool-using agent)", () => {

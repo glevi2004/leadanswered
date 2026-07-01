@@ -69,7 +69,7 @@ Onboarding is **admin-led**: in `/admin`, open a contractor and click **Onboard*
 - [ ] **3.3 Step 1 — Business.** Company name, assistant name, persona notes editable + pre-filled. **Project types are a chip picker** (NOT a comma text box, NO underscores): defaults show as removable chips ("Roof repair", "Roof replacement"); clickable suggestions add a chip; typing a custom one + Enter adds it verbatim; the × removes one. Saved/reloaded values round-trip exactly as typed.
 - [ ] **3.4 Gating.** Clear "Company name" → "Continue" is disabled until refilled. (Step 2: clearing "Base ZIP" disables Continue.)
 - [ ] **3.5 Back/Continue.** Navigate forward and back — entered values persist across steps.
-- [ ] **3.6 Step 3 — Availability grid.** Tap time cells → they toggle green; selections persist when you leave and return to the step.
+- [ ] **3.6 Step 3 — Availability calendar.** A week view (days as columns, 06:00–21:00 in 30-min rows). **Click-drag** paints a block green; dragging back over green clears it. Paint a Mon morning block, a **split shift** (Tue morning + evening), and a **half-hour** — all stick and merge into blocks. Leave the step and return → selections persist. Review shows readable ranges (e.g. "Mon 8:00–12:00 · Tue …").
 - [ ] **3.7 Step 5 — Notifications.** Add a recipient, toggle event checkboxes.
 - [ ] **3.8 Step 6 — Review.** Shows an accurate read-only summary of all your entries.
 - [ ] **3.9 Finish & invite.** "Finish & send invite" → saves + emails the owner's invite → lands back on `/admin/[id]` with status **Invited**. Re-open via **Edit setup** → your changes persisted, and no second invite is sent.

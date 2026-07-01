@@ -59,8 +59,8 @@ export const contractorConfigSchema = z.object({
   qualificationRules: z.object({ requireDecisionMaker: z.boolean().default(true) }),
   standingAvailability: z.object({
     timezone: z.string().min(1).default("America/New_York"),
-    slots: z
-      .array(z.object({ dayOfWeek: z.number().int().min(0).max(6), time: timeHHMM }))
+    windows: z
+      .array(z.object({ dayOfWeek: z.number().int().min(0).max(6), start: timeHHMM, end: timeHHMM }))
       .min(1, "add at least one available time"),
   }),
   escalationTopics: z.array(z.string().min(1)).default([]),
@@ -68,29 +68,5 @@ export const contractorConfigSchema = z.object({
 });
 
 export type ContractorConfigInput = z.infer<typeof contractorConfigSchema>;
-
-export type AvailabilitySlot = { dayOfWeek: number; time: string };
-export type WeeklyGrid = Record<number, string[]>;
-
-export function slotsToGrid(slots: AvailabilitySlot[]): WeeklyGrid {
-  const grid: WeeklyGrid = {};
-  for (const s of slots) (grid[s.dayOfWeek] ??= []).push(s.time);
-  for (const day of Object.keys(grid)) grid[Number(day)].sort();
-  return grid;
-}
-
-export function gridToSlots(grid: WeeklyGrid): AvailabilitySlot[] {
-  const seen = new Set<string>();
-  const slots: AvailabilitySlot[] = [];
-  for (const [day, times] of Object.entries(grid)) {
-    for (const time of times) {
-      const key = `${day}:${time}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      slots.push({ dayOfWeek: Number(day), time });
-    }
-  }
-  return slots.sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.time.localeCompare(b.time));
-}
 
 export const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];

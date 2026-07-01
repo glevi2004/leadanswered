@@ -14,7 +14,58 @@ export const DAYS = [
   { n: 6, label: "Sat" },
   { n: 0, label: "Sun" },
 ];
-export const TIMES = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
+// Availability grid: 30-min rows from 06:00 to 20:30. Each cell is a 30-min block [t, t+30).
+export const CELL_MIN = 30;
+const GRID_START_MIN = 6 * 60; // 06:00
+const GRID_END_MIN = 21 * 60; // 21:00 (last selectable cell starts at 20:30)
+const minToHHMM = (min: number) =>
+  `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
+const hhmmToMin = (hhmm: string) => {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + (m || 0);
+};
+export const TIMES = Array.from(
+  { length: (GRID_END_MIN - GRID_START_MIN) / CELL_MIN },
+  (_, i) => minToHHMM(GRID_START_MIN + i * CELL_MIN),
+);
+
+export type AvailabilityWindow = { dayOfWeek: number; start: string; end: string };
+
+/** Expand availability windows into the 30-min cell keys ("dayOfWeek|HH:MM") the grid toggles. */
+export function windowsToCells(windows: AvailabilityWindow[]): Set<string> {
+  const cells = new Set<string>();
+  for (const w of windows) {
+    for (let m = hhmmToMin(w.start); m < hhmmToMin(w.end); m += CELL_MIN) {
+      cells.add(`${w.dayOfWeek}|${minToHHMM(m)}`);
+    }
+  }
+  return cells;
+}
+
+/** Merge contiguous selected 30-min cells per day back into windows for storage. */
+export function cellsToWindows(cells: Set<string>): AvailabilityWindow[] {
+  const byDay = new Map<number, number[]>();
+  for (const key of cells) {
+    const [d, t] = key.split("|");
+    (byDay.get(Number(d)) ?? byDay.set(Number(d), []).get(Number(d))!).push(hhmmToMin(t));
+  }
+  const windows: AvailabilityWindow[] = [];
+  for (const [day, minsRaw] of byDay) {
+    const mins = [...minsRaw].sort((a, b) => a - b);
+    let runStart = mins[0];
+    let prev = mins[0];
+    for (let i = 1; i <= mins.length; i++) {
+      if (mins[i] === prev + CELL_MIN) {
+        prev = mins[i];
+        continue;
+      }
+      windows.push({ dayOfWeek: day, start: minToHHMM(runStart), end: minToHHMM(prev + CELL_MIN) });
+      runStart = mins[i];
+      prev = mins[i];
+    }
+  }
+  return windows.sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.start.localeCompare(b.start));
+}
 
 export const splitList = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 
@@ -29,7 +80,7 @@ export type OnboardingInitial = {
   includeOverrides?: string[];
   excludeOverrides?: string[];
   requireDecisionMaker?: boolean;
-  slots?: { dayOfWeek: number; time: string }[];
+  windows?: AvailabilityWindow[];
   escalationTopics?: string[];
   recipients?: { name: string; phone?: string | null; email?: string | null; subscriptions?: { eventType: string }[] }[];
 };
@@ -60,7 +111,7 @@ export function initialFromContractor(c: Record<string, any>): OnboardingInitial
     includeOverrides: c.includeOverrides ?? [],
     excludeOverrides: c.excludeOverrides ?? [],
     requireDecisionMaker: c.qualificationRules?.requireDecisionMaker ?? true,
-    slots: c.standingAvailability?.slots ?? [],
+    windows: c.standingAvailability?.windows ?? [],
     escalationTopics: c.escalationTopics ?? [],
     recipients: (c.recipients ?? []).map((r: any) => ({
       name: r.name,
@@ -82,7 +133,7 @@ export function stateFromInitial(initial: OnboardingInitial): OnboardingState {
     include: (initial.includeOverrides ?? []).join(", "),
     exclude: (initial.excludeOverrides ?? []).join(", "),
     requireDM: initial.requireDecisionMaker ?? true,
-    slots: new Set((initial.slots ?? []).map((s) => `${s.dayOfWeek}|${s.time}`)),
+    slots: windowsToCells(initial.windows ?? []),
     escalation: (initial.escalationTopics?.length
       ? initial.escalationTopics
       : ["financing or payment plans", "warranties", "licensing or insurance"]
@@ -113,12 +164,7 @@ export function buildConfig(s: OnboardingState) {
     qualificationRules: { requireDecisionMaker: s.requireDM },
     standingAvailability: {
       timezone: "America/New_York",
-      slots: [...s.slots]
-        .map((k) => {
-          const [day, time] = k.split("|");
-          return { dayOfWeek: Number(day), time };
-        })
-        .sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.time.localeCompare(b.time)),
+      windows: cellsToWindows(s.slots),
     },
     escalationTopics: splitList(s.escalation),
     recipients: s.recipients

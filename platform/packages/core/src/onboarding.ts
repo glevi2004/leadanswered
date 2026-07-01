@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { geocodeZip } from "./geo.js";
-import type { AvailabilitySlot, NotificationEventType } from "./types.js";
+import type { NotificationEventType } from "./types.js";
 
 /**
  * Validation + mapping for the self-serve onboarding form (SCOPE §10, Phase 3).
@@ -53,8 +53,8 @@ export const contractorConfigSchema = z.object({
   qualificationRules: z.object({ requireDecisionMaker: z.boolean().default(true) }),
   standingAvailability: z.object({
     timezone: z.string().min(1).default("America/New_York"),
-    slots: z
-      .array(z.object({ dayOfWeek: z.number().int().min(0).max(6), time: timeHHMM }))
+    windows: z
+      .array(z.object({ dayOfWeek: z.number().int().min(0).max(6), start: timeHHMM, end: timeHHMM }))
       .min(1, "add at least one available time"),
   }),
   escalationTopics: z.array(z.string().min(1)).default([]),
@@ -76,32 +76,4 @@ export function validateServiceAreaZips(area: {
     if (!geocodeZip(b.zip)) errors.push(`We couldn't locate base ZIP ${b.zip} — double-check it.`);
   }
   return errors;
-}
-
-// --- weekly availability grid <-> standing-availability slots ---
-
-/** A weekly grid keyed by day-of-week (0=Sun … 6=Sat) → list of "HH:MM" times. */
-export type WeeklyGrid = Record<number, string[]>;
-
-/** Group flat slots into a grid for editing in the UI. */
-export function slotsToGrid(slots: AvailabilitySlot[]): WeeklyGrid {
-  const grid: WeeklyGrid = {};
-  for (const s of slots) (grid[s.dayOfWeek] ??= []).push(s.time);
-  for (const day of Object.keys(grid)) grid[Number(day)].sort();
-  return grid;
-}
-
-/** Flatten the grid back to sorted, de-duplicated slots for `standingAvailability`. */
-export function gridToSlots(grid: WeeklyGrid): AvailabilitySlot[] {
-  const seen = new Set<string>();
-  const slots: AvailabilitySlot[] = [];
-  for (const [day, times] of Object.entries(grid)) {
-    for (const time of times) {
-      const key = `${day}:${time}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      slots.push({ dayOfWeek: Number(day), time });
-    }
-  }
-  return slots.sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.time.localeCompare(b.time));
 }
