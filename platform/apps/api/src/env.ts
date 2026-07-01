@@ -8,7 +8,7 @@ export const env = {
   PORT: Number(process.env.PORT ?? 3000),
   // --- AI (provider-agnostic via the Vercel AI SDK; only agent/provider.ts reads these) ---
   AI_PROVIDER: (process.env.AI_PROVIDER ?? "anthropic").toLowerCase(),
-  AI_MODEL: process.env.AI_MODEL ?? process.env.CLAUDE_MODEL ?? "claude-sonnet-4-6",
+  AI_MODEL: process.env.AI_MODEL ?? process.env.CLAUDE_MODEL ?? "claude-haiku-4-5",
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? "",
   OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? "",
   // --- Persistence / telephony ---
