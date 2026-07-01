@@ -34,6 +34,7 @@ export async function middleware(request: NextRequest) {
     path.startsWith("/admin") ||
     path.startsWith("/onboarding") ||
     path.startsWith("/dashboard") ||
+    path.startsWith("/welcome") ||
     path.startsWith("/status") ||
     path.startsWith("/set-password") ||
     path.startsWith("/reset-password");

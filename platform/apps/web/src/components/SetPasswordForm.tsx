@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 /** Sets the signed-in user's password (used for invite-accept and password-reset). */
-export function SetPasswordForm({ cta }: { cta: string }) {
+export function SetPasswordForm({ cta, redirectTo = "/" }: { cta: string; redirectTo?: string }) {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -25,7 +25,7 @@ export function SetPasswordForm({ cta }: { cta: string }) {
     const { error } = await supabase.auth.updateUser({ password });
     setLoading(false);
     if (error) setError(error.message);
-    else router.push("/");
+    else router.push(redirectTo);
   }
 
   return (

@@ -50,18 +50,19 @@ A live-user QA pass over **every** current capability (frontend + backend). Work
 
 ## 2. Admin console (`/admin`)
 
-- [X] **2.1 List + status chips.** Each contractor is a card showing company, owner email, slug, number, and **two chips**: **Account** (Invited / Accepted / Live) + **Line** (Line pending / verified / failed). Apex Roofing reads **Live** (it's onboarded) + its Line status. Hovering a chip shows its meaning.
-- [X] **2.2 Create contractor.** Fill "New contractor" (company, an owner email you can check, a Twilio number, optional slug) → "Create + invite" → success message; the new row appears with an **Invited** account chip.
-- [X] **2.3 Invite email (branded).** The owner gets a Postmark invite (branded per EMAIL.md — see 1.10) → link lands on the app → set password → redirected into onboarding. After they accept, the list chip flips **Invited → Accepted** (→ **Live** once they finish the wizard).
-- [ ] **2.4 Manage page — Save ≠ invite.** Click a contractor ("Manage →") → `/admin/[id]`. Change company / owner email / number / slug / line-verification → **Save changes** → reload shows the change, **and NO email is sent** (Postmark outbound count doesn't move). This is the core fix — editing never re-invites.
-- [ ] **2.5 Resend invite (separate action).** On the Manage page, **Resend invite** sends exactly one invite; an already-registered owner doesn't error the page. The button reads "Send invite" before acceptance, "Resend invite" after.
-- [X] **2.6 Admin can't see the dashboard.** As admin, opening `/dashboard` redirects to `/admin`.
+- [ ] **2.1 List + status chips.** Each contractor is a card: company, owner email, slug, number, and **two chips** — **Account** (New / Onboarded / Invited / Live) + **Line** (pending / verified / failed). A freshly-created contractor reads **New**. Hovering a chip shows its meaning.
+- [ ] **2.2 Create contractor (no invite).** Fill "New contractor" → **"Create contractor"** → success ("Onboard them next"); the new row appears as **New**, and **NO email is sent** (Postmark outbound stays flat). Creating no longer invites.
+- [ ] **2.3 Onboard — admin runs the wizard.** Open the contractor → **Onboard** → `/admin/[id]/onboard` → fill the whole wizard → **"Finish & send invite"** → back on the contractor page the status is **Invited**, and the owner gets the **branded** invite email (per EMAIL.md — see 1.10). Exactly one invite is sent.
+- [ ] **2.4 Contractor accepts → welcome → dashboard.** Open the invite (same browser) → set a password → a **Welcome** screen (NOT the wizard) → "Go to my dashboard" → the **already-configured** dashboard. The Account chip flips to **Live**.
+- [ ] **2.5 Manage — Save ≠ invite.** On `/admin/[id]`, change company / owner / number / slug / line-verification → **Save changes** → reload shows the change, **and NO email is sent**. Editing never invites.
+- [ ] **2.6 Manual send/resend invite.** The Invite card sends exactly one email; it's **disabled until onboarded**, reads "Send invite" before the owner has an account and "Resend invite" after. Re-running **Onboard / Edit setup** on an already-invited contractor does **not** re-send the invite.
+- [X] **2.7 Admin can't see the dashboard.** As admin, opening `/dashboard` redirects to `/admin`.
 
 ---
 
-## 3. Onboarding wizard (`/onboarding`)
+## 3. Onboarding wizard (admin-run — `/admin/[id]/onboard`)
 
-Sign in as the contractor and open `/onboarding` (it's pre-filled with current config).
+Onboarding is **admin-led**: in `/admin`, open a contractor and click **Onboard** to run the wizard on their behalf (usually on a call). It's pre-filled with current config. The old contractor-facing `/onboarding` route is retired (it redirects home).
 
 - [ ] **3.1 Step rail.** Left rail shows 6 steps (Business → Service area → Availability → Loop me in → Notifications → Review) with the current step active and prior steps green/checked.
 - [ ] **3.2 Mobile progress.** Narrow the window → the rail hides and a top progress bar ("Step X of 6") appears.
@@ -71,7 +72,7 @@ Sign in as the contractor and open `/onboarding` (it's pre-filled with current c
 - [ ] **3.6 Step 3 — Availability grid.** Tap time cells → they toggle green; selections persist when you leave and return to the step.
 - [ ] **3.7 Step 5 — Notifications.** Add a recipient, toggle event checkboxes.
 - [ ] **3.8 Step 6 — Review.** Shows an accurate read-only summary of all your entries.
-- [ ] **3.9 Finish.** "Finish setup" → saves → lands on `/dashboard`. Re-open `/onboarding` → your changes persisted.
+- [ ] **3.9 Finish & invite.** "Finish & send invite" → saves + emails the owner's invite → lands back on `/admin/[id]` with status **Invited**. Re-open via **Edit setup** → your changes persisted, and no second invite is sent.
 
 ---
 
@@ -87,7 +88,7 @@ Sign in as the contractor and open `/onboarding` (it's pre-filled with current c
 - [ ] **4.8 Lead detail.** Click a lead → the **full Sarah ↔ homeowner SMS thread** as chat bubbles (homeowner left/grey, Sarah right/green, with names + times), plus that lead's appointments and any escalations.
 - [ ] **4.9 Appointments.** `/dashboard/appointments` → "Upcoming" and "Past & cancelled" sections with lead, time, status badge; lead names link to detail.
 - [ ] **4.10 Settings (decoupled).** `/dashboard/settings` → all config sections on one page as cards (NOT the wizard). Edit a field → "Save changes" → "Saved ✓"; reload shows the change.
-- [ ] **4.11 Equivalence.** A change saved in Settings shows up if you then open the wizard (`/onboarding`), and vice-versa.
+- [ ] **4.11 Equivalence.** A change saved in Settings shows up if you (as admin) then open the wizard (`/admin/[id]/onboard`), and vice-versa.
 
 ---
 

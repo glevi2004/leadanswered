@@ -13,11 +13,12 @@ export default async function SetPasswordPage() {
         <CardHeader>
           <CardTitle>Welcome to Lead Answered</CardTitle>
           <CardDescription>
-            Set a password for <strong>{user.email}</strong>, then we'll get your assistant set up.
+            Set a password for <strong>{user.email}</strong> to access your dashboard — your assistant
+            is already set up and ready.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <SetPasswordForm cta="Set password & continue" />
+          <SetPasswordForm cta="Set password & continue" redirectTo="/welcome" />
         </CardContent>
       </Card>
     </main>

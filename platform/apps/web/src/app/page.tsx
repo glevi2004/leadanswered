@@ -11,15 +11,18 @@ export default async function Home() {
   if (isAdminEmail(user.email)) redirect("/admin");
 
   const contractor = await getContractorByOwnerEmail(user.email ?? "");
-  if (!contractor) {
+  // Onboarding is admin-led, so a signed-in contractor is normally already set up. The two cards
+  // below are defensive (no linked contractor, or setup not finished) — never route to the wizard.
+  if (!contractor || !contractor.onboardingComplete) {
     return (
       <main className="flex min-h-screen items-center justify-center p-6">
         <Card className="w-full max-w-md text-center">
           <CardHeader>
             <CardTitle>You're almost set</CardTitle>
             <CardDescription>
-              We don't have an account linked to {user.email} yet. Your Lead Answered contact will get
-              you set up shortly.
+              {contractor
+                ? "Your Lead Answered contact is finishing your setup — you'll be up and running shortly."
+                : `We don't have an account linked to ${user.email} yet. Your Lead Answered contact will get you set up shortly.`}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -32,5 +35,5 @@ export default async function Home() {
     );
   }
 
-  redirect(contractor.onboardingComplete ? "/dashboard" : "/onboarding");
+  redirect("/dashboard");
 }

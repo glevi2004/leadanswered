@@ -2,12 +2,13 @@ import type { AccountStatus } from "@/lib/contractors";
 
 export type Variant = "default" | "secondary" | "destructive" | "outline";
 
-/** Account lifecycle (DERIVED): invite sent → accepted → finished setup. Informational only. */
+/** Account lifecycle (DERIVED): New → (admin onboards → invite) → Invited → Live. Informational only. */
 export const accountMeta: Record<AccountStatus, { label: string; variant: Variant; hint: string }> = {
-  live: { label: "Live", variant: "default", hint: "Finished setup — Sarah is configured and running." },
-  accepted: { label: "Accepted", variant: "outline", hint: "Accepted the invite; hasn't finished onboarding yet." },
-  invited: { label: "Invited", variant: "secondary", hint: "Invite sent; the owner hasn't accepted yet." },
-  none: { label: "No owner", variant: "destructive", hint: "No owner email assigned — can't invite." },
+  live: { label: "Live", variant: "default", hint: "Accepted the invite and signed in — up and running." },
+  invited: { label: "Invited", variant: "secondary", hint: "Onboarded + invited; waiting for the owner to accept." },
+  onboarded: { label: "Onboarded", variant: "outline", hint: "Setup done, but the invite hasn't been sent yet — send it." },
+  new: { label: "New", variant: "outline", hint: "Created — run onboarding with them, then the invite goes out." },
+  none: { label: "No owner", variant: "destructive", hint: "No owner email assigned — add one before onboarding." },
 };
 
 /** Twilio toll-free line verification (MANUAL). Informational only — doesn't gate sending. */

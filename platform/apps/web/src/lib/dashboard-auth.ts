@@ -4,7 +4,9 @@ import { getContractorByOwnerEmail } from "@/lib/contractors";
 
 /**
  * Resolve the signed-in owner's contractor for the dashboard, or redirect:
- * no user → sign-in, admin → /admin, no/unfinished contractor → /onboarding.
+ * no user → sign-in, admin → /admin, no/unfinished contractor → "/". Onboarding is admin-led now,
+ * so a logged-in contractor is normally already onboarded; the unfinished case is defensive and
+ * routes home (which shows a "setup in progress" message), never the dead contractor wizard.
  * Returns the full contractor row (loosely typed — it's a supabase-js result).
  */
 export async function requireContractor(): Promise<Record<string, any>> {
@@ -13,7 +15,7 @@ export async function requireContractor(): Promise<Record<string, any>> {
   if (isAdminEmail(user.email)) redirect("/admin");
 
   const contractor = await getContractorByOwnerEmail(user.email ?? "");
-  if (!contractor || !contractor.onboardingComplete) redirect("/onboarding");
+  if (!contractor || !contractor.onboardingComplete) redirect("/");
   return contractor as Record<string, any>;
 }
 

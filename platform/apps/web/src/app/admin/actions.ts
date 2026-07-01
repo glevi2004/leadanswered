@@ -1,7 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createContractorShell, updateContractorAdmin } from "@/lib/contractors";
+import {
+  createContractorShell,
+  updateContractorAdmin,
+  setContractorConfig,
+  getContractorById,
+} from "@/lib/contractors";
+import { contractorConfigSchema } from "@/lib/config";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { currentUser, isAdminEmail } from "@/lib/auth";
 
@@ -43,22 +49,12 @@ export async function createContractorAction(
       return { error: "Company, owner email, number, and slug are all required." };
     }
 
+    // Create only — NO invite. Onboarding is admin-led and precedes the invite: the invite goes
+    // out when the admin finishes the onboarding wizard (saveOnboardingAdminAction).
     await createContractorShell({ companyName, slug, twilioNumber, ownerEmail });
 
-    const sb = createSupabaseAdmin();
-    const { error } = await sb.auth.admin.inviteUserByEmail(ownerEmail, {
-      redirectTo: INVITE_REDIRECT(siteUrl()),
-    });
-    if (error && !isAlreadyRegistered(error)) {
-      return { error: `Contractor created, but the invite failed: ${error.message}` };
-    }
-
     revalidatePath("/admin");
-    return {
-      ok: error
-        ? `Created ${companyName}. ${ownerEmail} already has an account — they can sign in.`
-        : `Created ${companyName} and invited ${ownerEmail}.`,
-    };
+    return { ok: `Created ${companyName}. Onboard them next — the invite goes out when you finish.` };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Something went wrong." };
   }
@@ -101,4 +97,51 @@ export async function resendInviteAction(formData: FormData): Promise<void> {
   if (error && !isAlreadyRegistered(error)) throw new Error(error.message);
   revalidatePath("/admin");
   if (id) revalidatePath(`/admin/${id}`);
+}
+
+/**
+ * Admin-led onboarding finish: save the contractor's config, then send the FIRST invite. Bound to a
+ * contractorId and passed to the wizard's `save` prop. Re-running the wizard to edit config does NOT
+ * re-invite — inviteUserByEmail returns email_exists for an already-invited owner and sends nothing.
+ */
+export async function saveOnboardingAdminAction(
+  contractorId: string,
+  raw: unknown,
+): Promise<{ error?: string; ok?: boolean; warning?: string }> {
+  try {
+    await requireAdmin();
+  } catch {
+    return { error: "Forbidden." };
+  }
+
+  const parsed = contractorConfigSchema.safeParse(raw);
+  if (!parsed.success) {
+    const first = parsed.error.issues[0];
+    return { error: first ? `${first.path.join(".")}: ${first.message}` : "Please check your entries." };
+  }
+
+  try {
+    await setContractorConfig(contractorId, parsed.data); // sets onboardingComplete = true
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to save." };
+  }
+
+  const contractor = await getContractorById(contractorId);
+  const ownerEmail = contractor?.ownerEmail;
+  let warning: string | undefined;
+  if (!ownerEmail) {
+    warning = "Setup saved, but there's no owner email — add one on the contractor page to invite them.";
+  } else {
+    const sb = createSupabaseAdmin();
+    const { error } = await sb.auth.admin.inviteUserByEmail(ownerEmail, {
+      redirectTo: INVITE_REDIRECT(siteUrl()),
+    });
+    if (error && !isAlreadyRegistered(error)) {
+      warning = `Setup saved, but the invite email failed: ${error.message}. Resend it from the contractor page.`;
+    }
+  }
+
+  revalidatePath("/admin");
+  revalidatePath(`/admin/${contractorId}`);
+  return { ok: true, warning };
 }

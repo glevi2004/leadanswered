@@ -24,7 +24,7 @@ export function CreateContractorForm() {
           <div className="grid gap-2">
             <Label htmlFor="ownerEmail">Owner email</Label>
             <Input id="ownerEmail" name="ownerEmail" type="email" required placeholder="owner@company.com" />
-            <p className="text-xs text-muted-foreground">They'll be invited to finish setup.</p>
+            <p className="text-xs text-muted-foreground">They're invited after you finish onboarding them.</p>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="twilioNumber">Twilio number</Label>
@@ -34,7 +34,7 @@ export function CreateContractorForm() {
             <Label htmlFor="slug">Lead-email slug (optional)</Label>
             <Input id="slug" name="slug" placeholder="auto from company name" />
           </div>
-          <Button type="submit" disabled={pending}>{pending ? "Creating…" : "Create + invite"}</Button>
+          <Button type="submit" disabled={pending}>{pending ? "Creating…" : "Create contractor"}</Button>
           {state.error && <p className="text-sm text-destructive">{state.error}</p>}
           {state.ok && <p className="text-sm text-primary">{state.ok}</p>}
         </form>

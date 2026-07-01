@@ -70,7 +70,21 @@ function StepRail({ current }: { current: number }) {
   );
 }
 
-export function OnboardingWizard({ initial }: { initial: OnboardingInitial }) {
+type SaveResult = { error?: string; ok?: boolean; warning?: string };
+
+export function OnboardingWizard({
+  initial,
+  save = saveOnboardingAction,
+  afterHref = "/dashboard",
+  finishLabel = "Finish setup",
+}: {
+  initial: OnboardingInitial;
+  /** Persists the config. Defaults to the contractor self-save; admin passes a contractor-scoped action. */
+  save?: (raw: unknown) => Promise<SaveResult>;
+  /** Where to go after a successful finish (contractor → /dashboard; admin → /admin/[id]). */
+  afterHref?: string;
+  finishLabel?: string;
+}) {
   const router = useRouter();
   const [state, setState] = useState(() => stateFromInitial(initial));
   const [step, setStep] = useState(1);
@@ -101,10 +115,15 @@ export function OnboardingWizard({ initial }: { initial: OnboardingInitial }) {
       return;
     }
     setSaving(true);
-    const res = await saveOnboardingAction(buildConfig(state));
+    const res = await save(buildConfig(state));
     setSaving(false);
-    if (res?.error) setError(res.error);
-    else router.push("/dashboard");
+    if (res?.error) {
+      setError(res.error);
+      return;
+    }
+    // On success we redirect; if an invite failed (admin flow), the contractor's status will read
+    // "Onboarded" with a Send-invite action, so no data is lost.
+    router.push(afterHref);
   }
 
   return (
@@ -162,7 +181,7 @@ export function OnboardingWizard({ initial }: { initial: OnboardingInitial }) {
           Step {step} of {STEPS.length}
         </span>
         <Button onClick={next} disabled={!canContinue || saving}>
-          {saving ? "Saving…" : isReview ? "Finish setup" : "Continue"}
+          {saving ? "Saving…" : isReview ? finishLabel : "Continue"}
         </Button>
       </footer>
     </div>

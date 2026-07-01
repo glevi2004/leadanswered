@@ -42,13 +42,26 @@ export async function getContractorByOwnerEmail(email: string) {
   return data;
 }
 
+/** Full contractor row + recipients by id — seeds the admin-run onboarding wizard. */
+export async function getContractorConfigById(id: string) {
+  const sb = createSupabaseAdmin();
+  const { data, error } = await sb
+    .from("Contractor")
+    .select("*, recipients:NotificationRecipient(*, subscriptions:NotificationSubscription(*))")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 /**
- * Account lifecycle, DERIVED — never a stored column. no owner → "none"; finished the config
- * wizard (onboardingComplete) → "live"; accepted the invite (email confirmed / signed in) →
- * "accepted"; invite sent but not accepted → "invited". This is distinct from the manual Twilio
- * line `verificationStatus`, and neither gates the agent (both are informational).
+ * Account lifecycle, DERIVED — never a stored column. Onboarding is ADMIN-LED and precedes the
+ * invite (SCOPE §3): no owner → "none"; created, awaiting the admin-run wizard → "new"; onboarded
+ * but the invite hasn't gone out (recovery) → "onboarded"; onboarded + invited, awaiting acceptance
+ * → "invited"; accepted (email confirmed / signed in) → "live". Distinct from the manual Twilio line
+ * `verificationStatus`; neither gates the agent (both are informational).
  */
-export type AccountStatus = "none" | "invited" | "accepted" | "live";
+export type AccountStatus = "none" | "new" | "onboarded" | "invited" | "live";
 
 export interface ContractorListRowWithStatus extends ContractorListRow {
   accountStatus: AccountStatus;
@@ -77,11 +90,12 @@ async function ownerAcceptanceMap(emails: string[]): Promise<Map<string, boolean
 function accountStatusFrom(
   ownerEmail: string | null,
   onboardingComplete: boolean,
-  accepted: boolean | undefined,
+  accepted: boolean | undefined, // true=signed in, false=auth user exists but not accepted, undefined=no auth user
 ): AccountStatus {
   if (!ownerEmail) return "none";
-  if (onboardingComplete) return "live";
-  return accepted ? "accepted" : "invited";
+  if (accepted === true) return "live";
+  if (accepted === false) return "invited";
+  return onboardingComplete ? "onboarded" : "new"; // no auth user yet → not invited
 }
 
 export async function listContractorsWithStatus(): Promise<ContractorListRowWithStatus[]> {
