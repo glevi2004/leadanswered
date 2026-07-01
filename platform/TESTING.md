@@ -43,19 +43,19 @@ A live-user QA pass over **every** current capability (frontend + backend). Work
 - [X] **1.7 Reset link (only if you got the email).** Click it → set a new password → signed in. (Then reset it back via the script if needed.)
 - [X] **1.8 Reset email is branded** (`platform/EMAIL.md` applied to Supabase). Trigger a reset (1.6); the email shows the **"A" logo + "Lead Answered"** header, the **green CTA button**, body copy per §2.1, the raw-link fallback, and the **"Every lead, answered in 60 seconds" + "© 2026 Lead Answered"** footer.
 - [X] **1.9 Email renders everywhere.** That same email looks correct in **Gmail desktop + Gmail mobile** (logo loads, button is tappable, layout doesn't break, no clipped/forwarded look).
-- [ ] **1.10 Invite email is branded.** When you run 2.3, the invite email uses the same template (invite subject/copy per §2.1) — not Supabase's plain default.
+- [X] **1.10 Invite email is branded.** When you run 2.3, the invite email uses the same template (invite subject/copy per §2.1) — not Supabase's plain default.
 - [ ] **1.11 Personal signature.** An email you send from your Hostinger mailbox carries the §3 signature (the "A" logo, green divider, name/title, `leadanswered.com`, tagline).
 
 ---
 
 ## 2. Admin console (`/admin`)
 
-- [ ] **2.1 List + status chips.** Each contractor is a card: company, owner email, slug, number, and **two chips** — **Account** (New / Onboarded / Invited / Live) + **Line** (pending / verified / failed). A freshly-created contractor reads **New**. Hovering a chip shows its meaning.
-- [ ] **2.2 Create contractor (no invite).** Fill "New contractor" → **"Create contractor"** → success ("Onboard them next"); the new row appears as **New**, and **NO email is sent** (Postmark outbound stays flat). Creating no longer invites.
-- [ ] **2.3 Onboard — admin runs the wizard.** Open the contractor → **Onboard** → `/admin/[id]/onboard` → fill the whole wizard → **"Finish & send invite"** → back on the contractor page the status is **Invited**, and the owner gets the **branded** invite email (per EMAIL.md — see 1.10). Exactly one invite is sent.
-- [ ] **2.4 Contractor accepts → welcome → dashboard.** Open the invite (same browser) → set a password → a **Welcome** screen (NOT the wizard) → "Go to my dashboard" → the **already-configured** dashboard. The Account chip flips to **Live**.
-- [ ] **2.5 Manage — Save ≠ invite.** On `/admin/[id]`, change company / owner / number / slug / line-verification → **Save changes** → reload shows the change, **and NO email is sent**. Editing never invites.
-- [ ] **2.6 Manual send/resend invite.** The Invite card sends exactly one email; it's **disabled until onboarded**, reads "Send invite" before the owner has an account and "Resend invite" after. Re-running **Onboard / Edit setup** on an already-invited contractor does **not** re-send the invite.
+- [X] **2.1 List + status chips.** Each contractor is a card: company, owner email, slug, number, and **two chips** — **Account** (New / Onboarded / Invited / Live) + **Line** (pending / verified / failed). A freshly-created contractor reads **New**. Hovering a chip shows its meaning.
+- [X] **2.2 Create contractor (no invite).** Fill "New contractor" → **"Create contractor"** → success ("Onboard them next"); the new row appears as **New**, and **NO email is sent** (Postmark outbound stays flat). Creating no longer invites.
+- [X] **2.3 Onboard — admin runs the wizard.** Open the contractor → **Onboard** → `/admin/[id]/onboard` → fill the whole wizard → **"Finish & send invite"** → back on the contractor page the status is **Invited**, and the owner gets the **branded** invite email (per EMAIL.md — see 1.10). Exactly one invite is sent.
+- [X] **2.4 Contractor accepts → welcome → dashboard.** Open the invite (same browser) → set a password → a **Welcome** screen (NOT the wizard) → "Go to my dashboard" → the **already-configured** dashboard. The Account chip flips to **Live**.
+- [X] **2.5 Manage — Save ≠ invite.** On `/admin/[id]`, change company / owner / number / slug / line-verification → **Save changes** → reload shows the change, **and NO email is sent**. Editing never invites.
+- [X] **2.6 Manual send/resend invite.** The Invite card sends exactly one email; it's **disabled until onboarded**, reads "Send invite" before the owner has an account and "Resend invite" after. Re-running **Onboard / Edit setup** on an already-invited contractor does **not** re-send the invite.
 - [X] **2.7 Admin can't see the dashboard.** As admin, opening `/dashboard` redirects to `/admin`.
 
 ---
@@ -64,21 +64,21 @@ A live-user QA pass over **every** current capability (frontend + backend). Work
 
 Onboarding is **admin-led**: in `/admin`, open a contractor and click **Onboard** to run the wizard on their behalf (usually on a call). It's pre-filled with current config. The old contractor-facing `/onboarding` route is retired (it redirects home).
 
-- [ ] **3.1 Step rail.** Left rail shows 6 steps (Business → Service area → Availability → Loop me in → Notifications → Review) with the current step active and prior steps green/checked.
-- [ ] **3.2 Mobile progress.** Narrow the window → the rail hides and a top progress bar ("Step X of 6") appears.
-- [ ] **3.3 Step 1 — Business.** Company name, assistant name, persona notes editable + pre-filled. **Project types are a chip picker** (NOT a comma text box, NO underscores): defaults show as removable chips ("Roof repair", "Roof replacement"); clickable suggestions add a chip; typing a custom one + Enter adds it verbatim; the × removes one. Saved/reloaded values round-trip exactly as typed.
-- [ ] **3.4 Gating.** Clear "Company name" → "Continue" is disabled until refilled. (Step 2: clearing "Base ZIP" disables Continue.)
-- [ ] **3.5 Back/Continue.** Navigate forward and back — entered values persist across steps.
-- [ ] **3.6 Step 3 — Availability calendar.** A week view (days as columns, 06:00–21:00 in 30-min rows). **Click-drag** paints a block green; dragging back over green clears it. Paint a Mon morning block, a **split shift** (Tue morning + evening), and a **half-hour** — all stick and merge into blocks. Leave the step and return → selections persist. Review shows readable ranges (e.g. "Mon 8:00–12:00 · Tue …").
-- [ ] **3.7 Step 5 — Notifications.** Add a recipient, toggle event checkboxes.
-- [ ] **3.8 Step 6 — Review.** Shows an accurate read-only summary of all your entries.
-- [ ] **3.9 Finish & invite.** "Finish & send invite" → saves + emails the owner's invite → lands back on `/admin/[id]` with status **Invited**. Re-open via **Edit setup** → your changes persisted, and no second invite is sent.
+- [X] **3.1 Step rail.** Left rail shows 6 steps (Business → Service area → Availability → Loop me in → Notifications → Review) with the current step active and prior steps green/checked.
+- [X] **3.2 Mobile progress.** Narrow the window → the rail hides and a top progress bar ("Step X of 6") appears.
+- [X] **3.3 Step 1 — Business.** Company name, assistant name, persona notes editable + pre-filled. **Project types are a chip picker** (NOT a comma text box, NO underscores): defaults show as removable chips ("Roof repair", "Roof replacement"); clickable suggestions add a chip; typing a custom one + Enter adds it verbatim; the × removes one. Saved/reloaded values round-trip exactly as typed.
+- [X] **3.4 Gating.** Clear "Company name" → "Continue" is disabled until refilled. (Step 2: clearing "Base ZIP" disables Continue.)
+- [X] **3.5 Back/Continue.** Navigate forward and back — entered values persist across steps.
+- [X] **3.6 Step 3 — Availability calendar.** A week view (days as columns, 06:00–21:00 in 30-min rows). **Click-drag** paints a block green; dragging back over green clears it. Paint a Mon morning block, a **split shift** (Tue morning + evening), and a **half-hour** — all stick and merge into blocks. Leave the step and return → selections persist. Review shows readable ranges (e.g. "Mon 8:00–12:00 · Tue …").
+- [X] **3.7 Step 5 — Notifications.** Add a recipient, toggle event checkboxes.
+- [X] **3.8 Step 6 — Review.** Shows an accurate read-only summary of all your entries.
+- [X] **3.9 Finish & invite.** "Finish & send invite" → saves + emails the owner's invite → lands back on `/admin/[id]` with status **Invited**. Re-open via **Edit setup** → your changes persisted, and no second invite is sent.
 
 ---
 
 ## 4. Dashboard UI
 
-- [ ] **4.1 Sidebar items.** Overview, Leads, Appointments, Settings — each navigates correctly; the active item is highlighted.
+- [X] **4.1 Sidebar items.** Overview, Leads, Appointments, Settings — each navigates correctly; the active item is highlighted.
 - [ ] **4.2 Collapse.** Click the trigger (top-left) → sidebar collapses to icons; labels appear as tooltips on hover.
 - [ ] **4.3 Persist.** Collapse it, reload the page → it stays collapsed.
 - [ ] **4.4 Mobile.** Narrow window → sidebar becomes a slide-in drawer (trigger opens it).
