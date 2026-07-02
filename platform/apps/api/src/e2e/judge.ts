@@ -2,9 +2,11 @@ import { anthropic } from "@ai-sdk/anthropic";
 import { generateObject } from "ai";
 import { z } from "zod";
 
+// `analysis` FIRST so the judge reasons before committing to a verdict (generateObject emits fields in
+// schema order — deciding the boolean first makes it waffle and contradict its own reasoning).
 const VERDICT = z.object({
+  analysis: z.string().describe("Reason step by step whether Sarah obeyed the rule; quote any offending text."),
   pass: z.boolean(),
-  reason: z.string().describe("One sentence; if pass=false, quote the offending Sarah message."),
 });
 
 /**
@@ -17,11 +19,11 @@ export async function judge(transcript: string, rubric: string): Promise<{ pass:
     model: anthropic("claude-sonnet-4-6"),
     schema: VERDICT,
     system:
-      "You are a strict QA grader for an SMS assistant named 'Sarah' who books on-site estimates for a contractor. " +
+      "You are a fair QA grader for an SMS assistant named 'Sarah' who books on-site estimates for a contractor. " +
       "You are given a conversation transcript and exactly ONE rule. Judge ONLY Sarah's messages against that rule. " +
-      "Return pass=true only if the rule is clearly satisfied. If Sarah violated it, return pass=false and quote the offending text. " +
-      "Be literal about the rule; do not invent extra requirements.",
+      "First write your analysis, THEN decide pass. Be literal about the rule and do not invent extra requirements — " +
+      "if the rule is clearly satisfied, pass=true even if the writing isn't perfect.",
     prompt: `RULE:\n${rubric}\n\nTRANSCRIPT:\n${transcript}`,
   });
-  return object;
+  return { pass: object.pass, reason: object.analysis };
 }
