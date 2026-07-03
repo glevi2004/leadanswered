@@ -25,7 +25,7 @@ Production runs on **Railway** (api + worker + Redis) and **Vercel** (web). Post
 ## Env vars (set on the platforms, not in git)
 
 - **Railway api:** `DATABASE_URL` (resolved session-pooler, password inline), `ANTHROPIC_API_KEY`, `TWILIO_*`, `REDIS_URL=${{Redis.REDIS_URL}}`, `POSTMARK_*`, `LEAD_EMAIL_DOMAIN`, `LANGFUSE_*`. (`AI_MODEL` optional — defaults to `claude-haiku-4-5`. `ALLOW_INBOUND_LEADS=true` to let cold texts start a conversation.)
-- **Railway worker:** `SERVICE_ROLE=worker`, `DATABASE_URL`, `TWILIO_*`, `REDIS_URL`, `LANGFUSE_*`, plus `POSTMARK_SERVER_TOKEN` + `LEAD_EMAIL_DOMAIN` if it should email quiet-lead alerts.
+- **Railway worker:** `SERVICE_ROLE=worker`, `DATABASE_URL`, `TWILIO_*`, `REDIS_URL`, `LANGFUSE_*`, `ANTHROPIC_API_KEY` (the proactive layer — quiet-lead nudge + escalation follow-ups — now runs agent turns in the worker, SCOPE §5.3; without the key those turns silently skip), plus `POSTMARK_SERVER_TOKEN` + `LEAD_EMAIL_DOMAIN` if it should email quiet-lead alerts.
 - **Vercel web:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_EMAILS`, `NEXT_PUBLIC_SITE_URL=https://app.leadanswered.com`.
 
 ## Webhooks (point at the Railway api)
