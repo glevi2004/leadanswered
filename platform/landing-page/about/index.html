@@ -6,360 +6,309 @@
     <title>Answered — Hi, I'm Levi</title>
     <meta
       name="description"
-      content="Hi, I'm Levi — I'm building Lead Answered so home-service companies never lose a job to a slow reply. I'm talking to roofers directly before I build more of it."
+      content="Hi, I'm Levi — I'm building Answered so home-service companies never lose a job to a slow reply. I'm talking to contractors directly before I build more of it."
     />
     <link rel="icon" type="image/x-icon" href="/favicon.ico?v=2" />
+    <link rel="shortcut icon" href="/favicon.ico?v=2" />
     <meta name="theme-color" content="#ffffff" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
+            },
+            colors: {
+              ink: {
+                900: "#101828",
+                800: "#1c1d22",
+                700: "#2e3038",
+                500: "#5e616e",
+                400: "#7b7f8c",
+              },
+              paper: {
+                50: "#ffffff",
+                100: "#fafafa",
+                200: "#f3f5f8",
+                300: "#e9edf3",
+                400: "#dde3ec",
+                500: "#c2cad8",
+              },
+              brand: {
+                50: "#ecfdf2",
+                100: "#d4f8e0",
+                200: "#9ceeb4",
+                400: "#4be06a",
+                500: "#30d158",
+                600: "#22b94a",
+                700: "#1a9c3e",
+                800: "#15732e",
+              },
+            },
+            animation: {
+              "fade-in-up": "fadeInUp 0.6s ease-out forwards",
+              "fade-in": "fadeIn 0.8s ease-out forwards",
+            },
+            keyframes: {
+              fadeInUp: {
+                "0%": { opacity: "0", transform: "translateY(12px)" },
+                "100%": { opacity: "1", transform: "translateY(0)" },
+              },
+              fadeIn: {
+                "0%": { opacity: "0" },
+                "100%": { opacity: "1" },
+              },
+            },
+          },
+        },
+      };
+    </script>
     <style>
-      :root {
-        --ink-900: #0c1747;
-        --ink-800: #1c1d22;
-        --ink-700: #2e3038;
-        --muted: #5e616e;
-        --border: rgba(12, 23, 71, 0.08);
-      }
-      * {
-        box-sizing: border-box;
+      html {
+        scroll-behavior: smooth;
       }
       body {
-        margin: 0;
-        font-family:
-          Inter,
-          system-ui,
-          -apple-system,
-          sans-serif;
-        color: var(--ink-800);
+        font-family: "Inter", system-ui, -apple-system, sans-serif;
         background: #ffffff;
-        line-height: 1.65;
+        color: #1c1d22;
         -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        font-feature-settings: "cv11", "ss01";
+        overflow-x: hidden;
       }
-      .letter {
-        max-width: 600px;
-        margin: 0 auto;
-        padding: 52px 24px 12px;
+      /* Soft green-tinted wash fading to white — matches the homepage hero */
+      .hero-bg {
+        background: linear-gradient(180deg, #e7f4ec 0%, #f1f7f3 48%, #ffffff 100%);
       }
-      .headshot {
-        display: block;
-        margin: 0 auto;
-        width: clamp(190px, 48vw, 228px);
-        height: auto;
-        border-radius: 20px;
-        box-shadow:
-          0 1px 2px rgba(12, 23, 71, 0.06),
-          0 12px 32px rgba(12, 23, 71, 0.12);
-      }
-      h1 {
-        text-align: center;
-        font-size: clamp(26px, 7vw, 32px);
-        font-weight: 700;
-        letter-spacing: -0.02em;
-        color: var(--ink-900);
-        margin: 26px 0 22px;
-      }
-      .letter p {
-        font-size: 16.5px;
-        line-height: 1.72;
-        color: var(--ink-700);
-        margin: 0 0 20px;
-      }
-      figure.grad {
-        margin: 30px 0 24px;
-      }
-      figure.grad img {
-        width: 100%;
-        height: auto;
-        border-radius: 14px;
-        box-shadow:
-          0 1px 2px rgba(12, 23, 71, 0.05),
-          0 8px 24px rgba(12, 23, 71, 0.08);
-        display: block;
-      }
-      figure.grad figcaption {
-        margin-top: 11px;
-        text-align: center;
-        font-family:
-          ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-        font-style: italic;
-        font-size: 14px;
-        color: var(--muted);
-      }
-      a.linkedin {
-        display: inline-block;
-        margin-top: 4px;
-        color: #3152f4;
+      .display {
         font-weight: 600;
-        text-decoration: none;
+        letter-spacing: -0.03em;
+        line-height: 1.04;
       }
-      a.linkedin:hover {
-        text-decoration: underline;
-      }
-
-      /* Sign-off: Answered logo + the scheduling CTA */
-      .signoff {
-        margin-top: 44px;
-        border-top: 1px solid var(--border);
-        background: linear-gradient(180deg, #f7f9fc 0%, #eef1f8 100%);
-        padding: 48px 24px 40px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-      }
-      .signoff .mark {
-        width: 52px;
-        height: auto;
-        display: block;
-      }
-      .signoff .wordmark {
-        margin-top: 14px;
-        font-weight: 700;
-        font-size: 22px;
-        letter-spacing: -0.02em;
-        color: var(--ink-900);
-      }
-      .cta {
-        margin-top: 34px;
-        text-align: center;
+      .serif-accent {
+        font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif;
+        font-style: italic;
+        font-weight: 400;
       }
 
-      /* Primary button — verbatim from the original landing page */
+      /* Primary button — iMessage green (verbatim from the homepage) */
       .btn-primary {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 6px;
-        background: linear-gradient(180deg, #80b5ff 0%, #3388ff 97%);
+        gap: 7px;
+        background: linear-gradient(180deg, #4be06a 0%, #30d158 97%);
         color: #ffffff;
-        text-decoration: none;
         font-size: 14px;
         font-weight: 600;
         padding: 10px 18px;
-        border-radius: 10px;
+        border-radius: 11px;
         box-shadow:
-          0 1px 0 rgba(255, 255, 255, 0.3) inset,
-          0 1px 2px rgba(12, 23, 71, 0.08),
-          0 2px 8px rgba(49, 82, 244, 0.18);
+          0 1px 0 rgba(255, 255, 255, 0.35) inset,
+          0 1px 2px rgba(16, 24, 40, 0.08),
+          0 3px 10px rgba(48, 209, 88, 0.32);
         transition: all 0.18s ease;
-        border: 1px solid #1b73ee;
+        border: 1px solid #22b94a;
         line-height: 1.2;
+        cursor: pointer;
+        text-decoration: none;
       }
       .btn-primary:hover {
-        background: linear-gradient(180deg, #529aff 0%, #1b73ee 97%);
+        background: linear-gradient(180deg, #3ed95f 0%, #22b94a 97%);
         box-shadow:
-          0 1px 0 rgba(255, 255, 255, 0.3) inset,
-          0 1px 2px rgba(12, 23, 71, 0.1),
-          0 4px 14px rgba(49, 82, 244, 0.32);
+          0 1px 0 rgba(255, 255, 255, 0.35) inset,
+          0 1px 2px rgba(16, 24, 40, 0.1),
+          0 5px 16px rgba(48, 209, 88, 0.42);
+        transform: translateY(-1px);
+      }
+      .btn-primary .arrow {
+        transition: transform 0.18s ease;
+      }
+      .btn-primary:hover .arrow {
+        transform: translateX(3px);
       }
       .btn-primary-lg {
         font-size: 15px;
-        padding: 12px 22px;
-        border-radius: 12px;
+        padding: 13px 24px;
+        border-radius: 13px;
       }
-      .btn-primary svg {
-        width: 16px;
-        height: 16px;
-        flex-shrink: 0;
-      }
-      .flip-text {
-        display: inline-grid;
-        place-items: center;
-      }
-      .flip-text-face {
-        grid-area: 1 / 1;
+
+      .btn-secondary {
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        gap: 7px;
+        background: #ffffff;
+        color: #1c1d22;
+        font-size: 14px;
+        font-weight: 600;
+        padding: 10px 18px;
+        border-radius: 11px;
+        border: 1px solid #e3e7ee;
+        transition: all 0.18s ease;
+        line-height: 1.2;
+        cursor: pointer;
+        text-decoration: none;
       }
-      .flip-text-face-back {
-        opacity: 0;
+      .btn-secondary:hover {
+        background: #f1faf3;
+        border-color: #b7e9c5;
+      }
+
+      .logo-accent {
+        background: linear-gradient(135deg, #22b94a 0%, #30d158 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
       }
     </style>
   </head>
   <body>
-    <main class="letter">
-      <img class="headshot" src="/levi-headshot.jpg" alt="Levi Ramos" />
-      <h1>Hi, I'm Levi.</h1>
-
-      <p>
-        I just graduated in Computer Science from Boston University, and I've
-        spent the last 4 years working as a software developer — for early
-        startups and for larger companies. I'm originally from Brazil.
-      </p>
-      <p>
-        Right now I'm building Lead Answered, because I think the way
-        home-service companies handle their incoming leads is a problem that's
-        being solved badly. Roofers lose real jobs every week — not because
-        they're not good, but because a lead comes in at 8pm, or while they're
-        up on a roof, and by the time they get back to it the homeowner already
-        booked someone who replied first. I'm building something that fixes
-        that.
-      </p>
-      <p>
-        I'm talking to roofers directly before I build more of it — because the
-        only way to build something genuinely useful is to learn from the people
-        who actually run the business.
-      </p>
-
-      <figure class="grad">
-        <img
-          src="/levi-graduation.jpg"
-          alt="Levi graduating in Computer Science from Boston University"
-        />
-        <figcaption>
-          Graduating in Computer Science — Boston University
-        </figcaption>
-      </figure>
-
-      <p>
-        If you want to see more of my background and past work, here's my
-        LinkedIn:<br />
-        <a
-          class="linkedin"
-          href="https://www.linkedin.com/in/gleviramos/"
-          target="_blank"
-          rel="noopener"
+    <!-- ============ NAV ============ -->
+    <header class="fixed top-0 inset-x-0 z-50">
+      <div class="max-w-6xl mx-auto px-5 pt-4">
+        <nav
+          id="nav"
+          class="flex items-center justify-between gap-8 bg-white/75 backdrop-blur-md rounded-2xl px-5 py-3 border border-paper-300/70 transition-shadow"
         >
-          linkedin.com/in/gleviramos
-        </a>
-      </p>
+          <a href="/" class="flex items-center gap-2">
+            <img src="/logo.png" alt="Answered" class="h-5 w-auto" />
+            <span class="text-lg font-semibold text-ink-900 tracking-tight">answered</span>
+          </a>
+          <div class="hidden md:flex items-center gap-7 text-[14px] text-ink-700 font-medium">
+            <a href="/#how" class="hover:text-brand-600 transition">How it works</a>
+            <a href="/#features" class="hover:text-brand-600 transition">Features</a>
+            <a href="/about" class="text-ink-900">About</a>
+          </div>
+          <a href="https://cal.com/leviramos" class="btn-primary">
+            Book a demo
+            <svg class="arrow w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path
+                d="M3 8h10m0 0L9 4m4 4l-4 4"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </a>
+        </nav>
+      </div>
+    </header>
 
-      <div class="cta">
-        <a class="btn-primary btn-primary-lg" href="https://cal.com/leviramos">
-          <span class="flip-text">
-            <span class="flip-text-face flip-text-face-front"
-              >Schedule a 10-minute call</span
-            >
-            <span class="flip-text-face flip-text-face-back"
-              >Schedule a 10-minute call</span
-            >
-          </span>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path
-              d="M3 8h10m0 0L9 4m4 4l-4 4"
-              stroke="currentColor"
-              stroke-width="1.6"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-        </a>
+    <!-- ============ LETTER ============ -->
+    <main class="hero-bg pt-28 pb-16">
+      <div class="max-w-[620px] mx-auto px-6">
+        <!-- Headshot floats left; the heading + intro wrap to its right, then continue full-width below. -->
+        <img
+          src="/levi-headshot.jpg"
+          alt="Levi Ramos"
+          class="float-left w-[150px] sm:w-[200px] h-auto rounded-[18px] mr-5 sm:mr-6 mb-3 shadow-[0_1px_2px_rgba(16,24,40,0.06),0_16px_40px_-12px_rgba(16,24,40,0.28)]"
+        />
+        <h1 class="display text-[28px] sm:text-[36px] text-ink-900 mb-4">
+          Hi, I'm Levi.
+        </h1>
+
+        <div class="text-[16.5px] leading-[1.72] text-ink-700 space-y-5">
+          <p>
+            I just graduated in Computer Science from Boston University, and I've
+            spent the last 4 years working as a software developer — for early
+            startups and for larger companies. I'm originally from Brazil.
+          </p>
+          <p>
+            Right now I'm building Answered, because I think the way home-service
+            companies handle their incoming leads is a problem that's being
+            solved badly. Contractors lose real jobs every week — not because
+            they're not good, but because a lead comes in at 8pm, or while
+            they're out on a job, and by the time they get back to it the
+            homeowner already booked someone who replied first. I'm building
+            something that fixes that.
+          </p>
+          <p>
+            I'm not here just to sell you something. Right now my main focus is
+            talking to contractors, because the only way to build something
+            genuinely useful is to learn from the people who actually run the
+            business.
+          </p>
+        </div>
+
+        <figure class="clear-both mt-8 mb-7">
+          <img
+            src="/levi-graduation.jpg"
+            alt="Levi graduating in Computer Science from Boston University"
+            class="w-full h-auto rounded-[14px] shadow-[0_1px_2px_rgba(16,24,40,0.05),0_10px_28px_-8px_rgba(16,24,40,0.18)]"
+          />
+          <figcaption class="mt-3 text-center serif-accent text-[14px] text-ink-500">
+            Graduating in Computer Science — Boston University
+          </figcaption>
+        </figure>
+
+        <p class="text-[16.5px] leading-[1.72] text-ink-700">
+          If you want to see more of my background and past work, here's my
+          LinkedIn:<br />
+          <a
+            href="https://www.linkedin.com/in/gleviramos/"
+            target="_blank"
+            rel="noopener"
+            class="font-semibold text-brand-600 hover:text-brand-700 transition"
+          >
+            linkedin.com/in/gleviramos
+          </a>
+        </p>
+
+        <div class="mt-9 text-center">
+          <a href="https://cal.com/leviramos" class="btn-primary btn-primary-lg">
+            Let's chat
+            <svg class="arrow w-4 h-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path
+                d="M3 8h10m0 0L9 4m4 4l-4 4"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </a>
+        </div>
       </div>
     </main>
 
-    <section class="signoff">
-      <img class="mark" src="/logo.png" alt="Answered" />
-      <div class="wordmark">Answered</div>
-    </section>
+    <!-- ============ FOOTER ============ -->
+    <footer class="py-10 bg-white border-t border-paper-300/60">
+      <div
+        class="max-w-6xl mx-auto px-5 flex flex-col md:flex-row items-center justify-between gap-5 text-[12.5px] text-ink-400"
+      >
+        <div class="flex items-center gap-2">
+          <img src="/logo.png" alt="Answered" class="h-4 w-auto opacity-90" />
+          <span class="font-bold text-[13px]"><span class="logo-accent">answered</span></span>
+        </div>
+        <div class="flex flex-wrap items-center gap-5">
+          <a href="/#how" class="hover:text-ink-800 transition">How it works</a>
+          <a href="/#features" class="hover:text-ink-800 transition">Features</a>
+          <a href="/#cta" class="hover:text-ink-800 transition">Book a demo</a>
+          <a href="/about" class="hover:text-ink-800 transition">About</a>
+          <a href="/privacy" class="hover:text-ink-800 transition">Privacy</a>
+          <a href="/terms" class="hover:text-ink-800 transition">Terms</a>
+        </div>
+        <div>© 2026 Lead Answered.</div>
+      </div>
+    </footer>
 
-    <!-- Flip-button animation — same React + framer-motion implementation as the original page. -->
-    <script type="module">
-      import React from "https://esm.sh/react@19";
-      import { createRoot } from "https://esm.sh/react-dom@19/client";
-      import { motion } from "https://esm.sh/framer-motion@12?deps=react@19,react-dom@19";
-
-      const h = React.createElement;
-      const transition = { type: "spring", stiffness: 280, damping: 20 };
-      const frontVariants = {
-        initial: { opacity: 1, rotateX: 0, y: "0%" },
-        hover: { opacity: 0, rotateX: 90, y: "50%" },
-      };
-      const backVariants = {
-        initial: { opacity: 0, rotateX: 90, y: "-50%" },
-        hover: { opacity: 1, rotateX: 0, y: "0%" },
-      };
-      const arrowPath = "M3 8h10m0 0L9 4m4 4l-4 4";
-
-      function FlipPrimaryButton({ href, text, className }) {
-        const isLarge = className.includes("btn-primary-lg");
-        const iconSize = isLarge ? 16 : 14;
-        return h(
-          motion.a,
-          {
-            href,
-            className,
-            initial: "initial",
-            whileHover: "hover",
-            whileTap: { scale: 0.95 },
-            transition,
-          },
-          h(
-            "span",
-            {
-              style: {
-                display: "inline-grid",
-                placeItems: "center",
-                perspective: "1000px",
-              },
-            },
-            h(
-              motion.span,
-              {
-                variants: frontVariants,
-                transition,
-                style: {
-                  gridArea: "1 / 1",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                },
-              },
-              text,
-            ),
-            h(
-              motion.span,
-              {
-                variants: backVariants,
-                transition,
-                style: {
-                  gridArea: "1 / 1",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                },
-              },
-              text,
-            ),
-          ),
-          h(
-            "svg",
-            {
-              width: iconSize,
-              height: iconSize,
-              viewBox: "0 0 16 16",
-              fill: "none",
-              style: { width: iconSize + "px", height: iconSize + "px" },
-            },
-            h("path", {
-              d: arrowPath,
-              stroke: "currentColor",
-              strokeWidth: 1.6,
-              strokeLinecap: "round",
-              strokeLinejoin: "round",
-            }),
-          ),
-        );
-      }
-
-      document.querySelectorAll("a.btn-primary").forEach((btn) => {
-        const href = btn.getAttribute("href") || "#";
-        const className = btn.className;
-        const frontEl = btn.querySelector(".flip-text-face-front");
-        const text = frontEl
-          ? frontEl.textContent.trim()
-          : btn.textContent.trim();
-        const container = document.createElement("span");
-        container.style.display = "inline-flex";
-        btn.parentNode.insertBefore(container, btn);
-        btn.remove();
-        createRoot(container).render(
-          h(FlipPrimaryButton, { href, text, className }),
-        );
+    <script>
+      // Nav shadow on scroll (same behavior as the homepage)
+      const nav = document.getElementById("nav");
+      window.addEventListener("scroll", () => {
+        nav.style.boxShadow =
+          window.scrollY > 16
+            ? "0 1px 2px rgba(16,24,40,0.04), 0 8px 28px rgba(16,24,40,0.08)"
+            : "";
       });
     </script>
   </body>
