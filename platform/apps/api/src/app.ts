@@ -10,6 +10,7 @@ import { env } from "./env.js";
 import { getModel } from "./agent/provider.js";
 import { createLeadRoute } from "./routes/lead.js";
 import { createWebhookRoute } from "./routes/webhook.js";
+import { createVoiceRoute } from "./routes/voice.js";
 import { createEmailWebhookRoute } from "./routes/emailWebhook.js";
 import { testContractor, testRecipients } from "./seed.js";
 
@@ -66,6 +67,7 @@ export async function createApp(overrides: BuildDeps = {}): Promise<Express> {
   });
   app.post("/lead", createLeadRoute(deps));
   app.post("/webhooks/twilio/sms", createWebhookRoute(deps));
+  app.post("/webhooks/twilio/voice", createVoiceRoute(deps));
   app.post("/webhooks/email/postmark/:secret", createEmailWebhookRoute(deps));
 
   return app;

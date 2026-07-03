@@ -49,7 +49,7 @@ export async function createLeadAndGreet(
     conversation: ctx.conversation,
     gathered: ctx.conversation.gathered ?? {},
   };
-  const history: ChatTurn[] = [{ role: "user", content: openingTrigger(input.projectHint) }];
+  const history: ChatTurn[] = [{ role: "user", content: openingTrigger(input.source, input.projectHint) }];
 
   const opening = await generateAgentReply({ ...deps, sms, now }, state, history);
 
@@ -61,7 +61,18 @@ export async function createLeadAndGreet(
   return { leadId: ctx.lead.id, opening };
 }
 
-function openingTrigger(projectHint?: string | null): string {
+function openingTrigger(source?: string, projectHint?: string | null): string {
+  // Missed-call text-back (SCOPE §9.7): the homeowner phoned the contractor, it went
+  // unanswered, and the call was forwarded to us — so lead with an apology, not "you
+  // filled out our form". The contractor/persona details come from the system prompt.
+  if (source === "missed_call") {
+    return (
+      `[A homeowner just called and we missed their call — the call was forwarded to you.` +
+      ` Send your warm opening text: briefly apologize for missing their call, introduce yourself,` +
+      ` and ask for the property's full address — the street, city, and ZIP code, in one message —` +
+      ` so you can check coverage and get the team out.]`
+    );
+  }
   return (
     `[A new lead just came in through the website` +
     (projectHint ? ` about "${projectHint}"` : "") +

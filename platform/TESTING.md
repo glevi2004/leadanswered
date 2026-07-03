@@ -197,6 +197,18 @@ needs a **human** (things E2E can't see) is below:
 
 ---
 
+## 13. Missed-call text-back
+
+> Requires setup: (a) the Twilio number's **Voice** webhook → `/webhooks/twilio/voice`; (b) **conditional call forwarding** (no-answer + busy) enabled on the "contractor" phone → the Twilio number (`+18444157642`). Use two phones: **C** = contractor (forwarding on), **H** = homeowner (the other number).
+
+- [ ] **13.1 Missed call → text.** From **H**, call **C**'s real number; don't answer. Within seconds **H** receives Sarah's opening SMS (apology-led: "sorry we missed your call…") from the Twilio number.
+- [ ] **13.2 Lead created.** A new lead appears on the dashboard with **source = `missed_call`** (contact = H's number).
+- [ ] **13.3 Continue.** Reply from **H** → the full qualify/booking conversation works (re-run §6 against this lead).
+- [ ] **13.4 Idempotency.** A rapid redelivery of the *same* call does **not** create a second lead or send a second text; a new call while **H** already has an active conversation is **not** interrupted.
+- [ ] **13.5 Caller-ID (first-call check).** In `railway logs`, the `[voice] inbound call …` line shows the homeowner as `From` (not `ForwardedFrom`). If a carrier swaps them, note it — the code prefers `From` and bails if it looks like the contractor's own line.
+
+---
+
 ## Appendix — intentionally NOT built yet (don't test)
 
 - Manual messaging / human-takeover from the dashboard (read-only for now).

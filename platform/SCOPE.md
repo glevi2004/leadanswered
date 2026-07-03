@@ -103,7 +103,7 @@ never inside the booking transaction. The seam exists today (`CalendarConnection
 6. The system sends the contractor ONE notification (SMS and/or email): "New booked appointment: [name], [phone], [address], [project], [slot]." (Address is essential — it's how the contractor judges the job's location/area and plans the drive.)
 7. The homeowner gets a confirmation message (and optionally a calendar .ics).
 
-**Explicitly OUT of scope for v1:** inbound phone calls / voice; missed-call-text-back; giving quotes or pricing (Sarah books the on-site estimate, never quotes); post-booking communication beyond confirmation; CRM/calendar OAuth integrations; multi-channel (Facebook/Google LSA) lead sources; a self-serve customer dashboard.
+**Explicitly OUT of scope for v1:** inbound phone calls / **voice conversations** (no IVR / voice bot — Sarah never talks on the phone; the **missed-call text-back** trigger in §9.7 is the one exception, and it only *receives* a forwarded unanswered call and replies by **SMS**); giving quotes or pricing (Sarah books the on-site estimate, never quotes); post-booking communication beyond confirmation; CRM/calendar OAuth integrations; multi-channel (Facebook/Google LSA) lead sources; a self-serve customer dashboard.
 
 **Compliance & consent (must hold for every message):** SMS is sent **only** to homeowners who **affirmatively opted in** on the contractor's intake form — the `/optin` sample shows the model (an explicit, unchecked, optional consent checkbox). The lead/intake payload must carry that consent flag, and the system must **not** initiate SMS for a lead without it. Sending numbers are registered A2P traffic (toll-free verification now, 10DLC later — §9.6) with automatic STOP/HELP handling. The **contractor is contractually responsible** for obtaining consent and not submitting cold/purchased lists (Terms of Service §3). Full posture: `ops/legal.md`.
 
@@ -189,6 +189,7 @@ This is the most important architectural decision in the doc. Claude Code must N
 - **lead**: id, contractor_id, contact_name, contact_phone, project_hint, service_town, service_zip, full_address, source, status (new/contacted/qualifying/booked/disqualified/no_response), created_at
   - NOTE: the lead's contact is named generically (`contact_name`, `contact_phone`) rather than "homeowner\_*". v1 targets homeowners, but the product may later serve verticals where the lead is a property manager, commercial client, etc. Neutral field names now = no schema migration later. This naming principle applies everywhere: the DB and code use vertical-neutral terms; only the *conversation copy\* (what Sarah actually says) is homeowner-flavored, and that lives in the system prompt, not the schema.
   - ADDRESS: `service_town`/`service_zip` are captured early for the service-area qualification check (§5.1). `full_address` (street-level) is confirmed before booking, since the contractor needs the exact address to attend the on-site estimate and it goes in the `booking_confirmed` notification.
+  - SOURCE: `source` is free-text for the intake channel — `manual` (`/lead`), `email` (forwarded lead email, §9), `missed_call` (an unanswered call forwarded to the Twilio number, §9.7), `inbound_sms` (cold text when `ALLOW_INBOUND_LEADS` is on). `source_message_id` is the per-channel idempotency key (email MessageID, or the voice `CallSid`).
 - **conversation**: id, lead_id, state (greeting/qualifying/proposing_slots/confirming/done), created_at, updated_at
 - **message**: id, conversation_id, direction (inbound/outbound), body, timestamp
 - **appointment**: id, lead_id, contractor_id, slot_datetime, status (proposed/confirmed/shown/no_show), created_at
@@ -513,6 +514,45 @@ The number setup is **fully integrated into onboarding via the Twilio API** — 
 ### Failure fallback (must be built)
 
 - If toll-free verification **fails**, the system must: log the failure, auto-provision a replacement number and/or resubmit the verification with corrected info, and notify Levi (admin) to review. The contractor should not be left with a dead line — either the resubmission clears it or a replacement number is swapped in. Build this path; don't assume verification always succeeds (resubmissions are common).
+
+---
+
+## 9.7 Missed-call text-back intake (new lead source)
+
+Homeowners who **call** the contractor and don't get through are leads too. Missed-call
+text-back turns an unanswered call into a Sarah SMS conversation — **without** a voice bot or
+IVR (Sarah never speaks on the phone). It's just a new lead **source** alongside email (§9) and
+the `/lead` trigger, and it reuses the same intake path.
+
+**Mechanism (v1).** The contractor enables carrier **conditional call forwarding** (no-answer +
+busy) on their real business phone, forwarding to their dedicated Twilio number. When they miss a
+call, the carrier forwards it to Twilio → Twilio hits `POST /webhooks/twilio/voice` (in `api`).
+Because the miss already happened at the carrier, we **text the caller immediately** — no
+dial-back:
+
+- Identify the contractor by the Twilio number the call arrived on (`To`).
+- Read the homeowner's number from `From` (guarding against carriers that put the *forwarding*
+  number there — `ForwardedFrom` is the contractor's line, not the caller's).
+- Create a lead with `source = "missed_call"` and fire Sarah's opening SMS (an **apology-led**
+  variant of the opening), reusing `createLeadAndGreet`. The caller replies → the normal SMS
+  engine (§5) takes over.
+- Answer the forwarded voice leg with a short spoken line + hangup ("sorry we missed you, texting
+  you right now").
+
+**Idempotency (§7).** The voice `CallSid` is stored as `Lead.sourceMessageId` (@unique) — a
+re-POSTed webhook never creates a second lead/text. A *distinct* new call from a caller who
+already has an active conversation is skipped (no interruption).
+
+**Setup is per-contractor onboarding** (like the email-forward rule in §9): (1) point the Twilio
+number's Voice webhook at `/webhooks/twilio/voice`; (2) the contractor enables conditional call
+forwarding to that number. Toll-free numbers support inbound voice and being a forward target.
+
+**Consent.** Caller-initiated (they phoned the business), so texting back is a reasonable basis;
+STOP/HELP handling is unchanged.
+
+**Out of scope here.** Any *voice* conversation/IVR, and multi-tenant auto-provisioning of the
+voice webhook + forwarding (a later onboarding task; today the outbound `from` is the single
+hardcoded number).
 
 ---
 
