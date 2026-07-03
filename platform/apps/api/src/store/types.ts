@@ -16,6 +16,8 @@ export interface LeadRecord {
   serviceZip: string | null;
   fullAddress: string | null;
   status: string;
+  /** Intake channel ("manual" | "email" | "missed_call" | "inbound_sms"). Drives channel-aware prompting. */
+  source?: string;
 }
 
 export interface ConversationRecord {

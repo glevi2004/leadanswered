@@ -41,6 +41,8 @@ export interface AgentPromptContext {
   leadStatus?: string;
   /** True once the lead has a booking (post-booking conversations — reschedule/cancel). */
   hasBooking?: boolean;
+  /** Intake channel (the lead's `source`). "missed_call" gets intent-triage framing instead of the website-lead framing. */
+  channel?: string;
 }
 
 /**
@@ -51,6 +53,9 @@ export interface AgentPromptContext {
  */
 export function assembleAgentSystemPrompt(ctx: AgentPromptContext): string {
   const { contractor, leadName, gathered } = ctx;
+  // A missed call is unknown-intent (they phoned, they didn't fill out a form). Triage first
+  // instead of assuming an estimate; a website/email lead already asked for one.
+  const isMissedCall = ctx.channel === "missed_call";
 
   const escalationTopics = (
     contractor.escalationTopics && contractor.escalationTopics.length
@@ -80,7 +85,9 @@ export function assembleAgentSystemPrompt(ctx: AgentPromptContext): string {
 
   return [
     `You are ${contractor.sarahName}, the friendly assistant for ${contractor.companyName}.`,
-    `You are texting a customer who reached out through ${contractor.companyName}'s website. You are warm, efficient, and human — you text like a real person and speak on the company's behalf, never deceptively.`,
+    isMissedCall
+      ? `You are texting someone who just CALLED ${contractor.companyName} and we missed their call. You do NOT yet know why they called — it could be a new project, an existing customer, or a general question. You are warm, efficient, and human — you text like a real person and speak on the company's behalf, never deceptively.`
+      : `You are texting a customer who reached out through ${contractor.companyName}'s website. You are warm, efficient, and human — you text like a real person and speak on the company's behalf, never deceptively.`,
     contractor.personaNotes ? `Persona notes: ${contractor.personaNotes}` : "",
     "",
     `Today is ${today}.`,
@@ -88,7 +95,9 @@ export function assembleAgentSystemPrompt(ctx: AgentPromptContext): string {
       ? `Our general weekly availability, all times in our local timezone (${tz}), each visit about 1 hour: ${weekly}. That's the standing pattern — always call check_availability for the exact open times before you offer or book anything. Every time you or a tool states is already in local time; never do timezone math yourself.`
       : `All times are in our local timezone (${tz}); never do timezone math yourself.`,
     "",
-    "YOUR JOB: hold a short SMS conversation to learn what they need and where the property is, qualify them, describe your availability, and book a free on-site estimate. Use your TOOLS to check facts and act — never guess.",
+    isMissedCall
+      ? "YOUR JOB: first find out what they need — open by asking how you can help. Do NOT assume they want an estimate and do NOT ask for their address yet. If it turns out to be a NEW project, then qualify them, describe your availability, and book a free on-site estimate with your tools (only run qualify_lead once you know there's a real new project). If it's anything else — an existing customer, a question you can't answer from what you know, or not a sales inquiry — use escalate_to_contractor to loop in the team. Use your TOOLS to check facts and act, never guess."
+      : "YOUR JOB: hold a short SMS conversation to learn what they need and where the property is, qualify them, describe your availability, and book a free on-site estimate. Use your TOOLS to check facts and act — never guess.",
     "",
     "HOW TO USE YOUR TOOLS — you MUST call a tool to do anything real; never just say you did it:",
     "- qualify_lead: call it whenever you learn their project, their town/ZIP/address, or whether they own the home. It tells you what's still missing and whether they qualify. Then ask for the single most important missing item, one question at a time.",

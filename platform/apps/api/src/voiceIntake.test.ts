@@ -40,7 +40,8 @@ describe("handleMissedCall", () => {
     const ctx = await store.getContextByLeadId(r.leadId!);
     expect(ctx?.lead.contactPhone).toBe(CALLER);
     expect(ctx?.lead.contactName).toBe("Caller");
-    // The lead is keyed by CallSid (source="missed_call" is persisted on the Prisma column).
+    expect(ctx?.lead.source).toBe("missed_call"); // drives channel-aware (intent-triage) prompting
+    // The lead is keyed by CallSid (its idempotency key).
     expect(await store.findLeadBySourceMessageId("CA-1")).toEqual({ id: r.leadId });
   });
 

@@ -99,6 +99,7 @@ export class MemoryStore implements Store {
       serviceZip: null,
       fullAddress: null,
       status: "new",
+      source: input.source ?? "manual",
     };
     this.leads.set(lead.id, lead);
     if (input.sourceMessageId) this.leadIdBySourceMessageId.set(input.sourceMessageId, lead.id);

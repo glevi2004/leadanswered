@@ -214,6 +214,8 @@ This is the most important architectural decision in the doc. Claude Code must N
 7. **Confirm the chosen slot**, tell them the contractor will see them then.
 8. **Hand off:** trigger the contractor notification (includes the full address).
 
+**Entry point matters (unknown-intent triage).** The steps above assume a **website/email lead** — someone who explicitly asked for an estimate. A **missed call** (§9.7) is unknown-intent, so Sarah starts one step earlier: she opens by asking _how she can help_ and does not assume an estimate or ask for an address. Only a **new-project** intent proceeds into qualify→book; an existing customer, a general question, or a non-sales caller is routed to the loop-in/escalation path (§8) instead of being qualified. This is driven by channel-aware prompting, not a separate agent.
+
 **Conversation rules:**
 
 - One question at a time. Short messages. Sound human.
@@ -228,6 +230,8 @@ This is the most important architectural decision in the doc. Claude Code must N
 ## 5.1 Qualification & service-area logic (AI extracts, CODE decides)
 
 **Hard principle:** the AI handles natural-language understanding; deterministic CODE makes every qualification decision. Claude never "judges" whether a town is in-area or whether a project is offered — it only _extracts_ what the homeowner said, and code checks it against structured contractor config. This is both more reliable (no geography hallucination) and auditable (you can see exactly why a lead qualified or not).
+
+**Note (missed-call entry):** the qualify path only engages once there's a real **new-project** intent — a missed caller who is an existing customer or just has a question is not run through qualification or disqualified (see §9.7); Sarah routes them via escalation instead.
 
 **The division of labor, per inbound message:**
 
@@ -533,9 +537,14 @@ dial-back:
 - Identify the contractor by the Twilio number the call arrived on (`To`).
 - Read the homeowner's number from `From` (guarding against carriers that put the *forwarding*
   number there — `ForwardedFrom` is the contractor's line, not the caller's).
-- Create a lead with `source = "missed_call"` and fire Sarah's opening SMS (an **apology-led**
-  variant of the opening), reusing `createLeadAndGreet`. The caller replies → the normal SMS
-  engine (§5) takes over.
+- Create a lead with `source = "missed_call"` and fire Sarah's **intent-agnostic** opening SMS,
+  reusing `createLeadAndGreet`. A caller's intent is unknown (new project, existing customer, a
+  question, or a wrong number), so the opening apologizes for the miss and **asks how she can
+  help** — it does NOT assume an estimate or ask for an address. The system prompt is
+  **channel-aware** (`prompt.ts` branches on the lead's `source`): a `missed_call` lead gets triage
+  framing instead of the website-lead framing. The caller replies → the normal SMS engine (§5)
+  takes over: a **new-project** intent runs the qualify→book flow; anything else routes to
+  `escalate_to_contractor` (loop in the owner, relay the answer back — §8).
 - Answer the forwarded voice leg with a short spoken line + hangup ("sorry we missed you, texting
   you right now").
 

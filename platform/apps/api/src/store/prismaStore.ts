@@ -55,6 +55,7 @@ function mapLead(l: any): LeadRecord {
     serviceZip: l.serviceZip,
     fullAddress: l.fullAddress,
     status: l.status,
+    source: l.source,
   };
 }
 

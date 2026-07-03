@@ -43,6 +43,7 @@ export async function generateAgentReply(
     now: deps.now,
     leadStatus: state.lead.status,
     hasBooking: state.lead.status === "booked",
+    channel: state.lead.source,
   });
   // Langfuse trace context: sessionId groups every turn of one lead's SMS thread,
   // userId attributes it to the contractor (the customer), tags enable filtering.

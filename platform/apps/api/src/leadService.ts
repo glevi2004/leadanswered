@@ -67,10 +67,9 @@ function openingTrigger(source?: string, projectHint?: string | null): string {
   // filled out our form". The contractor/persona details come from the system prompt.
   if (source === "missed_call") {
     return (
-      `[A homeowner just called and we missed their call — the call was forwarded to you.` +
-      ` Send your warm opening text: briefly apologize for missing their call, introduce yourself,` +
-      ` and ask for the property's full address — the street, city, and ZIP code, in one message —` +
-      ` so you can check coverage and get the team out.]`
+      `[We just missed a call from this person and don't know why they called. Send a warm opening text:` +
+      ` briefly apologize for missing their call, introduce yourself, and ask how you can help.` +
+      ` Do NOT assume they want an estimate and do NOT ask for their address yet.]`
     );
   }
   return (

@@ -201,11 +201,12 @@ needs a **human** (things E2E can't see) is below:
 
 > Requires setup: (a) the Twilio number's **Voice** webhook → `/webhooks/twilio/voice`; (b) **conditional call forwarding** (no-answer + busy) enabled on the "contractor" phone → the Twilio number (`+18444157642`). Use two phones: **C** = contractor (forwarding on), **H** = homeowner (the other number).
 
-- [ ] **13.1 Missed call → text.** From **H**, call **C**'s real number; don't answer. Within seconds **H** receives Sarah's opening SMS (apology-led: "sorry we missed your call…") from the Twilio number.
+- [ ] **13.1 Missed call → text.** From **H**, call **C**'s real number; don't answer. Within seconds **H** receives Sarah's opening SMS — she apologizes for missing the call and **asks how she can help**. She does NOT assume an estimate or ask for an address yet.
 - [ ] **13.2 Lead created.** A new lead appears on the dashboard with **source = `missed_call`** (contact = H's number).
-- [ ] **13.3 Continue.** Reply from **H** → the full qualify/booking conversation works (re-run §6 against this lead).
-- [ ] **13.4 Idempotency.** A rapid redelivery of the *same* call does **not** create a second lead or send a second text; a new call while **H** already has an active conversation is **not** interrupted.
-- [ ] **13.5 Caller-ID (first-call check).** In `railway logs`, the `[voice] inbound call …` line shows the homeowner as `From` (not `ForwardedFrom`). If a carrier swaps them, note it — the code prefers `From` and bails if it looks like the contractor's own line.
+- [ ] **13.3 New-project intent → book.** Reply from **H** with a new job (e.g. "I need a quote for a new roof") → Sarah qualifies (ownership/address) and books, exactly as §6.
+- [ ] **13.4 Non-estimate intent → loop-in.** In a *fresh* missed call, reply with a non-sales intent (e.g. "just have a question about my existing roof") → Sarah does NOT push an estimate or ask for an address; she loops in the owner via **escalation** (an open escalation appears on the lead; the owner is texted). Owner replies → the answer relays back to **H** (per §8).
+- [ ] **13.5 Idempotency.** A rapid redelivery of the *same* call does **not** create a second lead or send a second text; a new call while **H** already has an active conversation is **not** interrupted.
+- [ ] **13.6 Caller-ID (first-call check).** In `railway logs`, the `[voice] inbound call …` line shows the homeowner as `From` (not `ForwardedFrom`). If a carrier swaps them, note it — the code prefers `From` and bails if it looks like the contractor's own line.
 
 ---
 
