@@ -29,3 +29,30 @@ export async function enqueueNudge(leadId: string, delayMs = NUDGE_DELAY_MS): Pr
     { delay: delayMs, jobId: `nudge-${leadId}`, removeOnComplete: true, removeOnFail: true },
   );
 }
+
+// --- Escalation SLA (SCOPE §9.7 / P1): re-ping an unanswered loop-in, then expire it. ---
+const ESCALATION_SLA_MS: Record<1 | 2, number> = {
+  1: 20 * 60 * 1000, // ~20 min after the loop-in → remind the owner
+  2: 3 * 60 * 60 * 1000, // ~3h after the reminder → expire (owner-only alert)
+};
+
+let escalationQueueInstance: Queue | null = null;
+async function escalationQueue(): Promise<Queue | null> {
+  if (!env.REDIS_URL) return null;
+  if (!escalationQueueInstance) {
+    const { Queue } = await import("bullmq");
+    escalationQueueInstance = new Queue("escalation-sla", { connection: { url: env.REDIS_URL } });
+  }
+  return escalationQueueInstance;
+}
+
+/** Schedule an escalation-SLA stage (1 = remind owner, 2 = expire). No-op without REDIS_URL. */
+export async function enqueueEscalationSla(escalationId: string, stage: 1 | 2): Promise<void> {
+  const q = await escalationQueue();
+  if (!q) return;
+  await q.add(
+    "escalation-sla",
+    { escalationId, stage },
+    { delay: ESCALATION_SLA_MS[stage], jobId: `esc-${stage}-${escalationId}`, removeOnComplete: true, removeOnFail: true },
+  );
+}

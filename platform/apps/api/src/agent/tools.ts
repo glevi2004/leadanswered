@@ -13,6 +13,7 @@ import {
   type GatheredInfo,
 } from "@leadanswered/core";
 import { fireNotification, type NotifyDeps } from "../notify.js";
+import { enqueueEscalationSla } from "../queue.js";
 import { InternalCalendarProvider } from "../calendar/provider.js";
 import { handOffOwnerIfReady } from "./ownerHandoff.js";
 import type {
@@ -326,7 +327,22 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
             }
           }
         }
+        // Chase the contractor if they don't answer, and eventually expire it (SCOPE §9.7).
+        await enqueueEscalationSla(esc.id, 1);
         return { ok: true as const, escalationId: esc.id };
+      },
+    }),
+
+    set_intent: tool({
+      description:
+        "Record WHY the customer reached out, once it's clear — a brand-new project, an existing customer, a general question, or something else. Call it when their intent becomes clear so we follow up appropriately. This does not change what you say; you still decide the reply.",
+      inputSchema: z.object({
+        intent: z.enum(["new_project", "existing_customer", "general_question", "other"]),
+      }),
+      execute: async (input) => {
+        state.gathered = { ...state.gathered, intent: input.intent };
+        await persistGathered(deps, state);
+        return { ok: true as const, intent: input.intent };
       },
     }),
   };

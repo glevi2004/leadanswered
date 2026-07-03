@@ -33,6 +33,8 @@ export interface MessageRecord {
   direction: "inbound" | "outbound";
   body: string;
   providerSid: string | null;
+  /** When the message was recorded (ISO). Used for conversation-recency checks. */
+  createdAt?: string;
 }
 
 export interface RecipientRecord {
@@ -112,6 +114,8 @@ export interface Store {
   /** Email idempotency — has a lead already been created from this email key? */
   findLeadBySourceMessageId(sourceMessageId: string): Promise<{ id: string } | null>;
   findActiveContextByPhones(toNumber: string, fromNumber: string): Promise<LeadContext | null>;
+  /** Most recent lead+conversation for this contractor+phone — dedupe at intake (one lead per contact). */
+  findLeadContextByContractorPhone(contractorId: string, phone: string): Promise<LeadContext | null>;
   getContextByLeadId(leadId: string): Promise<LeadContext | null>;
 
   // --- Concurrency & idempotency ---
@@ -148,6 +152,8 @@ export interface Store {
   getBusyTimes(contractorId: string, window: { startIso: string; endIso: string }): Promise<TimeRange[]>;
   /** The lead's single active appointment (guaranteed ≤1 by the DB) — for reschedule/cancel. */
   getActiveAppointmentByLead(leadId: string): Promise<AppointmentRecord | null>;
+  /** All appointments for a lead (history) — relationship memory for the prompt. */
+  getAppointmentsByLead(leadId: string): Promise<AppointmentRecord[]>;
   /** Reschedule a specific appointment to a new slot, guarded against contractor conflicts. */
   rescheduleAppointment(id: string, startIso: string, endIso: string): Promise<BookOutcome>;
   updateAppointment(id: string, patch: AppointmentPatch): Promise<void>;
@@ -161,6 +167,12 @@ export interface Store {
   }): Promise<EscalationRecord>;
   /** The most recent OPEN escalation for a contractor — to match their reply. */
   findOpenEscalationByContractorReply(contractorId: string): Promise<EscalationRecord | null>;
+  /** The most recent OPEN escalation for a lead — to suppress nudges while they wait on the contractor. */
+  findOpenEscalationByLead(leadId: string): Promise<EscalationRecord | null>;
   /** Conditional resolve — true only if it actually flipped open→resolved (idempotent relay guard). */
   resolveEscalationIfOpen(id: string, answer: string): Promise<boolean>;
+  /** Fetch an escalation by id — the SLA job checks whether it's still open. */
+  getEscalation(id: string): Promise<EscalationRecord | null>;
+  /** Conditional expire — true only if it flipped open→expired (idempotent). */
+  expireEscalation(id: string): Promise<boolean>;
 }

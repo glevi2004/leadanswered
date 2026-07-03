@@ -36,6 +36,7 @@ export async function generateAgentReply(
     { store: deps.store, sms: deps.sms, email: deps.email, now: deps.now },
     state,
   );
+  const pastAppts = await deps.store.getAppointmentsByLead(state.lead.id);
   const system = assembleAgentSystemPrompt({
     contractor: state.contractor,
     leadName: state.lead.contactName,
@@ -44,6 +45,7 @@ export async function generateAgentReply(
     leadStatus: state.lead.status,
     hasBooking: state.lead.status === "booked",
     channel: state.lead.source,
+    relationship: summarizeRelationship(pastAppts),
   });
   // Langfuse trace context: sessionId groups every turn of one lead's SMS thread,
   // userId attributes it to the contractor (the customer), tags enable filtering.
@@ -80,4 +82,11 @@ export async function generateAgentReply(
     text = followup.text.trim();
   }
   return sanitizeReply(text || "Thanks! Give me one moment and I'll be right back with you.");
+}
+
+/** A compact relationship cue for the prompt — surfaces the appointment history a returning customer has. */
+function summarizeRelationship(appts: { status: string }[]): string | undefined {
+  const onRecord = appts.filter((a) => a.status !== "cancelled");
+  if (onRecord.length === 0) return undefined;
+  return `this customer has ${onRecord.length} appointment(s) with us on record, so greet them with warmth and continuity.`;
 }

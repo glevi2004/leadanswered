@@ -73,6 +73,11 @@ export interface GatheredInfo {
   /** Map of short id → ISO for the times last offered, so the agent books with a
    *  reliable short id ("1") instead of echoing an error-prone full ISO string. */
   offeredSlots?: Record<string, string> | null;
+  /** ISO of the last quiet-lead nudge in the CURRENT interaction — one nudge per interaction.
+   *  Cleared at an interaction boundary (re-engage after a gap / prior thread concluded). */
+  nudgedAt?: string | null;
+  /** Why the customer reached out — set by the agent once known; drives follow-ups + notifications. */
+  intent?: "new_project" | "existing_customer" | "general_question" | "other" | null;
 }
 
 export type MissingField = "location" | "project" | "decision_maker";

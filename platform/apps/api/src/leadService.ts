@@ -2,7 +2,7 @@ import type { SmsSender } from "@leadanswered/core";
 import type { LanguageModel } from "ai";
 import { generateAgentReply, type ChatTurn } from "./agent/runner.js";
 import type { ToolState } from "./agent/tools.js";
-import type { Store } from "./store/types.js";
+import type { LeadContext, Store } from "./store/types.js";
 
 export interface LeadDeps {
   store: Store;
@@ -16,23 +16,28 @@ export interface CreateLeadArgs {
   contactName: string;
   contactPhone: string;
   projectHint?: string | null;
-  /** Where the lead came from (e.g. "manual", "email"); defaults to "manual". */
+  /** Where the lead came from (e.g. "manual", "email", "missed_call"); defaults to "manual". */
   source?: string;
-  /** Idempotency key for email intake (Postmark MessageID). */
+  /** Idempotency key for the intake EVENT (Postmark MessageID / voice CallSid). */
   sourceMessageId?: string | null;
 }
 
 /**
- * Lead intake (SCOPE §6): create the lead + conversation and fire Sarah's opening
- * SMS immediately (sub-60-second promise, SCOPE §7). The opening is a single agent
- * turn — Sarah greets and asks for what she needs next.
+ * Lead intake (SCOPE §6, §9, §9.7). **One lead per `(contractor, contactPhone)`:** if this person
+ * already has a lead, re-engage their EXISTING conversation instead of creating a duplicate — a
+ * second lead would fragment their history and split the single SMS thread they see (replies would
+ * route to the empty new lead and Sarah would lose context). Otherwise create the lead + conversation.
+ * Either way, fire Sarah's opening SMS (one agent turn) immediately (sub-60s promise, SCOPE §7).
  */
 export async function createLeadAndGreet(
   deps: LeadDeps,
   input: CreateLeadArgs,
 ): Promise<{ leadId: string; opening: string }> {
-  const { store, sms } = deps;
+  const { store } = deps;
   const now = (deps.now ?? (() => new Date()))();
+
+  const existing = await store.findLeadContextByContractorPhone(input.contractorId, input.contactPhone);
+  if (existing) return reengageLead(deps, existing, input, now);
 
   const ctx = await store.createLeadWithConversation({
     contractorId: input.contractorId,
@@ -43,28 +48,79 @@ export async function createLeadAndGreet(
     sourceMessageId: input.sourceMessageId ?? null,
   });
 
+  const opening = await runOpeningTurn(deps, ctx, openingTrigger(input.source, input.projectHint, false), now);
+  await store.updateLeadFields(ctx.lead.id, { status: "contacted" });
+  await store.updateConversation(ctx.conversation.id, { state: "qualifying" });
+  return { leadId: ctx.lead.id, opening };
+}
+
+/** A repeat contact from a known phone: greet them back in the SAME conversation — no new lead. */
+async function reengageLead(
+  deps: LeadDeps,
+  ctx: LeadContext,
+  input: CreateLeadArgs,
+  now: Date,
+): Promise<{ leadId: string; opening: string }> {
+  const { store } = deps;
+
+  // Carry a newly-supplied project hint into the existing working memory (don't overwrite what we know),
+  // and re-arm the single quiet-lead nudge — a re-contact after a gap is a NEW interaction.
+  const gathered = { ...(ctx.conversation.gathered ?? {}) };
+  if (input.projectHint && !gathered.projectType) gathered.projectType = input.projectHint;
+  gathered.nudgedAt = null;
+  await store.updateConversation(ctx.conversation.id, { gathered });
+
+  // Frame the turn by the CURRENT contact channel; the returning-caller trigger keeps it warm + open.
+  const turnCtx: LeadContext = {
+    ...ctx,
+    lead: { ...ctx.lead, source: input.source ?? ctx.lead.source },
+    conversation: { ...ctx.conversation, gathered },
+  };
+  const opening = await runOpeningTurn(deps, turnCtx, openingTrigger(input.source, input.projectHint, true), now);
+
+  // Re-open a settled lead so the flow can continue; leave booked/disqualified for the agent's framing.
+  if (ctx.lead.status === "no_response") {
+    await store.updateLeadFields(ctx.lead.id, { status: "contacted" });
+  }
+  if (ctx.lead.status !== "booked" && ctx.lead.status !== "disqualified") {
+    await store.updateConversation(ctx.conversation.id, { state: "qualifying" });
+  }
+  return { leadId: ctx.lead.id, opening };
+}
+
+/** Run one opening agent turn on a conversation (new or existing): generate → persist → send. */
+async function runOpeningTurn(
+  deps: LeadDeps,
+  ctx: LeadContext,
+  trigger: string,
+  now: Date,
+): Promise<string> {
   const state: ToolState = {
     contractor: ctx.contractor,
     lead: ctx.lead,
     conversation: ctx.conversation,
     gathered: ctx.conversation.gathered ?? {},
   };
-  const history: ChatTurn[] = [{ role: "user", content: openingTrigger(input.source, input.projectHint) }];
-
-  const opening = await generateAgentReply({ ...deps, sms, now }, state, history);
-
-  await store.appendMessage(ctx.conversation.id, { direction: "outbound", body: opening });
-  await sms.send(ctx.lead.contactPhone, opening);
-  await store.updateLeadFields(ctx.lead.id, { status: "contacted" });
-  await store.updateConversation(ctx.conversation.id, { state: "qualifying" });
-
-  return { leadId: ctx.lead.id, opening };
+  const history: ChatTurn[] = [{ role: "user", content: trigger }];
+  const opening = await generateAgentReply({ ...deps, now }, state, history);
+  await deps.store.appendMessage(ctx.conversation.id, { direction: "outbound", body: opening });
+  await deps.sms.send(ctx.lead.contactPhone, opening);
+  return opening;
 }
 
-function openingTrigger(source?: string, projectHint?: string | null): string {
-  // Missed-call text-back (SCOPE §9.7): the homeowner phoned the contractor, it went
-  // unanswered, and the call was forwarded to us — so lead with an apology, not "you
-  // filled out our form". The contractor/persona details come from the system prompt.
+function openingTrigger(source?: string, projectHint?: string | null, returning = false): string {
+  // A repeat contact from someone we've talked to before (SCOPE §4 dedupe) — continue the relationship,
+  // don't restart it. Unknown intent, so stay open.
+  if (returning) {
+    return (
+      `[This person has reached out to us before and just contacted us again` +
+      (source === "missed_call" ? ` (they called and we missed it)` : ``) +
+      `. You're continuing an existing relationship, so greet them back warmly, do NOT introduce yourself from` +
+      ` scratch, and ask how you can help today. Do NOT assume they want a new estimate or ask for their address` +
+      ` unless they bring it up.]`
+    );
+  }
+  // Missed-call text-back (SCOPE §9.7): the homeowner phoned and we missed it — unknown intent, so open-ended.
   if (source === "missed_call") {
     return (
       `[We just missed a call from this person and don't know why they called. Send a warm opening text:` +

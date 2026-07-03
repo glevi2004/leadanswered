@@ -190,6 +190,7 @@ This is the most important architectural decision in the doc. Claude Code must N
   - NOTE: the lead's contact is named generically (`contact_name`, `contact_phone`) rather than "homeowner\_*". v1 targets homeowners, but the product may later serve verticals where the lead is a property manager, commercial client, etc. Neutral field names now = no schema migration later. This naming principle applies everywhere: the DB and code use vertical-neutral terms; only the *conversation copy\* (what Sarah actually says) is homeowner-flavored, and that lives in the system prompt, not the schema.
   - ADDRESS: `service_town`/`service_zip` are captured early for the service-area qualification check (§5.1). `full_address` (street-level) is confirmed before booking, since the contractor needs the exact address to attend the on-site estimate and it goes in the `booking_confirmed` notification.
   - SOURCE: `source` is free-text for the intake channel — `manual` (`/lead`), `email` (forwarded lead email, §9), `missed_call` (an unanswered call forwarded to the Twilio number, §9.7), `inbound_sms` (cold text when `ALLOW_INBOUND_LEADS` is on). `source_message_id` is the per-channel idempotency key (email MessageID, or the voice `CallSid`).
+  - DEDUPE (one lead per contact): a lead is **unique per `(contractor, contact_phone)`**. Every intake path (`/lead`, email, missed-call) does a find-or-create — a returning contact **re-engages their existing lead** (one continuous conversation, matching the single SMS thread they see) rather than spawning a duplicate. `source_message_id @unique` still dedupes the same *event* (a re-sent email / re-POSTed call).
 - **conversation**: id, lead_id, state (greeting/qualifying/proposing_slots/confirming/done), created_at, updated_at
 - **message**: id, conversation_id, direction (inbound/outbound), body, timestamp
 - **appointment**: id, lead_id, contractor_id, slot_datetime, status (proposed/confirmed/shown/no_show), created_at
@@ -277,6 +278,16 @@ This is the most important architectural decision in the doc. Claude Code must N
 - Defaults applied on onboarding: the primary owner recipient is subscribed to `booking_confirmed` + `new_qualified_lead` on both channels; others opt-in.
 
 **Delivery:** the notification service (in `packages/core`) is invoked when an event fires (e.g., booking confirmed in the `api` conversation engine). Actual send (SMS via Twilio, email) can be done inline for low volume or enqueued to the `worker` for reliability/retries — prefer enqueue so a failed send retries and never blocks the conversation.
+
+## 5.3 Proactive layer (system-initiated messages)
+
+Everything Sarah *initiates* (not a live reply) runs through **one mechanism** — `apps/api/src/proactiveTurn.ts` — that reads the conversation, writes a **context-aware** message OR **stays silent**, and is lifecycle-gated. This replaces the old static template strings.
+
+- **Quiet-lead nudge** (`jobs/nudge.ts`): a single follow-up **per interaction** (guarded by `gathered.nudgedAt`, re-armed at an interaction boundary — a re-contact after a gap, or a concluded thread). Skipped while an **escalation is open** (they're waiting on the contractor, not quiet), if the lead already replied, or if terminal. Deferred outside the contractor's **business hours** (no 2am texts). It writes a contextual line — or nothing — never a canned estimate pitch.
+- **Escalation lifecycle** (`jobs/escalationSla.ts`): a loop-in the contractor hasn't answered is chased — stage 1 re-pings the owner (louder) + an optional positive customer reassurance (business hours only); still unanswered → status **`expired`** with an urgent **owner-only** alert. Sarah **never** tells the customer we couldn't reach the team.
+- **Intent** (`set_intent` tool → `gathered.intent`): `new_project | existing_customer | general_question | other` — so follow-ups and notifications fit the situation.
+- **Memory:** a returning customer's full thread is one conversation (one lead per contact, §4), plus a RELATIONSHIP cue (appointment history) injected into the prompt.
+- **Observability:** every proactive decision (sent + each skip/silence, with a reason) is logged as a structured `[proactive]` line and traced (`functionId: proactive-<situation>`).
 
 ---
 
@@ -432,7 +443,7 @@ A working flow where: a lead is submitted → the lead receives a Sarah SMS with
 - Lead Answered receives the forwarded email via an inbound-email service (e.g., Postmark/SendGrid/Mailgun inbound parse webhook, or IMAP polling of the leads mailbox).
 - The `+{contractor_slug}` (or the destination address) identifies which contractor the lead belongs to — no guessing.
 - A parser extracts contact name + phone + project hint. Start with the common notification formats; allow a per-contractor parsing hint for odd templates.
-- Extracted lead → creates a `lead` record → fires the Sarah opening SMS.
+- Extracted lead → **finds-or-creates** the lead (one per `(contractor, phone)`; a returning contact re-engages their existing lead, never a duplicate — §4) → fires the Sarah opening SMS.
 
 **Why this approach:** works with any email provider, requires no scary inbox permissions, no Google verification, and honors the core principle of never touching the contractor's website. The only friction (setting a forward rule) is handled during white-glove onboarding.
 
@@ -548,9 +559,11 @@ dial-back:
 - Answer the forwarded voice leg with a short spoken line + hangup ("sorry we missed you, texting
   you right now").
 
-**Idempotency (§7).** The voice `CallSid` is stored as `Lead.sourceMessageId` (@unique) — a
-re-POSTed webhook never creates a second lead/text. A *distinct* new call from a caller who
-already has an active conversation is skipped (no interruption).
+**Idempotency + dedupe (§7, §4).** The voice `CallSid` is stored as `Lead.sourceMessageId` (@unique)
+— a re-POSTed webhook never creates a second lead/text. A *distinct* new call from a caller who is
+**genuinely mid-conversation** (last activity within the last hour) is skipped so we don't interrupt
+them; once that hour passes, a new call **re-engages their existing lead** ("welcome back" in the same
+thread) — one lead per `(contractor, phone)`, never a duplicate.
 
 **Setup is per-contractor onboarding** (like the email-forward rule in §9): (1) point the Twilio
 number's Voice webhook at `/webhooks/twilio/voice`; (2) the contractor enables conditional call

@@ -186,6 +186,17 @@ export function isWithinStandingWindow(
   );
 }
 
+/** Is `now` inside the contractor's standing weekly availability (their "business hours")? An
+ *  unconfigured contractor (no windows) is treated as always-open so we never block a send. */
+export function isWithinBusinessHours(
+  sa: { timezone?: string; windows?: AvailabilityWindow[] } | undefined,
+  now: Date,
+): boolean {
+  const windows = sa?.windows ?? [];
+  if (windows.length === 0) return true;
+  return isWithinStandingWindow(windows, now.toISOString(), safeZone(sa?.timezone), 0);
+}
+
 /** Human weekly-availability summary for the system prompt, e.g. "Mon 6-11am, Wed 11am-4pm" (local). */
 export function formatWeeklyAvailability(standingWindows: AvailabilityWindow[]): string {
   const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];

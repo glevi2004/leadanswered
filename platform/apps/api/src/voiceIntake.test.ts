@@ -55,13 +55,46 @@ describe("handleMissedCall", () => {
     expect(sms.sent.filter((s) => s.to === CALLER)).toHaveLength(1);
   });
 
-  it("does not interrupt an existing conversation (a repeat call with a new CallSid)", async () => {
-    const { sms, deps } = setup();
-    await handleMissedCall(deps, basePayload({ CallSid: "CA-1" }));
-    const again = await handleMissedCall(deps, basePayload({ CallSid: "CA-2" }));
-    expect(again.status).toBe("skipped");
-    expect(again.reason).toBe("active_conversation");
-    expect(sms.sent.filter((s) => s.to === CALLER)).toHaveLength(1); // still just the one opening
+  it("skips a repeat missed call while the conversation is RECENT (< 1h)", async () => {
+    const T0 = new Date("2026-06-15T08:00:00Z");
+    const store = new MemoryStore(() => T0); // messages stamped at T0
+    store.seedContractor(testContractor, testRecipients);
+    const seeded = await store.createLeadWithConversation({
+      contractorId: testContractor.id, contactName: "Repeat caller", contactPhone: CALLER, source: "missed_call",
+    });
+    await store.appendMessage(seeded.conversation.id, { direction: "outbound", body: "earlier: how can I help?" });
+
+    const sms = new CapturingSms();
+    const deps = {
+      store, sms, email: new CapturingEmail(),
+      model: scriptedModel([{ text: "should not be used" }]),
+      now: () => new Date(T0.getTime() + 30 * 60 * 1000), // +30 min → still recent
+    };
+    const r = await handleMissedCall(deps, basePayload({ CallSid: "CA-recent" }));
+    expect(r.status).toBe("skipped");
+    expect(r.reason).toBe("active_conversation");
+    expect(sms.sent).toHaveLength(0); // no re-text mid-conversation
+  });
+
+  it("re-engages the SAME lead (no duplicate) when the prior conversation is STALE (> 1h)", async () => {
+    const T0 = new Date("2026-06-15T08:00:00Z");
+    const store = new MemoryStore(() => T0);
+    store.seedContractor(testContractor, testRecipients);
+    const seeded = await store.createLeadWithConversation({
+      contractorId: testContractor.id, contactName: "Repeat caller", contactPhone: CALLER, source: "missed_call",
+    });
+    await store.appendMessage(seeded.conversation.id, { direction: "outbound", body: "earlier: how can I help?" });
+
+    const sms = new CapturingSms();
+    const deps = {
+      store, sms, email: new CapturingEmail(),
+      model: scriptedModel([{ text: "Welcome back! How can I help today?" }]),
+      now: () => new Date(T0.getTime() + 2 * 60 * 60 * 1000), // +2h → stale
+    };
+    const r = await handleMissedCall(deps, basePayload({ CallSid: "CA-stale" }));
+    expect(r.status).toBe("ok");
+    expect(r.leadId).toBe(seeded.lead.id); // SAME lead, not a duplicate
+    expect(sms.sent.some((s) => s.to === CALLER)).toBe(true); // re-engaged with a fresh text
   });
 
   it("skips a call to an unknown Twilio number (no contractor)", async () => {

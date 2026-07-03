@@ -154,6 +154,7 @@ needs a **human** (things E2E can't see) is below:
 - [X] **7.3 Opening SMS.** Sarah sends the opening text to the lead's phone within seconds.
 - [X] **7.4 Continue.** Reply → full qualify/booking conversation works (re-run §6 against this lead).
 - [ ] **7.5 Idempotency.** Forwarding the same email twice does not create two leads (Postmark `MessageID` dedupe).
+- [ ] **7.6 One lead per contact.** A *different* email (new MessageID) from a phone that already has a lead — or an email then a missed call from the same phone — **re-engages the existing lead**, never creating a duplicate (§4).
 
 ---
 
@@ -162,6 +163,7 @@ needs a **human** (things E2E can't see) is below:
 - [ ] **8.1 Trigger.** In a conversation, ask Sarah something in your **escalation topics** (e.g. "do you offer financing?") → instead of guessing, Sarah says she'll check with the team; an **open escalation** appears on the Lead detail.
 - [ ] **8.2 Owner alert.** The escalation is texted to the contractor/owner number.
 - [ ] **8.3 Relay.** Reply (as the owner) to that escalation text → your answer is relayed back to the homeowner; the escalation flips to **resolved**.
+- [ ] **8.4 SLA + expiry.** If the owner does NOT answer the loop-in, the owner gets a louder **reminder** (and the customer may get one positive "still on it" during business hours — never an admission of delay). Still unanswered → the escalation goes **`expired`** with an urgent owner-only alert; the customer is never told we couldn't reach the team.
 
 ---
 
@@ -170,6 +172,7 @@ needs a **human** (things E2E can't see) is below:
 - [ ] **9.1 Go quiet.** Start a conversation, then stop replying. After the nudge delay (~30 min) the worker sends **one** gentle follow-up SMS to the lead.
 - [ ] **9.2 Alert.** If a recipient is subscribed to `lead_unresponsive`, they get a "Quiet lead" alert (SMS, and email if a Postmark-deliverable address) — and it reads as a *quiet-lead* nudge, **not** "turned away".
 - [ ] **9.3 No double-nudge.** Replying before the delay cancels/replaces the nudge (no follow-up fires).
+- [ ] **9.4 Context-aware + one per interaction.** The nudge is written in context (not a canned estimate line), fires **at most once per interaction**, is **skipped while an escalation is open**, and doesn't fire outside business hours. A returning contact after a gap re-arms a fresh single nudge.
 
 ---
 
@@ -205,7 +208,7 @@ needs a **human** (things E2E can't see) is below:
 - [ ] **13.2 Lead created.** A new lead appears on the dashboard with **source = `missed_call`** (contact = H's number).
 - [ ] **13.3 New-project intent → book.** Reply from **H** with a new job (e.g. "I need a quote for a new roof") → Sarah qualifies (ownership/address) and books, exactly as §6.
 - [ ] **13.4 Non-estimate intent → loop-in.** In a *fresh* missed call, reply with a non-sales intent (e.g. "just have a question about my existing roof") → Sarah does NOT push an estimate or ask for an address; she loops in the owner via **escalation** (an open escalation appears on the lead; the owner is texted). Owner replies → the answer relays back to **H** (per §8).
-- [ ] **13.5 Idempotency.** A rapid redelivery of the *same* call does **not** create a second lead or send a second text; a new call while **H** already has an active conversation is **not** interrupted.
+- [ ] **13.5 Recency / one lead per contact.** A rapid redelivery of the *same* call does **not** create a second lead or text. A repeat call **within ~1h** of the last activity is skipped (no re-text). A call **after ~1h** re-engages the **same** lead with a fresh "welcome back" text — it never creates a duplicate lead (§4). (To exercise the >1h path without waiting, shrink `RECENT_CONVERSATION_WINDOW_MS` or rely on the unit test.)
 - [ ] **13.6 Caller-ID (first-call check).** In `railway logs`, the `[voice] inbound call …` line shows the homeowner as `From` (not `ForwardedFrom`). If a carrier swaps them, note it — the code prefers `From` and bails if it looks like the contractor's own line.
 
 ---

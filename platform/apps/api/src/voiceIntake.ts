@@ -1,4 +1,20 @@
 import { createLeadAndGreet, type LeadDeps } from "./leadService.js";
+import type { LeadContext } from "./store/types.js";
+
+/** A repeat missed call is skipped only if the caller was active within this window (else we re-engage). */
+const RECENT_CONVERSATION_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
+/** Epoch ms of the most recent message in a conversation (0 if none are timestamped). */
+function lastMessageMs(ctx: LeadContext): number {
+  let max = 0;
+  for (const m of ctx.messages) {
+    if (m.createdAt) {
+      const t = new Date(m.createdAt).getTime();
+      if (t > max) max = t;
+    }
+  }
+  return max;
+}
 
 /** The subset of Twilio's inbound *voice* webhook params we read (SCOPE §9.7). */
 export interface TwilioVoiceInbound {
@@ -47,6 +63,7 @@ export async function handleMissedCall(
   const to = String(payload.To ?? "").trim();
   const callSid = payload.CallSid ? String(payload.CallSid) : null;
   const caller = resolveCallerNumber(payload);
+  const now = (deps.now ?? (() => new Date()))();
 
   console.log(
     `[voice] inbound call CallSid=${callSid ?? "-"} From=${payload.From ?? "-"} ` +
@@ -72,10 +89,12 @@ export async function handleMissedCall(
     return { status: "skipped", reason: "duplicate" };
   }
 
-  // Then: don't interrupt an in-flight conversation with a "sorry we missed you". A *different*
-  // call from a caller who already has a conversation with this contractor is left untouched.
-  if (await deps.store.findActiveContextByPhones(to, caller)) {
-    console.log(`[voice] ${caller} already has a conversation — skipped`);
+  // Skip only if they're GENUINELY mid-conversation — last activity within the last hour. A stale
+  // prior conversation (or none) falls through to createLeadAndGreet, which re-engages the existing
+  // lead or creates one (one lead per contact, SCOPE §4) — so we never spawn a duplicate.
+  const existing = await deps.store.findLeadContextByContractorPhone(contractor.id, caller);
+  if (existing && lastMessageMs(existing) > now.getTime() - RECENT_CONVERSATION_WINDOW_MS) {
+    console.log(`[voice] ${caller} has a recent conversation — skipped`);
     return { status: "skipped", reason: "active_conversation" };
   }
 

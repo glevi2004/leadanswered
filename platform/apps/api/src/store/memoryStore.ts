@@ -47,6 +47,12 @@ export class MemoryStore implements Store {
   private appointments: ApptRow[] = [];
   private leadIdBySourceMessageId = new Map<string, string>();
   private lock = createConversationLock();
+  private now: () => Date;
+
+  /** Optional injected clock so tests can control message timestamps (recency checks). */
+  constructor(now: () => Date = () => new Date()) {
+    this.now = now;
+  }
 
   seedContractor(c: ContractorConfig, recipients: RecipientRecord[] = []): void {
     this.contractors.set(c.id, c);
@@ -141,6 +147,18 @@ export class MemoryStore implements Store {
     return null;
   }
 
+  async findLeadContextByContractorPhone(contractorId: string, phone: string): Promise<LeadContext | null> {
+    const candidates = [...this.leads.values()].filter(
+      (l) => l.contractorId === contractorId && l.contactPhone === phone,
+    );
+    for (const lead of candidates.reverse()) {
+      const convId = this.convIdByLead.get(lead.id);
+      const conv = convId ? this.conversations.get(convId) : undefined;
+      if (conv) return this.contextFor(conv);
+    }
+    return null;
+  }
+
   async getContextByLeadId(leadId: string): Promise<LeadContext | null> {
     const convId = this.convIdByLead.get(leadId);
     const conv = convId ? this.conversations.get(convId) : undefined;
@@ -168,6 +186,7 @@ export class MemoryStore implements Store {
       direction: msg.direction,
       body: msg.body,
       providerSid: msg.providerSid ?? null,
+      createdAt: this.now().toISOString(),
     };
     this.messages.push(rec);
     return rec;
@@ -258,6 +277,19 @@ export class MemoryStore implements Store {
       : null;
   }
 
+  async getAppointmentsByLead(leadId: string): Promise<AppointmentRecord[]> {
+    return this.appointments
+      .filter((a) => a.leadId === leadId)
+      .map((a) => ({
+        id: a.id,
+        leadId: a.leadId,
+        contractorId: a.contractorId,
+        startIso: a.startIso,
+        endIso: a.endIso,
+        status: a.status,
+      }));
+  }
+
   async rescheduleAppointment(id: string, startIso: string, endIso: string): Promise<BookOutcome> {
     const appt = this.appointments.find((a) => a.id === id);
     if (!appt) return { ok: false, reason: "slot_taken" };
@@ -331,11 +363,34 @@ export class MemoryStore implements Store {
       : null;
   }
 
+  async findOpenEscalationByLead(leadId: string) {
+    const esc = [...this.escalations].reverse().find((e) => e.leadId === leadId && e.status === "open");
+    return esc
+      ? { id: esc.id, leadId: esc.leadId, contractorId: esc.contractorId, conversationId: esc.conversationId, question: esc.question, status: esc.status }
+      : null;
+  }
+
   async resolveEscalationIfOpen(id: string, answer: string): Promise<boolean> {
     const esc = this.escalations.find((e) => e.id === id);
     if (esc && esc.status === "open") {
       esc.answer = answer;
       esc.status = "resolved";
+      return true;
+    }
+    return false;
+  }
+
+  async getEscalation(id: string) {
+    const e = this.escalations.find((x) => x.id === id);
+    return e
+      ? { id: e.id, leadId: e.leadId, contractorId: e.contractorId, conversationId: e.conversationId, question: e.question, status: e.status }
+      : null;
+  }
+
+  async expireEscalation(id: string): Promise<boolean> {
+    const e = this.escalations.find((x) => x.id === id);
+    if (e && e.status === "open") {
+      e.status = "expired";
       return true;
     }
     return false;

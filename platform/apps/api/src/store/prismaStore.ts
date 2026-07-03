@@ -64,7 +64,14 @@ function mapConv(c: any): ConversationRecord {
 }
 
 function mapMsg(m: any): MessageRecord {
-  return { id: m.id, conversationId: m.conversationId, direction: m.direction, body: m.body, providerSid: m.providerSid };
+  return {
+    id: m.id,
+    conversationId: m.conversationId,
+    direction: m.direction,
+    body: m.body,
+    providerSid: m.providerSid,
+    createdAt: m.createdAt ? new Date(m.createdAt).toISOString() : undefined,
+  };
 }
 
 function mapAppt(a: any): AppointmentRecord {
@@ -176,6 +183,23 @@ export class PrismaStore implements Store {
     return {
       lead: mapLead(lead),
       contractor: rowToContractor(contractor),
+      conversation: mapConv(lead.conversation),
+      messages: lead.conversation.messages.map(mapMsg),
+    };
+  }
+
+  async findLeadContextByContractorPhone(contractorId: string, phone: string): Promise<LeadContext | null> {
+    const lead = await this.db.lead.findFirst({
+      where: { contractorId, contactPhone: phone, conversation: { isNot: null } },
+      orderBy: { createdAt: "desc" },
+      include: { conversation: { include: { messages: { orderBy: { createdAt: "asc" } } } } },
+    });
+    if (!lead || !lead.conversation) return null;
+    const contractor = await this.getContractor(contractorId);
+    if (!contractor) return null;
+    return {
+      lead: mapLead(lead),
+      contractor,
       conversation: mapConv(lead.conversation),
       messages: lead.conversation.messages.map(mapMsg),
     };
@@ -308,6 +332,11 @@ export class PrismaStore implements Store {
     return a ? mapAppt(a) : null;
   }
 
+  async getAppointmentsByLead(leadId: string): Promise<AppointmentRecord[]> {
+    const rows = await this.db.appointment.findMany({ where: { leadId }, orderBy: { startAt: "asc" } });
+    return rows.map(mapAppt);
+  }
+
   async rescheduleAppointment(id: string, startIso: string, endIso: string): Promise<BookOutcome> {
     try {
       const a = await this.db.$transaction(async (tx) => {
@@ -385,11 +414,33 @@ export class PrismaStore implements Store {
       : null;
   }
 
+  async findOpenEscalationByLead(leadId: string) {
+    const e = await this.db.escalation.findFirst({
+      where: { leadId, status: "open" },
+      orderBy: { createdAt: "desc" },
+    });
+    return e
+      ? { id: e.id, leadId: e.leadId, contractorId: e.contractorId, conversationId: e.conversationId, question: e.question, status: e.status }
+      : null;
+  }
+
   async resolveEscalationIfOpen(id: string, answer: string): Promise<boolean> {
     const r = await this.db.escalation.updateMany({
       where: { id, status: "open" },
       data: { answer, status: "resolved", resolvedAt: new Date() },
     });
+    return r.count > 0;
+  }
+
+  async getEscalation(id: string) {
+    const e = await this.db.escalation.findUnique({ where: { id } });
+    return e
+      ? { id: e.id, leadId: e.leadId, contractorId: e.contractorId, conversationId: e.conversationId, question: e.question, status: e.status }
+      : null;
+  }
+
+  async expireEscalation(id: string): Promise<boolean> {
+    const r = await this.db.escalation.updateMany({ where: { id, status: "open" }, data: { status: "expired" } });
     return r.count > 0;
   }
 }

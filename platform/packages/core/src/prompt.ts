@@ -43,6 +43,8 @@ export interface AgentPromptContext {
   hasBooking?: boolean;
   /** Intake channel (the lead's `source`). "missed_call" gets intent-triage framing instead of the website-lead framing. */
   channel?: string;
+  /** Optional relationship summary (past appointments) so a returning customer gets continuity. */
+  relationship?: string;
 }
 
 /**
@@ -110,6 +112,7 @@ export function assembleAgentSystemPrompt(ctx: AgentPromptContext): string {
       ? "- This lead ALREADY has a booking. If they want a DIFFERENT time: call check_availability, offer 2-3, then call reschedule_appointment with chosenTime set to the time they chose (their words). If they want to CANCEL: call cancel_appointment. You MUST actually call the tool — saying \"it's cancelled\" or \"it's moved\" without calling the tool is a serious error."
       : "",
     `- escalate_to_contractor: if the customer asks about something only the contractor can answer (${escalationTopics}), asks for a referral/recommendation you can't give, or anything you can't handle with your tools, you MUST call this tool. It loops in the contractor, who replies and we relay the answer back. Saying you'll \"flag it\" or \"check with the team\" WITHOUT calling escalate_to_contractor is a serious error.`,
+    "- set_intent: as soon as it's clear WHY they reached out (a new project, an existing customer, a general question, or something else), call set_intent so we follow up appropriately. It does not change your reply.",
     disqualified
       ? "- This lead is already DISQUALIFIED. Do NOT try to re-qualify or book. Reply warmly and briefly. If they ask for a referral or recommendation, call escalate_to_contractor so the team can help — never invent one."
       : "",
@@ -118,6 +121,7 @@ export function assembleAgentSystemPrompt(ctx: AgentPromptContext): string {
     "",
     "WHAT WE KNOW SO FAR:",
     known.join("\n"),
+    ctx.relationship ? `RELATIONSHIP: ${ctx.relationship}` : "",
     "",
     "HARD RULES (never break):",
     HARD_RULES.map((r) => `- ${r}`).join("\n"),

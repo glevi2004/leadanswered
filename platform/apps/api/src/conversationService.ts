@@ -6,6 +6,9 @@ import { extractPhone, handOffOwnerIfReady } from "./agent/ownerHandoff.js";
 import { enqueueNudge } from "./queue.js";
 import type { LeadContext, Store } from "./store/types.js";
 
+/** A returning inbound after this much silence is a NEW interaction — re-arms the single nudge. */
+const INTERACTION_GAP_MS = 3 * 60 * 60 * 1000; // 3 hours
+
 export interface ConversationDeps {
   store: Store;
   model: LanguageModel;
@@ -85,6 +88,20 @@ export async function handleInbound(deps: ConversationDeps, input: InboundInput)
       conversation: fresh.conversation,
       gathered: fresh.conversation.gathered ?? {},
     };
+
+    // Returning after a real gap = a NEW interaction → re-arm the single quiet-lead nudge and
+    // un-stick a lead we'd marked no_response (one nudge per interaction).
+    const prevMsg = fresh.messages.length >= 2 ? fresh.messages[fresh.messages.length - 2] : null;
+    const gapMs = prevMsg?.createdAt ? now.getTime() - new Date(prevMsg.createdAt).getTime() : 0;
+    if (gapMs > INTERACTION_GAP_MS) {
+      state.gathered = { ...state.gathered, nudgedAt: null };
+      await store.updateConversation(conversationId, { gathered: state.gathered });
+      if (state.lead.status === "no_response") {
+        state.lead.status = "contacted";
+        await store.updateLeadFields(leadId, { status: "contacted" });
+      }
+    }
+
     const history: ChatTurn[] = fresh.messages
       .filter((m) => m.body && m.body.trim() !== "") // never replay empty text (Anthropic 400s on it)
       .map((m): ChatTurn => ({ role: m.direction === "inbound" ? "user" : "assistant", content: m.body }));
