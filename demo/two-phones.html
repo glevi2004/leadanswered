@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lead Answered — two-phone demo</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: flex; align-items: center; justify-content: center;
+    background: #d9dbe1; font-family: -apple-system, "SF Pro Text", system-ui, "Inter", sans-serif;
+  }
+  .stage { display: flex; align-items: flex-start; gap: 64px; }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .caption { font-size: 13px; font-weight: 600; letter-spacing: .04em; color: #6b6f76; text-transform: uppercase; }
+
+  .phone { width: 372px; height: 760px; background: #fff; border-radius: 46px;
+    box-shadow: 0 30px 80px rgba(16,24,40,.28); overflow: hidden; display: flex; flex-direction: column;
+    border: 10px solid #111; }
+  .hdr { text-align: center; padding: 13px 0 11px; border-bottom: 1px solid #e9e9eb; flex: 0 0 auto; }
+  .hdr .av { width: 46px; height: 46px; border-radius: 50%; margin: 4px auto 5px;
+    background: #34c759; color: #fff; font-weight: 700; font-size: 19px;
+    display: flex; align-items: center; justify-content: center; }
+  .hdr .nm { font-size: 13px; color: #1b1b1f; font-weight: 600; }
+  .thread { flex: 1; overflow-y: auto; padding: 16px 12px 12px; display: flex; flex-direction: column; gap: 2px; background: #fff; }
+  .thread::-webkit-scrollbar { display: none; }
+
+  .sys { align-self: center; color: #8e8e93; font-size: 12px; font-weight: 600; margin: 10px 0 6px; }
+  .row { display: flex; }
+  .row.them { justify-content: flex-start; }
+  .row.me { justify-content: flex-end; }
+  .msg { position: relative; max-width: 76%; padding: 7px 13px 8px; border-radius: 18px;
+    font-size: 15px; line-height: 1.34; word-wrap: break-word; white-space: pre-wrap; margin: 3px 4px;
+    opacity: 0; transform: translateY(7px); transition: opacity .2s ease, transform .2s ease; }
+  .msg.in { opacity: 1; transform: none; }
+  .msg-them { background: #e9e9eb; color: #1b1b1f; }
+  .msg-me { background: #34c759; color: #fff; }
+  .msg-them::before { content:""; position:absolute; z-index:0; bottom:0; left:-7px; height:19px; width:19px; background:#e9e9eb; border-bottom-right-radius:16px; }
+  .msg-them::after  { content:""; position:absolute; z-index:1; bottom:0; left:-11px; height:19px; width:11px; background:#fff; border-bottom-right-radius:11px; }
+  .msg-me::before   { content:""; position:absolute; z-index:0; bottom:0; right:-7px; height:19px; width:19px; background:#34c759; border-bottom-left-radius:16px; }
+  .msg-me::after    { content:""; position:absolute; z-index:1; bottom:0; right:-11px; height:19px; width:11px; background:#fff; border-bottom-left-radius:11px; }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="col">
+      <div class="caption">Homeowner</div>
+      <div class="phone">
+        <div class="hdr"><div class="av">A</div><div class="nm">Apex Roofing</div></div>
+        <div class="thread" id="thread-home"></div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="caption">Contractor</div>
+      <div class="phone">
+        <div class="hdr"><div class="av">S</div><div class="nm">Sarah &middot; Lead Answered</div></div>
+        <div class="thread" id="thread-contr"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // Each Backspace press reveals the next line. Reload the page to start over.
+  const SCRIPT = [
+    { phone: "home",  who: "system", text: "Missed Call" },
+    { phone: "home",  who: "them",   text: "Hi there! This is Sarah from Apex Roofing. Sorry we missed your call! How can we help you today?" },
+    { phone: "home",  who: "me",     text: "Got a roof leak" },
+    { phone: "home",  who: "them",   text: "Sorry to hear that. Let's get it taken care of. What's the property address?" },
+    { phone: "home",  who: "me",     text: "42 Maple St, Newton" },
+    { phone: "home",  who: "them",   text: "Perfect. I can do a free on-site estimate Tuesday at 9am or Wednesday at 2pm. Which works better?" },
+    { phone: "home",  who: "me",     text: "Tuesday at 9 is great" },
+    { phone: "home",  who: "them",   text: "You're all set for Tuesday at 9am. We'll see you then!" },
+    { phone: "home",  who: "me",     text: "Oh, I was actually referred by my neighbor Bryan. You did his roof last month. He said you could match the price you gave him for his leak." },
+    { phone: "home",  who: "them",   text: "Let me check with the team on that and I'll be right back with you!" },
+    { phone: "contr", who: "them",   text: "New question from a lead (Levi, 42 Maple St): they were referred by their neighbor Bryan, who you did a roof for last month. They're asking if you can match the price you gave Bryan for his leak. Reply here to answer." },
+    { phone: "contr", who: "me",     text: "Oh that's true, I did tell him that." },
+    { phone: "home",  who: "them",   text: "Good news! I checked with the owner and he remembered. We can match it. We'll still take a quick look on-site before we finalize the estimate, but you're all set for Tuesday." },
+  ];
+
+  const threads = { home: document.getElementById("thread-home"), contr: document.getElementById("thread-contr") };
+  let idx = 0;
+
+  function reveal() {
+    if (idx >= SCRIPT.length) return;
+    const m = SCRIPT[idx++];
+    const t = threads[m.phone];
+    if (m.who === "system") {
+      const s = document.createElement("div");
+      s.className = "sys"; s.textContent = m.text;
+      t.appendChild(s);
+    } else {
+      const row = document.createElement("div");
+      row.className = "row " + m.who;
+      const b = document.createElement("div");
+      b.className = "msg msg-" + m.who; b.textContent = m.text;
+      row.appendChild(b); t.appendChild(row);
+      requestAnimationFrame(() => b.classList.add("in"));
+    }
+    t.scrollTop = t.scrollHeight;
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Backspace") { e.preventDefault(); reveal(); }
+  });
+</script>
+</body>
+</html>
