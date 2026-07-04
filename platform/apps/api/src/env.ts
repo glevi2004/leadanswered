@@ -26,9 +26,6 @@ export const env = {
   LANGFUSE_SECRET_KEY: process.env.LANGFUSE_SECRET_KEY ?? "",
   // Region base URL — US is https://us.cloud.langfuse.com (EU is the SDK default).
   LANGFUSE_BASE_URL: process.env.LANGFUSE_BASE_URL ?? "",
-  // --- Demo harness: contractor phone in a browser (SCOPE §5.3). Off unless DEMO_TOKEN is set. ---
-  DEMO_TOKEN: process.env.DEMO_TOKEN ?? "",
-  DEMO_CONTRACTOR_SLUG: process.env.DEMO_CONTRACTOR_SLUG ?? "apex",
 };
 
 /**
