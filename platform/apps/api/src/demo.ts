@@ -1,5 +1,4 @@
 import { Router, type Request, type Response } from "express";
-import { EventEmitter } from "node:events";
 import { randomUUID } from "node:crypto";
 import type { SmsSender } from "@leadanswered/core";
 import { handleInbound, type ConversationDeps } from "./conversationService.js";
@@ -18,18 +17,31 @@ export interface DemoOwnerMessage {
   ts: number;
 }
 
-/** In-process pub/sub: SplitSmsSender publishes owner-bound messages, the SSE endpoint streams them. */
+interface BufferedMessage extends DemoOwnerMessage {
+  seq: number;
+}
+
+/**
+ * In-process ring buffer of owner-bound messages. SplitSmsSender publishes; the browser polls
+ * `/messages?since=<seq>` on a short interval. Buffering (vs raw SSE) means a brief network/proxy
+ * hiccup on the browser never loses a message — the next poll catches up from the cursor.
+ */
 export class DemoBus {
-  private emitter = new EventEmitter();
-  constructor() {
-    this.emitter.setMaxListeners(50);
-  }
+  private buf: BufferedMessage[] = [];
+  private seq = 0;
+  private cap = 200;
   publish(msg: DemoOwnerMessage): void {
-    this.emitter.emit("msg", msg);
+    this.seq += 1;
+    this.buf.push({ ...msg, seq: this.seq });
+    if (this.buf.length > this.cap) this.buf.shift();
   }
-  subscribe(fn: (m: DemoOwnerMessage) => void): () => void {
-    this.emitter.on("msg", fn);
-    return () => this.emitter.off("msg", fn);
+  /** Current cursor (highest seq handed out). */
+  latest(): number {
+    return this.seq;
+  }
+  /** Every buffered message newer than `since`. */
+  since(since: number): BufferedMessage[] {
+    return this.buf.filter((m) => m.seq > since);
   }
 }
 
@@ -75,23 +87,15 @@ export function createDemoRouter(deps: ConversationDeps, bus: DemoBus, cfg: Demo
     res.type("html").send(phonePage(cfg.token));
   });
 
-  // Live stream of owner-bound messages (Server-Sent Events).
-  router.get("/contractor/stream", (req: Request, res: Response) => {
+  // Owner-bound messages since a cursor (browser polls this). No `since` = just the current
+  // cursor (a baseline call on page load, so the thread starts clean without old backlog).
+  router.get("/contractor/messages", (req: Request, res: Response) => {
     if (!authed(req)) return void res.status(401).end();
-    res.set({
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
-      "X-Accel-Buffering": "no", // don't let a proxy buffer SSE
-    });
-    res.flushHeaders?.();
-    res.write(`: connected\n\n`);
-    const unsub = bus.subscribe((m) => res.write(`data: ${JSON.stringify(m)}\n\n`));
-    const keepAlive = setInterval(() => res.write(`: ka\n\n`), 25000);
-    req.on("close", () => {
-      clearInterval(keepAlive);
-      unsub();
-    });
+    const raw = req.query.since;
+    const since = typeof raw === "string" ? Number.parseInt(raw, 10) : Number.NaN;
+    if (!Number.isFinite(since)) return void res.json({ latest: bus.latest(), messages: [] });
+    const messages = bus.since(since).map((m) => ({ seq: m.seq, body: m.body, ts: m.ts }));
+    res.json({ latest: bus.latest(), messages });
   });
 
   // Owner reply → injected through the REAL inbound path (identical to a contractor SMS).
@@ -175,8 +179,22 @@ function phonePage(token: string): string {
     b.textContent = text; row.appendChild(b); thread.appendChild(row);
     thread.scrollTop = thread.scrollHeight;
   }
-  const es = new EventSource("/demo/contractor/stream?key=" + encodeURIComponent(TOKEN));
-  es.onmessage = (e) => { try { bubble(JSON.parse(e.data).body, "them"); } catch (_) {} };
+  const KEY = encodeURIComponent(TOKEN);
+  let cursor = 0;
+  async function tick() {
+    try {
+      const r = await fetch("/demo/contractor/messages?key=" + KEY + "&since=" + cursor);
+      const d = await r.json();
+      for (const m of (d.messages || [])) bubble(m.body, "them");
+      if (typeof d.latest === "number") cursor = d.latest;
+    } catch (_) {}
+  }
+  // Baseline from the current cursor so only NEW messages show (clean thread on every reload).
+  fetch("/demo/contractor/messages?key=" + KEY)
+    .then((r) => r.json())
+    .then((d) => { cursor = d.latest || 0; })
+    .catch(() => {})
+    .finally(() => setInterval(tick, 1500));
   const form = document.getElementById("composer"), input = document.getElementById("input");
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
