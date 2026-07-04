@@ -100,8 +100,20 @@
     t.scrollTop = t.scrollHeight;
   }
 
+  function unreveal() {
+    if (idx === 0) return;
+    idx--;
+    const t = threads[SCRIPT[idx].phone];
+    if (t.lastElementChild) t.removeChild(t.lastElementChild);
+    t.scrollTop = t.scrollHeight;
+  }
+
+  // Forward: Right arrow, Space, Backspace, Enter, Down. Backward: Left arrow, Up.
+  const FORWARD = new Set(["ArrowRight", " ", "Spacebar", "Backspace", "Enter", "ArrowDown"]);
+  const BACK = new Set(["ArrowLeft", "ArrowUp"]);
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Backspace") { e.preventDefault(); reveal(); }
+    if (FORWARD.has(e.key)) { e.preventDefault(); reveal(); }
+    else if (BACK.has(e.key)) { e.preventDefault(); unreveal(); }
   });
 </script>
 </body>
