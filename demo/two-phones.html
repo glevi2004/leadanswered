@@ -47,6 +47,14 @@
   .msg-me::before   { content:""; position:absolute; z-index:0; bottom:0; right:-7px; height:19px; width:19px; background:#34c759; border-bottom-left-radius:16px; }
   .msg-me::after    { content:""; position:absolute; z-index:1; bottom:0; right:-11px; height:19px; width:11px; background:#fff; border-bottom-left-radius:11px; }
 
+  /* Typing indicator (matches the landing-page bubbles) */
+  .msg.typing { padding: 11px 15px 12px; }
+  .typing-dot { width: 7px; height: 7px; border-radius: 50%; background: #8e8e93; display: inline-block;
+    margin-right: 4px; animation: typing 1.4s infinite ease-in-out; }
+  .typing-dot:nth-child(2) { animation-delay: .2s; }
+  .typing-dot:nth-child(3) { animation-delay: .4s; margin-right: 0; }
+  @keyframes typing { 0%, 60%, 100% { transform: translateY(0); opacity: .45; } 30% { transform: translateY(-4px); opacity: 1; } }
+
   /* Brand mark, bottom-right */
   .brand { position: fixed; right: 30px; bottom: 24px; display: flex; align-items: center; gap: 10px; }
   .brand img { height: 27px; width: auto; }
@@ -100,9 +108,9 @@
   const threads = { home: document.getElementById("thread-home"), contr: document.getElementById("thread-contr") };
   let idx = 0;
 
-  function reveal() {
-    if (idx >= SCRIPT.length) return;
-    const m = SCRIPT[idx++];
+  let animating = null; // { row, m, timer } while Sarah's typing indicator is on screen
+
+  function appendMessage(m) {
     const t = threads[m.phone];
     if (m.who === "system") {
       const s = document.createElement("div");
@@ -119,7 +127,45 @@
     t.scrollTop = t.scrollHeight;
   }
 
+  function finishTyping() {
+    if (!animating) return;
+    clearTimeout(animating.timer);
+    const m = animating.m;
+    animating.row.remove();
+    animating = null;
+    appendMessage(m);
+  }
+
+  function reveal() {
+    if (animating) { finishTyping(); return; } // a press mid-typing completes it immediately
+    if (idx >= SCRIPT.length) return;
+    const m = SCRIPT[idx++];
+    // Sarah's replies to the homeowner "type" first, like iMessage. Notifications + your own
+    // sent bubbles appear instantly.
+    if (m.who === "them" && m.phone === "home") {
+      const t = threads[m.phone];
+      const row = document.createElement("div");
+      row.className = "row them";
+      const b = document.createElement("div");
+      b.className = "msg msg-them typing";
+      b.innerHTML = '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>';
+      row.appendChild(b); t.appendChild(row);
+      requestAnimationFrame(() => b.classList.add("in"));
+      t.scrollTop = t.scrollHeight;
+      animating = { row, m, timer: setTimeout(finishTyping, 1000) };
+    } else {
+      appendMessage(m);
+    }
+  }
+
   function unreveal() {
+    if (animating) { // cancel the in-progress typing
+      clearTimeout(animating.timer);
+      animating.row.remove();
+      animating = null;
+      idx--;
+      return;
+    }
     if (idx === 0) return;
     idx--;
     const t = threads[SCRIPT[idx].phone];
