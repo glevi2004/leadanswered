@@ -16,9 +16,14 @@ export interface AgentDeps {
   now: Date;
 }
 
+export type ChatContentPart =
+  | { type: "text"; text: string }
+  | { type: "image"; image: Uint8Array | string; mediaType?: string };
+
 export interface ChatTurn {
   role: "user" | "assistant";
-  content: string;
+  /** A string for text turns, or parts (text + images) when the customer sent a photo. */
+  content: string | ChatContentPart[];
 }
 
 /**
@@ -60,7 +65,7 @@ export async function generateAgentReply(
   const result = await generateText({
     model: deps.model,
     system,
-    messages: history,
+    messages: history as ModelMessage[],
     tools,
     stopWhen: stepCountIs(6), // bound latency/cost per SMS turn
     experimental_telemetry: { isEnabled: true, functionId: "sarah-turn", metadata: meta },

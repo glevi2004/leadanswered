@@ -1,6 +1,7 @@
 import type { EmailSender, SmsSender } from "@leadanswered/core";
 import type { LanguageModel } from "ai";
 import { generateAgentReply, type ChatTurn } from "./agent/runner.js";
+import { downloadTwilioImages, type InboundMedia } from "./media.js";
 import type { ToolState } from "./agent/tools.js";
 import { extractPhone, handOffOwnerIfReady } from "./agent/ownerHandoff.js";
 import { enqueueNudge } from "./queue.js";
@@ -24,6 +25,8 @@ export interface InboundInput {
   fromNumber: string;
   body: string;
   providerSid?: string | null;
+  /** Inbound MMS images (Twilio media), attached to the current turn so Sarah can see them. */
+  media?: InboundMedia[];
 }
 
 export interface InboundResult {
@@ -105,6 +108,27 @@ export async function handleInbound(deps: ConversationDeps, input: InboundInput)
     const history: ChatTurn[] = fresh.messages
       .filter((m) => m.body && m.body.trim() !== "") // never replay empty text (Anthropic 400s on it)
       .map((m): ChatTurn => ({ role: m.direction === "inbound" ? "user" : "assistant", content: m.body }));
+
+    // Attach any inbound images to the current (last user) turn so Sarah can actually see them.
+    if (input.media && input.media.length > 0) {
+      const images = await downloadTwilioImages(input.media);
+      if (images.length > 0) {
+        for (let i = history.length - 1; i >= 0; i--) {
+          const turn = history[i];
+          if (turn && turn.role === "user") {
+            const text = typeof turn.content === "string" ? turn.content : "";
+            history[i] = {
+              role: "user",
+              content: [
+                { type: "text", text: text || "(photo)" },
+                ...images.map((img) => ({ type: "image" as const, image: img.data, mediaType: img.mediaType })),
+              ],
+            };
+            break;
+          }
+        }
+      }
+    }
 
     let reply: string;
     try {

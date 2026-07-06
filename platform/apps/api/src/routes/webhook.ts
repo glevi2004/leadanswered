@@ -9,13 +9,25 @@ import { handleInbound, type ConversationDeps } from "../conversationService.js"
  */
 export function createWebhookRoute(deps: ConversationDeps) {
   return async function postWebhook(req: Request, res: Response): Promise<void> {
-    const body = String(req.body?.Body ?? "").trim();
+    const rawBody = String(req.body?.Body ?? "").trim();
     const from = String(req.body?.From ?? "");
     const to = String(req.body?.To ?? "");
     const sid = req.body?.MessageSid ? String(req.body.MessageSid) : null;
 
+    // Inbound MMS image media (Twilio sends NumMedia + MediaUrl{i}/MediaContentType{i}).
+    // Non-image types (audio, vCards, …) are ignored for now.
+    const numMedia = Number(req.body?.NumMedia ?? 0);
+    const media: { url: string; contentType: string }[] = [];
+    for (let i = 0; i < numMedia; i++) {
+      const url = req.body?.[`MediaUrl${i}`];
+      const contentType = String(req.body?.[`MediaContentType${i}`] ?? "");
+      if (url && contentType.startsWith("image/")) media.push({ url: String(url), contentType });
+    }
+    // An image-only MMS has an empty Body — give it a marker so the turn/history isn't empty.
+    const body = rawBody || (media.length > 0 ? "[photo]" : "");
+
     try {
-      await handleInbound(deps, { toNumber: to, fromNumber: from, body, providerSid: sid });
+      await handleInbound(deps, { toNumber: to, fromNumber: from, body, providerSid: sid, media });
     } catch (err) {
       console.error("[webhook] unhandled error (failing safe):", err);
     }
