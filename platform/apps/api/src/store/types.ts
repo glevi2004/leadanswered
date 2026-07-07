@@ -116,6 +116,8 @@ export interface Store {
   findActiveContextByPhones(toNumber: string, fromNumber: string): Promise<LeadContext | null>;
   /** Most recent lead+conversation for this contractor+phone — dedupe at intake (one lead per contact). */
   findLeadContextByContractorPhone(contractorId: string, phone: string): Promise<LeadContext | null>;
+  /** Fuzzy-search a contractor's leads by contact name (contractor "text {name}" commands). */
+  findLeadsByName(contractorId: string, name: string): Promise<LeadRecord[]>;
   getContextByLeadId(leadId: string): Promise<LeadContext | null>;
 
   // --- Concurrency & idempotency ---

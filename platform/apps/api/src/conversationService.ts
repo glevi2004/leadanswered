@@ -2,6 +2,7 @@ import type { EmailSender, SmsSender } from "@leadanswered/core";
 import type { LanguageModel } from "ai";
 import { generateAgentReply, type ChatTurn } from "./agent/runner.js";
 import { downloadTwilioImages, type InboundMedia } from "./media.js";
+import { handleContractorCommand } from "./contractorCommands.js";
 import type { ToolState } from "./agent/tools.js";
 import { extractPhone, handOffOwnerIfReady } from "./agent/ownerHandoff.js";
 import { enqueueNudge } from "./queue.js";
@@ -45,9 +46,9 @@ export async function handleInbound(deps: ConversationDeps, input: InboundInput)
   const { store } = deps;
   const now = (deps.now ?? (() => new Date()))();
 
-  // 1) Is this a CONTRACTOR replying to an open escalation? Relay at-most-once.
-  const relayed = await maybeRelayContractorReply(deps, input);
-  if (relayed) return relayed;
+  // 1) Is this a CONTRACTOR texting the assistant? (escalation reply → relay, or a command)
+  const handled = await maybeHandleContractorMessage(deps, input);
+  if (handled) return handled;
 
   // 2) Find (or, in dev, cold-start) the lead conversation.
   let ctx = await store.findActiveContextByPhones(input.toNumber, input.fromNumber);
@@ -174,11 +175,12 @@ export async function handleInbound(deps: ConversationDeps, input: InboundInput)
 }
 
 /**
- * If `input` is a contractor replying to an open escalation, relay their answer to the
- * homeowner — exactly once. We resolve the escalation with a conditional update FIRST and
- * only relay if it actually flipped open→resolved, so a retried/concurrent reply no-ops.
+ * Handle a text FROM a contractor to the assistant. Two modes:
+ *   - open escalation → relay their answer to the homeowner (at-most-once), or
+ *   - no escalation → treat it as a command ("text {lead} that ...").
+ * Returns null only when the sender isn't a contractor (→ normal lead handling).
  */
-async function maybeRelayContractorReply(
+async function maybeHandleContractorMessage(
   deps: ConversationDeps,
   input: InboundInput,
 ): Promise<InboundResult | null> {
@@ -191,7 +193,10 @@ async function maybeRelayContractorReply(
   if (!fromIsContractor) return null;
 
   const esc = await store.findOpenEscalationByContractorReply(contractor.id);
-  if (!esc) return null;
+  if (!esc) {
+    // No escalation in flight → interpret as a contractor command.
+    return handleContractorCommand({ store, sms, model: deps.model }, contractor, input);
+  }
 
   // Win the resolve before relaying — the conditional update is the at-most-once guard.
   const resolved = await store.resolveEscalationIfOpen(esc.id, input.body);

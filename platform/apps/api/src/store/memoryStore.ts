@@ -159,6 +159,14 @@ export class MemoryStore implements Store {
     return null;
   }
 
+  async findLeadsByName(contractorId: string, name: string): Promise<LeadRecord[]> {
+    const q = name.trim().toLowerCase();
+    if (!q) return [];
+    return [...this.leads.values()]
+      .filter((l) => l.contractorId === contractorId && l.contactName.toLowerCase().includes(q))
+      .slice(0, 10);
+  }
+
   async getContextByLeadId(leadId: string): Promise<LeadContext | null> {
     const convId = this.convIdByLead.get(leadId);
     const conv = convId ? this.conversations.get(convId) : undefined;

@@ -205,6 +205,17 @@ export class PrismaStore implements Store {
     };
   }
 
+  async findLeadsByName(contractorId: string, name: string): Promise<LeadRecord[]> {
+    const q = name.trim();
+    if (!q) return [];
+    const rows = await this.db.lead.findMany({
+      where: { contractorId, contactName: { contains: q, mode: "insensitive" } },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    });
+    return rows.map(mapLead);
+  }
+
   async getContextByLeadId(leadId: string): Promise<LeadContext | null> {
     const lead = await this.db.lead.findUnique({
       where: { id: leadId },
