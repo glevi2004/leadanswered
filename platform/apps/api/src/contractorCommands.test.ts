@@ -44,7 +44,8 @@ describe("contractor commands — text a named lead", () => {
     // 3) confirm → the message finally reaches Levi Ramos
     await send("yes");
     const toLead = sms.sent.find((m) => m.to === LEVI1);
-    expect(toLead?.body).toContain("we can start Monday");
+    expect(toLead?.body).toMatch(/hi levi! we can start monday/i);
+    expect(toLead?.body).not.toMatch(/quick note from/i); // no company preamble
     expect(sms.sent.some((m) => m.to === LEVI2)).toBe(false); // never the wrong Levi
     expect(sms.sent.at(-1)?.body).toMatch(/sent to Levi/i);
   });

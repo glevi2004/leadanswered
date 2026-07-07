@@ -73,7 +73,7 @@ export async function handleContractorCommand(
         await reply("Hmm, I can't find that lead anymore — try again?");
         return { status: "ok" };
       }
-      const outbound = leadMessage(ctx.lead.contactName, contractor.companyName, p.message);
+      const outbound = leadMessage(ctx.lead.contactName, p.message);
       await store.appendMessage(ctx.conversation.id, { direction: "outbound", body: outbound });
       try {
         await sms.send(ctx.lead.contactPhone, outbound);
@@ -109,7 +109,7 @@ export async function handleContractorCommand(
       return { status: "ok" };
     }
     setPending(contractor.id, { stage: "awaiting_confirm", targetLeadId: chosenId, message: p.message });
-    await reply(confirmPrompt(ctx.lead, contractor.companyName, p.message));
+    await reply(confirmPrompt(ctx.lead, p.message));
     return { status: "ok" };
   }
 
@@ -135,7 +135,7 @@ export async function handleContractorCommand(
   }
   const lead = matches[0]!;
   setPending(contractor.id, { stage: "awaiting_confirm", targetLeadId: lead.id, message: parsed.message });
-  await reply(confirmPrompt(lead, contractor.companyName, parsed.message));
+  await reply(confirmPrompt(lead, parsed.message));
   return { status: "ok" };
 }
 
@@ -172,11 +172,15 @@ function leadDesc(l: LeadRecord): string {
 function numberedList(leads: LeadRecord[]): string {
   return leads.map((l, i) => `${i + 1}. ${l.contactName}${leadDesc(l)}`).join("\n");
 }
-function leadMessage(name: string, company: string, message: string): string {
-  return `Hi ${name}! Quick note from ${company}: ${message}`;
+function firstName(name: string): string {
+  return name.trim().split(/\s+/)[0] || name.trim();
 }
-function confirmPrompt(lead: LeadRecord, company: string, message: string): string {
-  return `I'll text ${lead.contactName}${leadDesc(lead)}:\n\n"${leadMessage(lead.contactName, company, message)}"\n\nSend it? (yes/no)`;
+function leadMessage(name: string, message: string): string {
+  const m = message.trim();
+  return `Hi ${firstName(name)}! ${m.charAt(0).toUpperCase()}${m.slice(1)}`;
+}
+function confirmPrompt(lead: LeadRecord, message: string): string {
+  return `I'll text ${lead.contactName}${leadDesc(lead)}:\n\n"${leadMessage(lead.contactName, message)}"\n\nSend it? (yes/no)`;
 }
 function pickByNumber(text: string, ids: string[]): string | null {
   const m = text.match(/\b(\d{1,2})\b/);
