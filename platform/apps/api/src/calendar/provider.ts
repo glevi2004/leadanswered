@@ -7,6 +7,8 @@ import {
   type TimeRange,
 } from "@leadanswered/core";
 import { Scheduler } from "../scheduler/scheduler.js";
+import { useGoogleCalendar } from "../env.js";
+import { googleBusy } from "./google/service.js";
 import type { BookOutcome, Store } from "../store/types.js";
 
 /**
@@ -43,8 +45,13 @@ export class InternalCalendarProvider implements CalendarProvider {
     return safeZone(this.contractor.standingAvailability?.timezone);
   }
 
-  getBusy(range: { startIso: string; endIso: string }): Promise<TimeRange[]> {
-    return this.store.getBusyTimes(this.contractor.id, range);
+  async getBusy(range: { startIso: string; endIso: string }): Promise<TimeRange[]> {
+    const dbBusy = await this.store.getBusyTimes(this.contractor.id, range);
+    if (!useGoogleCalendar()) return dbBusy;
+    // Merge the contractor's Google busy blocks so Sarah won't offer a slot they're busy on (§7.1).
+    // Fail-open: googleBusy returns [] on any error, so Google never blocks availability.
+    const gBusy = await googleBusy(this.store, this.contractor.id, range);
+    return gBusy.length ? [...dbBusy, ...gBusy] : dbBusy;
   }
 
   async getAvailability(query: AvailabilityQuery): Promise<OpenWindow[]> {
