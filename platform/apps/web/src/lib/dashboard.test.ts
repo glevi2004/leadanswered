@@ -69,7 +69,7 @@ describe("getLeadDetail — tenant isolation", () => {
       status: "qualifying",
       conversation: [
         {
-          state: "qualifying",
+          state: "agent",
           messages: [
             { id: "m2", direction: "outbound", body: "Hi", createdAt: "2026-01-01T10:01:00Z" },
             { id: "m1", direction: "inbound", body: "Hello", createdAt: "2026-01-01T10:00:00Z" },
