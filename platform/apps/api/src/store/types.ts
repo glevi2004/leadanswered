@@ -16,7 +16,7 @@ export interface LeadRecord {
   serviceZip: string | null;
   fullAddress: string | null;
   status: string;
-  /** Intake channel ("manual" | "email" | "missed_call" | "inbound_sms"). Drives channel-aware prompting. */
+  /** Intake channel ("manual" | "email" | "missed_call" | "inbound_sms" | "referral"). Selects the intake workflow (website vs missed-call). */
   source?: string;
 }
 
@@ -66,7 +66,7 @@ export interface CreateLeadInput {
 }
 
 export type LeadFieldPatch = Partial<
-  Pick<LeadRecord, "projectHint" | "serviceTown" | "serviceZip" | "fullAddress" | "status">
+  Pick<LeadRecord, "contactName" | "projectHint" | "serviceTown" | "serviceZip" | "fullAddress" | "status">
 >;
 
 export interface AppointmentRecord {

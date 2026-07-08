@@ -164,7 +164,7 @@ export class PrismaStore implements Store {
     });
     const gathered: GatheredInfo = { projectType: input.projectHint ?? null };
     const conv = await this.db.conversation.create({
-      data: { leadId: lead.id, state: "greeting", gathered: gathered as any },
+      data: { leadId: lead.id, state: "intake", gathered: gathered as any },
     });
     return { lead: mapLead(lead), contractor, conversation: mapConv(conv), messages: [] };
   }
@@ -269,6 +269,7 @@ export class PrismaStore implements Store {
     await this.db.lead.update({
       where: { id: leadId },
       data: {
+        contactName: patch.contactName,
         projectHint: patch.projectHint,
         serviceTown: patch.serviceTown,
         serviceZip: patch.serviceZip,
@@ -308,7 +309,7 @@ export class PrismaStore implements Store {
           },
         });
         await tx.lead.update({ where: { id: input.leadId }, data: { status: "booked" } });
-        await tx.conversation.update({ where: { leadId: input.leadId }, data: { state: "booked" } });
+        await tx.conversation.update({ where: { leadId: input.leadId }, data: { state: "agent" } });
         return appt;
       });
       return { ok: true, id: a.id, startIso: a.startAt.toISOString(), endIso: a.endAt.toISOString() };

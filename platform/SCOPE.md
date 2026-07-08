@@ -18,6 +18,33 @@ The conversation engine was rebuilt from the original procedural state machine (
 - **Worker pulled forward.** The `apps/worker` deployable (BullMQ/Redis) now exists for delayed/async work (the nudge today). The escalation relay is webhook-driven (no worker needed). Notification senders + the Store are reused across api and worker.
 - **Observability:** Langfuse tracing (OpenTelemetry) on every agent turn + tool call (no-op unless `LANGFUSE_*` set).
 
+## ⚙️ Architecture update (v3) — three workflows: scripted intake → agent, + a contractor agent
+
+The single open agent (v2) was split into **three explicit workflows** (authoritative spec + the locked
+message copy: `AGENT_WORKFLOWS_PLAN.md`). This overrides §5's single-engine description where they conflict.
+
+- **The two lead workflows start with a DETERMINISTIC scripted intake.** While `Conversation.state ===
+  "intake"` (a redesigned enum: `intake | agent | done`), CODE owns the sequence and sends **locked,
+  pre-written messages** (`apps/api/src/intake/engine.ts`); the model's ONLY intake job is to READ each
+  reply (a structured extractor) and pull values — so it can never double-ask. Deterministic decisions
+  reuse the tools (`qualify_lead` — now also captures the **name** → `lead.contactName`, fixing
+  "Caller"/"New lead" — `check_availability`, `book_appointment`, `escalate_to_contractor`).
+  - **Website/email:** opening asks the address → homeowner → windows → times → booking. Branch A (not
+    the homeowner → reach out to the homeowner as a NEW lead). Branch B (out of area → confirm the
+    address first, then decline).
+  - **Missed call:** intent-agnostic opening ("how can we help?") → a new job asks name+address, anything
+    else escalates → then reuses the website steps.
+  - **Off-script is adaptive, not blind:** each turn the extractor flags a question / withdrawal / info
+    given out of order; the engine answers/escalates or closes, then returns to the pending step.
+- **When intake ends (booked / handed off / declined) the conversation flips to `agent`** and the open
+  tool-using agent (v2, `agent/runner.ts`) writes freely — reschedule, cancel, post-booking Qs, escalation.
+- **The contractor is ALWAYS an agent** (`agent/contractorAgent.ts`) — the owner directs the assistant
+  ("text Levi we can start Monday") via `find_leads` + a **HARD-GATE send** (a draft is staged; **code**
+  sends it only after the owner's explicit yes — the model can't message a customer on its own). The
+  escalation-answer relay is now **composed by this agent in Sarah's own words**, not a rigid template.
+- **Routing:** `handleInbound` is a router — contractor sender → contractor agent; lead + `state=intake`
+  → intake engine; lead + `state=agent` → lead agent.
+
 ---
 
 ## 🔒 Data Integrity & Concurrency Invariants (DB-enforced, not convention)
@@ -215,7 +242,7 @@ This is the most important architectural decision in the doc. Claude Code must N
 7. **Confirm the chosen slot**, tell them the contractor will see them then.
 8. **Hand off:** trigger the contractor notification (includes the full address).
 
-**Entry point matters (unknown-intent triage).** The steps above assume a **website/email lead** — someone who explicitly asked for an estimate. A **missed call** (§9.7) is unknown-intent, so Sarah starts one step earlier: she opens by asking _how she can help_ and does not assume an estimate or ask for an address. Only a **new-project** intent proceeds into qualify→book; an existing customer, a general question, or a non-sales caller is routed to the loop-in/escalation path (§8) instead of being qualified. This is driven by channel-aware prompting, not a separate agent.
+**Entry point matters (unknown-intent triage).** The steps above assume a **website/email lead** — someone who explicitly asked for an estimate. A **missed call** (§9.7) is unknown-intent, so Sarah starts one step earlier: she opens by asking _how she can help_ and does not assume an estimate or ask for an address. Only a **new-project** intent proceeds into qualify→book; an existing customer, a general question, or a non-sales caller is routed to the loop-in/escalation path (§8) instead of being qualified. **(v3 update:** website and missed-call are now **separate scripted-intake workflows**, not one channel-aware prompt — see the v3 banner + `AGENT_WORKFLOWS_PLAN.md`.)
 
 **Conversation rules:**
 
@@ -251,7 +278,7 @@ This is the most important architectural decision in the doc. Claude Code must N
 
 **Project-type check:** the contractor's `project_types` are stored + shown **verbatim** — human labels like "Roof repair", never slugs. Matching is invisible: code reduces **both** the lead's extracted `project_type` **and** each of the contractor's labels through a small synonym map (e.g. "new roof"/"leak" → `roof_repair`) to a shared key, in-memory for this one check, then compares (`normalizeProjectType` in `packages/core/qualification.ts`). It never alters what's stored or displayed. Not an AI judgment. A *custom* label that doesn't hit a synonym won't deterministically match loose wording → it falls through to the AI/escalation path (see §11 for per-contractor synonyms).
 
-**Decision-maker → homeowner hand-off (deterministic, code-fired):** if the lead confirms they're NOT the homeowner/decision-maker, Sarah asks for the homeowner's name + phone, and **code** — not the model's discretion — pings every contractor recipient with that contact exactly once (`agent/ownerHandoff.ts`, guarded by `gathered.ownerHandoffDone`). A backstop in `conversationService` also `extractPhone`s the inbound, so the ping fires even if the model never passes the number to `qualify_lead`. The model only phrases the ask + the close; the trigger is code — because leaving this to the model (via `escalate_to_contractor`) proved unreliable across models (both Haiku and Sonnet skipped it).
+**Decision-maker → homeowner hand-off (deterministic, code-fired):** if the lead confirms they're NOT the homeowner/decision-maker, Sarah asks for the homeowner's name + phone. **(v3 update:** the intake **Branch A** now also **reaches out to the homeowner directly as a NEW lead** — `intake/engine.ts` — in addition to the contractor heads-up below.)** Code — not the model's discretion — pings every contractor recipient with that contact exactly once (`agent/ownerHandoff.ts`, guarded by `gathered.ownerHandoffDone`). A backstop in `conversationService` also `extractPhone`s the inbound, so the ping fires even if the model never passes the number to `qualify_lead`. The model only phrases the ask + the close; the trigger is code — because leaving this to the model (via `escalate_to_contractor`) proved unreliable across models (both Haiku and Sonnet skipped it).
 
 **Decision-maker check:** Claude extracts signals ("it's my house" / "I'd need to ask my landlord"); code applies the contractor's rule (e.g., require decision-maker = true to book). Phrased neutrally so it carries to non-homeowner verticals.
 

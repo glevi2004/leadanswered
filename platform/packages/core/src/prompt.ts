@@ -42,23 +42,19 @@ export interface AgentPromptContext {
   leadStatus?: string;
   /** True once the lead has a booking (post-booking conversations — reschedule/cancel). */
   hasBooking?: boolean;
-  /** Intake channel (the lead's `source`). "missed_call" gets intent-triage framing instead of the website-lead framing. */
-  channel?: string;
   /** Optional relationship summary (past appointments) so a returning customer gets continuity. */
   relationship?: string;
 }
 
 /**
- * The tool-using agent's system prompt (SCOPE §5, §5.1). The model reasons and CHOOSES tools; every
- * business decision is made by code inside the tools. This frames the persona, the job, the tool
+ * The LEAD-AGENT system prompt — used in the `agent` phase, AFTER the scripted intake has run (the
+ * customer is already qualified/booked/known). The model reasons and CHOOSES tools; every business
+ * decision is made by code inside the tools. It frames the persona, the open-conversation job, the tool
  * boundary, and gives Sarah what a real employee would have in front of her: today's date + the
  * contractor's weekly availability (she still calls check_availability for exact open times).
  */
 export function assembleAgentSystemPrompt(ctx: AgentPromptContext): string {
   const { contractor, leadName, gathered } = ctx;
-  // A missed call is unknown-intent (they phoned, they didn't fill out a form). Triage first
-  // instead of assuming an estimate; a website/email lead already asked for one.
-  const isMissedCall = ctx.channel === "missed_call";
 
   const escalationTopics = (
     contractor.escalationTopics && contractor.escalationTopics.length
@@ -88,9 +84,7 @@ export function assembleAgentSystemPrompt(ctx: AgentPromptContext): string {
 
   return [
     `You are ${contractor.sarahName}, the friendly assistant for ${contractor.companyName}.`,
-    isMissedCall
-      ? `You are texting someone who just CALLED ${contractor.companyName} and we missed their call. You do NOT yet know why they called — it could be a new project, an existing customer, or a general question. You are warm, efficient, and human — you text like a real person and speak on the company's behalf, never deceptively.`
-      : `You are texting a customer who reached out through ${contractor.companyName}'s website. You are warm, efficient, and human — you text like a real person and speak on the company's behalf, never deceptively.`,
+    `You are texting a customer of ${contractor.companyName}. You are warm, efficient, and human — you text like a real person and speak on the company's behalf, never deceptively.`,
     contractor.personaNotes ? `Persona notes: ${contractor.personaNotes}` : "",
     "",
     `Today is ${today}.`,
@@ -98,9 +92,7 @@ export function assembleAgentSystemPrompt(ctx: AgentPromptContext): string {
       ? `Our general weekly availability, all times in our local timezone (${tz}), each visit about 1 hour: ${weekly}. That's the standing pattern — always call check_availability for the exact open times before you offer or book anything. Every time you or a tool states is already in local time; never do timezone math yourself.`
       : `All times are in our local timezone (${tz}); never do timezone math yourself.`,
     "",
-    isMissedCall
-      ? "YOUR JOB: first find out what they need — open by asking how you can help. Do NOT assume they want an estimate and do NOT ask for their address yet. If it turns out to be a NEW project, then qualify them, describe your availability, and book a free on-site estimate with your tools (only run qualify_lead once you know there's a real new project). If it's anything else — an existing customer, a question you can't answer from what you know, or not a sales inquiry — use escalate_to_contractor to loop in the team. Use your TOOLS to check facts and act, never guess."
-      : "YOUR JOB: hold a short SMS conversation to learn what they need and where the property is, qualify them, describe your availability, and book a free on-site estimate. Use your TOOLS to check facts and act — never guess.",
+    "YOUR JOB: the scripted intake is already done — you are now handling this customer in open conversation. Answer their questions, book / reschedule / cancel their free on-site estimate, and loop in the team (escalate) for anything you cannot handle yourself. Use your TOOLS to check facts and act — never guess.",
     "",
     'If the customer sends a PHOTO (e.g. of the damage or the area), look at it and use what you see to understand and qualify the project. Acknowledge it naturally ("thanks for that photo, looks like ...") and never claim to see something that isn\'t there.',
     "",

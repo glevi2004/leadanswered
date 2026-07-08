@@ -1,8 +1,9 @@
 import type { EmailSender, SmsSender } from "@leadanswered/core";
 import type { LanguageModel } from "ai";
 import { generateAgentReply, type ChatTurn } from "./agent/runner.js";
+import { runIntakeTurn } from "./intake/engine.js";
 import { downloadTwilioImages, type InboundMedia } from "./media.js";
-import { handleContractorCommand } from "./contractorCommands.js";
+import { handleContractorTurn, composeEscalationRelay } from "./agent/contractorAgent.js";
 import type { ToolState } from "./agent/tools.js";
 import { extractPhone, handOffOwnerIfReady } from "./agent/ownerHandoff.js";
 import { enqueueNudge } from "./queue.js";
@@ -131,9 +132,14 @@ export async function handleInbound(deps: ConversationDeps, input: InboundInput)
       }
     }
 
+    // Route by phase: the scripted intake engine drives while state === "intake"; once intake ends
+    // (booked / handed off / declined) it flips to "agent" and the open agent writes freely.
     let reply: string;
     try {
-      reply = await generateAgentReply({ ...deps, now }, state, history);
+      reply =
+        fresh.conversation.state === "intake"
+          ? await runIntakeTurn({ ...deps, now }, state, history)
+          : await generateAgentReply({ ...deps, now }, state, history);
     } catch (err) {
       console.error(`[sms] agent error for ${input.fromNumber} — no reply sent:`, err);
       return { status: "error" };
@@ -193,9 +199,10 @@ async function maybeHandleContractorMessage(
   if (!fromIsContractor) return null;
 
   const esc = await store.findOpenEscalationByContractorReply(contractor.id);
+  const agentDeps = { store, model: deps.model, sms, email: deps.email, now: (deps.now ?? (() => new Date()))() };
   if (!esc) {
-    // No escalation in flight → interpret as a contractor command.
-    return handleContractorCommand({ store, sms, model: deps.model }, contractor, input);
+    // No escalation in flight → the owner is directing the assistant (Workflow 3 — contractor agent).
+    return handleContractorTurn(agentDeps, contractor, input);
   }
 
   // Win the resolve before relaying — the conditional update is the at-most-once guard.
@@ -204,7 +211,8 @@ async function maybeHandleContractorMessage(
 
   const leadCtx: LeadContext | null = await store.getContextByLeadId(esc.leadId);
   if (leadCtx) {
-    const relay = `Hi ${leadCtx.lead.contactName}! Quick update from ${contractor.companyName}: ${input.body}`;
+    // Relay the owner's answer to the customer IN SARAH'S OWN WORDS (agent-composed, not a template).
+    const relay = await composeEscalationRelay(agentDeps, contractor, leadCtx, input.body);
     await store.appendMessage(leadCtx.conversation.id, { direction: "outbound", body: relay });
     try {
       await sms.send(leadCtx.lead.contactPhone, relay);

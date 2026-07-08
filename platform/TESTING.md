@@ -121,6 +121,15 @@ These are the bugs the integrity rebuild fixed (see SCOPE → "Data Integrity & 
 
 ## 6. Sarah — conversational behavior (now automated)
 
+> **v3 workflows (`AGENT_WORKFLOWS_PLAN.md`):** a new lead now runs a **scripted intake** first — the
+> opening + address/homeowner/windows/times/booking asks are **locked copy** (verify they read exactly
+> as scripted, one question at a time, no double-asks), and the **name** the customer gives shows on the
+> dashboard lead (no more "Caller"/"New lead"). Off-script replies (a question, "I went with someone
+> else") should adapt, not plow ahead. After booking/handoff/decline the thread flips to the **open
+> agent** (reschedule/cancel/Qs). Missed-call opens "how can we help?"; a not-a-job reply escalates.
+> Contractor texts ("text Levi we can start Monday") go to the **contractor agent** — it reads the draft
+> back and sends only after your **yes** (nothing reaches the customer before that).
+
 **Sarah's conversational behavior is covered by the automated E2E suite** — real Claude driven through
 full conversations, asserting on outcomes + a Sonnet judge. It's the source of truth for the specific
 scenarios (qualification in/out of area + referral escalation, tenant → homeowner hand-off, availability

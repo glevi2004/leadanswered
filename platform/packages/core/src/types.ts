@@ -78,6 +78,9 @@ export interface GatheredInfo {
   nudgedAt?: string | null;
   /** Why the customer reached out — set by the agent once known; drives follow-ups + notifications. */
   intent?: "new_project" | "existing_customer" | "general_question" | "other" | null;
+  /** Intake code flag (Branch B): we've asked an out-of-area lead to confirm their address before
+   *  declining, so the next reply is a confirm/correction rather than re-asking. */
+  outOfAreaConfirmAsked?: boolean | null;
 }
 
 export type MissingField = "location" | "project" | "decision_maker";
@@ -103,12 +106,11 @@ export interface QualificationResult {
   zipUnverified: boolean;
 }
 
+/** The conversation phase. `intake` = the scripted step engine is driving; `agent` = intake is
+ *  done and the open agent writes freely; `done` = hard-closed. Router branches on this. */
 export type Stage =
-  | "greeting"
-  | "qualifying"
-  | "proposing_slots"
-  | "confirming"
-  | "booked"
+  | "intake"
+  | "agent"
   | "done";
 
 export type NotificationEventType =

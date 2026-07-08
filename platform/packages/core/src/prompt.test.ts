@@ -49,19 +49,15 @@ describe("assembleAgentSystemPrompt (tool-using agent)", () => {
     expect(p).toMatch(/referral or recommendation/i);
   });
 
-  it("keeps the website + estimate framing for a normal (web) lead", () => {
-    const p = assembleAgentSystemPrompt({ contractor, leadName: "Jane", gathered: {}, now });
-    expect(p).toMatch(/reached out through .*website/i);
-    expect(p).toContain("book a free on-site estimate");
-    expect(p).not.toMatch(/just CALLED/);
-  });
-
-  it("uses intent-triage framing for a missed call (does not assume an estimate)", () => {
-    const p = assembleAgentSystemPrompt({ contractor, leadName: "Caller", gathered: {}, now, channel: "missed_call" });
-    expect(p).toMatch(/just CALLED/); // acknowledges they phoned, unknown intent
-    expect(p).toMatch(/first find out what they need/i); // triage, not the estimate funnel
-    expect(p).toMatch(/escalate_to_contractor to loop in the team/i); // non-estimate route
-    expect(p).not.toMatch(/reached out through/i); // no website assumption
-    expect(p).not.toContain("hold a short SMS conversation to learn what they need and where the property is"); // not the default JOB
+  it("frames the AGENT phase (intake already done) with NO channel-specific opening branching", () => {
+    // The opening + website/missed-call framing moved to the scripted intake (intake/engine.ts). The
+    // agent prompt handles the OPEN phase and no longer branches on channel.
+    // Same leadName both times — the ONLY thing that used to vary the opening was the channel.
+    const web = assembleAgentSystemPrompt({ contractor, leadName: "Jane", gathered: {}, now });
+    const missed = assembleAgentSystemPrompt({ contractor, leadName: "Jane", gathered: {}, now });
+    expect(web).toMatch(/scripted intake is already done/i);
+    expect(web).not.toMatch(/just CALLED/);
+    expect(web).not.toMatch(/reached out through .*website/i);
+    expect(web).toBe(missed); // identical regardless of source — no channel branching remains
   });
 });

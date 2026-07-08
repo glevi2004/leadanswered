@@ -36,11 +36,8 @@ enum LeadStatus {
 }
 
 enum ConversationState {
-  greeting
-  qualifying
-  proposing_slots
-  confirming
-  booked
+  intake
+  agent
   done
 }
 
@@ -164,7 +161,7 @@ model Lead {
 model Conversation {
   id        String            @id @default(cuid())
   leadId    String            @unique
-  state     ConversationState @default(greeting)
+  state     ConversationState @default(intake)
   gathered  Json              @default("{}") // accumulated extraction working-memory
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
