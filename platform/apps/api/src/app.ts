@@ -18,6 +18,7 @@ import {
   createGoogleDisconnectRoute,
 } from "./calendar/google/oauthRoutes.js";
 import { createGoogleNotifyRoute } from "./calendar/google/notifyRoute.js";
+import { createAppointmentChangeRoute } from "./routes/appointments.js";
 import { testContractor, testRecipients } from "./seed.js";
 
 export interface BuildDeps {
@@ -83,6 +84,12 @@ export async function createApp(overrides: BuildDeps = {}): Promise<Express> {
     app.get("/google/callback", createGoogleCallbackRoute(store));
     app.post("/google/disconnect", createGoogleDisconnectRoute(store));
     app.post("/google/notifications", createGoogleNotifyRoute(deps));
+  }
+
+  // Dashboard-initiated appointment change (cancel/reschedule) — the other trigger of applyContractorChange.
+  // Works even without Google connected (it just won't push); needs the shared state secret to auth the web.
+  if (env.CALENDAR_STATE_SECRET) {
+    app.post("/appointments/change", createAppointmentChangeRoute(deps));
   }
 
   return app;

@@ -4,13 +4,15 @@ import { listAppointments, type AppointmentRow } from "@/lib/dashboard";
 import { apptStatusBadge, formatWhen } from "@/lib/dashboard-ui";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CancelButton } from "./CancelButton";
 
-function ApptList({ items, tz, empty }: { items: AppointmentRow[]; tz: string; empty: string }) {
+function ApptList({ items, tz, empty, cancellable }: { items: AppointmentRow[]; tz: string; empty: string; cancellable?: boolean }) {
   if (items.length === 0) return <p className="py-4 text-sm text-muted-foreground">{empty}</p>;
   return (
     <div className="flex flex-col gap-1">
       {items.map((a) => {
         const b = apptStatusBadge(a.status);
+        const active = a.status === "confirmed" || a.status === "proposed";
         return (
           <div key={a.id} className="flex items-center justify-between rounded-md px-2 py-2">
             <div className="min-w-0">
@@ -23,7 +25,10 @@ function ApptList({ items, tz, empty }: { items: AppointmentRow[]; tz: string; e
               )}
               <p className="text-xs text-muted-foreground">{formatWhen(a.startAt, tz)}</p>
             </div>
-            <Badge variant={b.variant}>{b.label}</Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant={b.variant}>{b.label}</Badge>
+              {cancellable && active && <CancelButton appointmentId={a.id} />}
+            </div>
           </div>
         );
       })}
@@ -54,7 +59,7 @@ export default async function AppointmentsPage() {
           <CardTitle className="text-base">Upcoming</CardTitle>
         </CardHeader>
         <CardContent>
-          <ApptList items={upcoming} tz={tz} empty="Nothing booked yet." />
+          <ApptList items={upcoming} tz={tz} empty="Nothing booked yet." cancellable />
         </CardContent>
       </Card>
 
