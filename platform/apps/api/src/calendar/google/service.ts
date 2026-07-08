@@ -1,7 +1,11 @@
+import { randomUUID } from "node:crypto";
 import type { TimeRange } from "@leadanswered/core";
+import { env } from "../../env.js";
 import type { CalendarConnectionRecord, Store } from "../../store/types.js";
 import { GoogleAuthError, GoogleCalendarClient, type StoredTokens } from "./client.js";
 import { decryptToken, encryptToken } from "./crypto.js";
+
+const WATCH_TTL_SEC = 7 * 24 * 3600; // Google's calendar watch channels last ~a week; renewed by the worker.
 
 /**
  * Glue between the Store's `CalendarConnection` rows and the `GoogleCalendarClient` — builds a client
@@ -49,4 +53,31 @@ export async function googleBusy(
     }
     return [];
   }
+}
+
+/**
+ * Register (or re-register) a Google push channel so calendar changes hit our webhook (§9). Best-effort:
+ * with no public API URL we skip it and rely on polling. Stores the channel id/resource/token/expiry.
+ */
+export async function registerWatch(store: Store, contractorId: string): Promise<void> {
+  if (!env.API_PUBLIC_URL) return; // no public webhook endpoint → polling-only
+  const conn = await store.getCalendarConnection(contractorId, "google");
+  if (!conn || conn.status !== "connected" || !conn.externalCalendarId) return;
+  const client = googleClientFor(store, conn);
+  if (!client) return;
+  const channelId = randomUUID();
+  const channelToken = randomUUID();
+  const address = `${env.API_PUBLIC_URL.replace(/\/$/, "")}/google/notifications`;
+  const { resourceId, expiration } = await client.watch(conn.externalCalendarId, {
+    channelId,
+    address,
+    token: channelToken,
+    ttlSec: WATCH_TTL_SEC,
+  });
+  await store.upsertCalendarConnection(contractorId, "google", {
+    channelId,
+    resourceId,
+    channelToken,
+    channelExpiresAt: expiration ? new Date(expiration).toISOString() : null,
+  });
 }

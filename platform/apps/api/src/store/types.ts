@@ -78,6 +78,9 @@ export interface AppointmentRecord {
   status: string;
   /** IANA timezone the contractor was in when booked (for correct display if their tz later changes). */
   timezone?: string;
+  /** Calendar-sync mirror (for inbound reconcile + loop prevention). */
+  externalEventId?: string | null;
+  externalEtag?: string | null;
 }
 
 export type AppointmentPatch = Partial<{
@@ -191,6 +194,8 @@ export interface Store {
   updateAppointment(id: string, patch: AppointmentPatch): Promise<void>;
   /** Fetch one appointment by id — the calendar-sync worker + the appointment-change handler use it. */
   getAppointmentById(id: string): Promise<AppointmentRecord | null>;
+  /** Reverse-map a Google event id → our appointment, for inbound reconcile. */
+  findAppointmentByExternalEventId(contractorId: string, externalEventId: string): Promise<AppointmentRecord | null>;
   /** Record the OUTBOUND-sync state of an appointment (external ids / etag / syncState). Never in a tx. */
   updateAppointmentSync(id: string, patch: AppointmentSyncPatch): Promise<void>;
 

@@ -86,6 +86,8 @@ function mapAppt(a: any): AppointmentRecord {
     endIso: a.endAt.toISOString(),
     status: a.status,
     timezone: a.timezone,
+    externalEventId: a.externalEventId ?? null,
+    externalEtag: a.externalEtag ?? null,
   };
 }
 
@@ -435,6 +437,11 @@ export class PrismaStore implements Store {
 
   async getAppointmentById(id: string): Promise<AppointmentRecord | null> {
     const a = await this.db.appointment.findUnique({ where: { id } });
+    return a ? mapAppt(a) : null;
+  }
+
+  async findAppointmentByExternalEventId(contractorId: string, externalEventId: string): Promise<AppointmentRecord | null> {
+    const a = await this.db.appointment.findFirst({ where: { contractorId, externalEventId } });
     return a ? mapAppt(a) : null;
   }
 

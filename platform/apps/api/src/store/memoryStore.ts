@@ -40,6 +40,19 @@ const isActive = (status: string) => status === "proposed" || status === "confir
 const overlaps = (aStart: string, aEnd: string, start: number, end: number) =>
   new Date(aStart).getTime() < end && new Date(aEnd).getTime() > start; // half-open
 
+function memAppt(a: ApptRow): AppointmentRecord {
+  return {
+    id: a.id,
+    leadId: a.leadId,
+    contractorId: a.contractorId,
+    startIso: a.startIso,
+    endIso: a.endIso,
+    status: a.status,
+    externalEventId: a.externalEventId ?? null,
+    externalEtag: a.externalEtag ?? null,
+  };
+}
+
 /**
  * In-memory Store for demo mode + tests. It MIMICS the DB integrity constraints
  * (no overlapping active appointment per contractor; one active per lead) so logic
@@ -341,9 +354,12 @@ export class MemoryStore implements Store {
 
   async getAppointmentById(id: string): Promise<AppointmentRecord | null> {
     const a = this.appointments.find((x) => x.id === id);
-    return a
-      ? { id: a.id, leadId: a.leadId, contractorId: a.contractorId, startIso: a.startIso, endIso: a.endIso, status: a.status }
-      : null;
+    return a ? memAppt(a) : null;
+  }
+
+  async findAppointmentByExternalEventId(contractorId: string, externalEventId: string): Promise<AppointmentRecord | null> {
+    const a = this.appointments.find((x) => x.contractorId === contractorId && x.externalEventId === externalEventId);
+    return a ? memAppt(a) : null;
   }
 
   async updateAppointmentSync(id: string, patch: AppointmentSyncPatch): Promise<void> {
