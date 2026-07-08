@@ -37,6 +37,18 @@ function SignIn() {
     else router.push("/");
   }
 
+  async function onGoogle() {
+    setError(null);
+    const supabase = createSupabaseBrowser();
+    // Google is an alternative CREDENTIAL for already-invited contractors. The home page (/) gates on
+    // ownerEmail, so a Google sign-in for an unknown email is blocked there — invite-only is preserved.
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/auth/land` },
+    });
+    if (error) setError(error.message);
+  }
+
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
       <Card className="w-full max-w-sm">
@@ -57,6 +69,14 @@ function SignIn() {
             <Button type="submit" disabled={loading}>{loading ? "Signing in…" : "Sign in"}</Button>
             {error && <p className="text-sm text-destructive">{error}</p>}
           </form>
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-xs text-muted-foreground">or</span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
+          <Button type="button" variant="outline" onClick={onGoogle}>
+            Continue with Google
+          </Button>
           <div className="text-sm">
             <Link href="/forgot-password" className="text-primary hover:underline">
               Forgot your password?

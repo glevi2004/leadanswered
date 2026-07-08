@@ -1,7 +1,7 @@
 import express, { type Express } from "express";
 import type { LanguageModel } from "ai";
 import type { EmailSender, SmsSender } from "@leadanswered/core";
-import { allowInboundLeads, usePostgres, useTwilio } from "./env.js";
+import { allowInboundLeads, usePostgres, useTwilio, useGoogleCalendar } from "./env.js";
 import type { Store } from "./store/types.js";
 import { MemoryStore } from "./store/memoryStore.js";
 import { ConsoleSmsSender, TwilioSmsSender } from "./sms.js";
@@ -12,6 +12,13 @@ import { createLeadRoute } from "./routes/lead.js";
 import { createWebhookRoute } from "./routes/webhook.js";
 import { createVoiceRoute } from "./routes/voice.js";
 import { createEmailWebhookRoute } from "./routes/emailWebhook.js";
+import {
+  createGoogleConnectRoute,
+  createGoogleCallbackRoute,
+  createGoogleDisconnectRoute,
+} from "./calendar/google/oauthRoutes.js";
+import { createGoogleNotifyRoute } from "./calendar/google/notifyRoute.js";
+import { createAppointmentChangeRoute } from "./routes/appointments.js";
 import { testContractor, testRecipients } from "./seed.js";
 
 export interface BuildDeps {
@@ -70,6 +77,20 @@ export async function createApp(overrides: BuildDeps = {}): Promise<Express> {
   app.post("/webhooks/twilio/sms", createWebhookRoute(deps));
   app.post("/webhooks/twilio/voice", createVoiceRoute(deps));
   app.post("/webhooks/email/postmark/:secret", createEmailWebhookRoute(deps));
+
+  // Google Calendar OAuth + inbound push webhook (inert unless GOOGLE creds + token key are set).
+  if (useGoogleCalendar()) {
+    app.get("/google/connect", createGoogleConnectRoute());
+    app.get("/google/callback", createGoogleCallbackRoute(store));
+    app.post("/google/disconnect", createGoogleDisconnectRoute(store));
+    app.post("/google/notifications", createGoogleNotifyRoute(deps));
+  }
+
+  // Dashboard-initiated appointment change (cancel/reschedule) — the other trigger of applyContractorChange.
+  // Works even without Google connected (it just won't push); needs the shared state secret to auth the web.
+  if (env.CALENDAR_STATE_SECRET) {
+    app.post("/appointments/change", createAppointmentChangeRoute(deps));
+  }
 
   return app;
 }

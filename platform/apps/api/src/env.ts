@@ -26,6 +26,18 @@ export const env = {
   LANGFUSE_SECRET_KEY: process.env.LANGFUSE_SECRET_KEY ?? "",
   // Region base URL — US is https://us.cloud.langfuse.com (EU is the SDK default).
   LANGFUSE_BASE_URL: process.env.LANGFUSE_BASE_URL ?? "",
+  // --- Google Calendar sync + Google login (GOOGLE_CALENDAR.md) ---
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ?? "",
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET ?? "",
+  GOOGLE_OAUTH_REDIRECT_URI: process.env.GOOGLE_OAUTH_REDIRECT_URI ?? "",
+  // AES-256-GCM key (base64, 32 bytes) for encrypting stored Google tokens at rest.
+  CALENDAR_TOKEN_KEY: process.env.CALENDAR_TOKEN_KEY ?? "",
+  // Signing key (HMAC) for the OAuth `state` param + the watch-channel token (CSRF / webhook auth).
+  CALENDAR_STATE_SECRET: process.env.CALENDAR_STATE_SECRET ?? process.env.CALENDAR_TOKEN_KEY ?? "",
+  // Public URL the api is reachable at — used for the OAuth redirect + the Google push webhook.
+  API_PUBLIC_URL: process.env.API_PUBLIC_URL ?? "",
+  // The web dashboard base URL — where the OAuth callback sends the contractor back.
+  APP_BASE_URL: process.env.APP_BASE_URL ?? "http://localhost:3001",
 };
 
 /**
@@ -54,6 +66,13 @@ export const usePostgres = (): boolean => env.DATABASE_URL.length > 0;
 /** Real Twilio sending is on when credentials are set; otherwise we log to the console. */
 export const useTwilio = (): boolean =>
   env.TWILIO_ACCOUNT_SID.length > 0 && env.TWILIO_AUTH_TOKEN.length > 0;
+
+/** Google Calendar sync is on when the OAuth client + token key are set; otherwise the connect flow is
+ *  inert and availability/booking run DB-only (fail-open). */
+export const useGoogleCalendar = (): boolean =>
+  env.GOOGLE_CLIENT_ID.length > 0 &&
+  env.GOOGLE_CLIENT_SECRET.length > 0 &&
+  env.CALENDAR_TOKEN_KEY.length > 0;
 
 
 /**

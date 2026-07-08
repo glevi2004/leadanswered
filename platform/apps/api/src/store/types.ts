@@ -78,6 +78,9 @@ export interface AppointmentRecord {
   status: string;
   /** IANA timezone the contractor was in when booked (for correct display if their tz later changes). */
   timezone?: string;
+  /** Calendar-sync mirror (for inbound reconcile + loop prevention). */
+  externalEventId?: string | null;
+  externalEtag?: string | null;
 }
 
 export type AppointmentPatch = Partial<{
@@ -93,6 +96,36 @@ export type AppointmentPatch = Partial<{
 export type BookOutcome =
   | { ok: true; id: string; startIso: string; endIso: string }
   | { ok: false; reason: "slot_taken" | "lead_has_active" };
+
+/** A calendar-sync mutation on an appointment — external ids/etag/state. NEVER inside a booking tx. */
+export type AppointmentSyncPatch = Partial<{
+  externalProvider: string;
+  externalCalendarId: string;
+  externalEventId: string | null;
+  externalEtag: string | null;
+  syncState: string;
+  syncedAt: string; // ISO
+}>;
+
+/** A contractor's connected external calendar (Google today). Tokens are stored ENCRYPTED at rest. */
+export interface CalendarConnectionRecord {
+  id: string;
+  contractorId: string;
+  provider: string;
+  externalCalendarId: string | null;
+  accessToken: string | null; // encrypted
+  refreshToken: string | null; // encrypted
+  tokenExpiresAt: string | null; // ISO
+  status: string; // disconnected | connected | needs_reconnect
+  scope: string | null;
+  email: string | null;
+  syncToken: string | null;
+  channelId: string | null;
+  resourceId: string | null;
+  channelToken: string | null;
+  channelExpiresAt: string | null; // ISO
+}
+export type CalendarConnectionPatch = Partial<Omit<CalendarConnectionRecord, "id" | "contractorId" | "provider">>;
 
 export interface EscalationRecord {
   id: string;
@@ -159,6 +192,20 @@ export interface Store {
   /** Reschedule a specific appointment to a new slot, guarded against contractor conflicts. */
   rescheduleAppointment(id: string, startIso: string, endIso: string): Promise<BookOutcome>;
   updateAppointment(id: string, patch: AppointmentPatch): Promise<void>;
+  /** Fetch one appointment by id — the calendar-sync worker + the appointment-change handler use it. */
+  getAppointmentById(id: string): Promise<AppointmentRecord | null>;
+  /** Reverse-map a Google event id → our appointment, for inbound reconcile. */
+  findAppointmentByExternalEventId(contractorId: string, externalEventId: string): Promise<AppointmentRecord | null>;
+  /** Record the OUTBOUND-sync state of an appointment (external ids / etag / syncState). Never in a tx. */
+  updateAppointmentSync(id: string, patch: AppointmentSyncPatch): Promise<void>;
+
+  // --- Calendar connections (Google Calendar two-way sync) ---
+  getCalendarConnection(contractorId: string, provider?: string): Promise<CalendarConnectionRecord | null>;
+  /** Look up a connection by its Google push-channel id (webhook → which contractor). */
+  getCalendarConnectionByChannel(channelId: string): Promise<CalendarConnectionRecord | null>;
+  /** All currently-connected calendars (worker polling / channel-renewal sweep). */
+  listConnectedCalendars(): Promise<CalendarConnectionRecord[]>;
+  upsertCalendarConnection(contractorId: string, provider: string, patch: CalendarConnectionPatch): Promise<CalendarConnectionRecord>;
 
   // --- Escalations (loop in the contractor; relay their answer back) ---
   createEscalation(input: {

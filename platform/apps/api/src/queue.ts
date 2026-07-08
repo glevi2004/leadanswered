@@ -56,3 +56,43 @@ export async function enqueueEscalationSla(escalationId: string, stage: 1 | 2): 
     { delay: ESCALATION_SLA_MS[stage], jobId: `esc-${stage}-${escalationId}`, removeOnComplete: true, removeOnFail: true },
   );
 }
+
+// --- Calendar sync (GOOGLE_CALENDAR.md §10): outbound push, inbound reconcile, channel renewal. ---
+let calendarQueueInstance: Queue | null = null;
+async function calendarQueue(): Promise<Queue | null> {
+  if (!env.REDIS_URL) return null;
+  if (!calendarQueueInstance) {
+    const { Queue } = await import("bullmq");
+    calendarQueueInstance = new Queue("calendar-sync", { connection: { url: env.REDIS_URL } });
+  }
+  return calendarQueueInstance;
+}
+
+/** Push an appointment change to the contractor's Google Calendar (best-effort, retried). No-op w/o Redis. */
+export async function enqueueCalendarPush(appointmentId: string, op: "create" | "update" | "delete"): Promise<void> {
+  const q = await calendarQueue();
+  if (!q) return;
+  await q.add(
+    "push",
+    { appointmentId, op },
+    { attempts: 5, backoff: { type: "exponential", delay: 5000 }, removeOnComplete: true, removeOnFail: 100 },
+  );
+}
+
+/** Run an incremental inbound sync for a contractor (from the webhook). Deduped per contractor. */
+export async function enqueueInboundSync(contractorId: string): Promise<void> {
+  const q = await calendarQueue();
+  if (!q) return;
+  await q.add(
+    "inbound",
+    { contractorId },
+    { jobId: `inbound-${contractorId}`, removeOnComplete: true, removeOnFail: true },
+  );
+}
+
+/** Repeatable polling safety net (§9): sweep every connected calendar + renew watch channels. */
+export async function enqueueCalendarPoll(everyMs = 20 * 60 * 1000): Promise<void> {
+  const q = await calendarQueue();
+  if (!q) return;
+  await q.add("poll", {}, { repeat: { every: everyMs }, jobId: "calendar-poll", removeOnComplete: true, removeOnFail: true });
+}

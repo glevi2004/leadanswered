@@ -11,7 +11,10 @@ import { createConversationLock } from "./conversationLock.js";
 import type {
   AppointmentPatch,
   AppointmentRecord,
+  AppointmentSyncPatch,
   BookOutcome,
+  CalendarConnectionPatch,
+  CalendarConnectionRecord,
   ConversationRecord,
   CreateLeadInput,
   LeadContext,
@@ -83,6 +86,46 @@ function mapAppt(a: any): AppointmentRecord {
     endIso: a.endAt.toISOString(),
     status: a.status,
     timezone: a.timezone,
+    externalEventId: a.externalEventId ?? null,
+    externalEtag: a.externalEtag ?? null,
+  };
+}
+
+function mapConn(c: any): CalendarConnectionRecord {
+  return {
+    id: c.id,
+    contractorId: c.contractorId,
+    provider: c.provider,
+    externalCalendarId: c.externalCalendarId ?? null,
+    accessToken: c.accessToken ?? null,
+    refreshToken: c.refreshToken ?? null,
+    tokenExpiresAt: c.tokenExpiresAt ? c.tokenExpiresAt.toISOString() : null,
+    status: c.status,
+    scope: c.scope ?? null,
+    email: c.email ?? null,
+    syncToken: c.syncToken ?? null,
+    channelId: c.channelId ?? null,
+    resourceId: c.resourceId ?? null,
+    channelToken: c.channelToken ?? null,
+    channelExpiresAt: c.channelExpiresAt ? c.channelExpiresAt.toISOString() : null,
+  };
+}
+
+function connData(p: CalendarConnectionPatch): Record<string, unknown> {
+  const iso = (v: string | null | undefined) => (v != null ? new Date(v) : v === null ? null : undefined);
+  return {
+    externalCalendarId: p.externalCalendarId,
+    accessToken: p.accessToken,
+    refreshToken: p.refreshToken,
+    tokenExpiresAt: iso(p.tokenExpiresAt),
+    status: p.status,
+    scope: p.scope,
+    email: p.email,
+    syncToken: p.syncToken,
+    channelId: p.channelId,
+    resourceId: p.resourceId,
+    channelToken: p.channelToken,
+    channelExpiresAt: iso(p.channelExpiresAt),
   };
 }
 
@@ -390,6 +433,61 @@ export class PrismaStore implements Store {
         cancelReason: patch.cancelReason,
       },
     });
+  }
+
+  async getAppointmentById(id: string): Promise<AppointmentRecord | null> {
+    const a = await this.db.appointment.findUnique({ where: { id } });
+    return a ? mapAppt(a) : null;
+  }
+
+  async findAppointmentByExternalEventId(contractorId: string, externalEventId: string): Promise<AppointmentRecord | null> {
+    const a = await this.db.appointment.findFirst({ where: { contractorId, externalEventId } });
+    return a ? mapAppt(a) : null;
+  }
+
+  async updateAppointmentSync(id: string, patch: AppointmentSyncPatch): Promise<void> {
+    await this.db.appointment.update({
+      where: { id },
+      data: {
+        externalProvider: patch.externalProvider,
+        externalCalendarId: patch.externalCalendarId,
+        externalEventId: patch.externalEventId,
+        externalEtag: patch.externalEtag,
+        syncState: patch.syncState as any,
+        syncedAt: patch.syncedAt != null ? new Date(patch.syncedAt) : undefined,
+      },
+    });
+  }
+
+  async getCalendarConnection(contractorId: string, provider = "google"): Promise<CalendarConnectionRecord | null> {
+    const c = await this.db.calendarConnection.findUnique({
+      where: { contractorId_provider: { contractorId, provider } },
+    });
+    return c ? mapConn(c) : null;
+  }
+
+  async getCalendarConnectionByChannel(channelId: string): Promise<CalendarConnectionRecord | null> {
+    const c = await this.db.calendarConnection.findFirst({ where: { channelId } });
+    return c ? mapConn(c) : null;
+  }
+
+  async listConnectedCalendars(): Promise<CalendarConnectionRecord[]> {
+    const rows = await this.db.calendarConnection.findMany({ where: { status: "connected" } });
+    return rows.map(mapConn);
+  }
+
+  async upsertCalendarConnection(
+    contractorId: string,
+    provider: string,
+    patch: CalendarConnectionPatch,
+  ): Promise<CalendarConnectionRecord> {
+    const data = connData(patch);
+    const c = await this.db.calendarConnection.upsert({
+      where: { contractorId_provider: { contractorId, provider } },
+      create: { contractorId, provider, ...data },
+      update: data,
+    });
+    return mapConn(c);
   }
 
   async createEscalation(input: {

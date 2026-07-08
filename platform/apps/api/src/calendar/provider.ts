@@ -7,6 +7,9 @@ import {
   type TimeRange,
 } from "@leadanswered/core";
 import { Scheduler } from "../scheduler/scheduler.js";
+import { useGoogleCalendar } from "../env.js";
+import { enqueueCalendarPush } from "../queue.js";
+import { googleBusy } from "./google/service.js";
 import type { BookOutcome, Store } from "../store/types.js";
 
 /**
@@ -43,8 +46,13 @@ export class InternalCalendarProvider implements CalendarProvider {
     return safeZone(this.contractor.standingAvailability?.timezone);
   }
 
-  getBusy(range: { startIso: string; endIso: string }): Promise<TimeRange[]> {
-    return this.store.getBusyTimes(this.contractor.id, range);
+  async getBusy(range: { startIso: string; endIso: string }): Promise<TimeRange[]> {
+    const dbBusy = await this.store.getBusyTimes(this.contractor.id, range);
+    if (!useGoogleCalendar()) return dbBusy;
+    // Merge the contractor's Google busy blocks so Sarah won't offer a slot they're busy on (§7.1).
+    // Fail-open: googleBusy returns [] on any error, so Google never blocks availability.
+    const gBusy = await googleBusy(this.store, this.contractor.id, range);
+    return gBusy.length ? [...dbBusy, ...gBusy] : dbBusy;
   }
 
   async getAvailability(query: AvailabilityQuery): Promise<OpenWindow[]> {
@@ -58,21 +66,27 @@ export class InternalCalendarProvider implements CalendarProvider {
     );
   }
 
-  book(input: { leadId: string; startIso: string; durationMin?: number }): Promise<BookOutcome> {
-    return this.scheduler.book({
+  async book(input: { leadId: string; startIso: string; durationMin?: number }): Promise<BookOutcome> {
+    const res = await this.scheduler.book({
       leadId: input.leadId,
       contractorId: this.contractor.id,
       startIso: input.startIso,
       timezone: this.tz(),
       durationMin: input.durationMin,
     });
+    // Mirror the booking to Google (best-effort, after the DB commit — never blocks the booking).
+    if (res.ok && useGoogleCalendar()) await enqueueCalendarPush(res.id, "create").catch(() => {});
+    return res;
   }
 
-  reschedule(appointmentId: string, startIso: string, durationMin?: number): Promise<BookOutcome> {
-    return this.scheduler.reschedule(appointmentId, startIso, durationMin);
+  async reschedule(appointmentId: string, startIso: string, durationMin?: number): Promise<BookOutcome> {
+    const res = await this.scheduler.reschedule(appointmentId, startIso, durationMin);
+    if (res.ok && useGoogleCalendar()) await enqueueCalendarPush(appointmentId, "update").catch(() => {});
+    return res;
   }
 
-  cancel(appointmentId: string, reason: string | null, nowIso: string): Promise<void> {
-    return this.scheduler.cancel(appointmentId, reason, nowIso);
+  async cancel(appointmentId: string, reason: string | null, nowIso: string): Promise<void> {
+    await this.scheduler.cancel(appointmentId, reason, nowIso);
+    if (useGoogleCalendar()) await enqueueCalendarPush(appointmentId, "delete").catch(() => {});
   }
 }

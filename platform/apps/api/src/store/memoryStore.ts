@@ -3,6 +3,9 @@ import type { ContractorConfig, GatheredInfo, Stage, TimeRange } from "@leadansw
 import { createConversationLock } from "./conversationLock.js";
 import type {
   AppointmentPatch,
+  AppointmentSyncPatch,
+  CalendarConnectionPatch,
+  CalendarConnectionRecord,
   AppointmentRecord,
   BookOutcome,
   ConversationRecord,
@@ -25,11 +28,30 @@ type ApptRow = {
   rescheduledFromIso?: string | null;
   cancelledAt?: string | null;
   cancelReason?: string | null;
+  externalProvider?: string | null;
+  externalCalendarId?: string | null;
+  externalEventId?: string | null;
+  externalEtag?: string | null;
+  syncState?: string;
+  syncedAt?: string | null;
 };
 
 const isActive = (status: string) => status === "proposed" || status === "confirmed";
 const overlaps = (aStart: string, aEnd: string, start: number, end: number) =>
   new Date(aStart).getTime() < end && new Date(aEnd).getTime() > start; // half-open
+
+function memAppt(a: ApptRow): AppointmentRecord {
+  return {
+    id: a.id,
+    leadId: a.leadId,
+    contractorId: a.contractorId,
+    startIso: a.startIso,
+    endIso: a.endIso,
+    status: a.status,
+    externalEventId: a.externalEventId ?? null,
+    externalEtag: a.externalEtag ?? null,
+  };
+}
 
 /**
  * In-memory Store for demo mode + tests. It MIMICS the DB integrity constraints
@@ -45,6 +67,7 @@ export class MemoryStore implements Store {
   private convIdByLead = new Map<string, string>();
   private messages: MessageRecord[] = [];
   private appointments: ApptRow[] = [];
+  private calendarConnections = new Map<string, CalendarConnectionRecord>();
   private leadIdBySourceMessageId = new Map<string, string>();
   private lock = createConversationLock();
   private now: () => Date;
@@ -327,6 +350,67 @@ export class MemoryStore implements Store {
     if (patch.rescheduledFromIso !== undefined) appt.rescheduledFromIso = patch.rescheduledFromIso;
     if (patch.cancelledAt !== undefined) appt.cancelledAt = patch.cancelledAt;
     if (patch.cancelReason !== undefined) appt.cancelReason = patch.cancelReason;
+  }
+
+  async getAppointmentById(id: string): Promise<AppointmentRecord | null> {
+    const a = this.appointments.find((x) => x.id === id);
+    return a ? memAppt(a) : null;
+  }
+
+  async findAppointmentByExternalEventId(contractorId: string, externalEventId: string): Promise<AppointmentRecord | null> {
+    const a = this.appointments.find((x) => x.contractorId === contractorId && x.externalEventId === externalEventId);
+    return a ? memAppt(a) : null;
+  }
+
+  async updateAppointmentSync(id: string, patch: AppointmentSyncPatch): Promise<void> {
+    const a = this.appointments.find((x) => x.id === id);
+    if (!a) return;
+    if (patch.externalProvider !== undefined) a.externalProvider = patch.externalProvider;
+    if (patch.externalCalendarId !== undefined) a.externalCalendarId = patch.externalCalendarId;
+    if (patch.externalEventId !== undefined) a.externalEventId = patch.externalEventId;
+    if (patch.externalEtag !== undefined) a.externalEtag = patch.externalEtag;
+    if (patch.syncState !== undefined) a.syncState = patch.syncState;
+    if (patch.syncedAt !== undefined) a.syncedAt = patch.syncedAt;
+  }
+
+  async getCalendarConnection(contractorId: string, provider = "google"): Promise<CalendarConnectionRecord | null> {
+    return this.calendarConnections.get(`${contractorId}:${provider}`) ?? null;
+  }
+
+  async getCalendarConnectionByChannel(channelId: string): Promise<CalendarConnectionRecord | null> {
+    return [...this.calendarConnections.values()].find((c) => c.channelId === channelId) ?? null;
+  }
+
+  async listConnectedCalendars(): Promise<CalendarConnectionRecord[]> {
+    return [...this.calendarConnections.values()].filter((c) => c.status === "connected");
+  }
+
+  async upsertCalendarConnection(
+    contractorId: string,
+    provider: string,
+    patch: CalendarConnectionPatch,
+  ): Promise<CalendarConnectionRecord> {
+    const key = `${contractorId}:${provider}`;
+    const merged: CalendarConnectionRecord = this.calendarConnections.get(key) ?? {
+      id: randomUUID(),
+      contractorId,
+      provider,
+      externalCalendarId: null,
+      accessToken: null,
+      refreshToken: null,
+      tokenExpiresAt: null,
+      status: "disconnected",
+      scope: null,
+      email: null,
+      syncToken: null,
+      channelId: null,
+      resourceId: null,
+      channelToken: null,
+      channelExpiresAt: null,
+    };
+    for (const [k, v] of Object.entries(patch)) if (v !== undefined) (merged as any)[k] = v;
+    this.calendarConnections.set(key, merged);
+    return merged;
   }
 
   private escalations: {

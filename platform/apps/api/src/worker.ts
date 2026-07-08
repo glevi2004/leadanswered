@@ -8,7 +8,11 @@ import { isWithinBusinessHours } from "@leadanswered/core";
 import { getModel } from "./agent/provider.js";
 import { runNudgeJob } from "./jobs/nudge.js";
 import { runEscalationSlaJob } from "./jobs/escalationSla.js";
-import { enqueueNudge } from "./queue.js";
+import { runCalendarPush } from "./jobs/calendarSync.js";
+import { runInboundSync } from "./calendar/google/inbound.js";
+import { registerWatch } from "./calendar/google/service.js";
+import { useGoogleCalendar } from "./env.js";
+import { enqueueNudge, enqueueCalendarPoll } from "./queue.js";
 
 /**
  * The background worker (SCOPE §3.1C): processes delayed/async jobs that must not
@@ -72,6 +76,39 @@ export function runWorker(): Worker {
   );
   escWorker.on("ready", () => console.log("[worker] processing the escalation-sla queue"));
   escWorker.on("failed", (job, err) => console.error(`[worker] escalation job ${job?.id} failed:`, err));
+
+  // Calendar sync (GOOGLE_CALENDAR.md §10): outbound push + inbound reconcile + a polling safety net.
+  if (useGoogleCalendar()) {
+    const smsFor = (twilioNumber?: string | null) =>
+      env.TWILIO_ACCOUNT_SID && twilioNumber ? new TwilioSmsSender(twilioNumber) : new ConsoleSmsSender();
+    const calWorker = new Worker(
+      "calendar-sync",
+      async (job) => {
+        if (job.name === "push") {
+          const { appointmentId, op } = job.data as { appointmentId: string; op: "create" | "update" | "delete" };
+          await runCalendarPush({ store }, appointmentId, op);
+        } else if (job.name === "inbound") {
+          const { contractorId } = job.data as { contractorId: string };
+          const c = await store.getContractor(contractorId);
+          await runInboundSync({ store, sms: smsFor(c?.twilioNumber) }, contractorId);
+        } else if (job.name === "poll") {
+          for (const conn of await store.listConnectedCalendars()) {
+            const c = await store.getContractor(conn.contractorId);
+            await runInboundSync({ store, sms: smsFor(c?.twilioNumber) }, conn.contractorId).catch((e) =>
+              console.error("[calendar] poll sync failed:", e),
+            );
+            if (!conn.channelExpiresAt || Date.parse(conn.channelExpiresAt) - Date.now() < 24 * 3600 * 1000) {
+              await registerWatch(store, conn.contractorId).catch((e) => console.error("[calendar] watch renew failed:", e));
+            }
+          }
+        }
+      },
+      { connection },
+    );
+    calWorker.on("ready", () => console.log("[worker] processing the calendar-sync queue"));
+    calWorker.on("failed", (job, err) => console.error(`[worker] calendar job ${job?.id} failed:`, err));
+    void enqueueCalendarPoll();
+  }
 
   return worker;
 }

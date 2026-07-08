@@ -25,6 +25,13 @@ function getPending(id: string): Pending | null {
 /** Test-only: reset the in-memory pending-draft state. */
 export function __resetContractorAgent(): void { pending.clear(); }
 
+/** Stage a "let the lead know" draft on the contractor's hard-gate queue — the contractor's next "yes"
+ *  (handled by handleContractorTurn) delivers it. Reused by the appointment-change flow so a
+ *  contractor-made cancel/move never texts the customer without the owner's explicit yes. */
+export function stageLeadNotice(contractorId: string, d: { leadId: string; leadName: string; message: string }): void {
+  setPending(contractorId, d);
+}
+
 const firstName = (n: string) => n.trim().split(/\s+/)[0] || n.trim();
 const YES = /\b(yes|yep|yeah|yup|sure|ok|okay|send|confirm|do it|go|y)\b/i;
 const NO = /\b(no|nope|nah|don'?t|cancel|stop|wait|n)\b/i;
