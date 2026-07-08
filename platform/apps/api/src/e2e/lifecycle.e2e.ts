@@ -9,9 +9,9 @@ const TUE_8AM_ET = "2026-07-07T12:00:00.000Z";
 /** Get a lead to a confirmed Monday-8AM booking (shared setup for reschedule/cancel). */
 async function bookedMonday8am() {
   const c = await startConversation({ contractor: easternContractor, now: SUNDAY });
-  await c.say("Hi, roof leak at 100 Main St, Newton MA 02458. I own the home.");
-  await c.say("what do you have Monday morning?");
-  await c.say("8 am works");
+  await c.say("Hi, I've got a roof leak at 100 Main St, Newton MA 02458. I own the home.");
+  await c.say("What times do you have Monday morning?");
+  await c.say("8 am works for me");
   expect(c.appointments()[0]?.startIso).toBe(MON_8AM_ET);
   return c;
 }

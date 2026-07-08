@@ -80,8 +80,14 @@ async function extractIntake(deps: IntakeDeps, history: ChatTurn[]): Promise<Int
       model: deps.model,
       schema: ExtractSchema,
       prompt:
-        "Read this home-services intake conversation and extract ONLY what the customer's latest messages actually say. Use null when something isn't stated. Never invent values.\n\n" +
-        `Conversation:\n${recent}\n\nExtract the fields for the customer's most recent reply.`,
+        "You are reading a home-services SMS intake and pulling structured values from what the CUSTOMER has said (consider the whole thread, not just the last line). Rules:\n" +
+        "- fullAddress: the COMPLETE street address if it appears anywhere (e.g. '100 Main St, Newton MA 02458'). Whenever you set fullAddress, ALSO set town and the 5-digit zip parsed from it.\n" +
+        "- isHomeowner: true if they own the home or can approve the work; false if a renter / not the decision-maker.\n" +
+        "- chosenDayOfWeek (Sun=0..Sat=6) + chosenDayLabel: set these whenever they name OR ask about a day, even phrased as a question ('what do you have Monday?' → Monday). chosenTime: the clock time they picked ('8 am').\n" +
+        "- intent: why they reached out.\n" +
+        "- offScript: 'withdrew' ONLY if they clearly drop out with no other request ('never mind', 'went with someone else'). If they ask a QUESTION (even after 'ok, no worries'), use 'question', NOT 'withdrew'. 'question' is for things the scheduling flow cannot answer — pricing, a referral/recommendation for another company, whether you offer a specific service, warranties, policy. Asking about AVAILABILITY or times is NOT off-script (extract the day/time instead). Otherwise 'none'.\n" +
+        "Use null for anything not actually stated. Never invent values.\n\n" +
+        `Conversation:\n${recent}\n\nExtract the fields.`,
       experimental_telemetry: { isEnabled: true, functionId: "intake-extract" },
     });
     return object;
@@ -121,7 +127,17 @@ export async function runIntakeTurn(deps: IntakeDeps, state: ToolState, history:
     ownerName: ex.ownerName ?? undefined,
     ownerPhone: ex.ownerPhone ?? undefined,
   });
-  const g = state.gathered; // mutated in place by qualify_lead.execute
+  // Backfill the ZIP from a full address when the extractor didn't isolate it — the service-area check
+  // and booking both need it, and models often give the street but drop the ZIP field.
+  if (state.gathered.fullAddress && !state.gathered.serviceZip) {
+    const zip = state.gathered.fullAddress.match(/\b(\d{5})\b/)?.[1];
+    if (zip) {
+      state.gathered = { ...state.gathered, serviceZip: zip };
+      await deps.store.updateConversation(state.conversation.id, { gathered: state.gathered });
+      await deps.store.updateLeadFields(state.lead.id, { serviceZip: zip });
+    }
+  }
+  const g = state.gathered; // snapshot after the backfill
   const name = firstName(state.lead.contactName);
 
   // 3) Off-script question → escalate, ack, then re-ask the pending step.
@@ -143,9 +159,9 @@ export async function runIntakeTurn(deps: IntakeDeps, state: ToolState, history:
     return "Happy to help get that taken care of! What's your name and property address? (street, city, and ZIP)";
   }
 
-  // --- Need the address first ---
-  if (!g.fullAddress && !g.serviceZip && !g.serviceTown) {
-    return "Happy to help! What's the property address so I can get someone out to take a look? (street, city, and ZIP)";
+  // --- Need the FULL street address first (booking + the service-area check both require it) ---
+  if (!g.fullAddress) {
+    return "Happy to help! What's the full property address so I can get someone out to take a look? (street, city, and ZIP)";
   }
 
   // --- Branch B: out of service area (confirm before declining, to catch typos) ---
@@ -203,6 +219,17 @@ export async function runIntakeTurn(deps: IntakeDeps, state: ToolState, history:
       dayOfWeek: ex.chosenDayOfWeek,
     });
     if (av.times && av.times.length > 0) {
+      // If they named a specific time in the same breath ("Monday at 8am"), book it directly now that
+      // the day's slots are offered.
+      if (ex.chosenTime) {
+        const res = await callTool<{ ok: boolean; label?: string }>(tools.book_appointment, {
+          chosenTime: ex.chosenTime,
+          fullAddress: g.fullAddress ?? "",
+        });
+        if (res.ok && res.label) {
+          return `You're all set for ${res.label}, ${name}! We'll see you then. Anything else I can help with?`;
+        }
+      }
       const day = ex.chosenDayLabel || DAY_NAMES[ex.chosenDayOfWeek];
       return `Perfect, ${name}! On ${day} I've got:\n${bullets(av.times.map((t) => t.label))}\nWhich works best?`;
     }
