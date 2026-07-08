@@ -229,6 +229,7 @@ model Appointment {
   externalEventId    String?
   syncState          AppointmentSyncState @default(local_only)
   syncedAt           DateTime?
+  externalEtag       String? // last event version WE wrote — loop-prevention for inbound two-way sync
 
   rescheduledFromIso DateTime? // prior slot, when this booking was moved
   cancelledAt        DateTime?
@@ -256,6 +257,14 @@ model CalendarConnection {
   refreshToken       String?
   tokenExpiresAt     DateTime?
   status             String    @default("disconnected")
+  scope              String? // granted scopes (for display)
+  email              String? // the connected Google account (for display)
+  // Two-way inbound sync (GOOGLE_CALENDAR.md §9): incremental cursor + push-notification watch channel.
+  syncToken          String?
+  channelId          String?
+  resourceId         String?
+  channelToken       String? // secret set on watch, to authenticate inbound webhooks
+  channelExpiresAt   DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
