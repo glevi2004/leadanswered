@@ -78,6 +78,9 @@ export interface GatheredInfo {
   nudgedAt?: string | null;
   /** Why the customer reached out — set by the agent once known; drives follow-ups + notifications. */
   intent?: "new_project" | "existing_customer" | "general_question" | "other" | null;
+  /** Intake code flag (Branch B): we've asked an out-of-area lead to confirm their address before
+   *  declining, so the next reply is a confirm/correction rather than re-asking. */
+  outOfAreaConfirmAsked?: boolean | null;
 }
 
 export type MissingField = "location" | "project" | "decision_maker";

@@ -1,6 +1,7 @@
 import type { EmailSender, SmsSender } from "@leadanswered/core";
 import type { LanguageModel } from "ai";
 import { generateAgentReply, type ChatTurn } from "./agent/runner.js";
+import { runIntakeTurn } from "./intake/engine.js";
 import { downloadTwilioImages, type InboundMedia } from "./media.js";
 import { handleContractorCommand } from "./contractorCommands.js";
 import type { ToolState } from "./agent/tools.js";
@@ -131,9 +132,14 @@ export async function handleInbound(deps: ConversationDeps, input: InboundInput)
       }
     }
 
+    // Route by phase: the scripted intake engine drives while state === "intake"; once intake ends
+    // (booked / handed off / declined) it flips to "agent" and the open agent writes freely.
     let reply: string;
     try {
-      reply = await generateAgentReply({ ...deps, now }, state, history);
+      reply =
+        fresh.conversation.state === "intake"
+          ? await runIntakeTurn({ ...deps, now }, state, history)
+          : await generateAgentReply({ ...deps, now }, state, history);
     } catch (err) {
       console.error(`[sms] agent error for ${input.fromNumber} — no reply sent:`, err);
       return { status: "error" };

@@ -1,6 +1,7 @@
 import type { SmsSender } from "@leadanswered/core";
 import type { LanguageModel } from "ai";
 import { generateAgentReply, type ChatTurn } from "./agent/runner.js";
+import { intakeOpening, missedCallOpening } from "./intake/engine.js";
 import type { ToolState } from "./agent/tools.js";
 import type { LeadContext, Store } from "./store/types.js";
 
@@ -48,9 +49,18 @@ export async function createLeadAndGreet(
     sourceMessageId: input.sourceMessageId ?? null,
   });
 
-  const opening = await runOpeningTurn(deps, ctx, openingTrigger(input.source, input.projectHint, false), now);
+  // The opening is the LOCKED intake script (deterministic), not an agent turn. Website/email/manual
+  // leads open by asking the address; a missed call opens intent-agnostic ("how can we help?").
+  const state: ToolState = {
+    contractor: ctx.contractor,
+    lead: ctx.lead,
+    conversation: ctx.conversation,
+    gathered: ctx.conversation.gathered ?? {},
+  };
+  const opening = input.source === "missed_call" ? missedCallOpening(state) : intakeOpening(state);
+  await store.appendMessage(ctx.conversation.id, { direction: "outbound", body: opening });
   await store.updateLeadFields(ctx.lead.id, { status: "contacted" });
-  await store.updateConversation(ctx.conversation.id, { state: "intake" });
+  await deps.sms.send(ctx.lead.contactPhone, opening);
   return { leadId: ctx.lead.id, opening };
 }
 

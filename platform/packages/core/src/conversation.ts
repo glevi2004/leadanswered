@@ -35,6 +35,10 @@ export function mergeGathered(
     ownerHandoffDone: prev.ownerHandoffDone ?? null, // code-set flag, carried through
     chosenSlot: pick(ext.chosenSlot, prev.chosenSlot),
     offeredSlots: prev.offeredSlots ?? null, // carried through; written by get_availability
+    // Code-set flags carried through so a later mergeGathered() can't silently drop them.
+    intent: prev.intent ?? null,
+    nudgedAt: prev.nudgedAt ?? null,
+    outOfAreaConfirmAsked: prev.outOfAreaConfirmAsked ?? null,
   };
 }
 
