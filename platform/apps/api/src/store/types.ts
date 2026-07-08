@@ -66,7 +66,7 @@ export interface CreateLeadInput {
 }
 
 export type LeadFieldPatch = Partial<
-  Pick<LeadRecord, "projectHint" | "serviceTown" | "serviceZip" | "fullAddress" | "status">
+  Pick<LeadRecord, "contactName" | "projectHint" | "serviceTown" | "serviceZip" | "fullAddress" | "status">
 >;
 
 export interface AppointmentRecord {

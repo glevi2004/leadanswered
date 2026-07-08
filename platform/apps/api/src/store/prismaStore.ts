@@ -269,6 +269,7 @@ export class PrismaStore implements Store {
     await this.db.lead.update({
       where: { id: leadId },
       data: {
+        contactName: patch.contactName,
         projectHint: patch.projectHint,
         serviceTown: patch.serviceTown,
         serviceZip: patch.serviceZip,

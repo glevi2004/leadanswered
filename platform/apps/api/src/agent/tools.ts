@@ -112,6 +112,7 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
       description:
         "Record what you've learned about the lead and check if they qualify. Call this whenever you learn their project, town/ZIP/address, or whether they own the home. Returns what is still missing and whether they qualify. You decide what to SAY; this decides the facts.",
       inputSchema: z.object({
+        name: z.string().optional().describe("The customer's name, once they give it (writes to the lead so the dashboard shows it, not 'Caller')"),
         projectType: z.string().optional().describe("The work they need, in their words (e.g. roof leak, replacement, gutters)"),
         zip: z.string().optional().describe("5-digit ZIP of the property"),
         town: z.string().optional().describe("Town/city of the property"),
@@ -134,6 +135,13 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
           ownerPhone: input.ownerPhone ?? null,
         });
         await persistGathered(deps, state);
+
+        // Capture the customer's name onto the lead so the dashboard + notifications show it (not
+        // "Caller"/"New lead"). Set on `state.lead` BEFORE any notification fires below.
+        if (input.name && input.name.trim()) {
+          state.lead.contactName = input.name.trim();
+          await deps.store.updateLeadFields(state.lead.id, { contactName: state.lead.contactName });
+        }
 
         const q = qualify(state.gathered, state.contractor);
 
