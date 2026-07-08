@@ -86,14 +86,15 @@ async function reengageLead(
     lead: { ...ctx.lead, source: input.source ?? ctx.lead.source },
     conversation: { ...ctx.conversation, gathered },
   };
-  const opening = await runOpeningTurn(deps, turnCtx, openingTrigger(input.source, input.projectHint, true), now);
+  const opening = await runOpeningTurn(deps, turnCtx, reengageTrigger(input.source), now);
 
   // Re-open a settled lead so the flow can continue; leave booked/disqualified for the agent's framing.
   if (ctx.lead.status === "no_response") {
     await store.updateLeadFields(ctx.lead.id, { status: "contacted" });
   }
   if (ctx.lead.status !== "booked" && ctx.lead.status !== "disqualified") {
-    await store.updateConversation(ctx.conversation.id, { state: "intake" });
+    // A returning contact is already known — hand them to the open agent, don't restart the scripted intake.
+    await store.updateConversation(ctx.conversation.id, { state: "agent" });
   }
   return { leadId: ctx.lead.id, opening };
 }
@@ -118,29 +119,15 @@ async function runOpeningTurn(
   return opening;
 }
 
-function openingTrigger(source?: string, projectHint?: string | null, returning = false): string {
-  // A repeat contact from someone we've talked to before (SCOPE §4 dedupe) — continue the relationship,
-  // don't restart it. Unknown intent, so stay open.
-  if (returning) {
-    return (
-      `[This person has reached out to us before and just contacted us again` +
-      (source === "missed_call" ? ` (they called and we missed it)` : ``) +
-      `. You're continuing an existing relationship, so greet them back warmly, do NOT introduce yourself from` +
-      ` scratch, and ask how you can help today. Do NOT assume they want a new estimate or ask for their address` +
-      ` unless they bring it up.]`
-    );
-  }
-  // Missed-call text-back (SCOPE §9.7): the homeowner phoned and we missed it — unknown intent, so open-ended.
-  if (source === "missed_call") {
-    return (
-      `[We just missed a call from this person and don't know why they called. Send a warm opening text:` +
-      ` briefly apologize for missing their call, introduce yourself, and ask how you can help.` +
-      ` Do NOT assume they want an estimate and do NOT ask for their address yet.]`
-    );
-  }
+/** The opening-turn trigger for a RETURNING contact (re-contact via a new call/email). A brand-new
+ *  lead's opening is the scripted intake (see intake/engine.ts) — only re-engagement uses an agent turn,
+ *  because we're continuing an existing relationship, not restarting it. */
+function reengageTrigger(source?: string): string {
   return (
-    `[A new lead just came in through the website` +
-    (projectHint ? ` about "${projectHint}"` : "") +
-    `. Send your warm opening text: introduce yourself, thank them for reaching out, and ask for the property's full address — the street, city, and ZIP code, in one message — so you can check coverage and get the team out.]`
+    `[This person has reached out to us before and just contacted us again` +
+    (source === "missed_call" ? ` (they called and we missed it)` : ``) +
+    `. You're continuing an existing relationship, so greet them back warmly, do NOT introduce yourself from` +
+    ` scratch, and ask how you can help today. Do NOT assume they want a new estimate or ask for their address` +
+    ` unless they bring it up.]`
   );
 }

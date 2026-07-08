@@ -49,7 +49,6 @@ export async function generateAgentReply(
     now: deps.now,
     leadStatus: state.lead.status,
     hasBooking: state.lead.status === "booked",
-    channel: state.lead.source,
     relationship: summarizeRelationship(pastAppts),
   });
   // Langfuse trace context: sessionId groups every turn of one lead's SMS thread,
