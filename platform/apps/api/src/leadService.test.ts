@@ -30,7 +30,7 @@ describe("lead intake (POST /lead path, SCOPE §6)", () => {
 
     const ctx = await store.getContextByLeadId(res.leadId);
     expect(ctx?.lead.status).toBe("contacted");
-    expect(ctx?.conversation.state).toBe("qualifying");
+    expect(ctx?.conversation.state).toBe("intake");
     expect(ctx?.messages.filter((m) => m.direction === "outbound")).toHaveLength(1);
   });
 

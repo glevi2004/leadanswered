@@ -103,12 +103,11 @@ export interface QualificationResult {
   zipUnverified: boolean;
 }
 
+/** The conversation phase. `intake` = the scripted step engine is driving; `agent` = intake is
+ *  done and the open agent writes freely; `done` = hard-closed. Router branches on this. */
 export type Stage =
-  | "greeting"
-  | "qualifying"
-  | "proposing_slots"
-  | "confirming"
-  | "booked"
+  | "intake"
+  | "agent"
   | "done";
 
 export type NotificationEventType =

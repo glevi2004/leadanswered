@@ -305,7 +305,7 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
         // Re-open the lead so they can rebook in the same thread if they want.
         state.lead.status = "contacted";
         await deps.store.updateLeadFields(state.lead.id, { status: "contacted" });
-        await deps.store.updateConversation(state.conversation.id, { state: "qualifying" });
+        await deps.store.updateConversation(state.conversation.id, { state: "agent" });
         await fireNotification(deps, state, "booking_cancelled", state.gathered, appt.startIso);
         return { ok: true as const };
       },

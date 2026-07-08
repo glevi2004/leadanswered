@@ -50,7 +50,7 @@ export async function createLeadAndGreet(
 
   const opening = await runOpeningTurn(deps, ctx, openingTrigger(input.source, input.projectHint, false), now);
   await store.updateLeadFields(ctx.lead.id, { status: "contacted" });
-  await store.updateConversation(ctx.conversation.id, { state: "qualifying" });
+  await store.updateConversation(ctx.conversation.id, { state: "intake" });
   return { leadId: ctx.lead.id, opening };
 }
 
@@ -83,7 +83,7 @@ async function reengageLead(
     await store.updateLeadFields(ctx.lead.id, { status: "contacted" });
   }
   if (ctx.lead.status !== "booked" && ctx.lead.status !== "disqualified") {
-    await store.updateConversation(ctx.conversation.id, { state: "qualifying" });
+    await store.updateConversation(ctx.conversation.id, { state: "intake" });
   }
   return { leadId: ctx.lead.id, opening };
 }

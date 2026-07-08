@@ -111,7 +111,7 @@ export class MemoryStore implements Store {
     if (input.sourceMessageId) this.leadIdBySourceMessageId.set(input.sourceMessageId, lead.id);
 
     const gathered: GatheredInfo = { projectType: input.projectHint ?? null };
-    const conv: ConversationRecord = { id: randomUUID(), leadId: lead.id, state: "greeting", gathered };
+    const conv: ConversationRecord = { id: randomUUID(), leadId: lead.id, state: "intake", gathered };
     this.conversations.set(conv.id, conv);
     this.convIdByLead.set(lead.id, conv.id);
 
@@ -256,7 +256,7 @@ export class MemoryStore implements Store {
     if (lead) lead.status = "booked";
     const convId = this.convIdByLead.get(input.leadId);
     const conv = convId ? this.conversations.get(convId) : undefined;
-    if (conv) conv.state = "booked";
+    if (conv) conv.state = "agent";
     return { ok: true, id: appt.id, startIso: input.startIso, endIso: input.endIso };
   }
 
