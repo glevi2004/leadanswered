@@ -181,6 +181,11 @@ export async function runIntakeTurn(deps: IntakeDeps, state: ToolState, history:
     return `Thanks ${name}, I checked again and it really is outside our service area, but I've passed it along to the team just in case. Sorry about that, and I hope you get it taken care of soon!`;
   }
 
+  // --- Need the customer's NAME — re-ask; never proceed as a placeholder ("Caller"/"New lead") ---
+  if (!hasRealName(state.lead.contactName)) {
+    return "Thanks! And what's your name? (just so I know who I'm setting this up for)";
+  }
+
   // --- Step 1 / Branch A: homeowner ---
   const requireDM = state.contractor.qualificationRules?.requireDecisionMaker !== false;
   if (requireDM && g.isDecisionMaker == null) {

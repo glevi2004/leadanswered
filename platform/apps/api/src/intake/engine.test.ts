@@ -128,4 +128,43 @@ describe("intake engine — Workflow 1 (website) + Workflow 2 (missed call)", ()
     expect(r2.reply).toMatch(/let the team know/i);
     expect(store.getEscalations().some((e) => e.status === "open")).toBe(true);
   });
+
+  it("requires the NAME — re-asks instead of proceeding as a placeholder", async () => {
+    const store = seed();
+    const sms = new CapturingSms();
+    const model = scriptedModel([
+      EX({ fullAddress: ADDR, town: "Boston", zip: "02134", projectType: "roof leak", intent: "new_project", isHomeowner: true }),
+      EX({ name: "Levi" }),
+    ]);
+    const deps = { store, model, sms, email: new CapturingEmail(), now: () => NOW };
+    // Lead starts as a placeholder (missed-call "Caller"); the customer gives the address but no name.
+    const lead = await createLeadAndGreet(deps, { contractorId: TEST_CONTRACTOR_ID, contactName: "Caller", contactPhone: FROM });
+    const send = (body: string) => handleInbound(deps, { toNumber: TO, fromNumber: FROM, body });
+
+    const r1 = await send("roof leak at 100 Linden St, Boston 02134, yep I own it");
+    expect(r1.reply).toMatch(/what's your name/i); // re-asks, does NOT proceed as "Caller"
+    expect((await store.getContextByLeadId(lead.leadId))?.lead.contactName).toBe("Caller");
+
+    const r2 = await send("oh sorry, it's Levi");
+    expect((await store.getContextByLeadId(lead.leadId))?.lead.contactName).toBe("Levi");
+    expect(r2.reply).toMatch(/here's when we could get someone out/i); // now proceeds
+  });
+
+  it("offers only the NEAREST occurrence of a chosen day (never the same weekday next week)", async () => {
+    const store = seed();
+    const sms = new CapturingSms();
+    const model = scriptedModel([
+      EX({ fullAddress: ADDR, town: "Boston", zip: "02134", projectType: "roof leak", intent: "new_project", name: "Levi", isHomeowner: true }),
+      EX({ chosenDayOfWeek: 1, chosenDayLabel: "Monday" }),
+    ]);
+    const deps = { store, model, sms, email: new CapturingEmail(), now: () => NOW };
+    const lead = await createLeadAndGreet(deps, { contractorId: TEST_CONTRACTOR_ID, contactName: "New lead", contactPhone: FROM });
+    await handleInbound(deps, { toNumber: TO, fromNumber: FROM, body: "roof leak at 100 Linden St Boston 02134, I own it, I'm Levi" });
+    await handleInbound(deps, { toNumber: TO, fromNumber: FROM, body: "Monday works" });
+
+    const slots = Object.values((await store.getContextByLeadId(lead.leadId))!.conversation.gathered!.offeredSlots ?? {});
+    expect(slots.length).toBeGreaterThan(0);
+    const dates = new Set(slots.map((iso) => iso.slice(0, 10))); // UTC contractor → all times on ONE day
+    expect(dates.size).toBe(1);
+  });
 });
