@@ -209,7 +209,15 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
 
         const focused = input.dayOfWeek != null || input.partOfDay != null;
         if (focused) {
-          const starts = windows.flatMap((w) => windowStarts(w, tz)).slice(0, 6);
+          let starts = windows.flatMap((w) => windowStarts(w, tz));
+          // Focused on a specific weekday → offer ONLY the nearest occurrence, never the same weekday a
+          // week later (e.g. "Thursday" must not also list next Thursday).
+          if (input.dayOfWeek != null && starts.length > 0) {
+            const localDay = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(new Date(iso));
+            const firstDay = localDay(starts[0]!.iso);
+            starts = starts.filter((s) => localDay(s.iso) === firstDay);
+          }
+          starts = starts.slice(0, 6);
           const map: Record<string, string> = {};
           const times = starts.map((s, i) => {
             const id = String(i + 1);
