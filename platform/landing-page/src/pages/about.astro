@@ -1,0 +1,101 @@
+---
+import Base from "../layouts/Base.astro";
+import Nav from "../components/Nav.astro";
+import Footer from "../components/Footer.astro";
+---
+
+<Base
+  title="Lead Answered — Hi, I'm Levi"
+  description="Hi, I'm Levi — I'm building Lead Answered, an AI assistant that runs the software side of a service business by text. I build it directly with a few owners, as design partners."
+>
+  <Nav />
+  <main class="pt-14 pb-20">
+    <div class="max-w-[620px] mx-auto px-6">
+      <!-- Headshot floats left; the heading + intro wrap to its right, then continue full-width below. -->
+      <img
+        src="/levi-headshot.jpg"
+        alt="Levi Ramos"
+        class="float-left w-[150px] sm:w-[200px] h-auto rounded-[18px] mr-5 sm:mr-6 mb-3 shadow-[0_1px_2px_rgba(16,24,40,0.06),0_16px_40px_-12px_rgba(16,24,40,0.28)]"
+      />
+      <h1 class="display text-[28px] sm:text-[36px] text-ink-900 mb-4">
+        Hi, I'm Levi.
+      </h1>
+
+      <div class="text-[16.5px] leading-[1.72] text-ink-700 space-y-5">
+        <p>
+          I just graduated in Computer Science from Boston University, and I've
+          spent the last 4 years working as a software developer — for early
+          startups and for larger companies. I'm originally from Brazil.
+        </p>
+        <p>
+          Right now I'm building Lead Answered. It's not that the tools don't
+          exist — most owners already pay for software that could run half the
+          business. Nobody ever sets it up, though, and none of it was built
+          to run by text. So it sits mostly unused while the owner does
+          everything by hand.
+        </p>
+        <p>
+          Lead Answered is my fix: you run the day-to-day by texting one
+          assistant, Sarah — quotes, scheduling, invoicing, reviews, your
+          website, and more. And I don't hand you an empty tool to figure out; I
+          set it up and build it with you.
+        </p>
+        <p>
+          I'm not here just to sell you something. Right now my main focus is
+          talking to owners, because the only way to build something genuinely
+          useful is to learn from the people who actually run the business.
+        </p>
+      </div>
+
+      <figure class="clear-both mt-8 mb-7">
+        <img
+          src="/levi-graduation.jpg"
+          alt="Levi graduating in Computer Science from Boston University"
+          class="w-full h-auto rounded-[14px] shadow-[0_1px_2px_rgba(16,24,40,0.05),0_10px_28px_-8px_rgba(16,24,40,0.18)]"
+        />
+        <figcaption class="mt-3 text-center serif-accent text-[14px] text-ink-500">
+          Graduating in Computer Science — Boston University
+        </figcaption>
+      </figure>
+
+      <p class="text-[16.5px] leading-[1.72] text-ink-700">
+        If you want to see more of my background and past work, here's my
+        LinkedIn:<br />
+        <a
+          href="https://www.linkedin.com/in/gleviramos/"
+          target="_blank"
+          rel="noopener"
+          class="font-semibold text-brand-600 hover:text-brand-700 transition"
+        >
+          linkedin.com/in/gleviramos
+        </a>
+      </p>
+
+      <p class="text-[16.5px] leading-[1.72] text-ink-700 mt-5">
+        Right now I'm looking for a few design partners to build this with — if that's you, let's
+        talk.
+      </p>
+
+      <div class="mt-9 text-center">
+        <a href="https://cal.com/leviramos" class="btn-primary btn-primary-lg">
+          Let's Chat
+          <svg
+            class="arrow w-4 h-4"
+            viewBox="0 0 16 16"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M3 8h10m0 0L9 4m4 4l-4 4"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </a>
+      </div>
+    </div>
+  </main>
+  <Footer />
+</Base>

@@ -1,0 +1,13 @@
+# Standalone workspace root — isolates this landing site from the parent
+# monorepo (platform/pnpm-workspace.yaml) so it installs and deploys
+# independently on its own Vercel project.
+packages: []
+
+allowBuilds:
+  esbuild: true
+  sharp: true
+
+# Allow Astro's native deps to run install scripts (pnpm 10 blocks by default).
+onlyBuiltDependencies:
+  - esbuild
+  - sharp

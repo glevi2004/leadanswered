@@ -1,0 +1,42 @@
+---
+import Base from "../../layouts/Base.astro";
+import Nav from "../../components/Nav.astro";
+import Footer from "../../components/Footer.astro";
+import { trades } from "../../data/trades";
+---
+
+<Base
+  title="Built for Your Trade — Lead Answered"
+  description="The AI operating system for service businesses — built for your trade. Roofing, HVAC, plumbing, electrical, solar, remodeling, landscaping, and restoration."
+>
+  <Nav />
+  <main class="max-w-[900px] mx-auto px-6 py-16">
+    <p class="text-[12px] uppercase tracking-[0.18em] text-brand-600 font-semibold mb-3">
+      Built for the trades
+    </p>
+    <h1 class="section-h text-[36px] md:text-[46px] text-ink-900 mb-3">
+      Made for the way your trade works.
+    </h1>
+    <p class="text-[17px] text-ink-500 max-w-[580px] mb-12 leading-[1.55]">
+      Same operating system — your website, leads, quotes, scheduling, reviews, and invoicing, run
+      by texting Sarah — tuned to your trade. Built with you, free, as a design partner.
+    </p>
+
+    <div class="grid sm:grid-cols-2 gap-3">
+      {
+        trades.map((t) => (
+          <a href={`/for/${t.slug}`} class="block card card-hover p-6">
+            <h2 class="text-[20px] font-semibold text-ink-900 mb-1 tracking-tight">
+              For {t.Noun}
+            </h2>
+            <p class="text-[14.5px] text-ink-500 leading-[1.55] mb-3">Your {t.trade} business, run by texting Sarah.</p>
+            <span class="text-[13px] font-medium text-brand-600">
+              See how it works →
+            </span>
+          </a>
+        ))
+      }
+    </div>
+  </main>
+  <Footer />
+</Base>

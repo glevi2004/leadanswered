@@ -1,0 +1,63 @@
+---
+import Base from "../../layouts/Base.astro";
+import Nav from "../../components/Nav.astro";
+import Footer from "../../components/Footer.astro";
+import { getCollection } from "astro:content";
+
+const posts = (await getCollection("blog", ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
+);
+
+const fmt = (d: Date) =>
+  d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+---
+
+<Base
+  title="Blog — Lead Answered"
+  description="Writing for service business owners — on the software you actually use, AI-run operations, reviews, and getting found."
+>
+  <Nav />
+  <main class="max-w-[820px] mx-auto px-6 py-16">
+    <p
+      class="text-[12px] uppercase tracking-[0.18em] text-brand-600 font-semibold mb-3"
+    >
+      The Lead Answered blog
+    </p>
+    <h1 class="section-h text-[36px] md:text-[46px] text-ink-900 mb-10">
+      Writing for service business owners.
+    </h1>
+
+    <div class="space-y-3">
+      {
+        posts.map((post) => (
+          <a
+            href={`/blog/${post.slug}`}
+            class="block card card-hover p-6 md:p-7"
+            style="background-image: radial-gradient(62% 175% at 0% 0%, rgba(48,209,88,0.30) 0%, rgba(74,224,106,0.11) 30%, rgba(255,255,255,0) 60%);"
+          >
+            <div class="flex items-center gap-2 text-[12.5px] text-ink-400 mb-2">
+              <time datetime={post.data.pubDate.toISOString()}>
+                {fmt(post.data.pubDate)}
+              </time>
+              {post.data.tags[0] && (
+                <>
+                  <span>·</span>
+                  <span class="text-brand-600 font-medium">
+                    {post.data.tags[0]}
+                  </span>
+                </>
+              )}
+            </div>
+            <h2 class="text-[20px] md:text-[22px] font-semibold text-ink-900 mb-1.5 tracking-tight">
+              {post.data.title}
+            </h2>
+            <p class="text-[15px] text-ink-500 leading-[1.6]">
+              {post.data.description}
+            </p>
+          </a>
+        ))
+      }
+    </div>
+  </main>
+  <Footer />
+</Base>

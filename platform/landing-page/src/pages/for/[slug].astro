@@ -1,0 +1,227 @@
+---
+import Base from "../../layouts/Base.astro";
+import Nav from "../../components/Nav.astro";
+import Footer from "../../components/Footer.astro";
+import { trades } from "../../data/trades";
+
+export function getStaticPaths() {
+  return trades.map((t) => ({ params: { slug: t.slug }, props: t }));
+}
+
+const t = Astro.props;
+
+const faqLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: t.faqs.map((f) => ({
+    "@type": "Question",
+    name: f.q,
+    acceptedAnswer: { "@type": "Answer", text: f.a },
+  })),
+};
+---
+
+<Base title={t.metaTitle} description={t.metaDescription} jsonLd={faqLd}>
+  <Nav />
+
+  <!-- HERO -->
+  <section class="pt-14 pb-14 md:pt-20 md:pb-16">
+    <div class="max-w-6xl mx-auto px-5">
+      <div class="max-w-3xl mx-auto text-center">
+        <div class="pill mb-5">
+          <span class="relative flex h-1.5 w-1.5">
+            <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-brand-500"></span>
+          </span>
+          For {t.noun}
+        </div>
+        <h1 class="display text-[34px] sm:text-[42px] md:text-[50px] text-ink-900 mb-4">
+          {t.h1}
+        </h1>
+        <p class="text-[16px] md:text-[18px] leading-[1.55] text-ink-500 max-w-[600px] mx-auto mb-8">
+          {t.subhead}
+        </p>
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-2.5 mb-8">
+          <a href="https://cal.com/leviramos" class="btn-primary btn-primary-lg">
+            Become a design partner
+            <svg class="arrow w-4 h-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M3 8h10m0 0L9 4m4 4l-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </a>
+          <a href="#demo" class="btn-secondary btn-secondary-lg">See Sarah in action</a>
+        </div>
+        <div class="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[12.5px] text-ink-500">
+          <div class="flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 text-brand-600" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            <span>Built for you</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 text-brand-600" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            <span>No cost to start</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 text-brand-600" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            <span>A partner, not a customer</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Trade-specific SMS example -->
+      <div id="demo" class="mt-14 md:mt-16 scroll-mt-24">
+        <div class="max-w-xl mx-auto bg-paper-200 rounded-[2rem] p-5 sm:p-7">
+          <div class="imsg-screen rounded-2xl bg-white border border-black/[0.06] overflow-hidden shadow-[0_24px_60px_-24px_rgba(16,24,40,0.28)]">
+            <div class="flex items-center gap-2 px-4 py-3 border-b border-black/[0.06] bg-paper-100">
+              <span class="flex gap-1.5">
+                <span class="w-3 h-3 rounded-full bg-[#ff5f57]"></span>
+                <span class="w-3 h-3 rounded-full bg-[#febc2e]"></span>
+                <span class="w-3 h-3 rounded-full bg-[#28c840]"></span>
+              </span>
+              <div class="flex-1 flex items-center justify-center gap-2">
+                <div class="w-6 h-6 rounded-full bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white text-[10px] font-semibold">
+                  {t.initials}
+                </div>
+                <span class="text-[13px] font-medium text-ink-900">{t.company}</span>
+              </div>
+              <span class="w-12"></span>
+            </div>
+            <div class="px-4 sm:px-5 py-5 space-y-2 bg-white">
+              {
+                t.example.map((m) => (
+                  <div class={`flex ${m.from === "me" ? "justify-end" : "justify-start"}`}>
+                    <div class={`msg ${m.from === "me" ? "msg-me" : "msg-them"}`}>
+                      {m.text}
+                    </div>
+                  </div>
+                ))
+              }
+            </div>
+          </div>
+        </div>
+        <p class="text-center text-[12.5px] text-ink-400 mt-4">
+          Sarah answering a {t.trade} lead. She takes orders from you, too.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- THE PROBLEM (trade-specific) + speed-to-lead proof -->
+  <section class="py-16 md:py-20 soft-bg">
+    <div class="max-w-6xl mx-auto px-5">
+      <div class="max-w-[760px] mx-auto text-center mb-12">
+        <p class="text-[12px] uppercase tracking-[0.18em] text-brand-600 font-semibold mb-3">
+          Why it matters for {t.noun}
+        </p>
+        <p class="text-[18px] md:text-[20px] leading-[1.6] text-ink-800 mb-4">{t.pain}</p>
+        <p class="text-[16px] leading-[1.6] text-ink-500">{t.urgency}</p>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-4">
+        <div class="card p-7">
+          <div class="text-[44px] md:text-[54px] font-bold text-gradient-green leading-none mb-3 tracking-tight">21×</div>
+          <p class="text-[14px] text-ink-700 leading-[1.55]">More likely to qualify a lead when you reach them within 5 minutes vs. 30. <span class="text-ink-400">— MIT Lead Response Management Study, Harvard Business Review</span></p>
+        </div>
+        <div class="card p-7">
+          <div class="text-[44px] md:text-[54px] font-bold text-gradient-green leading-none mb-3 tracking-tight">59%</div>
+          <p class="text-[14px] text-ink-700 leading-[1.55]">Of homeowners hire the <em class="not-italic font-semibold text-ink-900">first</em> company that gets back to them. Not the cheapest. The first. <span class="text-ink-400">— Zillow / HousingWire</span></p>
+        </div>
+        <div class="card p-7">
+          <div class="text-[44px] md:text-[54px] font-bold text-gradient-green leading-none mb-3 tracking-tight">29h</div>
+          <p class="text-[14px] text-ink-700 leading-[1.55]">The average time a business takes to reply to a web lead. By then the customer's already booked someone else. <span class="text-ink-400">— RevenueHero, 2024</span></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHAT IT HANDLES (trade-specific services) -->
+  <section class="py-16 md:py-20 bg-white">
+    <div class="max-w-6xl mx-auto px-5">
+      <div class="text-center mb-12">
+        <h2 class="section-h text-gradient-ink text-[28px] md:text-[40px] max-w-[680px] mx-auto">
+          Trained on your {t.trade} business.
+        </h2>
+        <p class="text-[15px] md:text-[16px] text-ink-500 mt-3 max-w-[580px] mx-auto">
+          She answers the questions {t.noun} get all day, quotes and books the job, and keeps your
+          reviews coming — and there's more, as we build it with you.
+        </p>
+      </div>
+      <div class="max-w-3xl mx-auto grid sm:grid-cols-2 gap-3">
+        {
+          t.services.map((s) => (
+            <div class="flex items-center gap-3 card p-4">
+              <span class="w-7 h-7 rounded-lg bg-brand-50 border border-brand-100 flex items-center justify-center flex-shrink-0">
+                <svg class="w-3.5 h-3.5 text-brand-600" fill="none" stroke="currentColor" stroke-width="2.6" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" /></svg>
+              </span>
+              <span class="text-[15px] font-medium text-ink-800">{s}</span>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW WE START -->
+  <section class="py-16 md:py-20 soft-bg">
+    <div class="max-w-6xl mx-auto px-5">
+      <div class="text-center mb-12">
+        <p class="text-[12px] uppercase tracking-[0.18em] text-brand-600 font-semibold mb-3">How we start</p>
+        <h2 class="section-h text-gradient-ink text-[28px] md:text-[40px]">We build it with you.</h2>
+      </div>
+      <div class="grid md:grid-cols-3 gap-4">
+        <div class="card p-7">
+          <div class="text-[40px] font-bold text-gradient-green leading-none mb-4 tabular-nums tracking-tight">01</div>
+          <h3 class="text-[18px] font-semibold text-ink-900 mb-1.5">We set it up for you</h3>
+          <p class="text-[14px] text-ink-500 leading-[1.6]">We build your site, import your customers, and set up Sarah for your {t.trade} business — configured and ready.</p>
+        </div>
+        <div class="card p-7">
+          <div class="text-[40px] font-bold text-gradient-green leading-none mb-4 tabular-nums tracking-tight">02</div>
+          <h3 class="text-[18px] font-semibold text-ink-900 mb-1.5">You run it by text</h3>
+          <p class="text-[14px] text-ink-500 leading-[1.6]">Quotes, scheduling, invoicing, reviews, follow-ups — you just text Sarah, or use the app. She answers your leads, too.</p>
+        </div>
+        <div class="card p-7">
+          <div class="text-[40px] font-bold text-gradient-green leading-none mb-4 tabular-nums tracking-tight">03</div>
+          <h3 class="text-[18px] font-semibold text-ink-900 mb-1.5">You decide later</h3>
+          <p class="text-[14px] text-ink-500 leading-[1.6]">Use it free as a design partner. Once you're relying on it, we agree on fair founder pricing — or you walk.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ (trade-specific) -->
+  <section class="py-16 md:py-20 bg-white">
+    <div class="max-w-[760px] mx-auto px-5">
+      <h2 class="section-h text-[28px] md:text-[38px] text-ink-900 mb-8 text-center">
+        Questions {t.noun} ask
+      </h2>
+      <div class="space-y-3">
+        {
+          t.faqs.map((f) => (
+            <div class="card p-6">
+              <h3 class="text-[17px] font-semibold text-ink-900 mb-1.5">{f.q}</h3>
+              <p class="text-[15px] text-ink-500 leading-[1.6]">{f.a}</p>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- FINAL CTA -->
+  <section class="py-20 bg-gradient-to-b from-[#f7f8fa] to-white">
+    <div class="max-w-3xl mx-auto px-5 text-center">
+      <h2 class="section-h text-[30px] md:text-[46px] text-ink-900 mb-4">
+        We're taking on 3 design partners.
+      </h2>
+      <p class="text-[16px] text-ink-500 max-w-[520px] mx-auto mb-8 leading-[1.55]">
+        We build your {t.trade} operating system with you, free, you run it by text, and you decide
+        later. Zero reason to say no.
+      </p>
+      <a href="https://cal.com/leviramos" class="btn-primary btn-primary-lg">
+        Become a design partner
+        <svg class="arrow w-4 h-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M3 8h10m0 0L9 4m4 4l-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </a>
+    </div>
+  </section>
+
+  <Footer />
+</Base>

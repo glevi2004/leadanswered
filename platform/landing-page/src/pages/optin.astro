@@ -1,0 +1,285 @@
+---
+// Standalone sample quote-request form (noindex). Self-contained: its own
+// styles and behavior, independent of the site's Tailwind/theme.
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Request a Quote — Lead Answered</title>
+    <meta
+      name="description"
+      content="Sample homeowner quote-request form. Powered by Lead Answered."
+    />
+    <meta name="robots" content="noindex" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <meta name="theme-color" content="#ffffff" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style is:global>
+      :root {
+        --ink-900: #0c1747;
+        --ink-800: #1c1d22;
+        --ink-700: #2e3038;
+        --ink-500: #5e616e;
+        --brand-600: #3152f4;
+        --paper-200: #f2f4f9;
+        --border: rgba(12, 23, 71, 0.12);
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, -apple-system, sans-serif;
+        color: var(--ink-800);
+        background: linear-gradient(180deg, #eef1f8 0%, #f7f9fc 40%, #ffffff 100%);
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100%;
+        padding: 24px;
+      }
+      a { color: var(--brand-600); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+
+      .card {
+        width: 100%;
+        max-width: 560px;
+        background: #ffffff;
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        box-shadow:
+          0 1px 2px rgba(12, 23, 71, 0.06),
+          0 18px 50px rgba(12, 23, 71, 0.12);
+        padding: 30px 32px 28px;
+      }
+
+      /* Brand row */
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin-bottom: 22px;
+      }
+      .brand img { width: 26px; height: 26px; display: block; }
+      .brand .name {
+        font-weight: 700;
+        font-size: 16px;
+        letter-spacing: -0.01em;
+        color: var(--ink-900);
+      }
+
+      h1 {
+        font-size: 26px;
+        line-height: 1.15;
+        letter-spacing: -0.02em;
+        color: var(--ink-900);
+        margin: 0 0 4px;
+      }
+      .subtext {
+        margin: 0 0 22px;
+        font-size: 13px;
+        color: var(--ink-500);
+      }
+      .subtext .pw { color: var(--brand-600); font-weight: 600; }
+
+      /* Fields */
+      .row { display: flex; gap: 14px; }
+      .row > .field { flex: 1; }
+      .field { margin-bottom: 14px; }
+      label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--ink-800);
+        margin-bottom: 6px;
+      }
+      input[type="text"],
+      input[type="tel"],
+      input[type="email"],
+      textarea {
+        width: 100%;
+        font: inherit;
+        font-size: 15px;
+        color: var(--ink-900);
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 11px 13px;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      }
+      input::placeholder, textarea::placeholder { color: #9aa0b0; }
+      input:focus, textarea:focus {
+        outline: none;
+        border-color: var(--brand-600);
+        box-shadow: 0 0 0 3px rgba(49, 82, 244, 0.14);
+      }
+      textarea { resize: vertical; min-height: 64px; }
+
+      /* Consent — checkbox UNCHECKED and OPTIONAL by design */
+      .consent {
+        display: flex;
+        gap: 11px;
+        align-items: flex-start;
+        background: var(--paper-200);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 13px 15px;
+        margin: 4px 0 18px;
+      }
+      .consent input[type="checkbox"] {
+        margin: 2px 0 0;
+        width: 17px;
+        height: 17px;
+        flex-shrink: 0;
+        accent-color: var(--brand-600);
+        cursor: pointer;
+      }
+      .consent label {
+        font-weight: 400;
+        font-size: 12.5px;
+        line-height: 1.5;
+        color: var(--ink-700);
+        margin: 0;
+        cursor: pointer;
+      }
+      .consent .optional { color: var(--ink-500); font-style: italic; }
+      .consent a { font-weight: 500; }
+
+      /* Primary button */
+      .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        width: 100%;
+        background: linear-gradient(180deg, #80b5ff 0%, #3388ff 97%);
+        color: #ffffff;
+        font: inherit;
+        font-size: 15.5px;
+        font-weight: 600;
+        padding: 13px 22px;
+        border-radius: 11px;
+        border: 1px solid #1b73ee;
+        cursor: pointer;
+        line-height: 1.2;
+        box-shadow:
+          0 1px 0 rgba(255, 255, 255, 0.3) inset,
+          0 1px 2px rgba(12, 23, 71, 0.08),
+          0 2px 8px rgba(49, 82, 244, 0.18);
+        transition: all 0.18s ease;
+      }
+      .btn-primary:hover {
+        background: linear-gradient(180deg, #529aff 0%, #1b73ee 97%);
+        box-shadow:
+          0 1px 0 rgba(255, 255, 255, 0.3) inset,
+          0 1px 2px rgba(12, 23, 71, 0.1),
+          0 4px 14px rgba(49, 82, 244, 0.32);
+      }
+      .btn-primary:active { transform: translateY(1px); }
+
+      .formfoot {
+        margin-top: 14px;
+        text-align: center;
+        font-size: 12px;
+        color: var(--ink-500);
+      }
+
+      /* Thank-you confirmation */
+      .thanks { text-align: center; padding: 24px 8px 10px; }
+      .thanks .check {
+        width: 56px; height: 56px; margin: 0 auto 18px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #16a34a, #21c45d);
+        color: #fff; font-size: 28px;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .thanks h2 { font-size: 22px; color: var(--ink-900); margin: 0 0 8px; letter-spacing: -0.01em; }
+      .thanks p { font-size: 14.5px; color: var(--ink-700); margin: 0; }
+      .hidden { display: none; }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <div class="brand">
+        <img src="/logo.png" alt="Lead Answered" />
+        <span class="name">Lead Answered</span>
+      </div>
+
+      <!-- FORM VIEW -->
+      <form id="quoteForm" novalidate>
+        <h1>Request a Quote</h1>
+        <p class="subtext">Powered by <span class="pw">Lead Answered</span></p>
+
+        <div class="row">
+          <div class="field">
+            <label for="name">Full Name</label>
+            <input type="text" id="name" name="name" placeholder="Jane Homeowner" autocomplete="name" />
+          </div>
+          <div class="field">
+            <label for="phone">Phone Number</label>
+            <input type="tel" id="phone" name="phone" placeholder="(617) 555-0142" autocomplete="tel" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" placeholder="jane@email.com" autocomplete="email" />
+          </div>
+          <div class="field">
+            <label for="address">Service Address / ZIP</label>
+            <input type="text" id="address" name="address" placeholder="42 Commonwealth Ave, 02458" autocomplete="street-address" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="details">What do you need help with?</label>
+          <textarea id="details" name="details" placeholder="e.g. Roof is leaking through the upstairs ceiling after the storm."></textarea>
+        </div>
+
+        <!-- Consent: UNCHECKED by default, and NOT required to submit -->
+        <div class="consent">
+          <input type="checkbox" id="smsConsent" name="smsConsent" />
+          <label for="smsConsent">
+            I agree to receive text messages from Lead Answered about my request.
+            Msg &amp; data rates may apply. Msg frequency varies. Reply STOP to opt out,
+            HELP for help. <span class="optional">(Optional)</span>
+            <br />
+            <a href="/privacy">Privacy Policy</a> &nbsp;·&nbsp; <a href="/terms">Terms of Service</a>
+          </label>
+        </div>
+
+        <button type="submit" class="btn-primary">Submit Request</button>
+        <p class="formfoot">Consent to texts is optional and not required to submit this request.</p>
+      </form>
+
+      <!-- THANK-YOU VIEW -->
+      <div id="thanks" class="thanks hidden">
+        <div class="check">✓</div>
+        <h2>Thanks — we'll be in touch</h2>
+        <p>Your request has been received. A member of the team will reach out shortly.</p>
+      </div>
+    </main>
+
+    <script is:inline>
+      // Static demo only — no backend, no real SMS. On submit we simply swap to
+      // the thank-you view. The SMS-consent checkbox is intentionally NOT checked
+      // and NOT required: the form submits successfully whether or not it is ticked.
+      document.getElementById("quoteForm").addEventListener("submit", function (e) {
+        e.preventDefault();
+        document.getElementById("quoteForm").classList.add("hidden");
+        document.getElementById("thanks").classList.remove("hidden");
+      });
+    </script>
+  </body>
+</html>

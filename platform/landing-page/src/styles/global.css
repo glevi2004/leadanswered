@@ -1,0 +1,302 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+body {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  background: #ffffff;
+  color: #1c1d22;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv11", "ss01";
+  overflow-x: clip;
+}
+
+/* Hero — monochrome white */
+.hero-bg {
+  background: #ffffff;
+}
+.hero-radial {
+  background-image: radial-gradient(
+    52% 44% at 50% 42%,
+    rgba(255, 255, 255, 0.7) 60%,
+    rgba(231, 244, 236, 0) 100%
+  );
+}
+.soft-bg {
+  background: linear-gradient(180deg, #ffffff 0%, #f7f8fa 100%);
+}
+
+/* Headlines */
+.display {
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.04;
+}
+.section-h {
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.07;
+}
+.text-gradient-green {
+  background: linear-gradient(135deg, #22b94a 0%, #30d158 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.text-gradient-ink {
+  background: linear-gradient(92deg, #14181f 0%, #5b6171 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.serif-accent {
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif;
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* Primary button — iMessage green */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: linear-gradient(180deg, #4be06a 0%, #30d158 97%);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 8px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 1px 2px rgba(16, 24, 40, 0.08),
+    0 3px 10px rgba(48, 209, 88, 0.32);
+  transition: all 0.18s ease;
+  border: 1px solid #22b94a;
+  line-height: 1.2;
+  cursor: pointer;
+}
+.btn-primary:hover {
+  background: linear-gradient(180deg, #3ed95f 0%, #22b94a 97%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 1px 2px rgba(16, 24, 40, 0.1),
+    0 5px 16px rgba(48, 209, 88, 0.42);
+  transform: translateY(-1px);
+}
+.btn-primary .arrow {
+  transition: transform 0.18s ease;
+}
+.btn-primary:hover .arrow {
+  transform: translateX(3px);
+}
+.btn-primary-lg {
+  font-size: 15px;
+  padding: 10px 20px;
+  border-radius: 8px;
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: #ffffff;
+  color: #1c1d22;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid #e3e7ee;
+  transition: all 0.18s ease;
+  line-height: 1.2;
+  cursor: pointer;
+}
+.btn-secondary:hover {
+  background: #f1faf3;
+  border-color: #b7e9c5;
+}
+.btn-secondary-lg {
+  font-size: 15px;
+  padding: 10px 20px;
+  border-radius: 8px;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid rgba(16, 24, 40, 0.07);
+  border-radius: 18px;
+  transition: all 0.2s ease;
+}
+.card-hover:hover {
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.04),
+    0 10px 28px rgba(16, 24, 40, 0.09);
+  border-color: rgba(48, 209, 88, 0.35);
+  transform: translateY(-2px);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(16, 24, 40, 0.08);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 999px;
+  padding: 5px 13px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #2e3038;
+}
+
+/* ===== Authentic iMessage bubbles (light mode, with tails) ===== */
+.imsg-screen {
+  font-family:
+    -apple-system, "SF Pro Text", "SF Pro", system-ui, "Inter",
+    sans-serif;
+}
+.msg {
+  position: relative;
+  max-width: 75%;
+  padding: 7px 13px 8px;
+  border-radius: 18px;
+  font-size: 14.5px;
+  line-height: 1.32;
+  word-wrap: break-word;
+}
+.msg-them {
+  background: #e9e9eb;
+  color: #1b1b1f;
+}
+.msg-me {
+  background: #34c759;
+  color: #ffffff;
+}
+/* received tail (bottom-left) */
+.msg-them::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  bottom: 0;
+  left: -7px;
+  height: 19px;
+  width: 19px;
+  background: #e9e9eb;
+  border-bottom-right-radius: 16px;
+}
+.msg-them::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  bottom: 0;
+  left: -11px;
+  height: 19px;
+  width: 11px;
+  background: #ffffff;
+  border-bottom-right-radius: 11px;
+}
+/* sent tail (bottom-right) */
+.msg-me::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  bottom: 0;
+  right: -7px;
+  height: 19px;
+  width: 19px;
+  background: #34c759;
+  border-bottom-left-radius: 16px;
+}
+.msg-me::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  bottom: 0;
+  right: -11px;
+  height: 19px;
+  width: 11px;
+  background: #ffffff;
+  border-bottom-left-radius: 11px;
+}
+/* iOS data-detector underline (dates / addresses) */
+.msg u {
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  text-decoration-color: rgba(0, 0, 0, 0.32);
+}
+
+.typing-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #8e8e93;
+  display: inline-block;
+  margin-right: 4px;
+  animation: typing 1.4s infinite ease-in-out;
+}
+.typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+  margin-right: 0;
+}
+@keyframes typing {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee 42s linear infinite;
+}
+.marquee-fade {
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent 0,
+    #000 9%,
+    #000 91%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    90deg,
+    transparent 0,
+    #000 9%,
+    #000 91%,
+    transparent 100%
+  );
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 0.6s ease-out,
+    transform 0.6s ease-out;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.logo-accent {
+  background: linear-gradient(135deg, #22b94a 0%, #30d158 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}

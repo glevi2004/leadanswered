@@ -1,0 +1,99 @@
+---
+// Top announcement bar + sticky nav — shared across all pages.
+---
+
+<!-- ============ ANNOUNCEMENT BAR ============ -->
+<div id="promo" class="relative bg-black text-white">
+  <a
+    href="/#offer"
+    class="flex items-center justify-center gap-2.5 px-12 py-4 text-[14px] font-medium transition hover:opacity-90"
+  >
+    <span
+      class="inline-flex items-center justify-center w-[18px] h-[18px] rounded-md bg-brand-400 shrink-0"
+    >
+      <svg
+        class="w-3 h-3 text-ink-900"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="3.5"
+      >
+        <path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    </span>
+    <span>We're taking on 3 design partners for 2026 — see the offer</span>
+    <svg
+      class="w-3.5 h-3.5 text-white shrink-0"
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M3 8h10m0 0L9 4m4 4l-4 4"
+        stroke="currentColor"
+        stroke-width="1.6"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </svg>
+  </a>
+  <button
+    type="button"
+    aria-label="Dismiss"
+    onclick="document.getElementById('promo').remove()"
+    class="absolute right-5 top-1/2 -translate-y-1/2 text-white/70 transition hover:text-white"
+  >
+    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M6 6l12 12M18 6L6 18"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+      />
+    </svg>
+  </button>
+</div>
+
+<!-- ============ NAV ============ -->
+<header id="nav" class="sticky top-0 z-50 bg-white">
+  <div class="max-w-6xl mx-auto px-5 flex items-center justify-between gap-3 py-5">
+    <div class="flex items-center gap-8">
+      <a href="/" class="flex items-center gap-2 shrink-0">
+        <img src="/logo.png" alt="Lead Answered" class="h-6 w-auto" />
+        <span
+          class="text-xl font-semibold text-ink-900 tracking-tight whitespace-nowrap"
+          >Lead Answered</span
+        >
+      </a>
+      <div
+        class="hidden md:flex items-center gap-6 text-[15px] text-ink-800 font-medium"
+      >
+        <a href="/#how" class="hover:text-ink-900 transition">How it works</a>
+        <a href="/#offer" class="hover:text-ink-900 transition">The offer</a>
+        <a href="/for" class="hover:text-ink-900 transition">For your trade</a>
+        <a href="/blog" class="hover:text-ink-900 transition">Blog</a>
+        <a href="/about" class="hover:text-ink-900 transition">About</a>
+      </div>
+    </div>
+    <a
+      href="https://cal.com/leviramos"
+      class="btn-primary whitespace-nowrap shrink-0"
+    >
+      Become a <span class="hidden sm:inline">design </span>partner
+      <svg
+        class="arrow w-3.5 h-3.5"
+        viewBox="0 0 16 16"
+        fill="none"
+        aria-hidden="true"
+      >
+        <path
+          d="M3 8h10m0 0L9 4m4 4l-4 4"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </a>
+  </div>
+</header>

@@ -1,0 +1,749 @@
+---
+import Base from "../layouts/Base.astro";
+import Nav from "../components/Nav.astro";
+import Footer from "../components/Footer.astro";
+import { trades } from "../data/trades";
+
+const softwareApp = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Lead Answered",
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web, iOS, Android",
+  url: "https://leadanswered.com",
+  description:
+    "The AI operating system for service businesses — website, leads, quotes, scheduling, reviews, and invoicing, run by texting one assistant. Built with you as a design partner.",
+};
+
+const faqs = [
+  { q: "Do I have to leave my current software?", a: "No. You keep everything until Sarah's better. We import your history, stand up the new tools alongside what you have, and you switch when you're ready — not before." },
+  { q: "What if I already have a website?", a: "We can build you a new one (so nothing depends on your old developer) or connect Sarah to your current site. Your call." },
+  { q: "What happens after the free period?", a: "Once you're relying on it and you've seen the ROI, we agree on fair founder pricing. If it's not worth it, you walk away — no contract, no lock-in." },
+  { q: "How long does setup take?", a: "The first pieces — your site and the review campaign — go live in days. We build out the rest with you over about six weeks." },
+  { q: "Why only 3 partners?", a: "Because we build it with you, hands-on. Three at a time is how we keep it that close." },
+  { q: "Is it an app, or just texting?", a: "Both. There's a full app, set up for you — and you can also just text Sarah for the day-to-day. They work together." },
+];
+const faqLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqs.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
+};
+
+// Radial hub nodes (component B). Positions computed on a circle.
+const hubNodes = [
+  { label: "Website", d: "M12 3a9 9 0 100 18 9 9 0 000-18M3 12h18M12 3c2.4 2.6 2.4 15.4 0 18M12 3c-2.4 2.6-2.4 15.4 0 18" },
+  { label: "SEO & AI search", d: "M11 18a7 7 0 100-14 7 7 0 000 14zM20 20l-4-4" },
+  { label: "Blog posts & Socials", d: "M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8zM14 3v5h5M9 13h6M9 17h4" },
+  { label: "Lead response", d: "M21 12a8 8 0 01-11.5 7.2L3 21l1.8-6.5A8 8 0 1121 12z" },
+  { label: "Quoting & Invoicing", d: "M6 2h12a1 1 0 011 1v18l-3-2-3 2-3-2-3 2V3a1 1 0 011-1zM9 7h6M9 11h6" },
+  { label: "Scheduling", d: "M8 2v3M16 2v3M3.5 8.5h17M5 4.5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1v-13a1 1 0 011-1z" },
+  { label: "Reviews", d: "M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17.8 6.6 20l1-6.1L3.2 9.5l6.1-.9z" },
+  { label: "CRM", d: "M16 20v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 10a4 4 0 100-8 4 4 0 000 8zM22 20v-2a4 4 0 00-3-3.9M16 2.1a4 4 0 010 7.8" },
+];
+const R = 40;
+const hub = hubNodes.map((n, i) => {
+  const a = (i / hubNodes.length) * 2 * Math.PI - Math.PI / 2;
+  return { ...n, x: 50 + R * Math.cos(a), y: 50 + R * Math.sin(a) };
+});
+
+// Day-one ROI: the "get found" trio, rendered as isometric mini-orbs (Sarah-cube style).
+const roiOrbs = [
+  { label: "Website", d: "M12 3a9 9 0 100 18 9 9 0 000-18M3 12h18M12 3c2.4 2.6 2.4 15.4 0 18M12 3c-2.4 2.6-2.4 15.4 0 18", fill: false },
+  { label: "SEO", d: "M11 18a7 7 0 100-14 7 7 0 000 14zM20 20l-4-4", fill: false },
+  { label: "ChatGPT", d: "M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.677l5.814 3.354-2.02 1.168a.076.076 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.872zm16.597 3.855-5.843-3.387L15.119 7.2a.076.076 0 0 1 .071 0l4.83 2.791a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.407-.667zm2.01-3.023-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zM8.307 12.863l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.376-3.454l-.142.08L8.704 5.46a.795.795 0 0 0-.393.681zm1.097-2.365 2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5z", fill: true },
+];
+---
+
+<Base
+  title="Lead Answered — The AI operating system for service businesses."
+  description="Run your business by texting one assistant — website, leads, quotes, scheduling, reviews, invoicing, and more. We build it with you, free, as a design partner."
+  jsonLd={[softwareApp, faqLd]}
+>
+  <Nav />
+
+  <!-- ============ HERO ============ -->
+  <section class="hero-bg pt-14 pb-16 md:pt-20 md:pb-24 relative overflow-hidden">
+    <div class="hero-radial absolute inset-0"></div>
+    <div class="relative max-w-3xl mx-auto px-5 text-center">
+      <div class="pill mb-5 animate-fade-in">
+        <span class="relative flex h-1.5 w-1.5">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-500 opacity-60"></span>
+          <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-brand-500"></span>
+        </span>
+        Now selecting 3 design partners
+      </div>
+      <h1 class="display text-[38px] sm:text-[44px] md:text-[50px] lg:text-[54px] text-ink-900 mb-4 animate-fade-in-up">
+        The AI operating system for<br />
+        <span class="serif-accent text-brand-600 block sm:inline text-[30px] sm:text-[36px] md:text-[40px] lg:text-[44px]">service businesses.</span>
+      </h1>
+      <p class="text-[16px] md:text-[18px] leading-[1.55] text-ink-500 max-w-[600px] mx-auto mb-8 animate-fade-in-up" style="animation-delay: 0.08s">
+        Your website, leads, quotes, scheduling, reviews, invoicing — and more, handled by texting
+        Sarah or in an app we set up for you. We build it with you, free, as a design partner.
+      </p>
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-2.5 mb-8 animate-fade-in-up" style="animation-delay: 0.16s">
+        <a href="https://cal.com/leviramos" class="btn-primary btn-primary-lg">
+          Become a design partner
+          <svg class="arrow w-4 h-4" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10m0 0L9 4m4 4l-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg>
+        </a>
+        <a href="#demo" class="btn-secondary btn-secondary-lg">See Sarah in action</a>
+      </div>
+      <div class="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[12.5px] text-ink-500 animate-fade-in" style="animation-delay: 0.32s">
+        <div class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-brand-600" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" /></svg><span>Built for you</span></div>
+        <div class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-brand-600" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" /></svg><span>No cost to start</span></div>
+        <div class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-brand-600" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" /></svg><span>A partner, not a customer</span></div>
+      </div>
+    </div>
+  </section>
+
+  {/* ============ VIDEO (component A) — hidden until the real demo video is ready ============
+  <section class="relative bg-white">
+    <div class="absolute inset-x-0 top-0 h-3/4 pointer-events-none" style="background: radial-gradient(60% 90% at 50% 0%, rgba(75,224,106,0.16), rgba(255,255,255,0) 72%);"></div>
+    <div class="relative max-w-4xl mx-auto px-5 -mt-6 md:-mt-14 pb-16 md:pb-20">
+      <div class="rounded-[1.75rem] bg-ink-900 p-2 shadow-[0_40px_90px_-30px_rgba(16,24,40,0.45)]">
+        <!-- Drop the real video here: replace this placeholder with
+             <video src="/sarah-demo.mp4" poster="/video-poster.jpg" controls playsinline class="w-full h-full object-cover"></video> -->
+        <div class="relative rounded-[1.4rem] overflow-hidden aspect-video bg-gradient-to-br from-ink-900 via-[#123720] to-[#0c2417]">
+          <div class="absolute inset-0 flex flex-col items-center justify-center gap-3">
+            <span class="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white/95 flex items-center justify-center shadow-lg">
+              <svg class="w-7 h-7 md:w-8 md:h-8 text-ink-900 ml-1" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+            </span>
+            <span class="text-[13px] font-medium text-white/70">Watch the 2-minute demo</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  */}
+
+  <!-- ============ THE INSIGHT ============ -->
+  <section class="py-20 md:py-24 soft-bg">
+    <div class="max-w-3xl mx-auto px-5 text-center reveal">
+      <p class="text-[12px] uppercase tracking-[0.18em] text-brand-600 font-semibold mb-3">The problem was never features</p>
+      <h2 class="section-h text-[30px] md:text-[44px] text-ink-900 mb-6">You don't need more software. You need software you'll actually use.</h2>
+      <div class="text-[16px] md:text-[17px] text-ink-500 leading-[1.65] space-y-4 text-left max-w-[640px] mx-auto">
+        <p>Jobber, Housecall Pro, QuoteIQ — the tools already have the features. But they take weeks to set up, nobody ever configures the automations, and none of them were built for AI. So you pay every month for software you barely open, and you run the real business off your phone, your memory, and a notepad on the dash.</p>
+        <p>Lead Answered is the opposite. One assistant that already knows your business, does the work the moment you ask, and comes set up — because we set it up for you.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MEET SARAH (component D — compact chat beside text) ============ -->
+  <section id="demo" class="py-20 md:py-24 bg-white scroll-mt-20">
+    <div class="max-w-6xl mx-auto px-5">
+      <div class="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+        <!-- Chat side -->
+        <div class="reveal order-2 lg:order-1">
+          <div class="flex justify-center lg:justify-start mb-4">
+            <div class="inline-flex items-center gap-1 p-1 rounded-full bg-paper-100 border border-black/[0.06] text-[12.5px] font-medium">
+              <button class="demo-tab px-3.5 py-1.5 rounded-full transition" data-mode="ops">You, running things</button>
+              <button class="demo-tab px-3.5 py-1.5 rounded-full transition" data-mode="lead">Sarah, answering leads</button>
+            </div>
+          </div>
+          <div class="imsg-screen max-w-[430px] mx-auto lg:mx-0 rounded-2xl bg-white border border-black/[0.08] overflow-hidden shadow-[0_24px_60px_-24px_rgba(16,24,40,0.28)]">
+            <div class="flex items-center gap-2.5 px-4 py-3 border-b border-black/[0.06] bg-paper-100">
+              <div id="demo-avatar" class="w-7 h-7 rounded-full bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white text-[11px] font-semibold">S</div>
+              <span id="demo-name" class="text-[13.5px] font-semibold text-ink-900">Sarah</span>
+              <span class="ml-auto inline-flex items-center gap-1.5 text-[11px] font-medium text-ink-400">
+                <span class="w-1.5 h-1.5 rounded-full bg-brand-500"></span> Live
+              </span>
+            </div>
+            <div id="chat-stream" class="px-4 py-4 space-y-2 h-[360px] overflow-hidden bg-white"></div>
+            <div class="flex items-center gap-2 px-3 py-2.5 border-t border-black/[0.06]">
+              <div class="flex-1 rounded-full border border-black/10 px-3.5 py-2 text-[12.5px] text-ink-400">Message Sarah…</div>
+              <span class="w-8 h-8 rounded-full bg-brand-500 flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4 text-white" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10m0 0L9 4m4 4l-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+              </span>
+            </div>
+          </div>
+          <div class="text-center lg:text-left mt-3">
+            <button id="replay-btn" class="text-[12px] text-ink-400 hover:text-brand-600 transition inline-flex items-center gap-1.5 font-medium">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round" /></svg>
+              Replay
+            </button>
+          </div>
+        </div>
+
+        <!-- Text side -->
+        <div class="reveal order-1 lg:order-2 text-center lg:text-left">
+          <p class="text-[12px] uppercase tracking-[0.18em] text-brand-600 font-semibold mb-3">Meet Sarah</p>
+          <h2 class="section-h text-[30px] md:text-[44px] text-ink-900 mb-4">Text Sarah. She handles it.</h2>
+          <p class="text-[16px] md:text-[17px] text-ink-500 leading-[1.6] max-w-[520px] mx-auto lg:mx-0">
+            Sarah is your AI assistant — by text or in the app. You text her to handle quotes,
+            scheduling, invoicing, reviews, blog posts, and more. It's all in the app too, set up for
+            you — but for the day-to-day, you just ask. She can also text your customers back,
+            answering leads and booking jobs.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ WHAT SARAH DOES (hub B + cards C) ============ -->
+  <section id="how" class="py-20 md:py-24 soft-bg scroll-mt-20">
+    <div class="max-w-6xl mx-auto px-5">
+      <div class="grid lg:grid-cols-2 gap-10 lg:gap-6 items-center mb-16 md:mb-20">
+        <!-- text, left -->
+        <div class="reveal text-center lg:text-left max-w-[560px] mx-auto lg:mx-0 lg:pr-6">
+          <p class="text-[12px] uppercase tracking-[0.18em] text-brand-600 font-semibold mb-3">What Sarah does</p>
+          <h2 class="section-h text-gradient-ink text-[30px] md:text-[42px] leading-[1.08]">Everything runs through Sarah.</h2>
+          <p class="text-[15px] md:text-[17px] text-ink-500 mt-4 mb-7 leading-[1.6]">
+            One assistant, set up for you — and we add more as we go.
+          </p>
+          <ul class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3.5 text-left">
+            {hub.map((n) => (
+              <li class="flex items-center gap-2.5">
+                <span class="flex h-5 w-5 flex-none items-center justify-center rounded-full bg-brand-400/15 text-brand-700">
+                  <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                </span>
+                <span class="text-[15px] md:text-[15.5px] font-medium text-ink-800">{n.label}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <!-- Radial hub (component B), right -->
+        <div class="reveal">
+        <!-- desktop orbit -->
+        <div class="relative mx-auto aspect-square max-w-[560px] hidden sm:block">
+          <svg viewBox="0 0 100 100" class="absolute inset-0 w-full h-full" fill="none" aria-hidden="true">
+            {hub.map((n) => (<line x1={n.x} y1={n.y} x2="50" y2="50" stroke="rgba(16,24,40,0.07)" stroke-width="0.28" />))}
+            {hub.map((n, i) => (<line x1={n.x} y1={n.y} x2="50" y2="50" stroke="#30d158" stroke-width="0.7" stroke-linecap="round" class="hub-pulse" style={`animation-delay:${(i * 0.45).toFixed(2)}s`} />))}
+          </svg>
+          <!-- compact inner platform: rings tucked near the center -->
+          <div class="absolute inset-[30%] rounded-full border border-black/[0.05]"></div>
+          <div class="absolute inset-[36%] rounded-full bg-white shadow-[0_12px_30px_-10px_rgba(16,24,40,0.18)]"></div>
+          <!-- ring pulse: ripples out after the line sequence -->
+          <div class="hub-ring-pulse absolute left-1/2 top-1/2 h-[76px] w-[76px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-brand-400/50"></div>
+          <!-- center Sarah: real 3D isometric stacked tile (didit-style) -->
+          <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
+            <div class="relative flex h-[116px] w-[116px] items-center justify-center">
+              <div class="absolute inset-2 rounded-full bg-brand-400/35 blur-2xl"></div>
+              <div class="absolute bottom-[22px] left-1/2 h-3 w-[70px] -translate-x-1/2 rounded-full bg-ink-900/20 blur-md"></div>
+              <div class="sarah-iso">
+                <div class="sarah-iso-inner">
+                  <div class="sarah-slab" style="background:linear-gradient(135deg,#178036,#0f5f28);transform:translateZ(-13px)"></div>
+                  <div class="sarah-slab" style="background:linear-gradient(135deg,#22b94a,#178036);transform:translateZ(-1px)"></div>
+                  <div class="sarah-slab sarah-slab-top" style="background:linear-gradient(135deg,#7cef96,#2fce56);transform:translateZ(13px)"></div>
+                </div>
+              </div>
+              <svg class="pointer-events-none absolute left-1/2 top-1/2 h-8 w-8 text-white drop-shadow-[0_1px_1.5px_rgba(6,46,20,0.35)]" style="transform:translate(-50%,-50%) translateY(-9px)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            </div>
+            <span class="mt-1 text-[13.5px] font-semibold text-ink-900">Sarah</span>
+          </div>
+          <!-- nodes -->
+          {hub.map((n) => (
+            <div class="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1.5 w-[92px]" style={`left:${n.x}%; top:${n.y}%`}>
+              <div class="w-10 h-10 rounded-full bg-white border border-black/[0.08] shadow-card flex items-center justify-center">
+                <svg class="w-[18px] h-[18px] text-ink-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d={n.d} stroke-linecap="round" stroke-linejoin="round" /></svg>
+              </div>
+              <span class="text-[11px] font-medium text-ink-500 text-center leading-tight">{n.label}</span>
+            </div>
+          ))}
+        </div>
+        <!-- mobile chip grid -->
+        <div class="sm:hidden flex flex-wrap justify-center gap-2">
+          {hub.map((n) => (
+            <span class="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-ink-700 bg-white border border-black/[0.07] rounded-full px-3 py-1.5">
+              <svg class="w-3.5 h-3.5 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d={n.d} stroke-linecap="round" stroke-linejoin="round" /></svg>
+              {n.label}
+            </span>
+          ))}
+        </div>
+        </div>
+      </div>
+
+      <!-- Feature cards with mini-UIs (component C) -->
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4 reveal">
+        <!-- Leads -->
+        <div class="card card-hover p-6 flex flex-col">
+          <h3 class="text-[17px] font-semibold text-ink-900 mb-1.5">Answers your leads</h3>
+          <p class="text-[13.5px] text-ink-500 leading-[1.5] mb-5">A real text back in 60 seconds — day, night, busy season.</p>
+          <div class="mt-auto rounded-xl bg-paper-100 border border-black/[0.05] p-3.5 space-y-1.5">
+            <div class="flex justify-start"><span class="rounded-2xl bg-[#e9e9eb] text-ink-800 text-[12px] leading-snug px-3 py-1.5 max-w-[85%]">New lead — leak after the storm</span></div>
+            <div class="flex justify-end"><span class="rounded-2xl bg-[#34c759] text-white text-[12px] leading-snug px-3 py-1.5 max-w-[85%]">On it — what's the address?</span></div>
+            <div class="flex justify-end pt-0.5"><span class="inline-flex items-center gap-1 text-[10px] font-semibold text-brand-700"><span class="w-1 h-1 rounded-full bg-brand-500"></span>Replied in 57s</span></div>
+          </div>
+        </div>
+        <!-- Quotes -->
+        <div class="card card-hover p-6 flex flex-col">
+          <h3 class="text-[17px] font-semibold text-ink-900 mb-1.5">Drafts your quotes</h3>
+          <p class="text-[13.5px] text-ink-500 leading-[1.5] mb-5">Text her the job; she drafts and sends the quote.</p>
+          <div class="mt-auto rounded-xl bg-paper-100 border border-black/[0.05] p-3.5">
+            <div class="rounded-lg bg-white border border-black/[0.06] p-3">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[11px] text-ink-400 font-medium">Quote · Miller roof</span>
+                <span class="text-[10px] font-semibold text-brand-700 bg-brand-50 rounded-full px-1.5 py-0.5">Sent ✓</span>
+              </div>
+              <div class="text-[22px] font-bold text-ink-900 tracking-tight leading-none">$14,200</div>
+              <div class="text-[11px] text-ink-400 mt-1">Full replacement · architectural shingles</div>
+            </div>
+          </div>
+        </div>
+        <!-- Reviews -->
+        <div class="card card-hover p-6 flex flex-col">
+          <h3 class="text-[17px] font-semibold text-ink-900 mb-1.5">Gets you reviews</h3>
+          <p class="text-[13.5px] text-ink-500 leading-[1.5] mb-5">She asks every happy customer — with your photo.</p>
+          <div class="mt-auto rounded-xl bg-paper-100 border border-black/[0.05] p-3.5">
+            <div class="flex items-center gap-2.5">
+              <img src="/levi-headshot.jpg" alt="" class="w-9 h-9 rounded-full object-cover shrink-0" />
+              <div class="min-w-0">
+                <div class="text-[11.5px] text-ink-600 leading-tight">"Loved the work — quick and clean."</div>
+                <div class="text-[13px] text-[#f5a623] leading-none mt-0.5">★★★★★</div>
+              </div>
+            </div>
+            <span class="inline-flex items-center gap-1 text-[10.5px] font-semibold text-brand-700 bg-brand-50 border border-brand-100 rounded-full px-2 py-0.5 mt-2.5">+ New 5-star review</span>
+          </div>
+        </div>
+        <!-- Website -->
+        <div class="card card-hover p-6 flex flex-col">
+          <h3 class="text-[17px] font-semibold text-ink-900 mb-1.5">Builds your website</h3>
+          <p class="text-[13.5px] text-ink-500 leading-[1.5] mb-5">A fast, modern site, built fresh. Leads flow straight in.</p>
+          <div class="mt-auto rounded-xl bg-paper-100 border border-black/[0.05] p-3.5">
+            <div class="rounded-lg overflow-hidden border border-black/[0.08] bg-white">
+              <div class="flex items-center gap-1 px-2 py-1.5 bg-paper-200 border-b border-black/[0.05]">
+                <span class="w-1.5 h-1.5 rounded-full bg-[#ff5f57]"></span><span class="w-1.5 h-1.5 rounded-full bg-[#febc2e]"></span><span class="w-1.5 h-1.5 rounded-full bg-[#28c840]"></span>
+                <span class="ml-2 text-[9px] text-ink-400">apexroofing.com</span>
+              </div>
+              <div class="p-3">
+                <div class="text-[12px] font-bold text-ink-900 mb-1.5">Apex Roofing</div>
+                <div class="h-1.5 w-2/3 rounded bg-paper-300 mb-1"></div>
+                <div class="h-1.5 w-1/2 rounded bg-paper-300 mb-2.5"></div>
+                <span class="inline-block text-[9px] font-semibold text-white bg-brand-500 rounded px-2 py-1">Get a free quote</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Blog -->
+        <div class="card card-hover p-6 flex flex-col">
+          <h3 class="text-[17px] font-semibold text-ink-900 mb-1.5">Writes your blog posts</h3>
+          <p class="text-[13.5px] text-ink-500 leading-[1.5] mb-5">Send photos of a finished job; she writes and posts it.</p>
+          <div class="mt-auto rounded-xl bg-paper-100 border border-black/[0.05] p-3.5">
+            <div class="rounded-lg bg-white border border-black/[0.06] overflow-hidden">
+              <div class="h-12 bg-gradient-to-br from-brand-200 to-brand-400"></div>
+              <div class="p-2.5">
+                <div class="text-[11.5px] font-semibold text-ink-900 leading-tight mb-1.5">How we fixed the Miller roof after the storm</div>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[9.5px] font-semibold text-brand-700 bg-brand-50 rounded-full px-1.5 py-0.5">Published</span>
+                  <span class="text-[9.5px] text-ink-400">· shared to Facebook</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Schedule -->
+        <div class="card card-hover p-6 flex flex-col">
+          <h3 class="text-[17px] font-semibold text-ink-900 mb-1.5">Runs your schedule</h3>
+          <p class="text-[13.5px] text-ink-500 leading-[1.5] mb-5">Jobs on one calendar, routed to cut your drive.</p>
+          <div class="mt-auto rounded-xl bg-paper-100 border border-black/[0.05] p-3.5 space-y-2">
+            <div class="flex items-center gap-2.5 text-[11.5px]"><span class="text-ink-400 tabular-nums w-9">9:00</span><span class="w-1.5 h-1.5 rounded-full bg-brand-500"></span><span class="text-ink-800 font-medium">Newton</span></div>
+            <div class="flex items-center gap-2.5 text-[11.5px]"><span class="text-ink-400 tabular-nums w-9">11:30</span><span class="w-1.5 h-1.5 rounded-full bg-brand-500"></span><span class="text-ink-800 font-medium">Brookline</span></div>
+            <div class="flex items-center gap-2.5 text-[11.5px]"><span class="text-ink-400 tabular-nums w-9">2:00</span><span class="w-1.5 h-1.5 rounded-full bg-brand-500"></span><span class="text-ink-800 font-medium">Waltham</span></div>
+            <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-brand-700 bg-brand-50 rounded-full px-2 py-0.5">Routed — shortest drive</span>
+          </div>
+        </div>
+      </div>
+      <p class="text-center text-[14px] text-ink-400 mt-6 reveal">…and more, as we build it with you.</p>
+    </div>
+  </section>
+
+  <!-- ============ DAY-ONE ROI ============ -->
+  <section class="py-20 md:py-24 bg-white">
+    <div class="max-w-6xl mx-auto px-5 grid lg:grid-cols-2 gap-12 lg:gap-10 items-center">
+      <!-- copy, left -->
+      <div class="reveal text-center lg:text-left max-w-[560px] mx-auto lg:mx-0">
+        <p class="text-[12px] uppercase tracking-[0.18em] text-brand-600 font-semibold mb-3">Before you pay us</p>
+        <h2 class="section-h text-[30px] md:text-[42px] text-ink-900 mb-5">The ROI of onboarding.</h2>
+        <p class="text-[16px] md:text-[17px] text-ink-500 leading-[1.65]">
+          First, we build your website — fast, modern, and set up to get found on Google and in AI
+          answers like ChatGPT. Then we import your customers, and Sarah texts every past client who
+          never left a review, with a photo of you and a simple ask. Most owners have hundreds of happy
+          customers who were just never asked — a wave of new 5-star reviews in your first week, before
+          you've paid a cent.
+        </p>
+      </div>
+
+      <!-- visual, right: get-found orbs → reviews outcome -->
+      <div class="reveal">
+        <div class="relative mx-auto max-w-[440px] rounded-[26px] border border-black/[0.06] bg-gradient-to-b from-white to-paper-100 p-7 md:p-8 shadow-[0_20px_54px_-26px_rgba(16,24,40,0.28)]">
+          <p class="text-center text-[11px] uppercase tracking-[0.16em] text-ink-400 font-semibold mb-6">Get found</p>
+          <div class="flex items-start justify-center gap-4 sm:gap-8">
+            {roiOrbs.map((orb) => (
+              <div class="flex flex-col items-center gap-2.5 w-[84px]">
+                <div class="relative flex h-[62px] w-[62px] items-center justify-center">
+                  <div class="absolute inset-2.5 rounded-full bg-brand-400/25 blur-lg"></div>
+                  <div class="iso-orb">
+                    <div class="iso-orb-inner">
+                      <div class="iso-orb-slab" style="background:linear-gradient(135deg,#178036,#0f5f28);transform:translateZ(-8px)"></div>
+                      <div class="iso-orb-slab" style="background:linear-gradient(135deg,#22b94a,#178036);transform:translateZ(-1px)"></div>
+                      <div class="iso-orb-slab iso-orb-top" style="background:linear-gradient(135deg,#7cef96,#2fce56);transform:translateZ(8px)"></div>
+                    </div>
+                  </div>
+                  {orb.fill ? (
+                    <svg class="pointer-events-none absolute left-1/2 top-1/2 h-[22px] w-[22px] text-white" style="transform:translate(-50%,-50%) translateY(-7px)" viewBox="0 0 24 24" fill="currentColor"><path d={orb.d} /></svg>
+                  ) : (
+                    <svg class="pointer-events-none absolute left-1/2 top-1/2 h-[22px] w-[22px] text-white" style="transform:translate(-50%,-50%) translateY(-7px)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d={orb.d} stroke-linecap="round" stroke-linejoin="round" /></svg>
+                  )}
+                </div>
+                <span class="text-[12px] font-medium text-ink-600">{orb.label}</span>
+              </div>
+            ))}
+          </div>
+
+          <!-- connector with a pulse dropping into the outcome -->
+          <div class="relative mx-auto my-4 h-9 w-px bg-black/[0.09]">
+            <div class="roi-drop absolute left-1/2 top-0 h-2.5 w-2.5 rounded-full bg-brand-500 shadow-[0_0_8px_rgba(48,209,88,0.65)]"></div>
+          </div>
+
+          <!-- outcome: the wave of reviews -->
+          <div class="flex items-center gap-4 rounded-2xl border border-black/[0.07] bg-white p-4 shadow-[0_6px_20px_-12px_rgba(16,24,40,0.25)]">
+            <div class="relative flex h-[68px] w-[68px] flex-none items-center justify-center">
+              <div class="absolute inset-2 rounded-full bg-brand-400/30 blur-lg"></div>
+              <div class="iso-orb" style="width:52px;height:52px">
+                <div class="iso-orb-inner">
+                  <div class="iso-orb-slab" style="background:linear-gradient(135deg,#178036,#0f5f28);transform:translateZ(-9px)"></div>
+                  <div class="iso-orb-slab" style="background:linear-gradient(135deg,#22b94a,#178036);transform:translateZ(-1px)"></div>
+                  <div class="iso-orb-slab iso-orb-top" style="background:linear-gradient(135deg,#7cef96,#2fce56);transform:translateZ(9px)"></div>
+                </div>
+              </div>
+              <svg class="pointer-events-none absolute left-1/2 top-1/2 h-7 w-7 text-white" style="transform:translate(-50%,-50%) translateY(-8px)" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17.8 6.6 20l1-6.1L3.2 9.5l6.1-.9z" /></svg>
+            </div>
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <div class="flex gap-0.5 text-[#f5a623]">
+                  {[0, 1, 2, 3, 4].map(() => (
+                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17.8 6.6 20l1-6.1L3.2 9.5l6.1-.9z" /></svg>
+                  ))}
+                </div>
+                <span class="text-[13px] font-semibold text-ink-800">5.0</span>
+              </div>
+              <p class="text-[13px] text-ink-500 mt-0.5">New reviews rolling in</p>
+              <div class="mt-2 flex items-center gap-1.5">
+                <span class="inline-flex items-center gap-1 text-[10.5px] font-semibold text-brand-700 bg-brand-50 border border-brand-100 rounded-full px-2 py-0.5">+ New 5-star review</span>
+                <span class="text-[10.5px] font-medium text-ink-400 bg-paper-200 rounded-full px-2 py-0.5">Week 1</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ THE OFFER ============ -->
+  <section id="offer" class="py-20 md:py-24 soft-bg scroll-mt-20">
+    <div class="max-w-3xl mx-auto px-5 text-center mb-12 reveal">
+      <p class="text-[12px] uppercase tracking-[0.18em] text-brand-600 font-semibold mb-3">The offer</p>
+      <h2 class="section-h text-[32px] md:text-[46px] text-ink-900 mb-3">Here's our plan.</h2>
+      <p class="text-[16px] text-ink-500 max-w-[520px] mx-auto">We're not selling you software. We're picking a few businesses to build it with.</p>
+    </div>
+    <div class="max-w-4xl mx-auto px-5 grid sm:grid-cols-2 gap-4 reveal">
+      <div class="card card-hover p-6">
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-[26px] font-bold text-gradient-green leading-none tabular-nums tracking-tight">1</span>
+          <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 border border-brand-100 text-brand-600">
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+          </span>
+        </div>
+        <h3 class="text-[17px] font-semibold text-ink-900 mb-1.5">We set it up for you.</h3>
+        <p class="text-[14px] text-ink-500 leading-[1.6]">Your website, CRM, and automations, configured and ready to use.</p>
+      </div>
+      <div class="card card-hover p-6">
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-[26px] font-bold text-gradient-green leading-none tabular-nums tracking-tight">2</span>
+          <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 border border-brand-100 text-brand-600">
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><path d="M7 7h.01"/></svg>
+          </span>
+        </div>
+        <h3 class="text-[17px] font-semibold text-ink-900 mb-1.5">You don't pay to start.</h3>
+        <p class="text-[14px] text-ink-500 leading-[1.6]">Use it free while we build. Real tools, real ROI.</p>
+      </div>
+      <div class="card card-hover p-6">
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-[26px] font-bold text-gradient-green leading-none tabular-nums tracking-tight">3</span>
+          <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 border border-brand-100 text-brand-600">
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+          </span>
+        </div>
+        <h3 class="text-[17px] font-semibold text-ink-900 mb-1.5">You're a design partner, not a customer.</h3>
+        <p class="text-[14px] text-ink-500 leading-[1.6]">Your only “payment” is a weekly call telling us what's working and your feedback.</p>
+      </div>
+      <div class="card card-hover p-6">
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-[26px] font-bold text-gradient-green leading-none tabular-nums tracking-tight">4</span>
+          <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 border border-brand-100 text-brand-600">
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 019.9-1"/></svg>
+          </span>
+        </div>
+        <h3 class="text-[17px] font-semibold text-ink-900 mb-1.5">You decide later.</h3>
+        <p class="text-[14px] text-ink-500 leading-[1.6]">Once you're relying on it, we agree on fair founder pricing — or you walk, no strings.</p>
+      </div>
+    </div>
+    <p class="max-w-2xl mx-auto px-5 text-center text-[14px] text-ink-400 mt-8 reveal">We will take on just 3 partners at a time, so we can build it right. We finalize the exact terms together on the call.</p>
+  </section>
+
+  <!-- ============ WHO IT'S FOR ============ -->
+  <section class="py-16 md:py-20 bg-white">
+    <div class="max-w-4xl mx-auto px-5 text-center reveal">
+      <p class="text-[12px] uppercase tracking-[0.18em] text-brand-600 font-semibold mb-3">For your trade</p>
+      <h2 class="section-h text-[28px] md:text-[38px] text-ink-900 mb-4">Built for the trades.</h2>
+      <p class="text-[16px] text-ink-500 leading-[1.6] mb-8 max-w-[540px] mx-auto">If you run on jobs and estimates, Sarah is built for how you work.</p>
+      <div class="flex flex-wrap justify-center gap-2.5">
+        {trades.map((t) => (
+          <a href={`/for/${t.slug}`} class="group inline-flex items-center rounded-full border border-black/[0.09] bg-white px-4 py-2 text-[14px] font-medium text-ink-700 shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-400 hover:text-brand-700 hover:shadow-[0_8px_18px_-8px_rgba(48,209,88,0.4)]">
+            {t.trade.charAt(0).toUpperCase() + t.trade.slice(1)}
+            <span class="inline-flex w-0 items-center overflow-hidden opacity-0 transition-all duration-200 group-hover:ml-1.5 group-hover:w-3.5 group-hover:opacity-100">
+              <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10m0 0L9 4m4 4l-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            </span>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FAQ ============ -->
+  <section class="py-20 md:py-24 bg-white">
+    <div class="max-w-[760px] mx-auto px-5">
+      <p class="text-[12px] uppercase tracking-[0.18em] text-brand-600 font-semibold mb-3 text-center reveal">FAQ</p>
+      <h2 class="section-h text-[28px] md:text-[40px] text-ink-900 mb-10 text-center reveal">Questions, answered.</h2>
+      <div class="reveal border-t border-black/[0.08]">
+        {faqs.map((f, i) => (
+          <div class="faq-item border-b border-black/[0.08]">
+            <button type="button" class="faq-q flex w-full items-center justify-between gap-4 py-5 text-left" aria-expanded="false">
+              <span class="text-[16px] md:text-[17px] font-semibold text-ink-900">{f.q}</span>
+              <svg class="faq-chevron h-5 w-5 shrink-0 text-ink-400 transition-transform duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            </button>
+            <div class="faq-panel">
+              <div class="overflow-hidden">
+                <p class="pb-5 pr-6 text-[15px] md:text-[15.5px] text-ink-500 leading-[1.65]">{f.a}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MEET THE FOUNDER ============ -->
+  <section class="py-20 md:py-24 soft-bg">
+    <div class="max-w-3xl mx-auto px-5 reveal">
+      <div class="flex flex-col sm:flex-row items-center gap-8">
+        <img src="/levi-headshot.jpg" alt="Levi Ramos" class="w-[150px] h-[150px] rounded-2xl object-cover shrink-0 shadow-[0_1px_2px_rgba(16,24,40,0.06),0_16px_40px_-12px_rgba(16,24,40,0.28)]" />
+        <div class="text-center sm:text-left">
+          <p class="text-[12px] uppercase tracking-[0.18em] text-brand-600 font-semibold mb-2">Who's building it</p>
+          <h2 class="section-h text-[24px] md:text-[30px] text-ink-900 mb-3">Hi, I'm Levi — and I'll build this with you.</h2>
+          <p class="text-[15px] text-ink-500 leading-[1.65] mb-4">I'm a software engineer (Computer Science, Boston University), and I'm building Lead Answered by working directly with a handful of home-service owners — because the only way to build something genuinely useful is to learn from the people who actually run the business. If we work together, you're talking to me every week.</p>
+          <div class="flex items-center gap-5 justify-center sm:justify-start text-[14px] font-medium">
+            <a href="/about" class="text-brand-600 hover:text-brand-700 transition">More about me →</a>
+            <a href="https://cal.com/leviramos" class="text-ink-700 hover:text-ink-900 transition">Book a call →</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FINAL CTA ============ -->
+  <section class="py-16 md:py-24 bg-white">
+    <div class="max-w-6xl mx-auto px-5">
+      <div class="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-[#6ce986] to-[#41dc61] px-7 py-12 md:px-14 md:py-16 shadow-[0_30px_70px_-30px_rgba(48,209,88,0.5)]">
+        <div class="pointer-events-none absolute inset-0 opacity-[0.24]" style="background-image:radial-gradient(rgba(255,255,255,0.97) 2px, transparent 2px); background-size:20px 20px;"></div>
+        <div class="relative grid items-center gap-10 lg:grid-cols-2">
+          <div class="text-center lg:text-left reveal">
+            <h2 class="section-h text-[34px] md:text-[46px] text-ink-900 mb-4">You've reached the end of the page.</h2>
+            <p class="text-[16px] md:text-[18px] text-ink-900/70 mb-8 max-w-[440px] mx-auto leading-[1.5] lg:mx-0">If you read this far, you're interested. We're taking on 3 partners — go on, grab a spot.</p>
+            <a href="https://cal.com/leviramos" class="group inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-[15px] font-semibold text-ink-900 shadow-[0_8px_24px_-8px_rgba(6,46,20,0.4)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_30px_-8px_rgba(6,46,20,0.5)]">Go on, click the button<svg class="h-4 w-4 transition-transform group-hover:translate-x-1" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10m0 0L9 4m4 4l-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" /></svg></a>
+            <p class="text-[12.5px] text-ink-900/55 mt-5">A 15-minute call with Levi. No pitch deck, no pressure.</p>
+          </div>
+          <div class="reveal flex justify-center lg:justify-end">
+            <div class="w-full max-w-[320px] rotate-[-2.5deg] rounded-2xl bg-white p-4 shadow-[0_24px_60px_-20px_rgba(6,46,20,0.55)]">
+              <div class="mb-3 flex items-center gap-2 border-b border-black/[0.06] pb-3">
+                <span class="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-brand-400 to-brand-600"><svg class="h-4 w-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" /></svg></span>
+                <span class="text-[13px] font-semibold text-ink-900">Sarah</span>
+                <span class="ml-auto flex items-center gap-1 text-[11px] font-medium text-brand-600"><span class="h-1.5 w-1.5 rounded-full bg-brand-500"></span>Live</span>
+              </div>
+              <div class="space-y-2">
+                <div class="flex"><span class="max-w-[82%] rounded-2xl rounded-bl-md bg-paper-200 px-3 py-2 text-[12.5px] leading-snug text-ink-800">New lead — leak after the storm 🌧️</span></div>
+                <div class="flex justify-end"><span class="max-w-[82%] rounded-2xl rounded-br-md bg-brand-500 px-3 py-2 text-[12.5px] leading-snug text-white">On it — booked for 9am ✓</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <Footer />
+
+  <style is:global>
+    /* one pulse travels down a single connector at a time; delays stagger them around the circle */
+    @keyframes hub-pulse {
+      0%   { stroke-dashoffset: 0;   opacity: 0; }
+      2%   { opacity: 1; }
+      9%   { stroke-dashoffset: -40; }
+      12%  { opacity: 0; }
+      100% { stroke-dashoffset: -40; opacity: 0; }
+    }
+    .hub-pulse { stroke-dasharray: 5 70; stroke-dashoffset: 0; opacity: 0; animation: hub-pulse 6s linear infinite; }
+    /* after the lines finish their loop, a ring ripples out from Sarah */
+    @keyframes hub-ring-pulse {
+      0%, 80% { transform: translate(-50%, -50%) scale(0.55); opacity: 0; }
+      84%     { opacity: 0.5; }
+      100%    { transform: translate(-50%, -50%) scale(4); opacity: 0; }
+    }
+    .hub-ring-pulse { opacity: 0; animation: hub-ring-pulse 6s ease-out infinite; }
+    /* 3D isometric Sarah tile (didit-style layered cube) */
+    .sarah-iso { position: relative; width: 66px; height: 66px; perspective: 820px; }
+    .sarah-iso-inner { position: absolute; inset: 0; transform-style: preserve-3d; transform: rotateX(55deg) rotateZ(-45deg); }
+    .sarah-slab { position: absolute; inset: 0; border-radius: 18px; }
+    .sarah-slab-top { display: flex; align-items: center; justify-content: center; box-shadow: inset 0 2px 1px rgba(255, 255, 255, 0.5); }
+    /* smaller isometric orbs (day-one ROI "get found" trio + reviews outcome) */
+    .iso-orb { position: relative; width: 46px; height: 46px; perspective: 620px; }
+    .iso-orb-inner { position: absolute; inset: 0; transform-style: preserve-3d; transform: rotateX(55deg) rotateZ(-45deg); }
+    .iso-orb-slab { position: absolute; inset: 0; border-radius: 13px; }
+    .iso-orb-top { box-shadow: inset 0 1.5px 1px rgba(255, 255, 255, 0.5); }
+    @keyframes roi-drop {
+      0% { transform: translate(-50%, 0); opacity: 0; }
+      18% { opacity: 1; }
+      82% { opacity: 1; }
+      100% { transform: translate(-50%, 34px); opacity: 0; }
+    }
+    .roi-drop { transform: translate(-50%, 0); animation: roi-drop 2.4s ease-in-out infinite; }
+    @media (prefers-reduced-motion: reduce) { .roi-drop { animation: none; } }
+    @media (prefers-reduced-motion: reduce) {
+      .hub-pulse, .hub-ring-pulse { animation: none; }
+    }
+    /* FAQ accordion (didit-style smooth expand) */
+    .faq-panel { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.32s ease; }
+    .faq-panel > div { min-height: 0; overflow: hidden; }
+    .faq-item.open .faq-panel { grid-template-rows: 1fr; }
+    .faq-item.open .faq-chevron { transform: rotate(180deg); }
+    @media (prefers-reduced-motion: reduce) { .faq-panel { transition: none; } }
+  </style>
+
+  <script>
+    // Scroll reveal
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => { if (entry.isIntersecting) { entry.target.classList.add("visible"); io.unobserve(entry.target); } });
+    }, { threshold: 0.12 });
+    document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+
+    // ===== iMessage demo (two modes) =====
+    const convos = {
+      ops: {
+        name: "Sarah", initials: "S",
+        messages: [
+          { from: "me", html: "Generate a quote for the Miller roof — full replacement, architectural shingles", delay: 1000 },
+          { from: "them", html: "Done ✅ <u>$14,200</u> quote drafted and texted to the Millers to approve.", delay: 1500 },
+          { from: "me", html: "What's on the schedule Thursday?", delay: 950 },
+          { from: "them", html: "3 estimates —\n<u>9:00 · Newton</u>\n<u>11:30 · Brookline</u>\n<u>2:00 · Waltham</u>\nRouted shortest-drive — you've got a 40-min gap at 1.", delay: 1800 },
+          { from: "me", html: "Just wrapped the Miller job — here are a few photos 📸 Text them for a review and write a blog post about it", delay: 1250 },
+          { from: "them", html: "Done ✅ Review request sent to the Millers. Blog post drafted with your photos — want it live on the site and posted to Facebook?", delay: 1900 },
+          { from: "me", html: "Yes, both", delay: 900 },
+          { from: "them", html: "Published and posted — links on the way. 📈", delay: 1400 },
+        ],
+      },
+      lead: {
+        name: "Apex Roofing", initials: "AR",
+        messages: [
+          { from: "them", html: "Hi Levi, this is Sarah with Apex Roofing 👋 Thanks for reaching out — are you looking to repair a leak, or replace the roof?", delay: 1500 },
+          { from: "me", html: "Repair — got a leak after the storm", delay: 1000 },
+          { from: "them", html: "Sorry to hear that, we can take care of it. What's the address so I can confirm you're in our area?", delay: 1500 },
+          { from: "me", html: "24 Birch Lane, Boston", delay: 950 },
+          { from: "them", html: "Perfect, you're covered. Here's what we have open for a free on-site estimate:\n<u>Wed, Jun 24 · 10:00 AM</u>\n<u>Thu, Jun 25 · 3:00 PM</u>\n<u>Mon, Jun 29 · 9:00 AM</u>\nWhich works best?", delay: 1800 },
+          { from: "me", html: "The last one", delay: 950 },
+          { from: "them", html: "You're all set for <u>Mon, Jun 29 at 9:00 AM</u>. We'll swing by <u>24 Birch Lane</u> to take a look. See you then, Levi! 🙌", delay: 1650 },
+        ],
+      },
+    };
+
+    let mode = "ops";
+    let token = 0;
+    let autoTimer = null;
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    function bubble(from, html) {
+      const wrap = document.createElement("div");
+      wrap.className = `flex ${from === "me" ? "justify-end" : "justify-start"}`;
+      const b = document.createElement("div");
+      b.className = `msg ${from === "me" ? "msg-me" : "msg-them"} whitespace-pre-line`;
+      b.innerHTML = html;
+      wrap.appendChild(b);
+      wrap.style.opacity = "0";
+      wrap.style.transform = "translateY(6px)";
+      wrap.style.transition = "opacity 0.35s ease, transform 0.35s ease";
+      return wrap;
+    }
+    function typing() {
+      const wrap = document.createElement("div");
+      wrap.className = "flex justify-start";
+      const b = document.createElement("div");
+      b.className = "msg msg-them";
+      b.style.padding = "10px 14px";
+      b.innerHTML = '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>';
+      wrap.appendChild(b);
+      return wrap;
+    }
+    async function runDemo() {
+      token++;
+      const myToken = token;
+      if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+      const stream = document.getElementById("chat-stream");
+      if (!stream) return;
+      const convo = convos[mode];
+      const nameEl = document.getElementById("demo-name");
+      const avEl = document.getElementById("demo-avatar");
+      if (nameEl) nameEl.textContent = convo.name;
+      if (avEl) avEl.textContent = convo.initials;
+      stream.innerHTML = "";
+      for (const msg of convo.messages) {
+        if (myToken !== token) return;
+        if (msg.from === "them") {
+          const t = typing();
+          stream.appendChild(t);
+          stream.scrollTop = stream.scrollHeight;
+          await wait(msg.delay);
+          if (myToken !== token) return;
+          stream.removeChild(t);
+        } else {
+          await wait(msg.delay);
+          if (myToken !== token) return;
+        }
+        const b = bubble(msg.from, msg.html);
+        stream.appendChild(b);
+        requestAnimationFrame(() => { b.style.opacity = "1"; b.style.transform = "translateY(0)"; });
+        stream.scrollTop = stream.scrollHeight;
+        await wait(340);
+      }
+      autoTimer = setTimeout(() => { if (myToken === token) runDemo(); }, 6500);
+    }
+
+    const tabs = document.querySelectorAll(".demo-tab");
+    function setActive() {
+      tabs.forEach((t) => {
+        const on = t.dataset.mode === mode;
+        t.classList.toggle("bg-white", on);
+        t.classList.toggle("shadow-sm", on);
+        t.classList.toggle("text-ink-900", on);
+        t.classList.toggle("text-ink-400", !on);
+      });
+    }
+    tabs.forEach((t) => t.addEventListener("click", () => { if (mode === t.dataset.mode) return; mode = t.dataset.mode; setActive(); runDemo(); }));
+    setActive();
+    runDemo();
+    document.getElementById("replay-btn")?.addEventListener("click", runDemo);
+
+    // FAQ accordion (single-open, smooth)
+    document.querySelectorAll(".faq-q").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const item = btn.closest(".faq-item");
+        const willOpen = !item.classList.contains("open");
+        document.querySelectorAll(".faq-item.open").forEach((el) => {
+          el.classList.remove("open");
+          el.querySelector(".faq-q")?.setAttribute("aria-expanded", "false");
+        });
+        if (willOpen) {
+          item.classList.add("open");
+          btn.setAttribute("aria-expanded", "true");
+        }
+      });
+    });
+  </script>
+</Base>
