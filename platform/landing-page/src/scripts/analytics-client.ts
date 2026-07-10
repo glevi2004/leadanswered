@@ -37,8 +37,9 @@ async function loadPostHog(key: string, host: string) {
   const { default: posthog } = await import("posthog-js");
   posthog.init(key, {
     api_host: host,
-    defaults: "2026-05-30",
     person_profiles: "identified_only",
+    capture_pageview: true, // Web Analytics counts $pageview — make sure it fires on load
+    capture_pageleave: true, // needed for bounce / session duration
   });
   (window as unknown as { posthog: unknown }).posthog = posthog;
 }
