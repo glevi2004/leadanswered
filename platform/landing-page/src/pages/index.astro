@@ -62,7 +62,7 @@ const roiOrbs = [
   <Nav />
 
   <!-- ============ HERO ============ -->
-  <section class="hero-bg pt-14 pb-16 md:pt-20 md:pb-24 relative overflow-hidden">
+  <section data-section="hero" class="hero-bg pt-14 pb-16 md:pt-20 md:pb-24 relative overflow-hidden">
     <div class="hero-radial absolute inset-0"></div>
     <div class="relative max-w-3xl mx-auto px-5 text-center">
       <div class="pill mb-5 animate-fade-in">
@@ -81,11 +81,11 @@ const roiOrbs = [
         Sarah or in an app we set up for you. We build it with you, free, as a design partner.
       </p>
       <div class="flex flex-col sm:flex-row items-center justify-center gap-2.5 mb-8 animate-fade-in-up" style="animation-delay: 0.16s">
-        <a href="https://cal.com/leviramos" class="btn-primary btn-primary-lg">
+        <a href="https://cal.com/leviramos" class="btn-primary btn-primary-lg" data-track="cta_click" data-cta-location="hero" data-cta-text="Become a design partner">
           Become a design partner
           <svg class="arrow w-4 h-4" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10m0 0L9 4m4 4l-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg>
         </a>
-        <a href="#demo" class="btn-secondary btn-secondary-lg">See Sarah in action</a>
+        <a href="#demo" class="btn-secondary btn-secondary-lg" data-track="cta_click" data-cta-location="hero_secondary" data-cta-text="See Sarah in action">See Sarah in action</a>
       </div>
       <div class="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[12.5px] text-ink-500 animate-fade-in" style="animation-delay: 0.32s">
         <div class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-brand-600" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" /></svg><span>Built for you</span></div>
@@ -128,7 +128,7 @@ const roiOrbs = [
   </section>
 
   <!-- ============ MEET SARAH (component D — compact chat beside text) ============ -->
-  <section id="demo" class="py-20 md:py-24 bg-white scroll-mt-20">
+  <section id="demo" data-section="meet_sarah" class="py-20 md:py-24 bg-white scroll-mt-20">
     <div class="max-w-6xl mx-auto px-5">
       <div class="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
         <!-- Chat side -->
@@ -179,7 +179,7 @@ const roiOrbs = [
   </section>
 
   <!-- ============ WHAT SARAH DOES (hub B + cards C) ============ -->
-  <section id="how" class="py-20 md:py-24 soft-bg scroll-mt-20">
+  <section id="how" data-section="hub" class="py-20 md:py-24 soft-bg scroll-mt-20">
     <div class="max-w-6xl mx-auto px-5">
       <div class="grid lg:grid-cols-2 gap-10 lg:gap-6 items-center mb-16 md:mb-20">
         <!-- text, left -->
@@ -420,7 +420,7 @@ const roiOrbs = [
   </section>
 
   <!-- ============ THE OFFER ============ -->
-  <section id="offer" class="py-20 md:py-24 soft-bg scroll-mt-20">
+  <section id="offer" data-section="offer" class="py-20 md:py-24 soft-bg scroll-mt-20">
     <div class="max-w-3xl mx-auto px-5 text-center mb-12 reveal">
       <p class="text-[12px] uppercase tracking-[0.18em] text-brand-600 font-semibold mb-3">The offer</p>
       <h2 class="section-h text-[32px] md:text-[46px] text-ink-900 mb-3">Here's our plan.</h2>
@@ -479,7 +479,7 @@ const roiOrbs = [
       <p class="text-[16px] text-ink-500 leading-[1.6] mb-8 max-w-[540px] mx-auto">If you run on jobs and estimates, Sarah is built for how you work.</p>
       <div class="flex flex-wrap justify-center gap-2.5">
         {trades.map((t) => (
-          <a href={`/for/${t.slug}`} class="group inline-flex items-center rounded-full border border-black/[0.09] bg-white px-4 py-2 text-[14px] font-medium text-ink-700 shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-400 hover:text-brand-700 hover:shadow-[0_8px_18px_-8px_rgba(48,209,88,0.4)]">
+          <a href={`/for/${t.slug}`} data-track="trade_select" data-trade={t.slug} class="group inline-flex items-center rounded-full border border-black/[0.09] bg-white px-4 py-2 text-[14px] font-medium text-ink-700 shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-400 hover:text-brand-700 hover:shadow-[0_8px_18px_-8px_rgba(48,209,88,0.4)]">
             {t.trade.charAt(0).toUpperCase() + t.trade.slice(1)}
             <span class="inline-flex w-0 items-center overflow-hidden opacity-0 transition-all duration-200 group-hover:ml-1.5 group-hover:w-3.5 group-hover:opacity-100">
               <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10m0 0L9 4m4 4l-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg>
@@ -524,7 +524,7 @@ const roiOrbs = [
           <p class="text-[15px] text-ink-500 leading-[1.65] mb-4">I'm a software engineer (Computer Science, Boston University), and I'm building Lead Answered by working directly with a handful of home-service owners — because the only way to build something genuinely useful is to learn from the people who actually run the business. If we work together, you're talking to me every week.</p>
           <div class="flex items-center gap-5 justify-center sm:justify-start text-[14px] font-medium">
             <a href="/about" class="text-brand-600 hover:text-brand-700 transition">More about me →</a>
-            <a href="https://cal.com/leviramos" class="text-ink-700 hover:text-ink-900 transition">Book a call →</a>
+            <a href="https://cal.com/leviramos" data-cta-location="founder" class="text-ink-700 hover:text-ink-900 transition">Book a call →</a>
           </div>
         </div>
       </div>
@@ -532,7 +532,7 @@ const roiOrbs = [
   </section>
 
   <!-- ============ FINAL CTA ============ -->
-  <section class="py-16 md:py-24 bg-white">
+  <section data-section="final_cta" class="py-16 md:py-24 bg-white">
     <div class="max-w-6xl mx-auto px-5">
       <div class="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-[#6ce986] to-[#41dc61] px-7 py-12 md:px-14 md:py-16 shadow-[0_30px_70px_-30px_rgba(48,209,88,0.5)]">
         <div class="pointer-events-none absolute inset-0 opacity-[0.24]" style="background-image:radial-gradient(rgba(255,255,255,0.97) 2px, transparent 2px); background-size:20px 20px;"></div>
@@ -540,7 +540,7 @@ const roiOrbs = [
           <div class="text-center lg:text-left reveal">
             <h2 class="section-h text-[34px] md:text-[46px] text-ink-900 mb-4">You've reached the end of the page.</h2>
             <p class="text-[16px] md:text-[18px] text-ink-900/70 mb-8 max-w-[440px] mx-auto leading-[1.5] lg:mx-0">If you read this far, you're interested. We're taking on 3 partners — go on, grab a spot.</p>
-            <a href="https://cal.com/leviramos" class="group inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-[15px] font-semibold text-ink-900 shadow-[0_8px_24px_-8px_rgba(6,46,20,0.4)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_30px_-8px_rgba(6,46,20,0.5)]">Go on, click the button<svg class="h-4 w-4 transition-transform group-hover:translate-x-1" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10m0 0L9 4m4 4l-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" /></svg></a>
+            <a href="https://cal.com/leviramos" data-track="cta_click" data-cta-location="final_cta" data-cta-text="Go on, click the button" class="group inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-[15px] font-semibold text-ink-900 shadow-[0_8px_24px_-8px_rgba(6,46,20,0.4)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_30px_-8px_rgba(6,46,20,0.5)]">Go on, click the button<svg class="h-4 w-4 transition-transform group-hover:translate-x-1" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10m0 0L9 4m4 4l-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" /></svg></a>
             <p class="text-[12.5px] text-ink-900/55 mt-5">A 15-minute call with Levi. No pitch deck, no pressure.</p>
           </div>
           <div class="reveal flex justify-center lg:justify-end">
@@ -610,6 +610,8 @@ const roiOrbs = [
   </style>
 
   <script>
+    import { track } from "../lib/analytics";
+
     // Scroll reveal
     const io = new IntersectionObserver((entries) => {
       entries.forEach((entry) => { if (entry.isIntersecting) { entry.target.classList.add("visible"); io.unobserve(entry.target); } });
@@ -716,10 +718,10 @@ const roiOrbs = [
         t.classList.toggle("text-ink-400", !on);
       });
     }
-    tabs.forEach((t) => t.addEventListener("click", () => { if (mode === t.dataset.mode) return; mode = t.dataset.mode; setActive(); runDemo(); }));
+    tabs.forEach((t) => t.addEventListener("click", () => { if (mode === t.dataset.mode) return; mode = t.dataset.mode; track("demo_interact", { action: "toggle_" + mode }); setActive(); runDemo(); }));
     setActive();
     runDemo();
-    document.getElementById("replay-btn")?.addEventListener("click", runDemo);
+    document.getElementById("replay-btn")?.addEventListener("click", () => { track("demo_interact", { action: "replay" }); runDemo(); });
 
     // FAQ accordion (single-open, smooth)
     document.querySelectorAll(".faq-q").forEach((btn) => {
@@ -733,6 +735,7 @@ const roiOrbs = [
         if (willOpen) {
           item.classList.add("open");
           btn.setAttribute("aria-expanded", "true");
+          track("faq_open", { question: btn.querySelector("span")?.textContent?.trim() });
         }
       });
     });

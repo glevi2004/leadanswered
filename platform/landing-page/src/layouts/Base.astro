@@ -36,6 +36,10 @@ const structured = [
   organization,
   ...(jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : []),
 ];
+
+// Analytics (PostHog — see ANALYTICS-PLAN.md). Dormant until PUBLIC_POSTHOG_KEY is set in env.
+const POSTHOG_KEY = import.meta.env.PUBLIC_POSTHOG_KEY;
+const analyticsOn = Boolean(POSTHOG_KEY);
 ---
 
 <!doctype html>
@@ -77,6 +81,13 @@ const structured = [
 
     <!-- Structured data -->
     <script type="application/ld+json" set:html={JSON.stringify(structured)} />
+
+    <script>
+      // Load the consent banner + PostHog runtime only when configured (PUBLIC_POSTHOG_KEY set).
+      if (import.meta.env.PUBLIC_POSTHOG_KEY) {
+        import("../scripts/analytics-client.ts");
+      }
+    </script>
 
     <slot name="head" />
   </head>
