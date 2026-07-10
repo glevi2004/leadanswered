@@ -203,8 +203,8 @@ const roiOrbs = [
 
         <!-- Radial hub (component B), right -->
         <div class="reveal">
-        <!-- desktop orbit -->
-        <div class="relative mx-auto aspect-square max-w-[560px] hidden sm:block">
+        <!-- radial orbit (icons-only on mobile; labels shown on sm+) -->
+        <div class="relative mx-auto aspect-square max-w-[320px] sm:max-w-[560px]">
           <svg viewBox="0 0 100 100" class="absolute inset-0 w-full h-full" fill="none" aria-hidden="true">
             {hub.map((n) => (<line x1={n.x} y1={n.y} x2="50" y2="50" stroke="rgba(16,24,40,0.07)" stroke-width="0.28" />))}
             {hub.map((n, i) => (<line x1={n.x} y1={n.y} x2="50" y2="50" stroke="#30d158" stroke-width="0.7" stroke-linecap="round" class="hub-pulse" style={`animation-delay:${(i * 0.45).toFixed(2)}s`} />))}
@@ -232,35 +232,13 @@ const roiOrbs = [
           </div>
           <!-- nodes -->
           {hub.map((n) => (
-            <div class="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1.5 w-[92px]" style={`left:${n.x}%; top:${n.y}%`}>
-              <div class="w-10 h-10 rounded-full bg-white border border-black/[0.08] shadow-card flex items-center justify-center">
-                <svg class="w-[18px] h-[18px] text-ink-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d={n.d} stroke-linecap="round" stroke-linejoin="round" /></svg>
+            <div class="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1.5 w-9 sm:w-[92px]" style={`left:${n.x}%; top:${n.y}%`}>
+              <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white border border-black/[0.08] shadow-card flex items-center justify-center">
+                <svg class="w-4 h-4 sm:w-[18px] sm:h-[18px] text-ink-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d={n.d} stroke-linecap="round" stroke-linejoin="round" /></svg>
               </div>
-              <span class="text-[11px] font-medium text-ink-500 text-center leading-tight">{n.label}</span>
+              <span class="hidden sm:block text-[11px] font-medium text-ink-500 text-center leading-tight">{n.label}</span>
             </div>
           ))}
-        </div>
-        <!-- mobile: Sarah orb (capabilities listed in the checklist above) -->
-        <div class="sm:hidden flex justify-center pt-4 pb-1">
-          <div class="relative flex h-[210px] w-[210px] items-center justify-center">
-            <div class="absolute inset-0 rounded-full border border-black/[0.06]"></div>
-            <div class="absolute inset-[13%] rounded-full bg-brand-400/25 blur-2xl"></div>
-            <div class="absolute inset-[15%] rounded-full bg-white shadow-[0_16px_40px_-14px_rgba(16,24,40,0.22)]"></div>
-            <div class="relative flex flex-col items-center">
-              <div class="relative flex h-[112px] w-[112px] items-center justify-center">
-                <div class="absolute bottom-[20px] left-1/2 h-3 w-[66px] -translate-x-1/2 rounded-full bg-ink-900/20 blur-md"></div>
-                <div class="sarah-iso">
-                  <div class="sarah-iso-inner">
-                    <div class="sarah-slab" style="background:linear-gradient(135deg,#178036,#0f5f28);transform:translateZ(-13px)"></div>
-                    <div class="sarah-slab" style="background:linear-gradient(135deg,#22b94a,#178036);transform:translateZ(-1px)"></div>
-                    <div class="sarah-slab sarah-slab-top" style="background:linear-gradient(135deg,#7cef96,#2fce56);transform:translateZ(13px)"></div>
-                  </div>
-                </div>
-                <svg class="pointer-events-none absolute left-1/2 top-1/2 h-8 w-8 text-white drop-shadow-[0_1px_1.5px_rgba(6,46,20,0.35)]" style="transform:translate(-50%,-50%) translateY(-9px)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" /></svg>
-              </div>
-              <span class="text-[13px] font-semibold text-ink-900">Sarah</span>
-            </div>
-          </div>
         </div>
         </div>
       </div>
