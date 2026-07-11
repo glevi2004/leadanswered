@@ -55,15 +55,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <SidebarResizer />
         {/* The rounded frame: fixed to the viewport on desktop, content scrolls inside it. */}
         <SidebarInset className="md:peer-data-[variant=inset]:rounded-2xl md:peer-data-[variant=inset]:border md:h-[calc(100svh-1rem)] md:overflow-hidden">
-          <header className="flex h-11 shrink-0 items-center justify-between gap-2 px-4 pt-2">
-            <SidebarTrigger className="md:hidden" />
-            <div className="flex flex-1 items-center justify-end gap-2">
+          {/* Mobile only: a real bar (drawer trigger needs a home). */}
+          <header className="flex h-12 shrink-0 items-center justify-between gap-2 px-4 md:hidden">
+            <SidebarTrigger />
+            <div className="flex items-center gap-2">
               <DemoToggle demo={demo} />
               <ThemeToggle />
             </div>
           </header>
+          {/* Desktop: the controls float in the frame's corner — zero vertical space. */}
+          <div className="absolute right-4 top-3.5 z-20 hidden items-center gap-2 md:flex">
+            <DemoToggle demo={demo} />
+            <ThemeToggle />
+          </div>
           <main className="flex-1 md:min-h-0 md:overflow-y-auto">
-            <div className="flex min-h-full flex-col p-4 pt-1 pb-24 sm:p-6 sm:pt-1">{children}</div>
+            <div className="flex min-h-full flex-col p-4 pb-24 sm:p-6">{children}</div>
           </main>
         </SidebarInset>
         <SarahWidget />

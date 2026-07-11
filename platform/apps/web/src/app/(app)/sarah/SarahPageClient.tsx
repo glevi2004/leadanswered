@@ -23,7 +23,8 @@ export function SarahPageClient() {
 
   return (
     <Tabs defaultValue="chat" className="flex min-h-0 flex-1 flex-col">
-      <div className="flex items-center justify-between gap-3">
+      {/* md:pr keeps the tabs clear of the frame's floating corner controls */}
+      <div className="flex items-center justify-between gap-3 md:pr-44">
         <div className="flex items-center gap-2.5">
           <span className="btn-glow flex size-9 items-center justify-center rounded-full">
             <Sparkles className="size-4.5" />
