@@ -46,8 +46,9 @@ registry, patterns) is new.
 - **Quo-style frame** (Levi, 2026-07-11): the shadcn sidebar's **inset variant** — the rail sits
   naked on the shell background (no border/card), and every page lives in a **rounded frame**
   (`SidebarInset`: `rounded-2xl` + border + shadow, `m-2`, fixed to the viewport on desktop with
-  content scrolling INSIDE the frame). Shell background: soft gray light / near-black dark
-  (`--sidebar` token).
+  content scrolling INSIDE the frame). Shell background: soft gray light / near-black dark. RULE:
+  `--sidebar` and `--sidebar-accent` (the menu hover/active pill) always move TOGETHER — changing
+  the rail color alone makes hovers invisible (happened 2026-07-11).
 - **No collapse trigger on desktop.** The rail is always present; instead it's **drag-resizable**
   (`SidebarResizer`: handle on the rail edge, 192–336px clamp, live via `--sidebar-width`,
   persisted in the `sidebar_width` cookie, double-click resets). Mobile keeps the Sheet drawer +
