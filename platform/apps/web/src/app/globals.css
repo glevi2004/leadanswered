@@ -136,8 +136,6 @@
   --radius: 0.75rem;
   --bubble-them: #e9e9eb;
   --bubble-them-fg: #1b1b1f;
-  /* Quo-style shell: the rail sits on this; pages float as a rounded frame on top. */
-  --sidebar: oklch(0.967 0 0);
 }
 .dark {
   --primary: #34c759;
@@ -145,7 +143,6 @@
   --ring: #34c759;
   --bubble-them: #2c2c2e;
   --bubble-them-fg: #f2f2f7;
-  --sidebar: oklch(0.115 0 0);
 }
 
 /* ===== Landing-page design language, app edition ===== */
