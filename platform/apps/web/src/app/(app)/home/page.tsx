@@ -38,7 +38,7 @@ export default async function HomePage() {
       <PageHeader
         title={
           <>
-            {greeting(tz)}, <span className="serif-accent text-gradient-green">{ownerFirst}</span>
+            {greeting(tz)}, <span className="text-gradient-green">{ownerFirst}</span>
           </>
         }
         description="Here's where things stand."

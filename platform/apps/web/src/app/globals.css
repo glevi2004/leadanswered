@@ -167,11 +167,6 @@
   transform: translateY(-1px);
 }
 
-.serif-accent {
-  font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif;
-  font-style: italic;
-  font-weight: 400;
-}
 .text-gradient-green {
   background: linear-gradient(135deg, #22b94a 0%, #30d158 100%);
   -webkit-background-clip: text;

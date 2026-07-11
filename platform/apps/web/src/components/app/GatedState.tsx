@@ -18,7 +18,7 @@ export function GatedState({ label, promise }: { label: string; promise: string 
       <div>
         <p className="text-xs font-medium uppercase tracking-widest text-primary">Coming to your OS</p>
         <h2 className="mt-2 text-2xl font-semibold tracking-tight">{label}</h2>
-        <p className="serif-accent mx-auto mt-2 max-w-md text-lg text-muted-foreground">“{promise}”</p>
+        <p className="mx-auto mt-2 max-w-md text-lg text-muted-foreground">“{promise}”</p>
       </div>
       <p className="max-w-sm text-sm text-muted-foreground">
         We build the OS with you, module by module. This one's on the map — tell Sarah if you want it

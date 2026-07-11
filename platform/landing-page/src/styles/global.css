@@ -53,11 +53,6 @@ body {
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
-.serif-accent {
-  font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif;
-  font-style: italic;
-  font-weight: 400;
-}
 
 /* Primary button — iMessage green */
 .btn-primary {

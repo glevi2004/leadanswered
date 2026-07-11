@@ -89,7 +89,7 @@ plain, true thing and stop — no clever qualifiers.
 **COPY — headline (H1):**
 
 > The AI operating system for *service businesses.*
-> *(second line in the green serif accent — same treatment as today's "Contractors.")*
+> *(second line in the green accent — normal font, no serif; same placement as today's "Contractors.")*
 
 **COPY — subhead:**
 
