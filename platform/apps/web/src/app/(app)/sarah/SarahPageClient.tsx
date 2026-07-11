@@ -22,7 +22,7 @@ export function SarahPageClient() {
   const filtered = moduleFilter === "all" ? actions : actions.filter((a) => a.module === moduleFilter);
 
   return (
-    <Tabs defaultValue="chat" className="flex h-full min-h-0 flex-col">
+    <Tabs defaultValue="chat" className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
           <span className="btn-glow flex size-9 items-center justify-center rounded-full">

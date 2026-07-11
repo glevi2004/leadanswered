@@ -43,13 +43,20 @@ registry, patterns) is new.
 └────────────┴──────────────────────────────────────────────────┘
 ```
 
-- Reuse the existing shadcn sidebar (`components/ui/sidebar.tsx`): icon-collapse, cookie
-  persistence, mobile Sheet — all kept. Change: **unlabeled clusters** — `SidebarGroup`s with
-  NO `SidebarGroupLabel`, separated by vertical spacing only. The sales pillars ("Get found,"
-  "Win the work," …) are landing-page copy and are **never rendered in the app**. Clusters:
-  Home + Sarah on top, then **pipeline** (CRM, Schedule, Quotes, Invoices, Follow-ups), then
-  **marketing** (Website, Content, Reviews), then **business** (Analytics, Team). Settings
-  pinned at the bottom, above Sign out.
+- **Quo-style frame** (Levi, 2026-07-11): the shadcn sidebar's **inset variant** — the rail sits
+  naked on the shell background (no border/card), and every page lives in a **rounded frame**
+  (`SidebarInset`: `rounded-2xl` + border + shadow, `m-2`, fixed to the viewport on desktop with
+  content scrolling INSIDE the frame). Shell background: soft gray light / near-black dark
+  (`--sidebar` token).
+- **No collapse trigger on desktop.** The rail is always present; instead it's **drag-resizable**
+  (`SidebarResizer`: handle on the rail edge, 192–336px clamp, live via `--sidebar-width`,
+  persisted in the `sidebar_width` cookie, double-click resets). Mobile keeps the Sheet drawer +
+  its trigger (only way to open it).
+- **Unlabeled clusters** — `SidebarGroup`s with NO `SidebarGroupLabel`, separated by vertical
+  spacing only. The sales pillars ("Get found," "Win the work," …) are landing-page copy and are
+  **never rendered in the app**. Clusters: Home + Sarah on top, then **pipeline** (CRM, Schedule,
+  Quotes, Invoices, Follow-ups), then **marketing** (Website, Content, Reviews), then **business**
+  (Analytics, Team). Settings pinned at the bottom, above Sign out.
 - The **Sarah nav item carries a badge** = pending `Approval` count (same count as the widget
   launcher badge).
 - Nav renders from one registry (see §5 `MODULES`) — a module whose status is `hidden` never

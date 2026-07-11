@@ -92,7 +92,9 @@ export function AppSidebar({
   };
 
   return (
-    <Sidebar collapsible="icon">
+    // Quo-style shell: the rail sits naked on the app background (inset variant),
+    // never collapses on desktop (resize instead — SidebarResizer); mobile keeps the Sheet.
+    <Sidebar variant="inset" collapsible="offcanvas">
       <SidebarHeader>
         <div className="flex items-center gap-2 px-1 py-1.5">
           <div className="btn-glow flex size-7 shrink-0 items-center justify-center rounded-lg text-sm font-bold">

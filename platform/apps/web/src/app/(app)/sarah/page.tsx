@@ -6,7 +6,8 @@ export const metadata = { title: "Sarah — Lead Answered" };
 export default async function SarahPage() {
   await requireOrganization();
   return (
-    <div className="h-[calc(100dvh-8.5rem)] min-h-[480px]">
+    // Fills the frame's scroll area (the layout wrapper is a min-h-full flex column).
+    <div className="flex min-h-[480px] flex-1 flex-col">
       <SarahPageClient />
     </div>
   );
