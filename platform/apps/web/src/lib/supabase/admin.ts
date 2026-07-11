@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 
 /**
  * Service-role Supabase client — SERVER-ONLY (bypasses RLS). Used for admin ops
- * like inviting a contractor's owner by email. Never import from a client component.
+ * like inviting a organization's owner by email. Never import from a client component.
  */
 export function createSupabaseAdmin() {
   return createClient(

@@ -2,12 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import {
-  createContractorShell,
-  updateContractorAdmin,
-  setContractorConfig,
-  getContractorById,
-} from "@/lib/contractors";
-import { contractorConfigSchema } from "@/lib/config";
+  createOrganizationShell,
+  updateOrganizationAdmin,
+  setOrganizationConfig,
+  getOrganizationById,
+} from "@/lib/organizations";
+import { organizationConfigSchema } from "@/lib/config";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { currentUser, isAdminEmail } from "@/lib/auth";
 
@@ -35,7 +35,7 @@ function isAlreadyRegistered(e: { code?: string; message: string }): boolean {
   return e.code === "email_exists" || /already (been )?registered|already exists/i.test(e.message);
 }
 
-export async function createContractorAction(
+export async function createOrganizationAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
@@ -51,7 +51,7 @@ export async function createContractorAction(
 
     // Create only — NO invite. Onboarding is admin-led and precedes the invite: the invite goes
     // out when the admin finishes the onboarding wizard (saveOnboardingAdminAction).
-    await createContractorShell({ companyName, slug, twilioNumber, ownerEmail });
+    await createOrganizationShell({ companyName, slug, twilioNumber, ownerEmail });
 
     revalidatePath("/admin");
     return { ok: `Created ${companyName}. Onboard them next — the invite goes out when you finish.` };
@@ -61,10 +61,10 @@ export async function createContractorAction(
 }
 
 /**
- * Save contractor fields. Editing NEVER emails — inviting is a separate, explicit action
+ * Save organization fields. Editing NEVER emails — inviting is a separate, explicit action
  * (resendInviteAction). This fixes the old "Save & invite" that re-invited on every edit.
  */
-export async function saveContractorAction(formData: FormData): Promise<void> {
+export async function saveOrganizationAction(formData: FormData): Promise<void> {
   await requireAdmin();
   const id = String(formData.get("id"));
   const companyName = String(formData.get("companyName") ?? "").trim() || undefined;
@@ -78,7 +78,7 @@ export async function saveContractorAction(formData: FormData): Promise<void> {
     | undefined;
   const ownerEmail = String(formData.get("ownerEmail") ?? "").trim().toLowerCase() || undefined;
 
-  await updateContractorAdmin(id, { companyName, slug, twilioNumber, verificationStatus, ownerEmail });
+  await updateOrganizationAdmin(id, { companyName, slug, twilioNumber, verificationStatus, ownerEmail });
   revalidatePath("/admin");
   revalidatePath(`/admin/${id}`);
 }
@@ -100,12 +100,12 @@ export async function resendInviteAction(formData: FormData): Promise<void> {
 }
 
 /**
- * Admin-led onboarding finish: save the contractor's config, then send the FIRST invite. Bound to a
- * contractorId and passed to the wizard's `save` prop. Re-running the wizard to edit config does NOT
+ * Admin-led onboarding finish: save the organization's config, then send the FIRST invite. Bound to a
+ * organizationId and passed to the wizard's `save` prop. Re-running the wizard to edit config does NOT
  * re-invite — inviteUserByEmail returns email_exists for an already-invited owner and sends nothing.
  */
 export async function saveOnboardingAdminAction(
-  contractorId: string,
+  organizationId: string,
   raw: unknown,
 ): Promise<{ error?: string; ok?: boolean; warning?: string }> {
   try {
@@ -114,34 +114,34 @@ export async function saveOnboardingAdminAction(
     return { error: "Forbidden." };
   }
 
-  const parsed = contractorConfigSchema.safeParse(raw);
+  const parsed = organizationConfigSchema.safeParse(raw);
   if (!parsed.success) {
     const first = parsed.error.issues[0];
     return { error: first ? `${first.path.join(".")}: ${first.message}` : "Please check your entries." };
   }
 
   try {
-    await setContractorConfig(contractorId, parsed.data); // sets onboardingComplete = true
+    await setOrganizationConfig(organizationId, parsed.data); // sets onboardingComplete = true
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Failed to save." };
   }
 
-  const contractor = await getContractorById(contractorId);
-  const ownerEmail = contractor?.ownerEmail;
+  const organization = await getOrganizationById(organizationId);
+  const ownerEmail = organization?.ownerEmail;
   let warning: string | undefined;
   if (!ownerEmail) {
-    warning = "Setup saved, but there's no owner email — add one on the contractor page to invite them.";
+    warning = "Setup saved, but there's no owner email — add one on the organization page to invite them.";
   } else {
     const sb = createSupabaseAdmin();
     const { error } = await sb.auth.admin.inviteUserByEmail(ownerEmail, {
       redirectTo: INVITE_REDIRECT(siteUrl()),
     });
     if (error && !isAlreadyRegistered(error)) {
-      warning = `Setup saved, but the invite email failed: ${error.message}. Resend it from the contractor page.`;
+      warning = `Setup saved, but the invite email failed: ${error.message}. Resend it from the organization page.`;
     }
   }
 
   revalidatePath("/admin");
-  revalidatePath(`/admin/${contractorId}`);
+  revalidatePath(`/admin/${organizationId}`);
   return { ok: true, warning };
 }

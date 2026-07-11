@@ -1,17 +1,17 @@
 import { formatSlot, safeZone, type SmsSender } from "@leadanswered/core";
 import { Scheduler } from "./scheduler/scheduler.js";
 import { enqueueCalendarPush } from "./queue.js";
-import { stageLeadNotice } from "./agent/contractorAgent.js";
+import { stageLeadNotice } from "./agent/ownerAgent.js";
 import { useGoogleCalendar } from "./env.js";
 import type { Store } from "./store/types.js";
 
 /**
- * The ONE handler for a contractor-initiated appointment change (GOOGLE_CALENDAR.md §2). Dashboard,
+ * The ONE handler for a organization-initiated appointment change (GOOGLE_CALENDAR.md §2). Dashboard,
  * Google, or (later) an SMS to Sarah are just triggers into this:
  *   1. update OUR DB (the Scheduler + EXCLUDE constraint stay authoritative),
  *   2. mirror to Google UNLESS the change originated there (loop prevention),
- *   3. stage a "let the lead know" draft + ASK the contractor to confirm (the hard gate) — the lead is
- *      texted only on the owner's explicit "yes" (handled by the contractor agent).
+ *   3. stage a "let the lead know" draft + ASK the organization to confirm (the hard gate) — the lead is
+ *      texted only on the owner's explicit "yes" (handled by the organization agent).
  */
 
 export interface AppointmentChangeDeps {
@@ -32,7 +32,7 @@ export interface ChangeOpts {
 
 const firstName = (n: string) => n.trim().split(/\s+/)[0] || n.trim();
 
-export async function applyContractorChange(
+export async function applyOwnerChange(
   deps: AppointmentChangeDeps,
   appointmentId: string,
   change: AppointmentChange,
@@ -44,7 +44,7 @@ export async function applyContractorChange(
   const ctx = await deps.store.getContextByLeadId(appt.leadId);
   if (!ctx) return { ok: false, reason: "lead_not_found" };
   const scheduler = new Scheduler(deps.store);
-  const tz = safeZone(ctx.contractor.standingAvailability?.timezone);
+  const tz = safeZone(ctx.organization.standingAvailability?.timezone);
   const name = firstName(ctx.lead.contactName);
 
   let noticeMsg: string;
@@ -67,13 +67,13 @@ export async function applyContractorChange(
     await enqueueCalendarPush(appointmentId, change.type === "cancel" ? "delete" : "update").catch(() => {});
   }
 
-  // HARD GATE — ask the contractor before texting the lead; never auto-texts (§2 step 4).
-  stageLeadNotice(ctx.contractor.id, { leadId: ctx.lead.id, leadName: ctx.lead.contactName, message: noticeMsg });
+  // HARD GATE — ask the organization before texting the lead; never auto-texts (§2 step 4).
+  stageLeadNotice(ctx.organization.id, { leadId: ctx.lead.id, leadName: ctx.lead.contactName, message: noticeMsg });
   const where = opts.source === "google" ? " in your calendar" : "";
   const ask =
     `Heads up: ${ctx.lead.contactName}'s estimate was ${verb}${where}. Want me to let them know? ` +
     `Reply "yes" and I'll text them:\n\n"${noticeMsg}"`;
-  const recipients = await deps.store.getRecipients(ctx.contractor.id);
+  const recipients = await deps.store.getRecipients(ctx.organization.id);
   for (const r of recipients) {
     if (r.phone) await deps.sms.send(r.phone, ask).catch((e) => console.error("[calendar-change] ask failed:", e));
   }

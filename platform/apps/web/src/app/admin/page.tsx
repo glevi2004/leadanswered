@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { currentUser, isAdminEmail } from "@/lib/auth";
-import { listContractorsWithStatus } from "@/lib/contractors";
-import { CreateContractorForm } from "./CreateContractorForm";
+import { listOrganizationsWithStatus } from "@/lib/organizations";
+import { CreateOrganizationForm } from "./CreateOrganizationForm";
 import { AccountBadge, LineBadge } from "./status";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +13,7 @@ export default async function AdminPage() {
   if (!user) redirect("/sign-in");
   if (!isAdminEmail(user.email)) redirect("/");
 
-  const contractors = await listContractorsWithStatus();
+  const organizations = await listOrganizationsWithStatus();
 
   return (
     <main className="mx-auto max-w-5xl p-6">
@@ -21,8 +21,8 @@ export default async function AdminPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Admin</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Buy + configure the number in Twilio yourself, then create the contractor here and invite
-            the owner to finish their setup. Open a contractor to edit details or resend the invite.
+            Buy + configure the number in Twilio yourself, then create the organization here and invite
+            the owner to finish their setup. Open a organization to edit details or resend the invite.
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -35,15 +35,15 @@ export default async function AdminPage() {
       </div>
 
       <div className="mt-6 grid gap-6 md:grid-cols-[1fr_1.5fr]">
-        <CreateContractorForm />
+        <CreateOrganizationForm />
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Contractors ({contractors.length})</CardTitle>
+            <CardTitle className="text-base">Organizations ({organizations.length})</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
-            {contractors.length === 0 && <p className="text-sm text-muted-foreground">None yet.</p>}
-            {contractors.map((c) => (
+            {organizations.length === 0 && <p className="text-sm text-muted-foreground">None yet.</p>}
+            {organizations.map((c) => (
               <Link
                 key={c.id}
                 href={`/admin/${c.id}`}

@@ -22,7 +22,7 @@ export function googleClientFor(store: Store, conn: CalendarConnectionRecord): G
     expiresAt: conn.tokenExpiresAt ? Date.parse(conn.tokenExpiresAt) : 0,
   };
   return new GoogleCalendarClient(tokens, async (t) => {
-    await store.upsertCalendarConnection(conn.contractorId, conn.provider, {
+    await store.upsertCalendarConnection(conn.organizationId, conn.provider, {
       accessToken: encryptToken(t.accessToken),
       tokenExpiresAt: new Date(t.expiresAt).toISOString(),
     });
@@ -36,10 +36,10 @@ export function googleClientFor(store: Store, conn: CalendarConnectionRecord): G
  */
 export async function googleBusy(
   store: Store,
-  contractorId: string,
+  organizationId: string,
   range: { startIso: string; endIso: string },
 ): Promise<TimeRange[]> {
-  const conn = await store.getCalendarConnection(contractorId, "google");
+  const conn = await store.getCalendarConnection(organizationId, "google");
   if (!conn || conn.status !== "connected" || !conn.externalCalendarId) return [];
   const client = googleClientFor(store, conn);
   if (!client) return [];
@@ -47,7 +47,7 @@ export async function googleBusy(
     return await client.freeBusy(conn.externalCalendarId, range);
   } catch (e) {
     if (e instanceof GoogleAuthError) {
-      await store.upsertCalendarConnection(contractorId, "google", { status: "needs_reconnect" }).catch(() => {});
+      await store.upsertCalendarConnection(organizationId, "google", { status: "needs_reconnect" }).catch(() => {});
     } else {
       console.error("[calendar] freeBusy failed (fail-open to DB availability):", e);
     }
@@ -59,9 +59,9 @@ export async function googleBusy(
  * Register (or re-register) a Google push channel so calendar changes hit our webhook (§9). Best-effort:
  * with no public API URL we skip it and rely on polling. Stores the channel id/resource/token/expiry.
  */
-export async function registerWatch(store: Store, contractorId: string): Promise<void> {
+export async function registerWatch(store: Store, organizationId: string): Promise<void> {
   if (!env.API_PUBLIC_URL) return; // no public webhook endpoint → polling-only
-  const conn = await store.getCalendarConnection(contractorId, "google");
+  const conn = await store.getCalendarConnection(organizationId, "google");
   if (!conn || conn.status !== "connected" || !conn.externalCalendarId) return;
   const client = googleClientFor(store, conn);
   if (!client) return;
@@ -74,7 +74,7 @@ export async function registerWatch(store: Store, contractorId: string): Promise
     token: channelToken,
     ttlSec: WATCH_TTL_SEC,
   });
-  await store.upsertCalendarConnection(contractorId, "google", {
+  await store.upsertCalendarConnection(organizationId, "google", {
     channelId,
     resourceId,
     channelToken,

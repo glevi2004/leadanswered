@@ -5,9 +5,9 @@ import {
   isDisqualified,
   normalizeProjectType,
 } from "./qualification.js";
-import type { ContractorConfig, Geocoder } from "./index.js";
+import type { OrganizationConfig, Geocoder } from "./index.js";
 
-const contractor: ContractorConfig = {
+const organization: OrganizationConfig = {
   id: "c1",
   name: "Owner",
   companyName: "Apex Roofing",
@@ -23,7 +23,7 @@ const contractor: ContractorConfig = {
 };
 
 describe("service area (SCOPE §5.1)", () => {
-  const area = contractor.serviceArea;
+  const area = organization.serviceArea;
   it("zip inside radius, not excluded → in", () => {
     expect(isInServiceArea("02459", area)).toBe(true);
     expect(isInServiceArea("02465", area)).toBe(true);
@@ -77,7 +77,7 @@ describe("qualify() matrix", () => {
   it("happy path → qualified", () => {
     const r = qualify(
       { serviceZip: "02459", projectType: "roof repair", isDecisionMaker: true },
-      contractor,
+      organization,
     );
     expect(r).toMatchObject({
       inArea: true,
@@ -91,7 +91,7 @@ describe("qualify() matrix", () => {
   it("out of area → disqualified", () => {
     const r = qualify(
       { serviceZip: "02601", projectType: "roof repair", isDecisionMaker: true },
-      contractor,
+      organization,
     );
     expect(r.inArea).toBe(false);
     expect(r.qualified).toBe(false);
@@ -101,16 +101,16 @@ describe("qualify() matrix", () => {
   it("project not offered → disqualified", () => {
     const r = qualify(
       { serviceZip: "02459", projectType: "gutters", isDecisionMaker: true },
-      contractor,
+      organization,
     );
     expect(r.projectOffered).toBe(false);
     expect(isDisqualified(r)).toBe(true);
   });
 
-  it("contractor types stored as FRIENDLY LABELS still match a homeowner's loose wording", () => {
-    // Contractor offers human labels (not slugs); a homeowner says "leak". Both reduce to
+  it("organization types stored as FRIENDLY LABELS still match a customer's loose wording", () => {
+    // Organization offers human labels (not slugs); a customer says "leak". Both reduce to
     // roof_repair internally → matched. Proves storage/display can be verbatim labels.
-    const labelled: ContractorConfig = { ...contractor, projectTypes: ["Roof repair", "Roof replacement"] };
+    const labelled: OrganizationConfig = { ...organization, projectTypes: ["Roof repair", "Roof replacement"] };
     const r = qualify(
       { serviceZip: "02459", projectType: "leak", isDecisionMaker: true },
       labelled,
@@ -122,14 +122,14 @@ describe("qualify() matrix", () => {
   it("not the decision-maker → not qualified", () => {
     const r = qualify(
       { serviceZip: "02459", projectType: "roof repair", isDecisionMaker: false },
-      contractor,
+      organization,
     );
     expect(r.qualified).toBe(false);
     expect(isDisqualified(r)).toBe(false); // not disqualified, just not yet qualified
   });
 
   it("missing info → reports what's missing", () => {
-    const r = qualify({ projectType: "roof repair" }, contractor);
+    const r = qualify({ projectType: "roof repair" }, organization);
     expect(r.missing).toContain("location");
     expect(r.missing).toContain("decision_maker");
     expect(r.qualified).toBe(false);
@@ -137,7 +137,7 @@ describe("qualify() matrix", () => {
 
   it("requireDecisionMaker=false relaxes the rule", () => {
     const relaxed = {
-      ...contractor,
+      ...organization,
       qualificationRules: { requireDecisionMaker: false },
     };
     const r = qualify({ serviceZip: "02459", projectType: "roof repair" }, relaxed);
@@ -147,7 +147,7 @@ describe("qualify() matrix", () => {
 
 describe("location resolution + city fallback (SCOPE §5.1)", () => {
   it("no town/zip yet → locationStatus need_location", () => {
-    const r = qualify({ projectType: "roof repair" }, contractor);
+    const r = qualify({ projectType: "roof repair" }, organization);
     expect(r.locationStatus).toBe("need_location");
     expect(r.inArea).toBeNull();
   });
@@ -155,7 +155,7 @@ describe("location resolution + city fallback (SCOPE §5.1)", () => {
   it("un-geocodable zip, no town → need_address (so Sarah asks for street + city)", () => {
     const r = qualify(
       { serviceZip: "99999", projectType: "roof repair", isDecisionMaker: true },
-      contractor,
+      organization,
     );
     expect(r.locationStatus).toBe("need_address");
     expect(r.inArea).toBeNull();
@@ -165,7 +165,7 @@ describe("location resolution + city fallback (SCOPE §5.1)", () => {
   it("falls back to the city when the zip can't be located → resolves + qualifies, but flags zipUnverified", () => {
     const r = qualify(
       { serviceZip: "99999", serviceTown: "Newton", projectType: "roof repair", isDecisionMaker: true },
-      contractor,
+      organization,
     );
     expect(r.locationStatus).toBe("resolved");
     expect(r.inArea).toBe(true);
@@ -176,7 +176,7 @@ describe("location resolution + city fallback (SCOPE §5.1)", () => {
   it("resolves an ambiguous city name to the one nearest a base (Newton, MA)", () => {
     const r = qualify(
       { serviceTown: "Newton", projectType: "roof repair", isDecisionMaker: true },
-      contractor,
+      organization,
     );
     expect(r.inArea).toBe(true);
     expect(r.locationStatus).toBe("resolved");
@@ -185,7 +185,7 @@ describe("location resolution + city fallback (SCOPE §5.1)", () => {
   it("a real but far city is out of area", () => {
     const r = qualify(
       { serviceTown: "Hyannis", projectType: "roof repair", isDecisionMaker: true },
-      contractor,
+      organization,
     );
     expect(r.inArea).toBe(false);
     expect(isDisqualified(r)).toBe(true);
@@ -194,7 +194,7 @@ describe("location resolution + city fallback (SCOPE §5.1)", () => {
   it("the real 02134 (Allston) that broke the live test is now in-area", () => {
     const r = qualify(
       { serviceZip: "02134", projectType: "roof leak", isDecisionMaker: true },
-      contractor,
+      organization,
     );
     expect(r.inArea).toBe(true);
     expect(r.qualified).toBe(true);
@@ -204,7 +204,7 @@ describe("location resolution + city fallback (SCOPE §5.1)", () => {
     // "Boston" the city geocodes in-area, but the exact ZIP 02101 is excluded.
     const r = qualify(
       { serviceTown: "Boston", serviceZip: "02101", projectType: "roof repair", isDecisionMaker: true },
-      contractor,
+      organization,
     );
     expect(r.inArea).toBe(false);
     expect(isDisqualified(r)).toBe(true);
@@ -214,7 +214,7 @@ describe("location resolution + city fallback (SCOPE §5.1)", () => {
     // "Boston" geocodes in-area, but the exact ZIP is 66 mi away → out.
     const r = qualify(
       { serviceTown: "Boston", serviceZip: "02601", projectType: "roof repair", isDecisionMaker: true },
-      contractor,
+      organization,
     );
     expect(r.inArea).toBe(false);
   });
@@ -222,7 +222,7 @@ describe("location resolution + city fallback (SCOPE §5.1)", () => {
   it("a locatable zip is NOT flagged as unverified", () => {
     const r = qualify(
       { serviceZip: "02459", serviceTown: "Newton", projectType: "roof repair", isDecisionMaker: true },
-      contractor,
+      organization,
     );
     expect(r.zipUnverified).toBe(false);
   });
@@ -230,7 +230,7 @@ describe("location resolution + city fallback (SCOPE §5.1)", () => {
   it("an override zip is treated as verified (decided explicitly, not flagged)", () => {
     const r = qualify(
       { serviceZip: "01601", projectType: "roof repair", isDecisionMaker: true },
-      contractor,
+      organization,
     );
     expect(r.zipUnverified).toBe(false);
   });

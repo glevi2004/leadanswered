@@ -2,7 +2,7 @@ import {
   formatSlot,
   safeZone,
   sendNotifications,
-  type ContractorConfig,
+  type OrganizationConfig,
   type EmailSender,
   type GatheredInfo,
   type NotificationEventType,
@@ -19,19 +19,19 @@ export interface NotifyDeps {
 }
 
 /**
- * Fire a per-event contractor notification to all subscribed recipients (SCOPE §5.2).
+ * Fire a per-event organization notification to all subscribed recipients (SCOPE §5.2).
  * Shared by the agent tools and the worker (the quiet-lead nudge fires
  * `lead_unresponsive`). Never throws — `sendNotifications` catches per-delivery
  * failures so a bad send never blocks the conversation.
  */
 export async function fireNotification(
   deps: NotifyDeps,
-  args: { contractor: ContractorConfig; lead: LeadRecord },
+  args: { organization: OrganizationConfig; lead: LeadRecord },
   event: NotificationEventType,
   merged: GatheredInfo,
   slotIso: string | null,
 ): Promise<void> {
-  const recipients: Recipient[] = (await deps.store.getRecipients(args.contractor.id)).map(
+  const recipients: Recipient[] = (await deps.store.getRecipients(args.organization.id)).map(
     (r) => ({ id: r.id, name: r.name, phone: r.phone, email: r.email, subscriptions: r.subscriptions }),
   );
   const payload = buildPayload(event, args, merged, slotIso);
@@ -40,17 +40,17 @@ export async function fireNotification(
 
 function buildPayload(
   event: NotificationEventType,
-  args: { contractor: ContractorConfig; lead: LeadRecord },
+  args: { organization: OrganizationConfig; lead: LeadRecord },
   merged: GatheredInfo,
   slotIso: string | null,
 ): NotificationPayload {
-  const { lead, contractor } = args;
-  // Contractor-facing times are in the contractor's own timezone.
-  const when = slotIso ? formatSlot(slotIso, safeZone(contractor.standingAvailability?.timezone)) : "";
+  const { lead, organization } = args;
+  // Organization-facing times are in the organization's own timezone.
+  const when = slotIso ? formatSlot(slotIso, safeZone(organization.standingAvailability?.timezone)) : "";
   if (event === "booking_confirmed" || event === "booking_rescheduled") {
     const verb = event === "booking_rescheduled" ? "Rescheduled" : "New booking";
     const emailBody = [
-      `${verb} for ${contractor.companyName}:`,
+      `${verb} for ${organization.companyName}:`,
       `Name: ${lead.contactName}`,
       `Phone: ${lead.contactPhone}`,
       `Project: ${merged.projectType ?? "n/a"}`,

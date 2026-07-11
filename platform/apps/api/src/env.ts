@@ -36,7 +36,7 @@ export const env = {
   CALENDAR_STATE_SECRET: process.env.CALENDAR_STATE_SECRET ?? process.env.CALENDAR_TOKEN_KEY ?? "",
   // Public URL the api is reachable at — used for the OAuth redirect + the Google push webhook.
   API_PUBLIC_URL: process.env.API_PUBLIC_URL ?? "",
-  // The web dashboard base URL — where the OAuth callback sends the contractor back.
+  // The web dashboard base URL — where the OAuth callback sends the organization back.
   APP_BASE_URL: process.env.APP_BASE_URL ?? "http://localhost:3001",
 };
 

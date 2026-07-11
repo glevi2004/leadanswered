@@ -3,7 +3,7 @@ import { env } from "../../env.js";
 
 /**
  * HMAC-signed, short-lived tokens (GOOGLE_CALENDAR.md §13) — used for the OAuth `state` (CSRF + binds
- * the callback to the initiating contractor) and the web→api "connect this contractor" handoff. Format:
+ * the callback to the initiating organization) and the web→api "connect this organization" handoff. Format:
  * base64url(payloadJson).base64url(hmac). The web app shares `CALENDAR_STATE_SECRET` to mint handoffs.
  */
 function secret(): string {

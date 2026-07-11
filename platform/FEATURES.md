@@ -20,8 +20,8 @@
   both **customer-facing** (answers/qualifies/books leads) and **owner-facing** (the owner texts her to
   run the business). Every business decision lives in deterministic **tools**, never the model's word.
 - **The app** (`app.leadanswered.com`) — everything Sarah does is also visible/controllable in a
-  dashboard. Today it's onboarding + admin; the **contractor dashboard is the next big surface**.
-- **Multi-tenant.** One row per business (`Contractor`) with isolated data, its own number, timezone,
+  dashboard. Today it's onboarding + admin; the **owner dashboard is the next big surface**.
+- **Multi-tenant.** One row per business (`Organization`) with isolated data, its own number, timezone,
   standing availability, and config.
 - **Stack** (see `DEPLOY.md`): `apps/api` + `apps/worker` + Redis on Railway, `apps/web` on Vercel,
   Postgres on Supabase, Twilio (SMS/MMS), Postmark (email), Langfuse (agent tracing). Auth = Supabase
@@ -38,17 +38,17 @@ Everything below is **built, tested (real-Postgres Tier-B suite), and deployed**
 - **Sarah — lead workflows** ✅ — deterministic **scripted intake** (locked copy) → open **tool-using
   agent** once booked/handed-off/declined. Tools: `qualify_lead` (captures name → `lead.contactName`),
   `check_availability`, `book_appointment`, `reschedule_appointment`, `cancel_appointment`,
-  `escalate_to_contractor`.
+  `escalate_to_organization`.
 - **Booking / scheduling core** ✅ — availability from standing weekly windows minus busy, **DB-enforced
   no-double-booking** (`btree_gist` EXCLUDE), reschedule/cancel, timezone/DST-correct (luxon). Behind a
   `CalendarProvider` port (internal adapter today; Google Calendar is a future drop-in — seam exists).
 - **Escalation + owner relay** ✅ — loop the owner in; the owner texts back and Sarah relays the answer
   in her own words.
-- **Contractor agent** ✅ — the owner directs Sarah ("text Levi we can start Monday") via `find_leads`
+- **Owner agent** ✅ — the owner directs Sarah ("text Levi we can start Monday") via `find_leads`
   + a **hard-gate send** (code sends only after the owner's explicit yes).
 - **Quiet-lead nudge** ✅ — a delayed worker job re-pings leads that go quiet.
 - **Onboarding + admin** ✅, **notifications** (SMS/email senders) ✅, **auth** (invite-only) ✅.
-- **Data model** (Prisma): `Contractor`, `Lead`, `Conversation`, `Message`, `Escalation`,
+- **Data model** (Prisma): `Organization`, `Lead`, `Conversation`, `Message`, `Escalation`,
   `Appointment`, `CalendarConnection`, `Notification*`.
 
 **Reality vs. marketing:** the site sells ~13 modules; **one of them (lead response) + scheduling is
@@ -72,11 +72,11 @@ model / tools / integrations) · rough **size**. Sizes: S (days), M (1–2 wk), 
 | Feature | Status | What it is / notes |
 |---|---|---|
 | **Sarah agent core** | ✅ | Tool-using, provider-agnostic conversation engine. New modules = new **tools**, not new engines. |
-| **Multi-tenant + auth** | ✅ 🟡 | `Contractor` tenancy + invite-only auth. ⬜ **Self-serve signup** (needed once we're not hand-onboarding every partner). |
-| **The app / contractor dashboard** | 🟡 | Web app exists (onboarding/admin). ⬜ The **dashboard** — the home surface for leads, calendar, and every module below. *This is the keystone; most modules need a screen here.* **(L)** |
+| **Multi-tenant + auth** | ✅ 🟡 | `Organization` tenancy + invite-only auth. ⬜ **Self-serve signup** (needed once we're not hand-onboarding every partner). |
+| **The app / owner dashboard** | 🟡 | Web app exists (onboarding/admin). ⬜ The **dashboard** — the home surface for leads, calendar, and every module below. *This is the keystone; most modules need a screen here.* **(L)** |
 | **Onboarding / done-for-you setup** | ✅ 🟡 | Onboarding flow exists. Extend per new module (import, website, review campaign) — the "we set it up for you" promise. |
 | **Billing & subscriptions** | ⬜ | Design partners are free now; "founder pricing later." Needs Stripe + plan/usage model. Gate: first paid conversion. **(M)** |
-| **Team accounts + permissions** | ⬜ | Marketed "Your team" — crew texts Sarah / uses the app with scoped permissions. Needs a `User`↔`Contractor` role model. **(M)** |
+| **Team accounts + permissions** | ⬜ | Marketed "Your team" — crew texts Sarah / uses the app with scoped permissions. Needs a `User`↔`Organization` role model. **(M)** |
 | **Product analytics (the app)** | ⬜ | PostHog is live on the **marketing** site; instrument the **app** for usage/funnels too. **(S)** |
 | **Notifications & comms infra** | ✅ | SMS/email senders, recipients, subscriptions. Reused by every module that messages someone. |
 
@@ -130,7 +130,7 @@ Quotes ──► Invoicing ──► Follow-ups (generalized)
 Scheduling(✅) ──► Travel routing / Google Calendar (finish)
 ```
 
-Two things gate the most: the **contractor dashboard** (the surface) and a **customer entity via import**
+Two things gate the most: the **owner dashboard** (the surface) and a **customer entity via import**
 (the data the growth modules act on).
 
 ---
@@ -139,7 +139,7 @@ Two things gate the most: the **contractor dashboard** (the surface) and a **cus
 
 The order that makes each step *sellable* and de-risks the pitch fastest:
 
-1. **Contractor dashboard (Phase 4)** — the home for leads + calendar + everything after. *In progress / next.*
+1. **Owner dashboard (Phase 4)** — the home for leads + calendar + everything after. *In progress / next.*
 2. **Finish Scheduling** — travel-time routing + Google Calendar sync (seams already exist; near-term wins).
 3. **Data import → CRM customer entity** — the substrate the growth modules need.
 4. **Reviews reactivation campaign** — deliver the **"paid for itself before you pay us"** day-one ROI. *Highest-leverage new module — it's the core of the pitch.*

@@ -1,7 +1,7 @@
 import { getPrisma } from "@leadanswered/db";
 import { DEFAULT_TIMEZONE } from "@leadanswered/core";
 import type {
-  ContractorConfig,
+  OrganizationConfig,
   GatheredInfo,
   NotificationEventType,
   Stage,
@@ -26,7 +26,7 @@ import type {
 } from "./types.js";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-function rowToContractor(r: any): ContractorConfig {
+function rowToOrganization(r: any): OrganizationConfig {
   return {
     id: r.id,
     name: r.name,
@@ -50,7 +50,7 @@ function rowToContractor(r: any): ContractorConfig {
 function mapLead(l: any): LeadRecord {
   return {
     id: l.id,
-    contractorId: l.contractorId,
+    organizationId: l.organizationId,
     contactName: l.contactName,
     contactPhone: l.contactPhone,
     projectHint: l.projectHint,
@@ -81,7 +81,7 @@ function mapAppt(a: any): AppointmentRecord {
   return {
     id: a.id,
     leadId: a.leadId,
-    contractorId: a.contractorId,
+    organizationId: a.organizationId,
     startIso: a.startAt.toISOString(),
     endIso: a.endAt.toISOString(),
     status: a.status,
@@ -94,7 +94,7 @@ function mapAppt(a: any): AppointmentRecord {
 function mapConn(c: any): CalendarConnectionRecord {
   return {
     id: c.id,
-    contractorId: c.contractorId,
+    organizationId: c.organizationId,
     provider: c.provider,
     externalCalendarId: c.externalCalendarId ?? null,
     accessToken: c.accessToken ?? null,
@@ -138,7 +138,7 @@ function classifyAppointmentConflict(e: unknown): "slot_taken" | "lead_has_activ
   const err = e as any;
   const blob = `${err?.message ?? ""} ${JSON.stringify(err?.meta ?? "")} ${String(err?.cause ?? "")}`;
   if (blob.includes("appt_one_active_per_lead")) return "lead_has_active";
-  if (blob.includes("appt_no_overlap_per_contractor") || blob.includes("appt_unique_active_start_per_contractor"))
+  if (blob.includes("appt_no_overlap_per_organization") || blob.includes("appt_unique_active_start_per_organization"))
     return "slot_taken";
   // 23P01 = exclusion_violation, 23505 = unique_violation; P2002 = Prisma unique. Default to slot_taken.
   if (blob.includes("23P01") || blob.includes("23505") || err?.code === "P2002") return "slot_taken";
@@ -154,19 +154,19 @@ export class PrismaStore implements Store {
     return this.lock(conversationId, fn);
   }
 
-  async getContractor(id: string): Promise<ContractorConfig | null> {
-    const r = await this.db.contractor.findUnique({ where: { id } });
-    return r ? rowToContractor(r) : null;
+  async getOrganization(id: string): Promise<OrganizationConfig | null> {
+    const r = await this.db.organization.findUnique({ where: { id } });
+    return r ? rowToOrganization(r) : null;
   }
 
-  async getContractorByTwilioNumber(toNumber: string): Promise<ContractorConfig | null> {
-    const r = await this.db.contractor.findFirst({ where: { twilioNumber: toNumber } });
-    return r ? rowToContractor(r) : null;
+  async getOrganizationByTwilioNumber(toNumber: string): Promise<OrganizationConfig | null> {
+    const r = await this.db.organization.findFirst({ where: { twilioNumber: toNumber } });
+    return r ? rowToOrganization(r) : null;
   }
 
-  async getContractorBySlug(slug: string): Promise<ContractorConfig | null> {
-    const r = await this.db.contractor.findUnique({ where: { slug } });
-    return r ? rowToContractor(r) : null;
+  async getOrganizationBySlug(slug: string): Promise<OrganizationConfig | null> {
+    const r = await this.db.organization.findUnique({ where: { slug } });
+    return r ? rowToOrganization(r) : null;
   }
 
   async findLeadBySourceMessageId(sourceMessageId: string): Promise<{ id: string } | null> {
@@ -174,9 +174,9 @@ export class PrismaStore implements Store {
     return l ?? null;
   }
 
-  async getRecipients(contractorId: string): Promise<RecipientRecord[]> {
+  async getRecipients(organizationId: string): Promise<RecipientRecord[]> {
     const rs = await this.db.notificationRecipient.findMany({
-      where: { contractorId },
+      where: { organizationId },
       include: { subscriptions: true },
     });
     return rs.map((r) => ({
@@ -192,11 +192,11 @@ export class PrismaStore implements Store {
   }
 
   async createLeadWithConversation(input: CreateLeadInput): Promise<LeadContext> {
-    const contractor = await this.getContractor(input.contractorId);
-    if (!contractor) throw new Error(`unknown contractor ${input.contractorId}`);
+    const organization = await this.getOrganization(input.organizationId);
+    if (!organization) throw new Error(`unknown organization ${input.organizationId}`);
     const lead = await this.db.lead.create({
       data: {
-        contractorId: input.contractorId,
+        organizationId: input.organizationId,
         contactName: input.contactName,
         contactPhone: input.contactPhone,
         projectHint: input.projectHint ?? null,
@@ -209,50 +209,50 @@ export class PrismaStore implements Store {
     const conv = await this.db.conversation.create({
       data: { leadId: lead.id, state: "intake", gathered: gathered as any },
     });
-    return { lead: mapLead(lead), contractor, conversation: mapConv(conv), messages: [] };
+    return { lead: mapLead(lead), organization, conversation: mapConv(conv), messages: [] };
   }
 
   async findActiveContextByPhones(toNumber: string, fromNumber: string): Promise<LeadContext | null> {
-    const contractor = await this.db.contractor.findFirst({ where: { twilioNumber: toNumber } });
-    if (!contractor) return null;
+    const organization = await this.db.organization.findFirst({ where: { twilioNumber: toNumber } });
+    if (!organization) return null;
     const lead = await this.db.lead.findFirst({
       // Match the lead's conversation regardless of state — a disqualified/terminal lead's follow-up
       // must still be persisted + answered, never silently dropped (state was "done" pre-fix).
-      where: { contractorId: contractor.id, contactPhone: fromNumber, conversation: { isNot: null } },
+      where: { organizationId: organization.id, contactPhone: fromNumber, conversation: { isNot: null } },
       orderBy: { createdAt: "desc" },
       include: { conversation: { include: { messages: { orderBy: { createdAt: "asc" } } } } },
     });
     if (!lead || !lead.conversation) return null;
     return {
       lead: mapLead(lead),
-      contractor: rowToContractor(contractor),
+      organization: rowToOrganization(organization),
       conversation: mapConv(lead.conversation),
       messages: lead.conversation.messages.map(mapMsg),
     };
   }
 
-  async findLeadContextByContractorPhone(contractorId: string, phone: string): Promise<LeadContext | null> {
+  async findLeadContextByOrganizationPhone(organizationId: string, phone: string): Promise<LeadContext | null> {
     const lead = await this.db.lead.findFirst({
-      where: { contractorId, contactPhone: phone, conversation: { isNot: null } },
+      where: { organizationId, contactPhone: phone, conversation: { isNot: null } },
       orderBy: { createdAt: "desc" },
       include: { conversation: { include: { messages: { orderBy: { createdAt: "asc" } } } } },
     });
     if (!lead || !lead.conversation) return null;
-    const contractor = await this.getContractor(contractorId);
-    if (!contractor) return null;
+    const organization = await this.getOrganization(organizationId);
+    if (!organization) return null;
     return {
       lead: mapLead(lead),
-      contractor,
+      organization,
       conversation: mapConv(lead.conversation),
       messages: lead.conversation.messages.map(mapMsg),
     };
   }
 
-  async findLeadsByName(contractorId: string, name: string): Promise<LeadRecord[]> {
+  async findLeadsByName(organizationId: string, name: string): Promise<LeadRecord[]> {
     const q = name.trim();
     if (!q) return [];
     const rows = await this.db.lead.findMany({
-      where: { contractorId, contactName: { contains: q, mode: "insensitive" } },
+      where: { organizationId, contactName: { contains: q, mode: "insensitive" } },
       orderBy: { createdAt: "desc" },
       take: 10,
     });
@@ -265,11 +265,11 @@ export class PrismaStore implements Store {
       include: { conversation: { include: { messages: { orderBy: { createdAt: "asc" } } } } },
     });
     if (!lead || !lead.conversation) return null;
-    const contractor = await this.getContractor(lead.contractorId);
-    if (!contractor) return null;
+    const organization = await this.getOrganization(lead.organizationId);
+    if (!organization) return null;
     return {
       lead: mapLead(lead),
-      contractor,
+      organization,
       conversation: mapConv(lead.conversation),
       messages: lead.conversation.messages.map(mapMsg),
     };
@@ -334,7 +334,7 @@ export class PrismaStore implements Store {
 
   async bookAppointment(input: {
     leadId: string;
-    contractorId: string;
+    organizationId: string;
     startIso: string;
     endIso: string;
     timezone: string;
@@ -344,7 +344,7 @@ export class PrismaStore implements Store {
         const appt = await tx.appointment.create({
           data: {
             leadId: input.leadId,
-            contractorId: input.contractorId,
+            organizationId: input.organizationId,
             startAt: new Date(input.startIso),
             endAt: new Date(input.endIso),
             timezone: input.timezone,
@@ -364,12 +364,12 @@ export class PrismaStore implements Store {
   }
 
   async getBusyTimes(
-    contractorId: string,
+    organizationId: string,
     window: { startIso: string; endIso: string },
   ): Promise<TimeRange[]> {
     const rows = await this.db.appointment.findMany({
       where: {
-        contractorId,
+        organizationId,
         status: { in: ["proposed", "confirmed"] },
         startAt: { lt: new Date(window.endIso) },
         endAt: { gt: new Date(window.startIso) },
@@ -440,8 +440,8 @@ export class PrismaStore implements Store {
     return a ? mapAppt(a) : null;
   }
 
-  async findAppointmentByExternalEventId(contractorId: string, externalEventId: string): Promise<AppointmentRecord | null> {
-    const a = await this.db.appointment.findFirst({ where: { contractorId, externalEventId } });
+  async findAppointmentByExternalEventId(organizationId: string, externalEventId: string): Promise<AppointmentRecord | null> {
+    const a = await this.db.appointment.findFirst({ where: { organizationId, externalEventId } });
     return a ? mapAppt(a) : null;
   }
 
@@ -459,9 +459,9 @@ export class PrismaStore implements Store {
     });
   }
 
-  async getCalendarConnection(contractorId: string, provider = "google"): Promise<CalendarConnectionRecord | null> {
+  async getCalendarConnection(organizationId: string, provider = "google"): Promise<CalendarConnectionRecord | null> {
     const c = await this.db.calendarConnection.findUnique({
-      where: { contractorId_provider: { contractorId, provider } },
+      where: { organizationId_provider: { organizationId, provider } },
     });
     return c ? mapConn(c) : null;
   }
@@ -477,14 +477,14 @@ export class PrismaStore implements Store {
   }
 
   async upsertCalendarConnection(
-    contractorId: string,
+    organizationId: string,
     provider: string,
     patch: CalendarConnectionPatch,
   ): Promise<CalendarConnectionRecord> {
     const data = connData(patch);
     const c = await this.db.calendarConnection.upsert({
-      where: { contractorId_provider: { contractorId, provider } },
-      create: { contractorId, provider, ...data },
+      where: { organizationId_provider: { organizationId, provider } },
+      create: { organizationId, provider, ...data },
       update: data,
     });
     return mapConn(c);
@@ -492,7 +492,7 @@ export class PrismaStore implements Store {
 
   async createEscalation(input: {
     leadId: string;
-    contractorId: string;
+    organizationId: string;
     conversationId: string;
     question: string;
   }) {
@@ -500,23 +500,23 @@ export class PrismaStore implements Store {
     return {
       id: e.id,
       leadId: e.leadId,
-      contractorId: e.contractorId,
+      organizationId: e.organizationId,
       conversationId: e.conversationId,
       question: e.question,
       status: e.status,
     };
   }
 
-  async findOpenEscalationByContractorReply(contractorId: string) {
+  async findOpenEscalationByOwnerReply(organizationId: string) {
     const e = await this.db.escalation.findFirst({
-      where: { contractorId, status: "open" },
+      where: { organizationId, status: "open" },
       orderBy: { createdAt: "desc" },
     });
     return e
       ? {
           id: e.id,
           leadId: e.leadId,
-          contractorId: e.contractorId,
+          organizationId: e.organizationId,
           conversationId: e.conversationId,
           question: e.question,
           status: e.status,
@@ -530,7 +530,7 @@ export class PrismaStore implements Store {
       orderBy: { createdAt: "desc" },
     });
     return e
-      ? { id: e.id, leadId: e.leadId, contractorId: e.contractorId, conversationId: e.conversationId, question: e.question, status: e.status }
+      ? { id: e.id, leadId: e.leadId, organizationId: e.organizationId, conversationId: e.conversationId, question: e.question, status: e.status }
       : null;
   }
 
@@ -545,7 +545,7 @@ export class PrismaStore implements Store {
   async getEscalation(id: string) {
     const e = await this.db.escalation.findUnique({ where: { id } });
     return e
-      ? { id: e.id, leadId: e.leadId, contractorId: e.contractorId, conversationId: e.conversationId, question: e.question, status: e.status }
+      ? { id: e.id, leadId: e.leadId, organizationId: e.organizationId, conversationId: e.conversationId, question: e.question, status: e.status }
       : null;
   }
 

@@ -3,7 +3,7 @@ import type { LanguageModel } from "ai";
 import { generateAgentReply, type ChatTurn } from "./agent/runner.js";
 import { runIntakeTurn } from "./intake/engine.js";
 import { downloadTwilioImages, type InboundMedia } from "./media.js";
-import { handleContractorTurn, composeEscalationRelay } from "./agent/contractorAgent.js";
+import { handleOwnerTurn, composeEscalationRelay } from "./agent/ownerAgent.js";
 import type { ToolState } from "./agent/tools.js";
 import { extractPhone, handOffOwnerIfReady } from "./agent/ownerHandoff.js";
 import { enqueueNudge } from "./queue.js";
@@ -38,7 +38,7 @@ export interface InboundResult {
 
 /**
  * The "Sarah" conversation engine (SCOPE §5), a tool-using agent. Concurrency-safe:
- * a contractor escalation reply is relayed at-most-once (conditional resolve); a lead's
+ * an owner escalation reply is relayed at-most-once (conditional resolve); a lead's
  * turns are serialized per conversation and the inbound message is inserted FIRST as the
  * idempotency lock, so a retried/duplicate webhook can never double-run the agent or
  * double-reply. Every qualify/book decision is made by deterministic tools (SCOPE §5.1).
@@ -47,17 +47,17 @@ export async function handleInbound(deps: ConversationDeps, input: InboundInput)
   const { store } = deps;
   const now = (deps.now ?? (() => new Date()))();
 
-  // 1) Is this a CONTRACTOR texting the assistant? (escalation reply → relay, or a command)
-  const handled = await maybeHandleContractorMessage(deps, input);
+  // 1) Is this the OWNER texting the assistant? (escalation reply → relay, or a command)
+  const handled = await maybeHandleOwnerMessage(deps, input);
   if (handled) return handled;
 
   // 2) Find (or, in dev, cold-start) the lead conversation.
   let ctx = await store.findActiveContextByPhones(input.toNumber, input.fromNumber);
   if (!ctx && deps.allowColdInbound) {
-    const contractor = await store.getContractorByTwilioNumber(input.toNumber);
-    if (contractor) {
+    const organization = await store.getOrganizationByTwilioNumber(input.toNumber);
+    if (organization) {
       ctx = await store.createLeadWithConversation({
-        contractorId: contractor.id,
+        organizationId: organization.id,
         contactName: "New lead",
         contactPhone: input.fromNumber,
         source: "inbound_sms",
@@ -88,7 +88,7 @@ export async function handleInbound(deps: ConversationDeps, input: InboundInput)
     // Re-read inside the lock for a consistent snapshot (now includes the inbound we inserted).
     const fresh = (await store.getContextByLeadId(leadId)) ?? ctx!;
     const state: ToolState = {
-      contractor: fresh.contractor,
+      organization: fresh.organization,
       lead: fresh.lead,
       conversation: fresh.conversation,
       gathered: fresh.conversation.gathered ?? {},
@@ -152,8 +152,8 @@ export async function handleInbound(deps: ConversationDeps, input: InboundInput)
       console.error(`[sms] failed to send reply to ${fresh.lead.contactPhone}:`, err);
     }
 
-    // DETERMINISTIC backstop: a not-the-homeowner lead who texts a phone number → capture it + hand
-    // off to the contractor, whether or not the model passed it to qualify_lead. Code, not model.
+    // DETERMINISTIC backstop: a not-the-decision-maker lead who texts a phone number → capture it + hand
+    // off to the organization, whether or not the model passed it to qualify_lead. Code, not model.
     if (
       state.gathered.isDecisionMaker === false &&
       !state.gathered.ownerHandoffDone &&
@@ -181,28 +181,28 @@ export async function handleInbound(deps: ConversationDeps, input: InboundInput)
 }
 
 /**
- * Handle a text FROM a contractor to the assistant. Two modes:
- *   - open escalation → relay their answer to the homeowner (at-most-once), or
+ * Handle a text FROM a organization to the assistant. Two modes:
+ *   - open escalation → relay their answer to the customer (at-most-once), or
  *   - no escalation → treat it as a command ("text {lead} that ...").
- * Returns null only when the sender isn't a contractor (→ normal lead handling).
+ * Returns null only when the sender isn't a organization (→ normal lead handling).
  */
-async function maybeHandleContractorMessage(
+async function maybeHandleOwnerMessage(
   deps: ConversationDeps,
   input: InboundInput,
 ): Promise<InboundResult | null> {
   const { store, sms } = deps;
-  const contractor = await store.getContractorByTwilioNumber(input.toNumber);
-  if (!contractor) return null;
+  const organization = await store.getOrganizationByTwilioNumber(input.toNumber);
+  if (!organization) return null;
 
-  const recipients = await store.getRecipients(contractor.id);
-  const fromIsContractor = recipients.some((r) => r.phone && r.phone === input.fromNumber);
-  if (!fromIsContractor) return null;
+  const recipients = await store.getRecipients(organization.id);
+  const fromIsOwner = recipients.some((r) => r.phone && r.phone === input.fromNumber);
+  if (!fromIsOwner) return null;
 
-  const esc = await store.findOpenEscalationByContractorReply(contractor.id);
+  const esc = await store.findOpenEscalationByOwnerReply(organization.id);
   const agentDeps = { store, model: deps.model, sms, email: deps.email, now: (deps.now ?? (() => new Date()))() };
   if (!esc) {
-    // No escalation in flight → the owner is directing the assistant (Workflow 3 — contractor agent).
-    return handleContractorTurn(agentDeps, contractor, input);
+    // No escalation in flight → the owner is directing the assistant (Workflow 3 — owner agent).
+    return handleOwnerTurn(agentDeps, organization, input);
   }
 
   // Win the resolve before relaying — the conditional update is the at-most-once guard.
@@ -212,7 +212,7 @@ async function maybeHandleContractorMessage(
   const leadCtx: LeadContext | null = await store.getContextByLeadId(esc.leadId);
   if (leadCtx) {
     // Relay the owner's answer to the customer IN SARAH'S OWN WORDS (agent-composed, not a template).
-    const relay = await composeEscalationRelay(agentDeps, contractor, leadCtx, input.body);
+    const relay = await composeEscalationRelay(agentDeps, organization, leadCtx, input.body);
     await store.appendMessage(leadCtx.conversation.id, { direction: "outbound", body: relay });
     try {
       await sms.send(leadCtx.lead.contactPhone, relay);
@@ -220,6 +220,6 @@ async function maybeHandleContractorMessage(
       console.error(`[relay] failed to reach ${leadCtx.lead.contactPhone}:`, err);
     }
   }
-  console.log(`[escalation] relayed contractor answer for escalation ${esc.id}`);
+  console.log(`[escalation] relayed owner answer for escalation ${esc.id}`);
   return { status: "ok", reply: input.body };
 }

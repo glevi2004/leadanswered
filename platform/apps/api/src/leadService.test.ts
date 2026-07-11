@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { MemoryStore } from "./store/memoryStore.js";
 import { createLeadAndGreet } from "./leadService.js";
-import { testContractor, testRecipients, TEST_CONTRACTOR_ID } from "./seed.js";
+import { testOrganization, testRecipients, TEST_ORGANIZATION_ID } from "./seed.js";
 import { CapturingSms, scriptedModel } from "./testkit.js";
 
 function seed(): MemoryStore {
   const s = new MemoryStore();
-  s.seedContractor(testContractor, testRecipients);
+  s.seedOrganization(testOrganization, testRecipients);
   return s;
 }
 
@@ -20,7 +20,7 @@ describe("lead intake (POST /lead path, SCOPE §6)", () => {
 
     const res = await createLeadAndGreet(
       { store, model, sms },
-      { contractorId: TEST_CONTRACTOR_ID, contactName: "Jane Doe", contactPhone: "+15555550123", projectHint: "roof leak" },
+      { organizationId: TEST_ORGANIZATION_ID, contactName: "Jane Doe", contactPhone: "+15555550123", projectHint: "roof leak" },
     );
 
     expect(res.leadId).toBeTruthy();
@@ -34,7 +34,7 @@ describe("lead intake (POST /lead path, SCOPE §6)", () => {
     expect(ctx?.messages.filter((m) => m.direction === "outbound")).toHaveLength(1);
   });
 
-  it("dedupes by (contractor, phone): a second contact re-engages the same lead, never a duplicate", async () => {
+  it("dedupes by (organization, phone): a second contact re-engages the same lead, never a duplicate", async () => {
     const store = seed();
     const sms = new CapturingSms();
     const model = scriptedModel([
@@ -44,11 +44,11 @@ describe("lead intake (POST /lead path, SCOPE §6)", () => {
     const deps = { store, model, sms };
 
     const first = await createLeadAndGreet(deps, {
-      contractorId: TEST_CONTRACTOR_ID, contactName: "Jane Doe", contactPhone: "+15555550123",
+      organizationId: TEST_ORGANIZATION_ID, contactName: "Jane Doe", contactPhone: "+15555550123",
       projectHint: "roof leak", source: "email",
     });
     const second = await createLeadAndGreet(deps, {
-      contractorId: TEST_CONTRACTOR_ID, contactName: "Caller", contactPhone: "+15555550123",
+      organizationId: TEST_ORGANIZATION_ID, contactName: "Caller", contactPhone: "+15555550123",
       source: "missed_call",
     });
 

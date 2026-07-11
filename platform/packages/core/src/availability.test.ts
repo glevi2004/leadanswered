@@ -16,8 +16,8 @@ const windows: AvailabilityWindow[] = [
 const now = new Date("2026-06-15T08:00:00Z");
 const week = { fromIso: now.toISOString(), toIso: "2026-06-22T00:00:00Z" };
 
-// A UTC contractor is the identity case: local wall-time == UTC, so these mirror the pre-tz behavior.
-describe("computeOpenWindows (UTC contractor = identity)", () => {
+// A UTC organization is the identity case: local wall-time == UTC, so these mirror the pre-tz behavior.
+describe("computeOpenWindows (UTC organization = identity)", () => {
   it("returns the standing windows in range (no busy)", () => {
     const w = computeOpenWindows(windows, week, [], now, "UTC");
     expect(w.map((x) => [x.startIso, x.endIso])).toEqual([

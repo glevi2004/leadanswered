@@ -20,15 +20,15 @@ const SCOPES = [
   "email",
 ].join(" ");
 
-/** GET /google/connect?cid=<signed contractor handoff> → 302 to Google's consent screen. */
+/** GET /google/connect?cid=<signed organization handoff> → 302 to Google's consent screen. */
 export function createGoogleConnectRoute() {
   return (req: Request, res: Response): void => {
-    const handoff = verifyState<{ contractorId: string }>(String(req.query.cid ?? ""));
-    if (!handoff?.contractorId) {
+    const handoff = verifyState<{ organizationId: string }>(String(req.query.cid ?? ""));
+    if (!handoff?.organizationId) {
       res.status(400).send("Invalid or expired connect link.");
       return;
     }
-    const state = signState({ contractorId: handoff.contractorId });
+    const state = signState({ organizationId: handoff.organizationId });
     const url = new URL(AUTH_URL);
     url.searchParams.set("client_id", env.GOOGLE_CLIENT_ID);
     url.searchParams.set("redirect_uri", env.GOOGLE_OAUTH_REDIRECT_URI);
@@ -47,14 +47,14 @@ export function createGoogleCallbackRoute(store: Store) {
   return async (req: Request, res: Response): Promise<void> => {
     const back = (status: string) => res.redirect(`${env.APP_BASE_URL}/dashboard/settings?calendar=${status}`);
     const code = String(req.query.code ?? "");
-    const payload = verifyState<{ contractorId: string }>(String(req.query.state ?? ""));
-    if (!payload?.contractorId || !code) {
+    const payload = verifyState<{ organizationId: string }>(String(req.query.state ?? ""));
+    if (!payload?.organizationId || !code) {
       back("error");
       return;
     }
     try {
       const t = await GoogleCalendarClient.exchangeCode(code, env.GOOGLE_OAUTH_REDIRECT_URI);
-      await store.upsertCalendarConnection(payload.contractorId, "google", {
+      await store.upsertCalendarConnection(payload.organizationId, "google", {
         status: "connected",
         externalCalendarId: "primary",
         accessToken: encryptToken(t.accessToken),
@@ -64,7 +64,7 @@ export function createGoogleCallbackRoute(store: Store) {
         email: t.email ?? null,
       });
       // Best-effort inbound push channel; failure just means we rely on polling. Never blocks connect.
-      await registerWatch(store, payload.contractorId).catch((e) => console.error("[calendar] watch register failed:", e));
+      await registerWatch(store, payload.organizationId).catch((e) => console.error("[calendar] watch register failed:", e));
       back("connected");
     } catch (e) {
       console.error("[calendar] oauth callback failed:", e);
@@ -76,12 +76,12 @@ export function createGoogleCallbackRoute(store: Store) {
 /** POST /google/disconnect { cid } → stop the channel, revoke at Google, clear tokens. */
 export function createGoogleDisconnectRoute(store: Store) {
   return async (req: Request, res: Response): Promise<void> => {
-    const handoff = verifyState<{ contractorId: string }>(String(req.body?.cid ?? req.query.cid ?? ""));
-    if (!handoff?.contractorId) {
+    const handoff = verifyState<{ organizationId: string }>(String(req.body?.cid ?? req.query.cid ?? ""));
+    if (!handoff?.organizationId) {
       res.status(400).json({ ok: false, error: "invalid_token" });
       return;
     }
-    const conn = await store.getCalendarConnection(handoff.contractorId, "google");
+    const conn = await store.getCalendarConnection(handoff.organizationId, "google");
     if (conn) {
       const client = conn.refreshToken ? googleClientFor(store, conn) : null;
       if (client && conn.channelId && conn.resourceId) {
@@ -89,7 +89,7 @@ export function createGoogleDisconnectRoute(store: Store) {
       }
       if (conn.refreshToken) await GoogleCalendarClient.revoke(decryptToken(conn.refreshToken)).catch(() => {});
     }
-    await store.upsertCalendarConnection(handoff.contractorId, "google", {
+    await store.upsertCalendarConnection(handoff.organizationId, "google", {
       status: "disconnected",
       accessToken: null,
       refreshToken: null,

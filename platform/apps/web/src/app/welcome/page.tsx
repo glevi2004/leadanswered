@@ -1,15 +1,15 @@
 import Link from "next/link";
-import { requireContractor } from "@/lib/dashboard-auth";
+import { requireOrganization } from "@/lib/dashboard-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 /**
- * First-login welcome for a freshly-invited contractor. They're already configured (admin-led
+ * First-login welcome for a freshly-invited organization. They're already configured (admin-led
  * onboarding), so this is a warm orientation, not a setup step. Reached right after set-password.
  */
 export default async function WelcomePage() {
-  const contractor = await requireContractor();
-  const sarah = contractor.sarahName || "Sarah";
+  const organization = await requireOrganization();
+  const sarah = organization.sarahName || "Sarah";
 
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
@@ -19,7 +19,7 @@ export default async function WelcomePage() {
         </CardHeader>
         <CardContent className="flex flex-col gap-5 text-sm text-muted-foreground">
           <p className="text-center">
-            You're all set, <strong className="text-foreground">{contractor.companyName}</strong>.{" "}
+            You're all set, <strong className="text-foreground">{organization.companyName}</strong>.{" "}
             {sarah} — your AI assistant — is live and ready to text your leads back in seconds:
             qualifying them, booking estimates, and looping you in.
           </p>

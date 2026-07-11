@@ -73,7 +73,7 @@ function parseClockCandidates(text: string): number[] {
  * DETERMINISTIC slot resolution (SCOPE §5.1). Map the customer's stated choice — a short id, the label,
  * an ISO instant, or a natural time like "8 am" — back to the exact offered ISO, IN CODE. This replaces
  * trusting the model to echo the right short id (which mis-mapped "8 am" → the 6 AM slot). Returns the
- * matched ISO, or null to re-offer. `timezone` is the contractor's tz for clock-time matching.
+ * matched ISO, or null to re-offer. `timezone` is the organization's tz for clock-time matching.
  */
 export function resolveChosenSlot(
   offeredSlots: Record<string, string> | null | undefined,

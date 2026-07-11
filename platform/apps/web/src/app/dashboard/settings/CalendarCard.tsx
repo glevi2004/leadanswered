@@ -1,4 +1,4 @@
-import { requireContractor } from "@/lib/dashboard-auth";
+import { requireOrganization } from "@/lib/dashboard-auth";
 import { calendarConfigured, getCalendarConnection, googleConnectUrl } from "@/lib/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,8 +7,8 @@ import { disconnectCalendarAction } from "./calendar-actions";
 /** Settings card: connect / disconnect Google Calendar + status (GOOGLE_CALENDAR.md §11). */
 export async function CalendarCard() {
   if (!calendarConfigured()) return null; // hidden until the api's Google integration is provisioned
-  const contractor = await requireContractor();
-  const conn = await getCalendarConnection(contractor.id);
+  const organization = await requireOrganization();
+  const conn = await getCalendarConnection(organization.id);
   const connected = conn?.status === "connected";
   const needsReconnect = conn?.status === "needs_reconnect";
 
@@ -36,7 +36,7 @@ export async function CalendarCard() {
             <p className="text-sm text-muted-foreground">
               {needsReconnect ? "Your calendar needs to be reconnected." : "Not connected."}
             </p>
-            <a href={googleConnectUrl(contractor.id)}>
+            <a href={googleConnectUrl(organization.id)}>
               <Button size="sm">{needsReconnect ? "Reconnect" : "Connect Google Calendar"}</Button>
             </a>
           </div>

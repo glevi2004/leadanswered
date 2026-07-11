@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { requireContractor, contractorTz } from "@/lib/dashboard-auth";
+import { requireOrganization, organizationTz } from "@/lib/dashboard-auth";
 import { getLeadDetail } from "@/lib/dashboard";
 import { leadStatusBadge, apptStatusBadge, formatWhen, formatTime } from "@/lib/dashboard-ui";
 import { Badge } from "@/components/ui/badge";
@@ -9,11 +9,11 @@ import { cn } from "@/lib/utils";
 
 export default async function LeadDetailPage({ params }: { params: Promise<{ leadId: string }> }) {
   const { leadId } = await params;
-  const contractor = await requireContractor();
-  const tz = contractorTz(contractor);
+  const organization = await requireOrganization();
+  const tz = organizationTz(organization);
 
-  const lead = await getLeadDetail(contractor.id, leadId);
-  if (!lead) notFound(); // not found OR not this contractor's lead — same 404
+  const lead = await getLeadDetail(organization.id, leadId);
+  if (!lead) notFound(); // not found OR not this organization's lead — same 404
 
   const b = leadStatusBadge(lead.status);
   const messages = lead.conversation?.messages ?? [];
@@ -67,7 +67,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ lea
                             inbound ? "text-muted-foreground" : "text-primary-foreground/70",
                           )}
                         >
-                          {inbound ? lead.contactName || "Lead" : contractor.sarahName || "Sarah"} ·{" "}
+                          {inbound ? lead.contactName || "Lead" : organization.sarahName || "Sarah"} ·{" "}
                           {formatTime(m.createdAt, tz)}
                         </p>
                       </div>

@@ -37,7 +37,7 @@ describe("formatWhen / formatTime", () => {
     expect(formatWhen("not-a-date")).toBe("—");
     expect(formatTime("not-a-date")).toBe("");
   });
-  it("formats in the contractor's timezone", () => {
+  it("formats in the organization's timezone", () => {
     const out = formatWhen("2026-07-01T18:00:00Z", "America/New_York"); // 2:00 PM ET
     expect(out).toMatch(/Jul 1/);
     expect(out).toMatch(/2:00/);
@@ -50,21 +50,21 @@ describe("getLeadDetail — tenant isolation", () => {
     h.state.resultData = null;
   });
 
-  it("always pins the query to BOTH the lead id and the caller's contractorId", async () => {
-    await getLeadDetail("contractor-1", "lead-9");
+  it("always pins the query to BOTH the lead id and the caller's organizationId", async () => {
+    await getLeadDetail("organization-1", "lead-9");
     expect(h.state.eqCalls).toContainEqual(["id", "lead-9"]);
-    expect(h.state.eqCalls).toContainEqual(["contractorId", "contractor-1"]); // the guard
+    expect(h.state.eqCalls).toContainEqual(["organizationId", "organization-1"]); // the guard
   });
 
   it("returns null when no row matches (another tenant's lead id)", async () => {
     h.state.resultData = null;
-    expect(await getLeadDetail("contractor-1", "someone-elses-lead")).toBeNull();
+    expect(await getLeadDetail("organization-1", "someone-elses-lead")).toBeNull();
   });
 
   it("normalizes a to-one conversation array and sorts messages by time", async () => {
     h.state.resultData = {
       id: "lead-1",
-      contractorId: "contractor-1",
+      organizationId: "organization-1",
       contactName: "Maria",
       status: "qualifying",
       conversation: [
@@ -79,7 +79,7 @@ describe("getLeadDetail — tenant isolation", () => {
       appointments: [],
       escalations: [],
     };
-    const res = await getLeadDetail("contractor-1", "lead-1");
+    const res = await getLeadDetail("organization-1", "lead-1");
     expect(res?.conversation?.messages.map((m) => m.id)).toEqual(["m1", "m2"]);
   });
 });

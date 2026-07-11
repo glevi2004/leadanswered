@@ -36,7 +36,7 @@ describe("googleBusy (availability merge, fail-open)", () => {
     expect(busy[0].startAt.toISOString()).toBe("2026-07-06T14:00:00.000Z");
   });
 
-  it("returns [] when the contractor has no connection", async () => {
+  it("returns [] when the organization has no connection", async () => {
     expect(await googleBusy(new MemoryStore(), CID, RANGE)).toEqual([]);
   });
 

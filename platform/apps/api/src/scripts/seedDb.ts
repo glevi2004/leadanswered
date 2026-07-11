@@ -1,19 +1,19 @@
 import "../env.js"; // loads .env + expands ${DB_PASSWORD} before getPrisma reads it
 import { getPrisma } from "@leadanswered/db";
-import { testContractor, testRecipients } from "../seed.js";
+import { testOrganization, testRecipients } from "../seed.js";
 
 /**
- * Seed the Phase 1 test contractor + notification recipients into Postgres.
+ * Seed the Phase 1 test organization + notification recipients into Postgres.
  * Run with DATABASE_URL set and after `prisma migrate`:
  *   pnpm --filter @leadanswered/api seed
  */
 async function main(): Promise<void> {
   const db = getPrisma();
-  const c = testContractor;
+  const c = testOrganization;
 
-  await db.contractor.upsert({
+  await db.organization.upsert({
     where: { id: c.id },
-    update: { slug: c.slug ?? null }, // backfill the routing slug on an existing test contractor
+    update: { slug: c.slug ?? null }, // backfill the routing slug on an existing test organization
     create: {
       id: c.id,
       name: c.name,
@@ -37,7 +37,7 @@ async function main(): Promise<void> {
       update: {},
       create: {
         id: r.id,
-        contractorId: c.id,
+        organizationId: c.id,
         name: r.name,
         phone: r.phone,
         email: r.email,
@@ -51,7 +51,7 @@ async function main(): Promise<void> {
     });
   }
 
-  console.log(`Seeded contractor '${c.companyName}' (${c.id}) + ${testRecipients.length} recipient(s).`);
+  console.log(`Seeded organization '${c.companyName}' (${c.id}) + ${testRecipients.length} recipient(s).`);
 }
 
 main()

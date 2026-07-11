@@ -1,5 +1,5 @@
 // Domain types shared across the platform (SCOPE §4, §5).
-// Vertical-neutral by design — only Sarah's conversation copy is homeowner-flavored.
+// Vertical-neutral by design — no segment-specific vocabulary in field names or copy.
 
 export interface LatLng {
   lat: number;
@@ -35,7 +35,7 @@ export interface StandingAvailability {
   windows: AvailabilityWindow[];
 }
 
-export interface ContractorConfig {
+export interface OrganizationConfig {
   id: string;
   name: string;
   companyName: string;
@@ -49,8 +49,8 @@ export interface ContractorConfig {
   /** Email-routing key — lead emails arrive at leads+{slug}@<domain> (SCOPE §9). */
   slug?: string | null;
   /**
-   * Customer-question topics the contractor wants looped in on (escalated) rather
-   * than deflected. Editable per-contractor in the dashboard later; falls back to a
+   * Customer-question topics the organization wants looped in on (escalated) rather
+   * than deflected. Editable per-organization in the dashboard later; falls back to a
    * sensible default when unset.
    */
   escalationTopics?: string[] | null;
@@ -63,10 +63,10 @@ export interface GatheredInfo {
   serviceZip?: string | null;
   fullAddress?: string | null;
   isDecisionMaker?: boolean | null;
-  /** When the lead ISN'T the homeowner: the homeowner's name + phone to hand off to the contractor. */
+  /** When the lead ISN'T the decision-maker: the decision-maker's name + phone to hand off to the organization. */
   ownerName?: string | null;
   ownerPhone?: string | null;
-  /** Set once the code has fired the not-the-homeowner hand-off (fires exactly once). */
+  /** Set once the code has fired the not-the-decision-maker hand-off (fires exactly once). */
   ownerHandoffDone?: boolean | null;
   /** ISO datetime of a slot the lead has agreed to, if any. */
   chosenSlot?: string | null;

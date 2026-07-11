@@ -2,9 +2,9 @@ import { createSupabaseAdmin } from "@/lib/supabase/admin";
 
 /**
  * Read-only dashboard queries (server-only) via supabase-js service role.
- * There is no RLS, so EVERY query is scoped to the caller's `contractorId` —
- * derived from the authenticated owner (getContractorByOwnerEmail). Detail
- * lookups also pin `contractorId` in the WHERE clause, so one tenant can never
+ * There is no RLS, so EVERY query is scoped to the caller's `organizationId` —
+ * derived from the authenticated owner (getOrganizationByOwnerEmail). Detail
+ * lookups also pin `organizationId` in the WHERE clause, so one tenant can never
  * read another's lead by guessing an id.
  */
 
@@ -51,12 +51,12 @@ function one<T>(v: T | T[] | null | undefined): T | null {
   return v ?? null;
 }
 
-export async function listLeads(contractorId: string): Promise<LeadRow[]> {
+export async function listLeads(organizationId: string): Promise<LeadRow[]> {
   const sb = createSupabaseAdmin();
   const { data, error } = await sb
     .from("Lead")
     .select("id, contactName, contactPhone, projectHint, serviceTown, serviceZip, status, createdAt, updatedAt")
-    .eq("contractorId", contractorId)
+    .eq("organizationId", organizationId)
     .order("createdAt", { ascending: false });
   if (error) throw error;
   return (data ?? []) as LeadRow[];
@@ -70,8 +70,8 @@ export interface LeadDetail extends LeadRow {
   escalations: EscalationRow[];
 }
 
-/** Full lead view. Returns null if the lead isn't this contractor's (→ notFound). */
-export async function getLeadDetail(contractorId: string, leadId: string): Promise<LeadDetail | null> {
+/** Full lead view. Returns null if the lead isn't this organization's (→ notFound). */
+export async function getLeadDetail(organizationId: string, leadId: string): Promise<LeadDetail | null> {
   const sb = createSupabaseAdmin();
   const { data, error } = await sb
     .from("Lead")
@@ -79,7 +79,7 @@ export async function getLeadDetail(contractorId: string, leadId: string): Promi
       "*, conversation:Conversation(state, messages:Message(id, direction, body, createdAt)), appointments:Appointment(*), escalations:Escalation(*)",
     )
     .eq("id", leadId)
-    .eq("contractorId", contractorId) // tenant guard: no row for another tenant's lead
+    .eq("organizationId", organizationId) // tenant guard: no row for another tenant's lead
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
@@ -104,12 +104,12 @@ export async function getLeadDetail(contractorId: string, leadId: string): Promi
   };
 }
 
-export async function listAppointments(contractorId: string): Promise<AppointmentRow[]> {
+export async function listAppointments(organizationId: string): Promise<AppointmentRow[]> {
   const sb = createSupabaseAdmin();
   const { data, error } = await sb
     .from("Appointment")
     .select("id, startAt, status, cancelReason, createdAt, lead:Lead(id, contactName, contactPhone)")
-    .eq("contractorId", contractorId)
+    .eq("organizationId", organizationId)
     .order("startAt", { ascending: true });
   if (error) throw error;
   return ((data ?? []) as Record<string, any>[]).map((a) => ({
@@ -126,8 +126,8 @@ export interface DashboardSummary {
 }
 
 /** Overview KPIs + recent leads + upcoming appointments, in one place. */
-export async function getDashboardSummary(contractorId: string, nowIso: string): Promise<DashboardSummary> {
-  const [leads, appts] = await Promise.all([listLeads(contractorId), listAppointments(contractorId)]);
+export async function getDashboardSummary(organizationId: string, nowIso: string): Promise<DashboardSummary> {
+  const [leads, appts] = await Promise.all([listLeads(organizationId), listAppointments(organizationId)]);
 
   const counts: Record<string, number> = {};
   for (const l of leads) counts[l.status] = (counts[l.status] ?? 0) + 1;

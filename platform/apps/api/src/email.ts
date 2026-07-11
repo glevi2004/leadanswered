@@ -12,7 +12,7 @@ export class ConsoleEmailSender implements EmailSender {
 
 /**
  * Real outbound email via Postmark's REST API (no SDK dependency). Used for
- * contractor notifications when POSTMARK_SERVER_TOKEN is set. Never throws — a
+ * organization notifications when POSTMARK_SERVER_TOKEN is set. Never throws — a
  * delivery failure is logged so it can't break the conversation flow.
  */
 export class PostmarkEmailSender implements EmailSender {

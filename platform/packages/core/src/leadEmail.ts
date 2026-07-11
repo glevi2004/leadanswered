@@ -2,7 +2,7 @@
  * Parse a forwarded website lead-notification email into the fields Sarah needs
  * (SCOPE §9). Pure + deterministic so it's fully unit-testable. Built for common
  * contact-form formats (labeled "Name:/Phone:/Message:" bodies, HTML or text);
- * odd templates can later be handled by a per-contractor parsing hint.
+ * odd templates can later be handled by a per-organization parsing hint.
  */
 
 import { createHash } from "node:crypto";
@@ -13,13 +13,13 @@ import { createHash } from "node:crypto";
  * `Lead.sourceMessageId @unique` constraint then guarantees one lead per email).
  */
 export function synthesizeEmailKey(parts: {
-  contractorId: string;
+  organizationId: string;
   from?: string | null;
   subject?: string | null;
   phone?: string | null;
 }): string {
   const h = createHash("sha256")
-    .update([parts.contractorId, parts.from ?? "", parts.subject ?? "", parts.phone ?? ""].join("|"))
+    .update([parts.organizationId, parts.from ?? "", parts.subject ?? "", parts.phone ?? ""].join("|"))
     .digest("hex");
   return `email:${h}`;
 }
@@ -49,13 +49,13 @@ export function normalizePhone(raw: string): string | null {
   return null;
 }
 
-/** The lead-forwarding address for a contractor (for display in onboarding/dashboard). */
-export function contractorLeadAddress(slug: string, domain: string): string {
+/** The lead-forwarding address for a organization (for display in onboarding/dashboard). */
+export function organizationLeadAddress(slug: string, domain: string): string {
   return `leads+${slug}@${domain}`;
 }
 
 /**
- * Extract the contractor slug from a recipient address like
+ * Extract the organization slug from a recipient address like
  * `leads+apex@leads.leadanswered.com` (also handles `Name <leads+apex@…>`).
  * If `domain` is given, the address must be on it.
  */

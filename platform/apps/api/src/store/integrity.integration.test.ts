@@ -21,7 +21,7 @@ const SLOT_END = "2027-01-04T16:00:00.000Z";
 
 run("DB integrity (real Postgres) — the constraints prove themselves", () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let db: any, store: any, contractorId: string;
+  let db: any, store: any, organizationId: string;
 
   beforeAll(async () => {
     const { getPrisma } = await import("@leadanswered/db");
@@ -29,18 +29,18 @@ run("DB integrity (real Postgres) — the constraints prove themselves", () => {
     db = getPrisma();
     store = new PrismaStore();
     await resetLeads();
-    const c = await db.contractor.upsert({
-      where: { id: "itest-contractor" },
+    const c = await db.organization.upsert({
+      where: { id: "itest-organization" },
       update: {},
       create: {
-        id: "itest-contractor",
+        id: "itest-organization",
         name: "Test",
         companyName: "Test Co",
         projectTypes: [],
         standingAvailability: { timezone: "UTC", windows: [] },
       },
     });
-    contractorId = c.id;
+    organizationId = c.id;
   });
 
   async function resetLeads() {
@@ -51,11 +51,11 @@ run("DB integrity (real Postgres) — the constraints prove themselves", () => {
     await db.lead.deleteMany();
   }
   async function makeLead(phone: string) {
-    const ctx = await store.createLeadWithConversation({ contractorId, contactName: "L", contactPhone: phone });
+    const ctx = await store.createLeadWithConversation({ organizationId, contactName: "L", contactPhone: phone });
     return ctx.lead.id as string;
   }
   const bk = (leadId: string, startIso: string, endIso: string) =>
-    store.bookAppointment({ leadId, contractorId, startIso, endIso, timezone: "UTC" });
+    store.bookAppointment({ leadId, organizationId, startIso, endIso, timezone: "UTC" });
 
   it("KEYSTONE: two CONCURRENT bookings of the same slot → exactly ONE appointment", async () => {
     await resetLeads();
@@ -65,7 +65,7 @@ run("DB integrity (real Postgres) — the constraints prove themselves", () => {
     const [r1, r2] = await Promise.all([bk(a, SLOT, SLOT_END), bk(b, SLOT, SLOT_END)]);
     expect([r1, r2].filter((r) => r.ok)).toHaveLength(1);
     expect([r1, r2].filter((r) => !r.ok && r.reason === "slot_taken")).toHaveLength(1);
-    expect(await db.appointment.count({ where: { contractorId, status: "confirmed" } })).toBe(1);
+    expect(await db.appointment.count({ where: { organizationId, status: "confirmed" } })).toBe(1);
   });
 
   it("rejects an OVERLAPPING slot; allows back-to-back", async () => {

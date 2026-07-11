@@ -72,10 +72,10 @@ export function ServiceAreaSection({ state, update }: SectionProps) {
         </div>
       </div>
       <p className="text-xs text-muted-foreground">
-        Sarah serves anywhere within this radius of the base ZIP — for most contractors that's all you need.
+        Sarah serves anywhere within this radius of the base ZIP — for most organizations that's all you need.
       </p>
 
-      {/* Optional exceptions — collapsed by default; most contractors leave this alone. */}
+      {/* Optional exceptions — collapsed by default; most organizations leave this alone. */}
       <div className="rounded-lg border">
         <button
           type="button"
@@ -105,7 +105,7 @@ export function ServiceAreaSection({ state, update }: SectionProps) {
 
       <label className="flex items-center gap-2 text-sm">
         <Checkbox checked={state.requireDM} onCheckedChange={(v) => update({ requireDM: v === true })} />
-        Only book the homeowner / decision-maker
+        Only book the decision-maker
       </label>
     </div>
   );

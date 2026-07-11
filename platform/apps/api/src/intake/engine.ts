@@ -36,7 +36,7 @@ export function intakeOpening(state: ToolState): string {
   const named = hasRealName(state.lead.contactName);
   const greeting = named ? `Hi ${firstName(state.lead.contactName)}!` : "Hi there!";
   const reason = g.projectType ? `, about your ${g.projectType}` : "";
-  const intro = `${greeting} It's ${state.contractor.sarahName} with ${state.contractor.companyName}. Thanks for reaching out${reason}. I'm here to help get it taken care of.`;
+  const intro = `${greeting} It's ${state.organization.sarahName} with ${state.organization.companyName}. Thanks for reaching out${reason}. I'm here to help get it taken care of.`;
   const ask = named
     ? `What's the property address so I can get someone out to take a look? (street, city, and ZIP)`
     : `What's your name and the property address so I can get someone out to take a look? (street, city, and ZIP)`;
@@ -45,7 +45,7 @@ export function intakeOpening(state: ToolState): string {
 
 /** Missed-call opening (Workflow 2) — intent-agnostic; we know nothing but the phone number. */
 export function missedCallOpening(state: ToolState): string {
-  return `Hi there! It's ${state.contractor.sarahName} with ${state.contractor.companyName}. Sorry we missed your call! How can we help?`;
+  return `Hi there! It's ${state.organization.sarahName} with ${state.organization.companyName}. Sorry we missed your call! How can we help?`;
 }
 
 // ---------------------------------------------------------------------------
@@ -58,9 +58,9 @@ const ExtractSchema = z.object({
   fullAddress: z.string().nullable().describe("full street address if given"),
   town: z.string().nullable(),
   zip: z.string().nullable().describe("5-digit ZIP if given"),
-  isHomeowner: z.boolean().nullable().describe("true if they own the home / can approve the work, false if a renter or not the decision-maker, null if unclear"),
-  ownerName: z.string().nullable().describe("if they are NOT the homeowner: the homeowner's name"),
-  ownerPhone: z.string().nullable().describe("if they are NOT the homeowner: the homeowner's phone"),
+  isDecisionMaker: z.boolean().nullable().describe("true if they can approve the work, false if acting on someone else's behalf / not the decision-maker, null if unclear"),
+  ownerName: z.string().nullable().describe("if they are NOT the decision-maker: the decision-maker's name"),
+  ownerPhone: z.string().nullable().describe("if they are NOT the decision-maker: the decision-maker's phone"),
   chosenDayOfWeek: z.number().int().min(0).max(6).nullable().describe("if they picked a day: Sun=0..Sat=6"),
   chosenDayLabel: z.string().nullable().describe("the day they picked, in words (e.g. 'Thursday')"),
   chosenTime: z.string().nullable().describe("the specific time they picked, in their words (e.g. '8 am', 'the 1pm')"),
@@ -82,7 +82,7 @@ async function extractIntake(deps: IntakeDeps, history: ChatTurn[]): Promise<Int
       prompt:
         "You are reading a home-services SMS intake and pulling structured values from what the CUSTOMER has said (consider the whole thread, not just the last line). Rules:\n" +
         "- fullAddress: the COMPLETE street address if it appears anywhere (e.g. '100 Main St, Newton MA 02458'). Whenever you set fullAddress, ALSO set town and the 5-digit zip parsed from it.\n" +
-        "- isHomeowner: true if they own the home or can approve the work; false if a renter / not the decision-maker.\n" +
+        "- isDecisionMaker: true if they can approve the work; false if acting on someone else's behalf / not the decision-maker.\n" +
         "- chosenDayOfWeek (Sun=0..Sat=6) + chosenDayLabel: set these whenever they name OR ask about a day, even phrased as a question ('what do you have Monday?' → Monday). chosenTime: the clock time they picked ('8 am').\n" +
         "- intent: why they reached out.\n" +
         "- offScript: 'withdrew' ONLY if they clearly drop out with no other request ('never mind', 'went with someone else'). If they ask a QUESTION (even after 'ok, no worries'), use 'question', NOT 'withdrew'. 'question' is for things the scheduling flow cannot answer — pricing, a referral/recommendation for another company, whether you offer a specific service, warranties, policy. Asking about AVAILABILITY or times is NOT off-script (extract the day/time instead). Otherwise 'none'.\n" +
@@ -95,7 +95,7 @@ async function extractIntake(deps: IntakeDeps, history: ChatTurn[]): Promise<Int
     console.error("[intake] extract failed:", e);
     return {
       name: null, projectType: null, intent: null, fullAddress: null, town: null, zip: null,
-      isHomeowner: null, ownerName: null, ownerPhone: null, chosenDayOfWeek: null,
+      isDecisionMaker: null, ownerName: null, ownerPhone: null, chosenDayOfWeek: null,
       chosenDayLabel: null, chosenTime: null, addressConfirmed: null, offScript: "none",
       offScriptQuestion: null,
     };
@@ -123,7 +123,7 @@ export async function runIntakeTurn(deps: IntakeDeps, state: ToolState, history:
     zip: ex.zip ?? undefined,
     town: ex.town ?? undefined,
     fullAddress: ex.fullAddress ?? undefined,
-    isDecisionMaker: ex.isHomeowner ?? undefined,
+    isDecisionMaker: ex.isDecisionMaker ?? undefined,
     ownerName: ex.ownerName ?? undefined,
     ownerPhone: ex.ownerPhone ?? undefined,
   });
@@ -142,7 +142,7 @@ export async function runIntakeTurn(deps: IntakeDeps, state: ToolState, history:
 
   // 3) Off-script question → escalate, ack, then re-ask the pending step.
   if (ex.offScript === "question" && ex.offScriptQuestion) {
-    await callTool(tools.escalate_to_contractor, { question: ex.offScriptQuestion });
+    await callTool(tools.escalate_to_organization, { question: ex.offScriptQuestion });
     return `Good question — I've flagged that for the team and they'll be right back to you! ${pendingAsk(state)}`;
   }
 
@@ -150,7 +150,7 @@ export async function runIntakeTurn(deps: IntakeDeps, state: ToolState, history:
   if (state.lead.source === "missed_call" && !g.fullAddress && !g.serviceZip && !g.serviceTown) {
     if (ex.intent && ex.intent !== "new_project") {
       // Not a new job (existing customer / question / wrong number) → escalate, hand to the agent.
-      await callTool(tools.escalate_to_contractor, {
+      await callTool(tools.escalate_to_organization, {
         question: `Missed-call reply from ${state.lead.contactName}: "${lastUserText(history)}". Not a new job — needs a look.`,
       });
       await deps.store.updateConversation(state.conversation.id, { state: "agent" });
@@ -165,7 +165,7 @@ export async function runIntakeTurn(deps: IntakeDeps, state: ToolState, history:
   }
 
   // --- Branch B: out of service area (confirm before declining, to catch typos) ---
-  const q = qualify(g, state.contractor);
+  const q = qualify(g, state.organization);
   if (q.inArea === false) {
     if (!g.outOfAreaConfirmAsked) {
       state.gathered = { ...g, outOfAreaConfirmAsked: true };
@@ -174,7 +174,7 @@ export async function runIntakeTurn(deps: IntakeDeps, state: ToolState, history:
       return `I just checked your address, and it looks like you're outside our service area. Just to confirm again, your address is ${shown} right?`;
     }
     // Already asked to confirm; a corrected in-area address would have made q.inArea true above.
-    await callTool(tools.escalate_to_contractor, {
+    await callTool(tools.escalate_to_organization, {
       question: `Out-of-area lead ${state.lead.contactName} at ${g.fullAddress ?? g.serviceZip} — passing along just in case.`,
     });
     await deps.store.updateConversation(state.conversation.id, { state: "done" });
@@ -186,22 +186,22 @@ export async function runIntakeTurn(deps: IntakeDeps, state: ToolState, history:
     return "Thanks! And what's your name? (just so I know who I'm setting this up for)";
   }
 
-  // --- Step 1 / Branch A: homeowner ---
-  const requireDM = state.contractor.qualificationRules?.requireDecisionMaker !== false;
+  // --- Step 1 / Branch A: decision-maker ---
+  const requireDM = state.organization.qualificationRules?.requireDecisionMaker !== false;
   if (requireDM && g.isDecisionMaker == null) {
-    return `Got it, thanks ${name}! And are you the homeowner (or the person who'd approve the work)?`;
+    return `Got it, thanks ${name}! And are you the decision-maker (the person who'd approve the work)?`;
   }
   if (requireDM && g.isDecisionMaker === false) {
     if (!g.ownerName || !g.ownerPhone) {
-      return "No problem! Could you share the homeowner's name and best phone number? I'll reach out to them directly to get it set up.";
+      return "No problem! Could you share the decision-maker's name and best phone number? I'll reach out to them directly to get it set up.";
     }
-    // A3 — reach out to the homeowner as a new lead, then close this referrer thread.
+    // A3 — reach out to the decision-maker as a new lead, then close this referrer thread.
     await reachOutToOwner(deps, state);
     await deps.store.updateConversation(state.conversation.id, { state: "done" });
     return `Perfect, thank you! I'll reach out to ${g.ownerName} directly to get things going. Appreciate you passing it along!`;
   }
 
-  // --- Steps 2-4: windows → times → booking (qualified homeowner) ---
+  // --- Steps 2-4: windows → times → booking (qualified customer) ---
   // Step 4 — book, if they picked a concrete offered time.
   if (ex.chosenTime && g.offeredSlots && Object.keys(g.offeredSlots).length > 0) {
     const res = await callTool<{ ok: boolean; label?: string; times?: { label: string }[] }>(tools.book_appointment, {
@@ -248,7 +248,7 @@ export async function runIntakeTurn(deps: IntakeDeps, state: ToolState, history:
   }
 
   // No availability at all → escalate rather than invent a time.
-  await callTool(tools.escalate_to_contractor, {
+  await callTool(tools.escalate_to_organization, {
     question: `No open availability to offer ${state.lead.contactName}. How should I proceed?`,
   });
   return "Let me check with the team on the schedule and I'll be right back to you!";
@@ -269,20 +269,20 @@ function pendingAsk(state: ToolState): string {
     return "What's the property address? (street, city, and ZIP)";
   }
   if (g.isDecisionMaker == null) {
-    return "And are you the homeowner (or the person who'd approve the work)?";
+    return "And are you the decision-maker (the person who'd approve the work)?";
   }
   return "Which day works best to get someone out?";
 }
 
-/** Branch A3 — create a NEW lead for the homeowner (already knows project + address) and text them. */
+/** Branch A3 — create a NEW lead for the decision-maker (already knows project + address) and text them. */
 async function reachOutToOwner(deps: IntakeDeps, state: ToolState): Promise<void> {
   const g = state.gathered;
   const ownerPhone = normalizePhone(g.ownerPhone ?? "") ?? g.ownerPhone ?? "";
   if (!ownerPhone) return;
   const referrer = state.lead.contactName;
   const ctx = await deps.store.createLeadWithConversation({
-    contractorId: state.contractor.id,
-    contactName: g.ownerName ?? "Homeowner",
+    organizationId: state.organization.id,
+    contactName: g.ownerName ?? "Contact",
     contactPhone: ownerPhone,
     projectHint: g.projectType ?? undefined,
     source: "referral",
@@ -306,7 +306,7 @@ async function reachOutToOwner(deps: IntakeDeps, state: ToolState): Promise<void
   const project = g.projectType ?? "your project";
   const at = g.fullAddress ? ` at ${g.fullAddress}` : "";
   const outreach =
-    `Hi ${firstName(g.ownerName)}! It's ${state.contractor.sarahName} with ${state.contractor.companyName}. ${referrer} reached out about ${project}${at} and passed along your number so I could get in touch. I'm here to help get it taken care of.\n\n` +
+    `Hi ${firstName(g.ownerName)}! It's ${state.organization.sarahName} with ${state.organization.companyName}. ${referrer} reached out about ${project}${at} and passed along your number so I could get in touch. I'm here to help get it taken care of.\n\n` +
     `Would you like me to get someone out to take a look?`;
   await deps.store.appendMessage(ctx.conversation.id, { direction: "outbound", body: outreach });
   try {

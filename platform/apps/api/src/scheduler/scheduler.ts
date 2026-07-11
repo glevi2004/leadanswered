@@ -12,8 +12,8 @@ export class Scheduler {
   constructor(private store: Store) {}
 
   /** Busy intervals for a window = our active appointments. FUTURE: merge external calendar free/busy. */
-  async getBusyTimes(contractorId: string, window: TimeRange): Promise<TimeRange[]> {
-    return this.store.getBusyTimes(contractorId, {
+  async getBusyTimes(organizationId: string, window: TimeRange): Promise<TimeRange[]> {
+    return this.store.getBusyTimes(organizationId, {
       startIso: window.startAt.toISOString(),
       endIso: window.endAt.toISOString(),
     });
@@ -21,7 +21,7 @@ export class Scheduler {
 
   /** Drop candidate slots that collide with busy time. UX guard; the DB constraint is the backstop. */
   async filterAvailable(
-    contractorId: string,
+    organizationId: string,
     slots: SlotOption[],
     durationMin = APPOINTMENT_DURATION_MIN,
   ): Promise<SlotOption[]> {
@@ -31,14 +31,14 @@ export class Scheduler {
       startAt: new Date(Math.min(...starts)),
       endAt: new Date(Math.max(...starts) + durationMin * 60_000),
     };
-    const busy = await this.getBusyTimes(contractorId, window);
+    const busy = await this.getBusyTimes(organizationId, window);
     return subtractBusy(slots, busy, durationMin);
   }
 
   /** Reserve a slot. The DB EXCLUDE/unique constraints make a double-book impossible. */
   async book(input: {
     leadId: string;
-    contractorId: string;
+    organizationId: string;
     startIso: string;
     timezone: string;
     durationMin?: number;
@@ -47,12 +47,12 @@ export class Scheduler {
     const endIso = new Date(new Date(input.startIso).getTime() + dur * 60_000).toISOString();
     return this.store.bookAppointment({
       leadId: input.leadId,
-      contractorId: input.contractorId,
+      organizationId: input.organizationId,
       startIso: input.startIso,
       endIso,
       timezone: input.timezone,
     });
-    // FUTURE: on ok, enqueue a one-way push to the contractor's connected calendar (syncState=pending_push).
+    // FUTURE: on ok, enqueue a one-way push to the organization's connected calendar (syncState=pending_push).
   }
 
   async reschedule(appointmentId: string, startIso: string, durationMin = APPOINTMENT_DURATION_MIN): Promise<BookOutcome> {

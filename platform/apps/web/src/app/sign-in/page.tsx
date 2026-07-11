@@ -40,7 +40,7 @@ function SignIn() {
   async function onGoogle() {
     setError(null);
     const supabase = createSupabaseBrowser();
-    // Google is an alternative CREDENTIAL for already-invited contractors. The home page (/) gates on
+    // Google is an alternative CREDENTIAL for already-invited organizations. The home page (/) gates on
     // ownerEmail, so a Google sign-in for an unknown email is blocked there — invite-only is preserved.
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",

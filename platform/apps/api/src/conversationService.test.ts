@@ -2,11 +2,11 @@ import { describe, it, expect } from "vitest";
 import { MemoryStore } from "./store/memoryStore.js";
 import { createLeadAndGreet } from "./leadService.js";
 import { handleInbound } from "./conversationService.js";
-import { testContractor, testRecipients, TEST_CONTRACTOR_ID } from "./seed.js";
+import { testOrganization, testRecipients, TEST_ORGANIZATION_ID } from "./seed.js";
 import { CapturingEmail, CapturingSms, scriptedModel, throwingModel } from "./testkit.js";
 
-const TO = testContractor.twilioNumber!; // contractor's dedicated number
-const FROM = "+15555550123"; // the homeowner/lead
+const TO = testOrganization.twilioNumber!; // organization's dedicated number
+const FROM = "+15555550123"; // the customer/lead
 const OWNER_PHONE = "+18335559999";
 const NOW = new Date("2026-06-15T08:00:00Z"); // Monday 08:00 UTC
 const MON_9 = "2026-06-15T09:00:00.000Z";
@@ -15,7 +15,7 @@ const ADDR = "100 Linden St, Boston, MA 02134";
 
 function seed(): MemoryStore {
   const s = new MemoryStore();
-  s.seedContractor(testContractor, testRecipients);
+  s.seedOrganization(testOrganization, testRecipients);
   return s;
 }
 
@@ -38,7 +38,7 @@ describe("conversation router + agent phase (SCOPE §5, §7.5)", () => {
       { text: "Done — I moved you to Monday at 2pm." },
     ]);
     const deps = { store, model, sms, email: new CapturingEmail(), now: () => NOW };
-    const lead = await createLeadAndGreet(deps, { contractorId: TEST_CONTRACTOR_ID, contactName: "Levi", contactPhone: FROM });
+    const lead = await createLeadAndGreet(deps, { organizationId: TEST_ORGANIZATION_ID, contactName: "Levi", contactPhone: FROM });
     await toAgentPhase(store, lead.leadId);
 
     await handleInbound(deps, { toNumber: TO, fromNumber: FROM, body: "roof leak at 100 Linden St Boston 02134, my home, Monday 9 works" });
@@ -50,42 +50,42 @@ describe("conversation router + agent phase (SCOPE §5, §7.5)", () => {
     expect(store.getAppointments()[0].startIso).toBe(MON_2);
   });
 
-  it("deterministic hand-off backstop: a not-homeowner who texts a number pings the contractor even if the model doesn't", async () => {
+  it("deterministic hand-off backstop: a not-customer who texts a number pings the organization even if the model doesn't", async () => {
     const store = seed();
     const sms = new CapturingSms();
     const model = scriptedModel([
       { tool: "qualify_lead", input: { projectType: "roof leak", town: "Boston", zip: "02134", isDecisionMaker: false } },
-      { text: "Got it — since you're not the owner, can you share the homeowner's name and phone?" },
+      { text: "Got it — since you're not the owner, can you share the decision-maker's name and phone?" },
       { text: "Thanks! I'll pass this along to the team." }, // model never passes ownerPhone → code backstop fires
     ]);
     const deps = { store, model, sms, email: new CapturingEmail(), now: () => NOW };
-    const lead = await createLeadAndGreet(deps, { contractorId: TEST_CONTRACTOR_ID, contactName: "Sam", contactPhone: FROM });
+    const lead = await createLeadAndGreet(deps, { organizationId: TEST_ORGANIZATION_ID, contactName: "Sam", contactPhone: FROM });
     await toAgentPhase(store, lead.leadId);
 
     await handleInbound(deps, { toNumber: TO, fromNumber: FROM, body: "roof leak at 100 Linden St Boston 02134, I just rent here" });
     await handleInbound(deps, { toNumber: TO, fromNumber: FROM, body: "the owner is Jane, her number is 617-555-9090" });
 
     expect(
-      sms.sent.some((s) => s.to === OWNER_PHONE && s.body.includes("isn't the homeowner") && s.body.includes("6175559090")),
+      sms.sent.some((s) => s.to === OWNER_PHONE && s.body.includes("isn't the decision-maker") && s.body.includes("6175559090")),
     ).toBe(true);
   });
 
-  it("escalation loop: agent escalates → contractor notified → contractor's reply relayed to the homeowner", async () => {
+  it("escalation loop: agent escalates → organization notified → organization's reply relayed to the customer", async () => {
     const store = seed();
     const sms = new CapturingSms();
     const model = scriptedModel([
-      { tool: "escalate_to_contractor", input: { question: "Customer asks if we install metal roofs. Not sure." } },
+      { tool: "escalate_to_organization", input: { question: "Customer asks if we install metal roofs. Not sure." } },
       { text: "Great question! Let me check with the team and I'll be right back to you." },
     ]);
     const deps = { store, model, sms, email: new CapturingEmail(), now: () => NOW };
-    const lead = await createLeadAndGreet(deps, { contractorId: TEST_CONTRACTOR_ID, contactName: "Levi", contactPhone: FROM });
+    const lead = await createLeadAndGreet(deps, { organizationId: TEST_ORGANIZATION_ID, contactName: "Levi", contactPhone: FROM });
     await toAgentPhase(store, lead.leadId);
 
     await handleInbound(deps, { toNumber: TO, fromNumber: FROM, body: "do you guys install metal roofs?" });
     expect(sms.sent.some((s) => s.to === OWNER_PHONE && s.body.includes("metal roofs"))).toBe(true);
     expect(store.getEscalations().filter((e) => e.status === "open")).toHaveLength(1);
 
-    // contractor texts back (From = owner phone, To = the Twilio number) → relayed to homeowner
+    // organization texts back (From = owner phone, To = the Twilio number) → relayed to customer
     const r = await handleInbound(deps, { toNumber: TO, fromNumber: OWNER_PHONE, body: "Yep, we do metal roofs!" });
     expect(r.status).toBe("ok");
     expect(sms.sent.some((s) => s.to === FROM && s.body.includes("metal roofs"))).toBe(true);
@@ -97,7 +97,7 @@ describe("conversation router + agent phase (SCOPE §5, §7.5)", () => {
     const sms = new CapturingSms();
     const model = scriptedModel([{ text: JSON.stringify({ offScript: "none" }) }]);
     const deps = { store, model, sms, now: () => NOW };
-    await createLeadAndGreet(deps, { contractorId: TEST_CONTRACTOR_ID, contactName: "Jane", contactPhone: FROM });
+    await createLeadAndGreet(deps, { organizationId: TEST_ORGANIZATION_ID, contactName: "Jane", contactPhone: FROM });
     const before = sms.sent.length;
 
     await handleInbound(deps, { toNumber: TO, fromNumber: FROM, body: "leak", providerSid: "SM123" });
@@ -112,7 +112,7 @@ describe("conversation router + agent phase (SCOPE §5, §7.5)", () => {
     const sms = new CapturingSms();
     const model = scriptedModel([{ text: JSON.stringify({ offScript: "question", offScriptQuestion: "how much does a new roof cost?" }) }]);
     const deps = { store, model, sms, now: () => NOW };
-    await createLeadAndGreet(deps, { contractorId: TEST_CONTRACTOR_ID, contactName: "Jane", contactPhone: FROM });
+    await createLeadAndGreet(deps, { organizationId: TEST_ORGANIZATION_ID, contactName: "Jane", contactPhone: FROM });
 
     await handleInbound(deps, { toNumber: TO, fromNumber: FROM, body: "how much does a new roof cost?" });
     expect(store.getAppointments()).toHaveLength(0);
@@ -123,7 +123,7 @@ describe("conversation router + agent phase (SCOPE §5, §7.5)", () => {
     const sms = new CapturingSms();
     const lead = await createLeadAndGreet(
       { store, model: scriptedModel([]), sms, now: () => NOW },
-      { contractorId: TEST_CONTRACTOR_ID, contactName: "Jane", contactPhone: FROM },
+      { organizationId: TEST_ORGANIZATION_ID, contactName: "Jane", contactPhone: FROM },
     );
     await toAgentPhase(store, lead.leadId); // agent phase: a model error must fail safe (intake tolerates extractor errors)
     const before = sms.sent.length;

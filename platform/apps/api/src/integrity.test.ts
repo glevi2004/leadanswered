@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { MemoryStore } from "./store/memoryStore.js";
 import { Scheduler } from "./scheduler/scheduler.js";
-import { testContractor, TEST_CONTRACTOR_ID } from "./seed.js";
+import { testOrganization, TEST_ORGANIZATION_ID } from "./seed.js";
 
 /**
  * Tier A integrity tests — prove the booking/concurrency LOGIC against MemoryStore,
@@ -16,19 +16,19 @@ const SLOT_10 = "2026-06-15T10:00:00.000Z";
 
 function seed() {
   const s = new MemoryStore();
-  s.seedContractor(testContractor);
+  s.seedOrganization(testOrganization);
   return s;
 }
 async function makeLead(store: MemoryStore, phone: string) {
   const ctx = await store.createLeadWithConversation({
-    contractorId: TEST_CONTRACTOR_ID,
+    organizationId: TEST_ORGANIZATION_ID,
     contactName: "Lead",
     contactPhone: phone,
   });
   return ctx;
 }
 const book = (sched: Scheduler, leadId: string, startIso: string) =>
-  sched.book({ leadId, contractorId: TEST_CONTRACTOR_ID, startIso, timezone: TZ });
+  sched.book({ leadId, organizationId: TEST_ORGANIZATION_ID, startIso, timezone: TZ });
 
 describe("booking integrity", () => {
   it("refuses a second booking at the same slot — no double-booking", async () => {
@@ -69,7 +69,7 @@ describe("booking integrity", () => {
     const a = (await makeLead(store, "+1a")).lead.id;
     await book(sched, a, SLOT_9);
 
-    const free = await sched.filterAvailable(TEST_CONTRACTOR_ID, [
+    const free = await sched.filterAvailable(TEST_ORGANIZATION_ID, [
       { iso: SLOT_9, label: "9am" },
       { iso: SLOT_10, label: "10am" },
     ]);
@@ -106,7 +106,7 @@ describe("booking integrity", () => {
     const ctx = await makeLead(store, "+1a");
     const esc = await store.createEscalation({
       leadId: ctx.lead.id,
-      contractorId: TEST_CONTRACTOR_ID,
+      organizationId: TEST_ORGANIZATION_ID,
       conversationId: ctx.conversation.id,
       question: "do you finance?",
     });

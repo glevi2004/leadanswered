@@ -9,7 +9,7 @@ import {
   qualify,
   resolveChosenSlot,
   windowStarts,
-  type ContractorConfig,
+  type OrganizationConfig,
   type GatheredInfo,
 } from "@leadanswered/core";
 import { fireNotification, type NotifyDeps } from "../notify.js";
@@ -30,7 +30,7 @@ export interface ToolDeps extends NotifyDeps {
 
 /** Per-turn mutable state the tools read + write (shared across tool calls in one turn). */
 export interface ToolState {
-  contractor: ContractorConfig;
+  organization: OrganizationConfig;
   lead: LeadRecord;
   conversation: ConversationRecord;
   gathered: GatheredInfo;
@@ -53,11 +53,11 @@ async function persistGathered(deps: ToolDeps, state: ToolState): Promise<void> 
   if (Object.keys(patch).length > 0) await deps.store.updateLeadFields(state.lead.id, patch);
 }
 
-const standingWindows = (c: ContractorConfig) => c.standingAvailability?.windows ?? [];
+const standingWindows = (c: OrganizationConfig) => c.standingAvailability?.windows ?? [];
 const sameInstant = (a: string, b: string) =>
   Math.abs(new Date(a).getTime() - new Date(b).getTime()) < 60_000;
 
-/** Resolve the [from,to] search range from the model's request (week boundaries in the contractor tz). */
+/** Resolve the [from,to] search range from the model's request (week boundaries in the organization tz). */
 function resolveRange(
   input: { range?: string; fromIso?: string; toIso?: string; dayOfWeek?: number; partOfDay?: string },
   now: Date,
@@ -86,8 +86,8 @@ function resolveRange(
  * are the double-booking backstop; open windows already subtract booked time.
  */
 export function buildTools(deps: ToolDeps, state: ToolState) {
-  const calendar = new InternalCalendarProvider(deps.store, state.contractor, deps.now);
-  const tz = calendar.tz(); // the contractor's IANA timezone — all offered/booked times are in it
+  const calendar = new InternalCalendarProvider(deps.store, state.organization, deps.now);
+  const tz = calendar.tz(); // the organization's IANA timezone — all offered/booked times are in it
 
   /** A few genuinely-free start times (one per day, spread) to re-offer after a booking conflict. */
   async function freshTimes(): Promise<{ id: string; label: string }[]> {
@@ -121,8 +121,8 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
           .boolean()
           .optional()
           .describe("True ONLY if they OWN the home or are the authorized decision-maker for the work; a tenant/renter is false"),
-        ownerName: z.string().optional().describe("If they're NOT the homeowner: the homeowner's name, if given"),
-        ownerPhone: z.string().optional().describe("If they're NOT the homeowner: the homeowner's phone number, if given"),
+        ownerName: z.string().optional().describe("If they're NOT the decision-maker: the decision-maker's name, if given"),
+        ownerPhone: z.string().optional().describe("If they're NOT the decision-maker: the decision-maker's phone number, if given"),
       }),
       execute: async (input) => {
         state.gathered = mergeGathered(state.gathered, {
@@ -143,7 +143,7 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
           await deps.store.updateLeadFields(state.lead.id, { contactName: state.lead.contactName });
         }
 
-        const q = qualify(state.gathered, state.contractor);
+        const q = qualify(state.gathered, state.organization);
 
         // Conditional transitions: the notification fires only if THIS call actually moved the lead's
         // status (so concurrent turns / retries can't double-notify).
@@ -165,10 +165,10 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
           }
         }
 
-        // Not the homeowner → DETERMINISTIC hand-off. Once we have the owner's phone, code (not the
-        // model) pings the contractor. Until then, tell the model to ask for the owner's name + phone.
+        // Not the decision-maker → DETERMINISTIC hand-off. Once we have the decision-maker's phone, code (not the
+        // model) pings the organization. Until then, tell the model to ask for the owner's name + phone.
         let ownerHandoff: "need_owner_contact" | "done" | undefined;
-        const requireDM = state.contractor.qualificationRules?.requireDecisionMaker !== false;
+        const requireDM = state.organization.qualificationRules?.requireDecisionMaker !== false;
         if (requireDM && q.isDecisionMaker === false) {
           await handOffOwnerIfReady({ store: deps.store, sms: deps.sms }, state);
           ownerHandoff = state.gathered.ownerHandoffDone ? "done" : "need_owner_contact";
@@ -248,11 +248,11 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
         });
         await persistGathered(deps, state);
 
-        const q = qualify(state.gathered, state.contractor);
+        const q = qualify(state.gathered, state.organization);
         if (!q.qualified) return { ok: false as const, reason: "not_qualified", missing: q.missing };
         if (!input.fullAddress || input.fullAddress.trim() === "")
           return { ok: false as const, reason: "need_address" };
-        if (!chosenIso || !isWithinStandingWindow(standingWindows(state.contractor), chosenIso, tz))
+        if (!chosenIso || !isWithinStandingWindow(standingWindows(state.organization), chosenIso, tz))
           return { ok: false as const, reason: "slot_unavailable", times: await freshTimes() };
 
         const res = await calendar.book({ leadId: state.lead.id, startIso: chosenIso });
@@ -286,7 +286,7 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
         const appt = await deps.store.getActiveAppointmentByLead(state.lead.id);
         if (!appt) return { ok: false as const, reason: "no_appointment" };
         const newIso = resolveChosenSlot(state.gathered.offeredSlots, input.chosenTime, tz);
-        if (!newIso || !isWithinStandingWindow(standingWindows(state.contractor), newIso, tz))
+        if (!newIso || !isWithinStandingWindow(standingWindows(state.organization), newIso, tz))
           return { ok: false as const, reason: "slot_unavailable", times: await freshTimes() };
 
         const res = await calendar.reschedule(appt.id, newIso);
@@ -319,20 +319,20 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
       },
     }),
 
-    escalate_to_contractor: tool({
+    escalate_to_organization: tool({
       description:
-        "Use this when you genuinely cannot resolve something yourself — a tool keeps failing, the customer asks something only the contractor can answer, they ask for a referral/recommendation you can't give, or an unusual situation. It notifies the contractor with the question; they text back an answer that gets relayed to the customer. After calling this, tell the customer you've flagged it for the team and someone will be right back to them. Never promise a human follow-up without calling this first.",
+        "Use this when you genuinely cannot resolve something yourself — a tool keeps failing, the customer asks something only the organization can answer, they ask for a referral/recommendation you can't give, or an unusual situation. It notifies the organization with the question; they text back an answer that gets relayed to the customer. After calling this, tell the customer you've flagged it for the team and someone will be right back to them. Never promise a human follow-up without calling this first.",
       inputSchema: z.object({
-        question: z.string().describe("The question or issue, phrased for the contractor, including the relevant context"),
+        question: z.string().describe("The question or issue, phrased for the organization, including the relevant context"),
       }),
       execute: async (input) => {
         const esc = await deps.store.createEscalation({
           leadId: state.lead.id,
-          contractorId: state.contractor.id,
+          organizationId: state.organization.id,
           conversationId: state.conversation.id,
           question: input.question,
         });
-        const recipients = await deps.store.getRecipients(state.contractor.id);
+        const recipients = await deps.store.getRecipients(state.organization.id);
         const body = `❓ ${state.lead.contactName} (${state.lead.contactPhone}) asks: ${input.question}\nReply to this text to answer them.`;
         for (const r of recipients) {
           if (r.phone) {
@@ -343,7 +343,7 @@ export function buildTools(deps: ToolDeps, state: ToolState) {
             }
           }
         }
-        // Chase the contractor if they don't answer, and eventually expire it (SCOPE §9.7).
+        // Chase the organization if they don't answer, and eventually expire it (SCOPE §9.7).
         await enqueueEscalationSla(esc.id, 1);
         return { ok: true as const, escalationId: esc.id };
       },

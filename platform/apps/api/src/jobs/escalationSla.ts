@@ -6,7 +6,7 @@ import type { RecipientRecord } from "../store/types.js";
 export type EscalationSlaDeps = ProactiveDeps;
 
 /**
- * Escalation SLA (SCOPE §9.7). A loop-in the contractor hasn't answered gets chased:
+ * Escalation SLA (SCOPE §9.7). A loop-in the organization hasn't answered gets chased:
  * stage 1 re-pings the owner (louder) + a positive customer reassurance (business hours only),
  * then schedules stage 2; stage 2 expires it with an urgent OWNER-ONLY alert — we never tell the
  * customer we couldn't reach the team. No-op once the escalation is resolved/expired.
@@ -21,13 +21,13 @@ export async function runEscalationSlaJob(
 
   const ctx = await deps.store.getContextByLeadId(esc.leadId);
   if (!ctx) return "skipped";
-  const recipients = await deps.store.getRecipients(esc.contractorId);
+  const recipients = await deps.store.getRecipients(esc.organizationId);
   const who = `${ctx.lead.contactName} (${ctx.lead.contactPhone})`;
 
   if (stage === 1) {
     await pingOwners(deps, recipients, `⏰ Reminder: ${who} is still waiting on: ${esc.question}\nReply to this text to answer them.`);
     // Positive, business-hours-only reassurance to the customer (never mentions a delay).
-    if (isWithinBusinessHours(ctx.contractor.standingAvailability, deps.now)) {
+    if (isWithinBusinessHours(ctx.organization.standingAvailability, deps.now)) {
       await runProactiveTurn(deps, esc.leadId, "escalation_followup");
     }
     await enqueueEscalationSla(escalationId, 2);

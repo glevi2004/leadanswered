@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireContractor, contractorTz } from "@/lib/dashboard-auth";
+import { requireOrganization, organizationTz } from "@/lib/dashboard-auth";
 import { listLeads } from "@/lib/dashboard";
 import { leadStatusBadge, formatWhen } from "@/lib/dashboard-ui";
 import { Badge } from "@/components/ui/badge";
@@ -7,9 +7,9 @@ import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export default async function LeadsPage() {
-  const contractor = await requireContractor();
-  const tz = contractorTz(contractor);
-  const leads = await listLeads(contractor.id);
+  const organization = await requireOrganization();
+  const tz = organizationTz(organization);
+  const leads = await listLeads(organization.id);
 
   return (
     <div className="flex flex-col gap-6">

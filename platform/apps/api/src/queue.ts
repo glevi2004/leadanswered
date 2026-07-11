@@ -68,7 +68,7 @@ async function calendarQueue(): Promise<Queue | null> {
   return calendarQueueInstance;
 }
 
-/** Push an appointment change to the contractor's Google Calendar (best-effort, retried). No-op w/o Redis. */
+/** Push an appointment change to the organization's Google Calendar (best-effort, retried). No-op w/o Redis. */
 export async function enqueueCalendarPush(appointmentId: string, op: "create" | "update" | "delete"): Promise<void> {
   const q = await calendarQueue();
   if (!q) return;
@@ -79,14 +79,14 @@ export async function enqueueCalendarPush(appointmentId: string, op: "create" | 
   );
 }
 
-/** Run an incremental inbound sync for a contractor (from the webhook). Deduped per contractor. */
-export async function enqueueInboundSync(contractorId: string): Promise<void> {
+/** Run an incremental inbound sync for a organization (from the webhook). Deduped per organization. */
+export async function enqueueInboundSync(organizationId: string): Promise<void> {
   const q = await calendarQueue();
   if (!q) return;
   await q.add(
     "inbound",
-    { contractorId },
-    { jobId: `inbound-${contractorId}`, removeOnComplete: true, removeOnFail: true },
+    { organizationId },
+    { jobId: `inbound-${organizationId}`, removeOnComplete: true, removeOnFail: true },
   );
 }
 

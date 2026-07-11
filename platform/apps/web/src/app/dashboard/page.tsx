@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireContractor, contractorTz } from "@/lib/dashboard-auth";
+import { requireOrganization, organizationTz } from "@/lib/dashboard-auth";
 import { getDashboardSummary } from "@/lib/dashboard";
 import { leadStatusBadge, apptStatusBadge, formatWhen } from "@/lib/dashboard-ui";
 import { Badge } from "@/components/ui/badge";
@@ -12,9 +12,9 @@ const verifyCopy: Record<string, { text: string; variant: "default" | "secondary
 };
 
 export default async function OverviewPage() {
-  const contractor = await requireContractor();
-  const tz = contractorTz(contractor);
-  const summary = await getDashboardSummary(contractor.id, new Date().toISOString());
+  const organization = await requireOrganization();
+  const tz = organizationTz(organization);
+  const summary = await getDashboardSummary(organization.id, new Date().toISOString());
 
   const kpis = [
     { label: "Total leads", value: summary.totalLeads },
@@ -22,7 +22,7 @@ export default async function OverviewPage() {
     { label: "Booked", value: summary.counts.booked ?? 0 },
     { label: "Upcoming visits", value: summary.upcomingAppointments.length },
   ];
-  const v = verifyCopy[contractor.verificationStatus] ?? verifyCopy.pending;
+  const v = verifyCopy[organization.verificationStatus] ?? verifyCopy.pending;
 
   return (
     <div className="flex flex-col gap-8">
@@ -80,7 +80,7 @@ export default async function OverviewPage() {
             <CardTitle className="text-base">Your line</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col items-start gap-2">
-            <p className="text-2xl font-semibold tracking-tight">{contractor.twilioNumber ?? "—"}</p>
+            <p className="text-2xl font-semibold tracking-tight">{organization.twilioNumber ?? "—"}</p>
             <Badge variant={v.variant}>{v.text}</Badge>
             <p className="mt-1 text-xs text-muted-foreground">
               Sarah answers and books from this number. The badge shows its carrier (toll-free)

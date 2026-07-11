@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { MemoryStore } from "../store/memoryStore.js";
 import { CapturingEmail, CapturingSms } from "../testkit.js";
-import { testContractor, testRecipients, TEST_CONTRACTOR_ID } from "../seed.js";
+import { testOrganization, testRecipients, TEST_ORGANIZATION_ID } from "../seed.js";
 import { buildTools, type ToolDeps, type ToolState } from "./tools.js";
 
 const NOW = new Date("2026-06-15T08:00:00Z"); // Monday 08:00 UTC
@@ -9,20 +9,20 @@ const MON_9 = "2026-06-15T09:00:00.000Z";
 
 function setup() {
   const store = new MemoryStore();
-  store.seedContractor(testContractor, testRecipients);
+  store.seedOrganization(testOrganization, testRecipients);
   return { store, sms: new CapturingSms(), email: new CapturingEmail() };
 }
 
 async function makeTools(store: MemoryStore, sms: CapturingSms, email: CapturingEmail) {
   const ctx = await store.createLeadWithConversation({
-    contractorId: TEST_CONTRACTOR_ID,
+    organizationId: TEST_ORGANIZATION_ID,
     contactName: "Levi",
     contactPhone: "+19788105602",
     source: "manual",
   });
   const deps: ToolDeps = { store, sms, email, now: NOW };
   const state: ToolState = {
-    contractor: ctx.contractor,
+    organization: ctx.organization,
     lead: ctx.lead,
     conversation: ctx.conversation,
     gathered: ctx.conversation.gathered,
@@ -55,23 +55,23 @@ describe("agent tools", () => {
     expect(ctx?.lead.status).toBe("disqualified");
   });
 
-  it("qualify_lead: not the homeowner + owner phone → deterministic hand-off pings the contractor once", async () => {
+  it("qualify_lead: not the customer + owner phone → deterministic hand-off pings the organization once", async () => {
     const { store, sms } = setup();
     const { run } = await makeTools(store, sms, new CapturingEmail());
     const r = (await run("qualify_lead", { projectType: "roof leak", zip: "02134", isDecisionMaker: false, ownerPhone: "+16175551234" })) as any;
     expect(r.ownerHandoff).toBe("done");
-    expect(sms.sent.filter((s) => s.body.includes("isn't the homeowner") && s.body.includes("+16175551234"))).toHaveLength(1);
+    expect(sms.sent.filter((s) => s.body.includes("isn't the decision-maker") && s.body.includes("+16175551234"))).toHaveLength(1);
     // idempotent — a second qualify_lead does NOT re-ping
     await run("qualify_lead", { projectType: "roof leak", isDecisionMaker: false, ownerPhone: "+16175551234" });
-    expect(sms.sent.filter((s) => s.body.includes("isn't the homeowner"))).toHaveLength(1);
+    expect(sms.sent.filter((s) => s.body.includes("isn't the decision-maker"))).toHaveLength(1);
   });
 
-  it("qualify_lead: not the homeowner but no phone yet → need_owner_contact, no ping", async () => {
+  it("qualify_lead: not the customer but no phone yet → need_owner_contact, no ping", async () => {
     const { store, sms } = setup();
     const { run } = await makeTools(store, sms, new CapturingEmail());
     const r = (await run("qualify_lead", { projectType: "roof leak", zip: "02134", isDecisionMaker: false })) as any;
     expect(r.ownerHandoff).toBe("need_owner_contact");
-    expect(sms.sent.some((s) => s.body.includes("isn't the homeowner"))).toBe(false);
+    expect(sms.sent.some((s) => s.body.includes("isn't the decision-maker"))).toBe(false);
   });
 
   it("check_availability: overview returns windows; a focused day returns bookable times with ids", async () => {

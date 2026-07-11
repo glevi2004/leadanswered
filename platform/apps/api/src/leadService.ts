@@ -13,7 +13,7 @@ export interface LeadDeps {
 }
 
 export interface CreateLeadArgs {
-  contractorId: string;
+  organizationId: string;
   contactName: string;
   contactPhone: string;
   projectHint?: string | null;
@@ -24,7 +24,7 @@ export interface CreateLeadArgs {
 }
 
 /**
- * Lead intake (SCOPE §6, §9, §9.7). **One lead per `(contractor, contactPhone)`:** if this person
+ * Lead intake (SCOPE §6, §9, §9.7). **One lead per `(organization, contactPhone)`:** if this person
  * already has a lead, re-engage their EXISTING conversation instead of creating a duplicate — a
  * second lead would fragment their history and split the single SMS thread they see (replies would
  * route to the empty new lead and Sarah would lose context). Otherwise create the lead + conversation.
@@ -37,11 +37,11 @@ export async function createLeadAndGreet(
   const { store } = deps;
   const now = (deps.now ?? (() => new Date()))();
 
-  const existing = await store.findLeadContextByContractorPhone(input.contractorId, input.contactPhone);
+  const existing = await store.findLeadContextByOrganizationPhone(input.organizationId, input.contactPhone);
   if (existing) return reengageLead(deps, existing, input, now);
 
   const ctx = await store.createLeadWithConversation({
-    contractorId: input.contractorId,
+    organizationId: input.organizationId,
     contactName: input.contactName,
     contactPhone: input.contactPhone,
     projectHint: input.projectHint ?? null,
@@ -52,7 +52,7 @@ export async function createLeadAndGreet(
   // The opening is the LOCKED intake script (deterministic), not an agent turn. Website/email/manual
   // leads open by asking the address; a missed call opens intent-agnostic ("how can we help?").
   const state: ToolState = {
-    contractor: ctx.contractor,
+    organization: ctx.organization,
     lead: ctx.lead,
     conversation: ctx.conversation,
     gathered: ctx.conversation.gathered ?? {},
@@ -107,7 +107,7 @@ async function runOpeningTurn(
   now: Date,
 ): Promise<string> {
   const state: ToolState = {
-    contractor: ctx.contractor,
+    organization: ctx.organization,
     lead: ctx.lead,
     conversation: ctx.conversation,
     gathered: ctx.conversation.gathered ?? {},

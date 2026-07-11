@@ -1,15 +1,15 @@
 import { describe, it, expect } from "vitest";
 import { MemoryStore } from "./store/memoryStore.js";
-import { testContractor, testRecipients } from "./seed.js";
+import { testOrganization, testRecipients } from "./seed.js";
 import { CapturingEmail, CapturingSms, scriptedModel } from "./testkit.js";
 import { handleInboundEmail, type PostmarkInbound } from "./emailIntake.js";
 
 const NOW = new Date("2026-06-15T08:00:00Z");
-const HOMEOWNER = "+19788105602";
+const CUSTOMER = "+19788105602";
 
 function setup() {
   const store = new MemoryStore();
-  store.seedContractor(testContractor, testRecipients);
+  store.seedOrganization(testOrganization, testRecipients);
   const sms = new CapturingSms();
   const deps = {
     store,
@@ -30,22 +30,22 @@ const basePayload = (over: Partial<PostmarkInbound> = {}): PostmarkInbound => ({
 });
 
 describe("handleInboundEmail", () => {
-  it("matches the contractor by slug, creates a lead, and fires Sarah's opening SMS", async () => {
+  it("matches the organization by slug, creates a lead, and fires Sarah's opening SMS", async () => {
     const { store, sms, deps } = setup();
     const r = await handleInboundEmail(deps, basePayload());
     expect(r.status).toBe("ok");
     expect(r.leadId).toBeTruthy();
-    expect(sms.sent.some((s) => s.to === HOMEOWNER)).toBe(true); // opening went to the homeowner
+    expect(sms.sent.some((s) => s.to === CUSTOMER)).toBe(true); // opening went to the customer
     const ctx = await store.getContextByLeadId(r.leadId!);
     expect(ctx?.lead.contactName).toBe("John Smith");
-    expect(ctx?.lead.contactPhone).toBe(HOMEOWNER);
+    expect(ctx?.lead.contactPhone).toBe(CUSTOMER);
   });
 
-  it("skips an unknown contractor slug (no lead, no SMS)", async () => {
+  it("skips an unknown organization slug (no lead, no SMS)", async () => {
     const { sms, deps } = setup();
     const r = await handleInboundEmail(deps, basePayload({ OriginalRecipient: "leads+nope@leads.leadanswered.com" }));
     expect(r.status).toBe("skipped");
-    expect(r.reason).toBe("unknown_contractor");
+    expect(r.reason).toBe("unknown_organization");
     expect(sms.sent).toHaveLength(0);
   });
 
@@ -64,6 +64,6 @@ describe("handleInboundEmail", () => {
     expect(first.status).toBe("ok");
     expect(second.status).toBe("skipped");
     expect(second.reason).toBe("duplicate");
-    expect(sms.sent.filter((s) => s.to === HOMEOWNER)).toHaveLength(1);
+    expect(sms.sent.filter((s) => s.to === CUSTOMER)).toHaveLength(1);
   });
 });

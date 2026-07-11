@@ -43,7 +43,7 @@ export async function generateAgentReply(
   );
   const pastAppts = await deps.store.getAppointmentsByLead(state.lead.id);
   const system = assembleAgentSystemPrompt({
-    contractor: state.contractor,
+    organization: state.organization,
     leadName: state.lead.contactName,
     gathered: state.gathered,
     now: deps.now,
@@ -52,13 +52,13 @@ export async function generateAgentReply(
     relationship: summarizeRelationship(pastAppts),
   });
   // Langfuse trace context: sessionId groups every turn of one lead's SMS thread,
-  // userId attributes it to the contractor (the customer), tags enable filtering.
+  // userId attributes it to the organization (the customer), tags enable filtering.
   const meta = {
     sessionId: state.conversation.id,
-    userId: state.contractor.id,
+    userId: state.organization.id,
     tags: ["sarah-agent"],
     leadId: state.lead.id,
-    contractorId: state.contractor.id,
+    organizationId: state.organization.id,
   };
 
   const result = await generateText({

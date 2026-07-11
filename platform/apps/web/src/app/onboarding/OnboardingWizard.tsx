@@ -79,9 +79,9 @@ export function OnboardingWizard({
   finishLabel = "Finish setup",
 }: {
   initial: OnboardingInitial;
-  /** Persists the config. Defaults to the contractor self-save; admin passes a contractor-scoped action. */
+  /** Persists the config. Defaults to the organization self-save; admin passes a organization-scoped action. */
   save?: (raw: unknown) => Promise<SaveResult>;
-  /** Where to go after a successful finish (contractor → /dashboard; admin → /admin/[id]). */
+  /** Where to go after a successful finish (organization → /dashboard; admin → /admin/[id]). */
   afterHref?: string;
   finishLabel?: string;
 }) {
@@ -121,7 +121,7 @@ export function OnboardingWizard({
       setError(res.error);
       return;
     }
-    // On success we redirect; if an invite failed (admin flow), the contractor's status will read
+    // On success we redirect; if an invite failed (admin flow), the organization's status will read
     // "Onboarded" with a Send-invite action, so no data is lost.
     router.push(afterHref);
   }

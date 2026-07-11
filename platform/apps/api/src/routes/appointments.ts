@@ -1,22 +1,22 @@
 import type { Request, Response } from "express";
-import { applyContractorChange, type AppointmentChangeDeps } from "../appointmentChange.js";
+import { applyOwnerChange, type AppointmentChangeDeps } from "../appointmentChange.js";
 import { verifyState } from "../calendar/google/state.js";
 
 /**
  * POST /appointments/change — the DASHBOARD trigger of the unified appointment-change action
  * (GOOGLE_CALENDAR.md §2). Authenticated by a signed `cid` handoff minted by the web (shared
- * CALENDAR_STATE_SECRET); the contractor must own the appointment. Runs the same handler as a Google-
- * side change, so it mirrors to Google (pushToGoogle) and asks the contractor before texting the lead.
+ * CALENDAR_STATE_SECRET); the organization must own the appointment. Runs the same handler as a Google-
+ * side change, so it mirrors to Google (pushToGoogle) and asks the organization before texting the lead.
  */
 export function createAppointmentChangeRoute(deps: AppointmentChangeDeps) {
   return async (req: Request, res: Response): Promise<void> => {
-    const auth = verifyState<{ contractorId: string }>(String(req.body?.cid ?? ""));
-    if (!auth?.contractorId) {
+    const auth = verifyState<{ organizationId: string }>(String(req.body?.cid ?? ""));
+    if (!auth?.organizationId) {
       res.status(401).json({ ok: false, error: "unauthorized" });
       return;
     }
     const appt = await deps.store.getAppointmentById(String(req.body?.appointmentId ?? ""));
-    if (!appt || appt.contractorId !== auth.contractorId) {
+    if (!appt || appt.organizationId !== auth.organizationId) {
       res.status(403).json({ ok: false, error: "forbidden" });
       return;
     }
@@ -29,7 +29,7 @@ export function createAppointmentChangeRoute(deps: AppointmentChangeDeps) {
       res.status(400).json({ ok: false, error: "newStartIso required" });
       return;
     }
-    const result = await applyContractorChange(deps, appt.id, change, { source: "dashboard", pushToGoogle: true });
+    const result = await applyOwnerChange(deps, appt.id, change, { source: "dashboard", pushToGoogle: true });
     res.status(result.ok ? 200 : 400).json(result);
   };
 }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { RUN_E2E, startConversation } from "./harness.js";
-import { easternContractor } from "./fixtures.js";
+import { easternOrganization } from "./fixtures.js";
 
 const SUNDAY = "2026-07-05T16:00:00Z";
 const MON_8AM_ET = "2026-07-06T12:00:00.000Z";
@@ -8,7 +8,7 @@ const TUE_8AM_ET = "2026-07-07T12:00:00.000Z";
 
 /** Get a lead to a confirmed Monday-8AM booking (shared setup for reschedule/cancel). */
 async function bookedMonday8am() {
-  const c = await startConversation({ contractor: easternContractor, now: SUNDAY });
+  const c = await startConversation({ organization: easternOrganization, now: SUNDAY });
   await c.say("Hi, I've got a roof leak at 100 Main St, Newton MA 02458. I own the home.");
   await c.say("What times do you have Monday morning?");
   await c.say("8 am works for me");
@@ -16,7 +16,7 @@ async function bookedMonday8am() {
   return c;
 }
 
-describe.skipIf(!RUN_E2E)("E2E · booking lifecycle (real Claude, Eastern contractor)", () => {
+describe.skipIf(!RUN_E2E)("E2E · booking lifecycle (real Claude, Eastern organization)", () => {
   it("reschedules to a new LOCAL time (Tuesday 8 am → 8 AM ET, not 6 AM)", async () => {
     const c = await bookedMonday8am();
     await c.say("actually, can we move it to Tuesday at 8am instead?");
@@ -36,22 +36,22 @@ describe.skipIf(!RUN_E2E)("E2E · booking lifecycle (real Claude, Eastern contra
   });
 
   it("is idempotent — a duplicate webhook (same providerSid) yields exactly one reply", async () => {
-    const c = await startConversation({ contractor: easternContractor, now: SUNDAY });
-    const before = c.homeownerSms().length;
+    const c = await startConversation({ organization: easternOrganization, now: SUNDAY });
+    const before = c.customerSms().length;
     const first = await c.sayRaw("do you fix roof leaks?", "DUP-SID-1");
     const dup = await c.sayRaw("do you fix roof leaks?", "DUP-SID-1");
     expect(first.status).toBe("ok");
     expect(dup.status).toBe("skipped");
-    expect(c.homeownerSms().length).toBe(before + 1); // one reply, not two
+    expect(c.customerSms().length).toBe(before + 1); // one reply, not two
   });
 
   it("a disqualified lead still gets answered on a follow-up (not silent)", async () => {
-    const c = await startConversation({ contractor: easternContractor, now: SUNDAY });
+    const c = await startConversation({ organization: easternOrganization, now: SUNDAY });
     await c.say("roof repair at 12 Ocean St, Hyannis MA 02601, I own it"); // out of area → disqualified
     expect(await c.status()).toBe("disqualified");
-    const before = c.homeownerSms().length;
+    const before = c.customerSms().length;
     const reply = await c.say("ok, thanks anyway — appreciate the quick response!");
     expect(reply.length).toBeGreaterThan(0); // she replies
-    expect(c.homeownerSms().length).toBeGreaterThan(before);
+    expect(c.customerSms().length).toBeGreaterThan(before);
   });
 });
