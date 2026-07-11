@@ -1,8 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { currentUser, isAdminEmail } from "@/lib/auth";
-import { getContractorById } from "@/lib/contractors";
-import { saveContractorAction, resendInviteAction } from "../actions";
+import { getOrganizationById } from "@/lib/organizations";
+import { saveOrganizationAction, resendInviteAction } from "../actions";
 import { AccountBadge, LineBadge } from "../status";
 import { accountMeta } from "../status-meta";
 import { Button } from "@/components/ui/button";
@@ -13,17 +13,17 @@ import { Label } from "@/components/ui/label";
 const selectCls =
   "h-9 rounded-md border border-input bg-transparent px-2 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none";
 
-export default async function ManageContractorPage({
+export default async function ManageOrganizationPage({
   params,
 }: {
-  params: Promise<{ contractorId: string }>;
+  params: Promise<{ organizationId: string }>;
 }) {
   const user = await currentUser();
   if (!user) redirect("/sign-in");
   if (!isAdminEmail(user.email)) redirect("/");
 
-  const { contractorId } = await params;
-  const c = await getContractorById(contractorId);
+  const { organizationId } = await params;
+  const c = await getOrganizationById(organizationId);
   if (!c) notFound();
 
   const onboarded = Boolean(c.onboardingComplete);
@@ -94,7 +94,7 @@ export default async function ManageContractorPage({
           <CardTitle className="text-base">Details</CardTitle>
         </CardHeader>
         <CardContent>
-          <form action={saveContractorAction} className="flex flex-col gap-4">
+          <form action={saveOrganizationAction} className="flex flex-col gap-4">
             <input type="hidden" name="id" value={c.id} />
             <div className="grid gap-2">
               <Label htmlFor="companyName">Company name</Label>

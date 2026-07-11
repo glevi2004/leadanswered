@@ -40,15 +40,15 @@ export function runWorker(): Worker {
       const ctx = await store.getContextByLeadId(leadId);
       if (!ctx) return;
       const now = new Date();
-      // No 2am texts: outside the contractor's business hours, defer the nudge to a later check.
-      if (!isWithinBusinessHours(ctx.contractor.standingAvailability, now)) {
+      // No 2am texts: outside the organization's business hours, defer the nudge to a later check.
+      if (!isWithinBusinessHours(ctx.organization.standingAvailability, now)) {
         await enqueueNudge(leadId, 60 * 60 * 1000); // re-check in ~1h
         return;
       }
-      // Send from the contractor's own number (per-contractor); fall back to console.
+      // Send from the organization's own number (per-organization); fall back to console.
       const sms =
-        env.TWILIO_ACCOUNT_SID && ctx.contractor.twilioNumber
-          ? new TwilioSmsSender(ctx.contractor.twilioNumber)
+        env.TWILIO_ACCOUNT_SID && ctx.organization.twilioNumber
+          ? new TwilioSmsSender(ctx.organization.twilioNumber)
           : new ConsoleSmsSender();
       await runNudgeJob({ store, sms, email, model, now }, leadId);
     },
@@ -58,17 +58,17 @@ export function runWorker(): Worker {
   worker.on("ready", () => console.log("[worker] processing the nudge queue"));
   worker.on("failed", (job, err) => console.error(`[worker] job ${job?.id} failed:`, err));
 
-  // Escalation SLA (SCOPE §9.7): chase a loop-in the contractor hasn't answered, then expire it.
+  // Escalation SLA (SCOPE §9.7): chase a loop-in the organization hasn't answered, then expire it.
   const escWorker = new Worker(
     "escalation-sla",
     async (job) => {
       const { escalationId, stage } = job.data as { escalationId: string; stage: 1 | 2 };
       const esc = await store.getEscalation(escalationId);
       if (!esc) return;
-      const contractor = await store.getContractor(esc.contractorId);
+      const organization = await store.getOrganization(esc.organizationId);
       const sms =
-        env.TWILIO_ACCOUNT_SID && contractor?.twilioNumber
-          ? new TwilioSmsSender(contractor.twilioNumber)
+        env.TWILIO_ACCOUNT_SID && organization?.twilioNumber
+          ? new TwilioSmsSender(organization.twilioNumber)
           : new ConsoleSmsSender();
       await runEscalationSlaJob({ store, sms, email, model, now: new Date() }, escalationId, stage);
     },
@@ -88,17 +88,17 @@ export function runWorker(): Worker {
           const { appointmentId, op } = job.data as { appointmentId: string; op: "create" | "update" | "delete" };
           await runCalendarPush({ store }, appointmentId, op);
         } else if (job.name === "inbound") {
-          const { contractorId } = job.data as { contractorId: string };
-          const c = await store.getContractor(contractorId);
-          await runInboundSync({ store, sms: smsFor(c?.twilioNumber) }, contractorId);
+          const { organizationId } = job.data as { organizationId: string };
+          const c = await store.getOrganization(organizationId);
+          await runInboundSync({ store, sms: smsFor(c?.twilioNumber) }, organizationId);
         } else if (job.name === "poll") {
           for (const conn of await store.listConnectedCalendars()) {
-            const c = await store.getContractor(conn.contractorId);
-            await runInboundSync({ store, sms: smsFor(c?.twilioNumber) }, conn.contractorId).catch((e) =>
+            const c = await store.getOrganization(conn.organizationId);
+            await runInboundSync({ store, sms: smsFor(c?.twilioNumber) }, conn.organizationId).catch((e) =>
               console.error("[calendar] poll sync failed:", e),
             );
             if (!conn.channelExpiresAt || Date.parse(conn.channelExpiresAt) - Date.now() < 24 * 3600 * 1000) {
-              await registerWatch(store, conn.contractorId).catch((e) => console.error("[calendar] watch renew failed:", e));
+              await registerWatch(store, conn.organizationId).catch((e) => console.error("[calendar] watch renew failed:", e));
             }
           }
         }

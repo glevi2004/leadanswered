@@ -3,7 +3,7 @@ import twilio from "twilio";
 import { handleInbound, type ConversationDeps } from "../conversationService.js";
 
 /**
- * POST /webhooks/twilio/sms — inbound homeowner SMS. We reply via the Twilio REST
+ * POST /webhooks/twilio/sms — inbound customer SMS. We reply via the Twilio REST
  * API inside the engine, so we just acknowledge Twilio with empty TwiML. Always
  * returns 200 so a transient error never makes Twilio retry-storm (SCOPE §7).
  */

@@ -1,16 +1,16 @@
 import { describe, it, expect } from "vitest";
 import { MemoryStore } from "./store/memoryStore.js";
-import { testContractor, testRecipients } from "./seed.js";
+import { testOrganization, testRecipients } from "./seed.js";
 import { CapturingEmail, CapturingSms, scriptedModel } from "./testkit.js";
 import { handleMissedCall, resolveCallerNumber, type TwilioVoiceInbound } from "./voiceIntake.js";
 
 const NOW = new Date("2026-06-15T08:00:00Z");
-const TWILIO_NUMBER = testContractor.twilioNumber!; // +18444157642 (the assistant number)
-const CALLER = "+19788105602"; // the homeowner who called and wasn't picked up
+const TWILIO_NUMBER = testOrganization.twilioNumber!; // +18444157642 (the assistant number)
+const CALLER = "+19788105602"; // the customer who called and wasn't picked up
 
 function setup() {
   const store = new MemoryStore();
-  store.seedContractor(testContractor, testRecipients);
+  store.seedOrganization(testOrganization, testRecipients);
   const sms = new CapturingSms();
   const deps = {
     store,
@@ -26,7 +26,7 @@ const basePayload = (over: Partial<TwilioVoiceInbound> = {}): TwilioVoiceInbound
   CallSid: "CA-1",
   From: CALLER,
   To: TWILIO_NUMBER,
-  ForwardedFrom: "+16175551212", // the contractor's real number that forwarded
+  ForwardedFrom: "+16175551212", // the organization's real number that forwarded
   ...over,
 });
 
@@ -36,7 +36,7 @@ describe("handleMissedCall", () => {
     const r = await handleMissedCall(deps, basePayload());
     expect(r.status).toBe("ok");
     expect(r.leadId).toBeTruthy();
-    expect(sms.sent.some((s) => s.to === CALLER)).toBe(true); // opening went to the homeowner
+    expect(sms.sent.some((s) => s.to === CALLER)).toBe(true); // opening went to the customer
     const ctx = await store.getContextByLeadId(r.leadId!);
     expect(ctx?.lead.contactPhone).toBe(CALLER);
     expect(ctx?.lead.contactName).toBe("Caller");
@@ -58,9 +58,9 @@ describe("handleMissedCall", () => {
   it("skips a repeat missed call while the conversation is RECENT (< 1h)", async () => {
     const T0 = new Date("2026-06-15T08:00:00Z");
     const store = new MemoryStore(() => T0); // messages stamped at T0
-    store.seedContractor(testContractor, testRecipients);
+    store.seedOrganization(testOrganization, testRecipients);
     const seeded = await store.createLeadWithConversation({
-      contractorId: testContractor.id, contactName: "Repeat caller", contactPhone: CALLER, source: "missed_call",
+      organizationId: testOrganization.id, contactName: "Repeat caller", contactPhone: CALLER, source: "missed_call",
     });
     await store.appendMessage(seeded.conversation.id, { direction: "outbound", body: "earlier: how can I help?" });
 
@@ -79,9 +79,9 @@ describe("handleMissedCall", () => {
   it("re-engages the SAME lead (no duplicate) when the prior conversation is STALE (> 1h)", async () => {
     const T0 = new Date("2026-06-15T08:00:00Z");
     const store = new MemoryStore(() => T0);
-    store.seedContractor(testContractor, testRecipients);
+    store.seedOrganization(testOrganization, testRecipients);
     const seeded = await store.createLeadWithConversation({
-      contractorId: testContractor.id, contactName: "Repeat caller", contactPhone: CALLER, source: "missed_call",
+      organizationId: testOrganization.id, contactName: "Repeat caller", contactPhone: CALLER, source: "missed_call",
     });
     await store.appendMessage(seeded.conversation.id, { direction: "outbound", body: "earlier: how can I help?" });
 
@@ -97,11 +97,11 @@ describe("handleMissedCall", () => {
     expect(sms.sent.some((s) => s.to === CALLER)).toBe(true); // re-engaged with a fresh text
   });
 
-  it("skips a call to an unknown Twilio number (no contractor)", async () => {
+  it("skips a call to an unknown Twilio number (no organization)", async () => {
     const { sms, deps } = setup();
     const r = await handleMissedCall(deps, basePayload({ To: "+18009999999" }));
     expect(r.status).toBe("skipped");
-    expect(r.reason).toBe("unknown_contractor");
+    expect(r.reason).toBe("unknown_organization");
     expect(sms.sent).toHaveLength(0);
   });
 
@@ -118,7 +118,7 @@ describe("resolveCallerNumber", () => {
   it("prefers From as the original caller", () => {
     expect(resolveCallerNumber({ From: CALLER, To: TWILIO_NUMBER })).toBe(CALLER);
   });
-  it("bails when From is the forwarding/contractor number (would text the contractor)", () => {
+  it("bails when From is the forwarding/organization number (would text the organization)", () => {
     expect(resolveCallerNumber({ From: TWILIO_NUMBER, To: TWILIO_NUMBER })).toBeNull();
     expect(resolveCallerNumber({ From: "+16175551212", ForwardedFrom: "+16175551212" })).toBeNull();
   });

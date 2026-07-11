@@ -9,7 +9,7 @@ import type { NotificationEventType } from "./types.js";
  * shape maps 1:1 onto what the agent/`qualify` already consume.
  */
 
-/** The notification events a contractor can subscribe a recipient to (for the form UI). */
+/** The notification events a organization can subscribe a recipient to (for the form UI). */
 export const NOTIFICATION_EVENT_TYPES: NotificationEventType[] = [
   "booking_confirmed",
   "booking_rescheduled",
@@ -39,7 +39,7 @@ const recipientSchema = z
   })
   .refine((r) => !!r.phone || !!r.email, { message: "a recipient needs a phone or an email" });
 
-export const contractorConfigSchema = z.object({
+export const organizationConfigSchema = z.object({
   companyName: z.string().min(1, "company name is required"),
   sarahName: z.string().min(1).default("Sarah"),
   personaNotes: z.string().nullish(),
@@ -65,7 +65,7 @@ export const contractorConfigSchema = z.object({
   recipients: z.array(recipientSchema).default([]),
 });
 
-export type ContractorConfigInput = z.infer<typeof contractorConfigSchema>;
+export type OrganizationConfigInput = z.infer<typeof organizationConfigSchema>;
 
 /**
  * Semantic checks beyond shape: base ZIPs must geocode (qualification computes

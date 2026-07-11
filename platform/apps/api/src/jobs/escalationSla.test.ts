@@ -1,20 +1,20 @@
 import { describe, it, expect } from "vitest";
 import { MemoryStore } from "../store/memoryStore.js";
 import { CapturingEmail, CapturingSms, scriptedModel } from "../testkit.js";
-import { testContractor, testRecipients, TEST_CONTRACTOR_ID } from "../seed.js";
+import { testOrganization, testRecipients, TEST_ORGANIZATION_ID } from "../seed.js";
 import { runEscalationSlaJob } from "./escalationSla.js";
 
-const NOW = new Date("2026-06-15T12:00:00Z"); // Monday noon UTC — inside the seed contractor's 9-5 window
+const NOW = new Date("2026-06-15T12:00:00Z"); // Monday noon UTC — inside the seed organization's 9-5 window
 const CUSTOMER = "+19788105602";
 const OWNER = testRecipients[0].phone!; // +18335559999
 
 async function seedEscalation(store: MemoryStore) {
   const ctx = await store.createLeadWithConversation({
-    contractorId: TEST_CONTRACTOR_ID, contactName: "Levi", contactPhone: CUSTOMER, source: "missed_call",
+    organizationId: TEST_ORGANIZATION_ID, contactName: "Levi", contactPhone: CUSTOMER, source: "missed_call",
   });
   await store.appendMessage(ctx.conversation.id, { direction: "outbound", body: "Let me check with the team and get right back to you!" });
   const esc = await store.createEscalation({
-    leadId: ctx.lead.id, contractorId: TEST_CONTRACTOR_ID, conversationId: ctx.conversation.id, question: "when are you coming?",
+    leadId: ctx.lead.id, organizationId: TEST_ORGANIZATION_ID, conversationId: ctx.conversation.id, question: "when are you coming?",
   });
   return { ctx, esc };
 }
@@ -26,7 +26,7 @@ function makeDeps(store: MemoryStore, sms: CapturingSms, text: string) {
 describe("runEscalationSlaJob", () => {
   it("stage 1 re-pings the owner AND sends a positive customer reassurance (business hours)", async () => {
     const store = new MemoryStore();
-    store.seedContractor(testContractor, testRecipients);
+    store.seedOrganization(testOrganization, testRecipients);
     const sms = new CapturingSms();
     const { esc } = await seedEscalation(store);
 
@@ -39,7 +39,7 @@ describe("runEscalationSlaJob", () => {
 
   it("stage 2 expires with an OWNER-ONLY alert — never messages the customer", async () => {
     const store = new MemoryStore();
-    store.seedContractor(testContractor, testRecipients);
+    store.seedOrganization(testOrganization, testRecipients);
     const sms = new CapturingSms();
     const { esc } = await seedEscalation(store);
 
@@ -52,7 +52,7 @@ describe("runEscalationSlaJob", () => {
 
   it("does nothing once the escalation is resolved", async () => {
     const store = new MemoryStore();
-    store.seedContractor(testContractor, testRecipients);
+    store.seedOrganization(testOrganization, testRecipients);
     const sms = new CapturingSms();
     const { esc } = await seedEscalation(store);
     await store.resolveEscalationIfOpen(esc.id, "we'll be there at 2");

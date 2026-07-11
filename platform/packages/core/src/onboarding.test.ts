@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { contractorConfigSchema, validateServiceAreaZips } from "./onboarding.js";
+import { organizationConfigSchema, validateServiceAreaZips } from "./onboarding.js";
 
 const validInput = {
   companyName: "Apex Roofing",
@@ -17,25 +17,25 @@ const validInput = {
   ],
 };
 
-describe("contractorConfigSchema", () => {
+describe("organizationConfigSchema", () => {
   it("accepts a well-formed config", () => {
-    expect(contractorConfigSchema.safeParse(validInput).success).toBe(true);
+    expect(organizationConfigSchema.safeParse(validInput).success).toBe(true);
   });
 
   it("rejects an empty project list", () => {
-    const r = contractorConfigSchema.safeParse({ ...validInput, projectTypes: [] });
+    const r = organizationConfigSchema.safeParse({ ...validInput, projectTypes: [] });
     expect(r.success).toBe(false);
   });
 
   it("rejects a bad ZIP and a bad time", () => {
     expect(
-      contractorConfigSchema.safeParse({
+      organizationConfigSchema.safeParse({
         ...validInput,
         serviceArea: { ...validInput.serviceArea, baseLocations: [{ zip: "abc", radiusMiles: 25 }] },
       }).success,
     ).toBe(false);
     expect(
-      contractorConfigSchema.safeParse({
+      organizationConfigSchema.safeParse({
         ...validInput,
         standingAvailability: { timezone: "UTC", windows: [{ dayOfWeek: 1, start: "9am", end: "17:00" }] },
       }).success,
@@ -43,7 +43,7 @@ describe("contractorConfigSchema", () => {
   });
 
   it("requires a recipient to have a phone or email", () => {
-    const r = contractorConfigSchema.safeParse({
+    const r = organizationConfigSchema.safeParse({
       ...validInput,
       recipients: [{ name: "Nobody", subscriptions: [] }],
     });

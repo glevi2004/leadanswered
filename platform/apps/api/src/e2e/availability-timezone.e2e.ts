@@ -1,14 +1,14 @@
 import { describe, it, expect } from "vitest";
 import { RUN_E2E, startConversation } from "./harness.js";
 import { judge } from "./judge.js";
-import { easternContractor } from "./fixtures.js";
+import { easternOrganization } from "./fixtures.js";
 
 const SUNDAY = "2026-07-05T16:00:00Z";
 const MON_6AM_ET = "2026-07-06T10:00:00.000Z"; // 6:00 AM EDT — the earliest local slot
 
-describe.skipIf(!RUN_E2E)("E2E · availability + timezone (real Claude, Eastern contractor)", () => {
+describe.skipIf(!RUN_E2E)("E2E · availability + timezone (real Claude, Eastern organization)", () => {
   it("a general availability question is answered with WINDOWS, not a slot dump (judge)", async () => {
-    const c = await startConversation({ contractor: easternContractor, now: SUNDAY });
+    const c = await startConversation({ organization: easternOrganization, now: SUNDAY });
     await c.say("roof leak at 100 Main St, Newton MA 02458, I own the home");
     await c.say("what's your availability next week?");
     const v = await judge(
@@ -19,7 +19,7 @@ describe.skipIf(!RUN_E2E)("E2E · availability + timezone (real Claude, Eastern 
   });
 
   it("a focused day offers concrete times in LOCAL time, starting at 6 AM (not 2 AM, not dropped)", async () => {
-    const c = await startConversation({ contractor: easternContractor, now: SUNDAY });
+    const c = await startConversation({ organization: easternOrganization, now: SUNDAY });
     await c.say("roof leak at 100 Main St, Newton MA 02458, I own the home");
     await c.say("what do you have Monday morning?");
     const slots = Object.values(await c.offeredSlots());

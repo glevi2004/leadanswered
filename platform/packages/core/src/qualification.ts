@@ -7,7 +7,7 @@ import {
   type Geocoder,
 } from "./geo.js";
 import type {
-  ContractorConfig,
+  OrganizationConfig,
   GatheredInfo,
   LatLng,
   LocationStatus,
@@ -18,7 +18,7 @@ import type {
 
 /**
  * Project-type synonym map. The AI extracts free-text; CODE normalizes it to a
- * canonical type and checks it against the contractor's offered list (SCOPE §5.1).
+ * canonical type and checks it against the organization's offered list (SCOPE §5.1).
  */
 const PROJECT_SYNONYMS: Record<string, string> = {
   "new roof": "roof_replacement",
@@ -132,9 +132,9 @@ export function evaluateServiceArea(
 
 /**
  * Pick a city's centroid. For a same-named city in multiple states (e.g.
- * "Springfield"), choose the candidate nearest one of the contractor's bases —
- * a roofer's lead is local, so nearest-to-base is the right disambiguation and
- * needs no extra state field on the contractor.
+ * "Springfield"), choose the candidate nearest one of the organization's bases —
+ * a service business's lead is local, so nearest-to-base is the right disambiguation and
+ * needs no extra state field on the organization.
  */
 function resolveCityPoint(town: string, area: ServiceArea, geo: Geo): LatLng | null {
   const r = geo.city(town);
@@ -161,20 +161,20 @@ function resolveCityPoint(town: string, area: ServiceArea, geo: Geo): LatLng | n
 }
 
 /**
- * AI extracts, CODE decides. Given accumulated gathered info + contractor config,
+ * AI extracts, CODE decides. Given accumulated gathered info + organization config,
  * returns the full qualification result. Pure and fully unit-testable.
  */
 export function qualify(
   gathered: GatheredInfo,
-  config: ContractorConfig,
+  config: OrganizationConfig,
   geo: Geo = defaultGeo,
 ): QualificationResult {
   const sa = evaluateServiceArea(gathered, config.serviceArea, geo);
   const inArea = sa.inArea;
 
   const canonical = normalizeProjectType(gathered.projectType);
-  // Reduce the contractor's offered services through the SAME normalizer so a friendly label
-  // ("Roof repair") lines up with the homeowner's normalized project ("leak" → roof_repair).
+  // Reduce the organization's offered services through the SAME normalizer so a friendly label
+  // ("Roof repair") lines up with the customer's normalized project ("leak" → roof_repair).
   // In-memory, for this yes/no check only — it never changes what's stored or displayed. Legacy
   // slug values reduce to themselves, so this is backward-compatible.
   const offered = new Set(

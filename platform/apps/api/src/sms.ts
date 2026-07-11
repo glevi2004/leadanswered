@@ -9,7 +9,7 @@ export class ConsoleSmsSender implements SmsSender {
   }
 }
 
-/** Sends real SMS via the Twilio REST API. `from` is the contractor's dedicated number. */
+/** Sends real SMS via the Twilio REST API. `from` is the organization's dedicated number. */
 export class TwilioSmsSender implements SmsSender {
   private client = twilio(env.TWILIO_ACCOUNT_SID, env.TWILIO_AUTH_TOKEN);
   constructor(private from: string) {}

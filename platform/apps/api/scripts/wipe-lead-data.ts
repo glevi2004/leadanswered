@@ -1,6 +1,6 @@
 /**
  * Cutover step (SCOPE / DEPLOY runbook): wipe all LEAD-SCOPED data so the new
- * Appointment integrity constraints can be applied to clean tables. Contractor config,
+ * Appointment integrity constraints can be applied to clean tables. Organization config,
  * recipients, and calendar connections are PRESERVED.
  *
  * Dry-run by default (prints counts). Pass --yes to actually delete.
@@ -26,9 +26,9 @@ async function main() {
     conversations: await db.conversation.count(),
     leads: await db.lead.count(),
   };
-  const contractors = await db.contractor.count();
+  const organizations = await db.organization.count();
   console.log("Lead-scoped rows:", counts);
-  console.log(`Preserved: ${contractors} contractor(s) + recipients + config + calendar connections.`);
+  console.log(`Preserved: ${organizations} organization(s) + recipients + config + calendar connections.`);
 
   if (!execute) {
     console.log("\nDRY RUN — nothing deleted. Re-run with --yes to wipe.");

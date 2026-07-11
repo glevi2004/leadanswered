@@ -30,7 +30,7 @@ export const apptStatusBadge = (status: string): StatusBadge =>
 
 const DEFAULT_TZ = DEFAULT_TIMEZONE;
 
-/** Human-readable date+time in the contractor's timezone, e.g. "Tue, Jul 1 · 2:00 PM". */
+/** Human-readable date+time in the organization's timezone, e.g. "Tue, Jul 1 · 2:00 PM". */
 export function formatWhen(iso: string | null | undefined, timezone = DEFAULT_TZ): string {
   if (!iso) return "—";
   const d = new Date(iso);

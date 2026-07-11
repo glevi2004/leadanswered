@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ContractorConfig, GatheredInfo, Stage, TimeRange } from "@leadanswered/core";
+import type { OrganizationConfig, GatheredInfo, Stage, TimeRange } from "@leadanswered/core";
 import { createConversationLock } from "./conversationLock.js";
 import type {
   AppointmentPatch,
@@ -21,7 +21,7 @@ import type {
 type ApptRow = {
   id: string;
   leadId: string;
-  contractorId: string;
+  organizationId: string;
   startIso: string;
   endIso: string;
   status: string;
@@ -44,7 +44,7 @@ function memAppt(a: ApptRow): AppointmentRecord {
   return {
     id: a.id,
     leadId: a.leadId,
-    contractorId: a.contractorId,
+    organizationId: a.organizationId,
     startIso: a.startIso,
     endIso: a.endIso,
     status: a.status,
@@ -55,12 +55,12 @@ function memAppt(a: ApptRow): AppointmentRecord {
 
 /**
  * In-memory Store for demo mode + tests. It MIMICS the DB integrity constraints
- * (no overlapping active appointment per contractor; one active per lead) so logic
+ * (no overlapping active appointment per organization; one active per lead) so logic
  * tests behave like prod — but it cannot PROVE them under real concurrency. The
  * race-proof guarantee is the Postgres EXCLUDE constraint, exercised by Tier-B tests.
  */
 export class MemoryStore implements Store {
-  private contractors = new Map<string, ContractorConfig>();
+  private organizations = new Map<string, OrganizationConfig>();
   private recipients = new Map<string, RecipientRecord[]>();
   private leads = new Map<string, LeadRecord>();
   private conversations = new Map<string, ConversationRecord>();
@@ -77,8 +77,8 @@ export class MemoryStore implements Store {
     this.now = now;
   }
 
-  seedContractor(c: ContractorConfig, recipients: RecipientRecord[] = []): void {
-    this.contractors.set(c.id, c);
+  seedOrganization(c: OrganizationConfig, recipients: RecipientRecord[] = []): void {
+    this.organizations.set(c.id, c);
     this.recipients.set(c.id, recipients);
   }
 
@@ -86,17 +86,17 @@ export class MemoryStore implements Store {
     return this.lock(conversationId, fn);
   }
 
-  async getContractor(id: string): Promise<ContractorConfig | null> {
-    return this.contractors.get(id) ?? null;
+  async getOrganization(id: string): Promise<OrganizationConfig | null> {
+    return this.organizations.get(id) ?? null;
   }
 
-  async getContractorByTwilioNumber(toNumber: string): Promise<ContractorConfig | null> {
-    for (const c of this.contractors.values()) if (c.twilioNumber === toNumber) return c;
+  async getOrganizationByTwilioNumber(toNumber: string): Promise<OrganizationConfig | null> {
+    for (const c of this.organizations.values()) if (c.twilioNumber === toNumber) return c;
     return null;
   }
 
-  async getContractorBySlug(slug: string): Promise<ContractorConfig | null> {
-    for (const c of this.contractors.values()) if (c.slug === slug) return c;
+  async getOrganizationBySlug(slug: string): Promise<OrganizationConfig | null> {
+    for (const c of this.organizations.values()) if (c.slug === slug) return c;
     return null;
   }
 
@@ -105,13 +105,13 @@ export class MemoryStore implements Store {
     return id ? { id } : null;
   }
 
-  async getRecipients(contractorId: string): Promise<RecipientRecord[]> {
-    return this.recipients.get(contractorId) ?? [];
+  async getRecipients(organizationId: string): Promise<RecipientRecord[]> {
+    return this.recipients.get(organizationId) ?? [];
   }
 
   async createLeadWithConversation(input: CreateLeadInput): Promise<LeadContext> {
-    const contractor = this.contractors.get(input.contractorId);
-    if (!contractor) throw new Error(`unknown contractor ${input.contractorId}`);
+    const organization = this.organizations.get(input.organizationId);
+    if (!organization) throw new Error(`unknown organization ${input.organizationId}`);
     if (input.sourceMessageId && this.leadIdBySourceMessageId.has(input.sourceMessageId)) {
       const err: any = new Error("duplicate sourceMessageId");
       err.code = "P2002";
@@ -120,7 +120,7 @@ export class MemoryStore implements Store {
 
     const lead: LeadRecord = {
       id: randomUUID(),
-      contractorId: input.contractorId,
+      organizationId: input.organizationId,
       contactName: input.contactName,
       contactPhone: input.contactPhone,
       projectHint: input.projectHint ?? null,
@@ -138,29 +138,29 @@ export class MemoryStore implements Store {
     this.conversations.set(conv.id, conv);
     this.convIdByLead.set(lead.id, conv.id);
 
-    return { lead, contractor, conversation: conv, messages: [] };
+    return { lead, organization, conversation: conv, messages: [] };
   }
 
   private contextFor(conv: ConversationRecord): LeadContext | null {
     const lead = this.leads.get(conv.leadId);
     if (!lead) return null;
-    const contractor = this.contractors.get(lead.contractorId);
-    if (!contractor) return null;
+    const organization = this.organizations.get(lead.organizationId);
+    if (!organization) return null;
     const messages = this.messages.filter((m) => m.conversationId === conv.id);
-    return { lead, contractor, conversation: conv, messages };
+    return { lead, organization, conversation: conv, messages };
   }
 
   async findActiveContextByPhones(toNumber: string, fromNumber: string): Promise<LeadContext | null> {
-    let contractorId: string | null = null;
-    for (const c of this.contractors.values()) {
+    let organizationId: string | null = null;
+    for (const c of this.organizations.values()) {
       if (c.twilioNumber === toNumber) {
-        contractorId = c.id;
+        organizationId = c.id;
         break;
       }
     }
-    if (!contractorId) return null;
+    if (!organizationId) return null;
     const candidates = [...this.leads.values()].filter(
-      (l) => l.contractorId === contractorId && l.contactPhone === fromNumber,
+      (l) => l.organizationId === organizationId && l.contactPhone === fromNumber,
     );
     for (const lead of candidates.reverse()) {
       const convId = this.convIdByLead.get(lead.id);
@@ -170,9 +170,9 @@ export class MemoryStore implements Store {
     return null;
   }
 
-  async findLeadContextByContractorPhone(contractorId: string, phone: string): Promise<LeadContext | null> {
+  async findLeadContextByOrganizationPhone(organizationId: string, phone: string): Promise<LeadContext | null> {
     const candidates = [...this.leads.values()].filter(
-      (l) => l.contractorId === contractorId && l.contactPhone === phone,
+      (l) => l.organizationId === organizationId && l.contactPhone === phone,
     );
     for (const lead of candidates.reverse()) {
       const convId = this.convIdByLead.get(lead.id);
@@ -182,11 +182,11 @@ export class MemoryStore implements Store {
     return null;
   }
 
-  async findLeadsByName(contractorId: string, name: string): Promise<LeadRecord[]> {
+  async findLeadsByName(organizationId: string, name: string): Promise<LeadRecord[]> {
     const q = name.trim().toLowerCase();
     if (!q) return [];
     return [...this.leads.values()]
-      .filter((l) => l.contractorId === contractorId && l.contactName.toLowerCase().includes(q))
+      .filter((l) => l.organizationId === organizationId && l.contactName.toLowerCase().includes(q))
       .slice(0, 10);
   }
 
@@ -249,7 +249,7 @@ export class MemoryStore implements Store {
 
   async bookAppointment(input: {
     leadId: string;
-    contractorId: string;
+    organizationId: string;
     startIso: string;
     endIso: string;
     timezone: string;
@@ -261,7 +261,7 @@ export class MemoryStore implements Store {
     const end = new Date(input.endIso).getTime();
     if (
       this.appointments.some(
-        (a) => a.contractorId === input.contractorId && isActive(a.status) && overlaps(a.startIso, a.endIso, start, end),
+        (a) => a.organizationId === input.organizationId && isActive(a.status) && overlaps(a.startIso, a.endIso, start, end),
       )
     ) {
       return { ok: false, reason: "slot_taken" };
@@ -269,7 +269,7 @@ export class MemoryStore implements Store {
     const appt: ApptRow = {
       id: randomUUID(),
       leadId: input.leadId,
-      contractorId: input.contractorId,
+      organizationId: input.organizationId,
       startIso: input.startIso,
       endIso: input.endIso,
       status: "confirmed",
@@ -284,13 +284,13 @@ export class MemoryStore implements Store {
   }
 
   async getBusyTimes(
-    contractorId: string,
+    organizationId: string,
     window: { startIso: string; endIso: string },
   ): Promise<TimeRange[]> {
     const ws = new Date(window.startIso).getTime();
     const we = new Date(window.endIso).getTime();
     return this.appointments
-      .filter((a) => a.contractorId === contractorId && isActive(a.status) && overlaps(a.startIso, a.endIso, ws, we))
+      .filter((a) => a.organizationId === organizationId && isActive(a.status) && overlaps(a.startIso, a.endIso, ws, we))
       .map((a) => ({ startAt: new Date(a.startIso), endAt: new Date(a.endIso) }));
   }
 
@@ -300,7 +300,7 @@ export class MemoryStore implements Store {
       ? {
           id: appt.id,
           leadId: appt.leadId,
-          contractorId: appt.contractorId,
+          organizationId: appt.organizationId,
           startIso: appt.startIso,
           endIso: appt.endIso,
           status: appt.status,
@@ -314,7 +314,7 @@ export class MemoryStore implements Store {
       .map((a) => ({
         id: a.id,
         leadId: a.leadId,
-        contractorId: a.contractorId,
+        organizationId: a.organizationId,
         startIso: a.startIso,
         endIso: a.endIso,
         status: a.status,
@@ -329,7 +329,7 @@ export class MemoryStore implements Store {
     if (
       this.appointments.some(
         (a) =>
-          a.id !== id && a.contractorId === appt.contractorId && isActive(a.status) && overlaps(a.startIso, a.endIso, start, end),
+          a.id !== id && a.organizationId === appt.organizationId && isActive(a.status) && overlaps(a.startIso, a.endIso, start, end),
       )
     ) {
       return { ok: false, reason: "slot_taken" };
@@ -357,8 +357,8 @@ export class MemoryStore implements Store {
     return a ? memAppt(a) : null;
   }
 
-  async findAppointmentByExternalEventId(contractorId: string, externalEventId: string): Promise<AppointmentRecord | null> {
-    const a = this.appointments.find((x) => x.contractorId === contractorId && x.externalEventId === externalEventId);
+  async findAppointmentByExternalEventId(organizationId: string, externalEventId: string): Promise<AppointmentRecord | null> {
+    const a = this.appointments.find((x) => x.organizationId === organizationId && x.externalEventId === externalEventId);
     return a ? memAppt(a) : null;
   }
 
@@ -373,8 +373,8 @@ export class MemoryStore implements Store {
     if (patch.syncedAt !== undefined) a.syncedAt = patch.syncedAt;
   }
 
-  async getCalendarConnection(contractorId: string, provider = "google"): Promise<CalendarConnectionRecord | null> {
-    return this.calendarConnections.get(`${contractorId}:${provider}`) ?? null;
+  async getCalendarConnection(organizationId: string, provider = "google"): Promise<CalendarConnectionRecord | null> {
+    return this.calendarConnections.get(`${organizationId}:${provider}`) ?? null;
   }
 
   async getCalendarConnectionByChannel(channelId: string): Promise<CalendarConnectionRecord | null> {
@@ -386,14 +386,14 @@ export class MemoryStore implements Store {
   }
 
   async upsertCalendarConnection(
-    contractorId: string,
+    organizationId: string,
     provider: string,
     patch: CalendarConnectionPatch,
   ): Promise<CalendarConnectionRecord> {
-    const key = `${contractorId}:${provider}`;
+    const key = `${organizationId}:${provider}`;
     const merged: CalendarConnectionRecord = this.calendarConnections.get(key) ?? {
       id: randomUUID(),
-      contractorId,
+      organizationId,
       provider,
       externalCalendarId: null,
       accessToken: null,
@@ -416,7 +416,7 @@ export class MemoryStore implements Store {
   private escalations: {
     id: string;
     leadId: string;
-    contractorId: string;
+    organizationId: string;
     conversationId: string;
     question: string;
     answer?: string | null;
@@ -425,7 +425,7 @@ export class MemoryStore implements Store {
 
   async createEscalation(input: {
     leadId: string;
-    contractorId: string;
+    organizationId: string;
     conversationId: string;
     question: string;
   }) {
@@ -434,20 +434,20 @@ export class MemoryStore implements Store {
     return {
       id: esc.id,
       leadId: esc.leadId,
-      contractorId: esc.contractorId,
+      organizationId: esc.organizationId,
       conversationId: esc.conversationId,
       question: esc.question,
       status: esc.status,
     };
   }
 
-  async findOpenEscalationByContractorReply(contractorId: string) {
-    const esc = [...this.escalations].reverse().find((e) => e.contractorId === contractorId && e.status === "open");
+  async findOpenEscalationByOwnerReply(organizationId: string) {
+    const esc = [...this.escalations].reverse().find((e) => e.organizationId === organizationId && e.status === "open");
     return esc
       ? {
           id: esc.id,
           leadId: esc.leadId,
-          contractorId: esc.contractorId,
+          organizationId: esc.organizationId,
           conversationId: esc.conversationId,
           question: esc.question,
           status: esc.status,
@@ -458,7 +458,7 @@ export class MemoryStore implements Store {
   async findOpenEscalationByLead(leadId: string) {
     const esc = [...this.escalations].reverse().find((e) => e.leadId === leadId && e.status === "open");
     return esc
-      ? { id: esc.id, leadId: esc.leadId, contractorId: esc.contractorId, conversationId: esc.conversationId, question: esc.question, status: esc.status }
+      ? { id: esc.id, leadId: esc.leadId, organizationId: esc.organizationId, conversationId: esc.conversationId, question: esc.question, status: esc.status }
       : null;
   }
 
@@ -475,7 +475,7 @@ export class MemoryStore implements Store {
   async getEscalation(id: string) {
     const e = this.escalations.find((x) => x.id === id);
     return e
-      ? { id: e.id, leadId: e.leadId, contractorId: e.contractorId, conversationId: e.conversationId, question: e.question, status: e.status }
+      ? { id: e.id, leadId: e.leadId, organizationId: e.organizationId, conversationId: e.conversationId, question: e.question, status: e.status }
       : null;
   }
 

@@ -1,6 +1,6 @@
 /**
- * Reset a contractor's LEADS for re-testing — deletes all its leads (cascading to conversations,
- * messages, appointments, escalations) while KEEPING the contractor + its config. Dry-run by default.
+ * Reset a organization's LEADS for re-testing — deletes all its leads (cascading to conversations,
+ * messages, appointments, escalations) while KEEPING the organization + its config. Dry-run by default.
  *   cd apps/api && pnpm exec tsx scripts/reset-leads.ts --email=owner@x.com        # dry run
  *   cd apps/api && pnpm exec tsx scripts/reset-leads.ts --email=owner@x.com --yes   # delete
  */
@@ -19,23 +19,23 @@ async function main() {
     process.exit(1);
   }
   const db = getPrisma();
-  const c = await db.contractor.findFirst({ where: EMAIL ? { ownerEmail: EMAIL } : { slug: SLUG } });
+  const c = await db.organization.findFirst({ where: EMAIL ? { ownerEmail: EMAIL } : { slug: SLUG } });
   if (!c) {
-    console.log(`No contractor found for ${EMAIL || SLUG}.`);
+    console.log(`No organization found for ${EMAIL || SLUG}.`);
     return;
   }
   const [leads, appts, escalations] = await Promise.all([
-    db.lead.count({ where: { contractorId: c.id } }),
-    db.appointment.count({ where: { contractorId: c.id } }),
-    db.escalation.count({ where: { contractorId: c.id } }),
+    db.lead.count({ where: { organizationId: c.id } }),
+    db.appointment.count({ where: { organizationId: c.id } }),
+    db.escalation.count({ where: { organizationId: c.id } }),
   ]);
-  console.log(`Contractor: ${c.companyName} (${c.slug}) — config is KEPT`);
+  console.log(`Organization: ${c.companyName} (${c.slug}) — config is KEPT`);
   console.log(`  wiping: ${leads} lead(s), ${appts} appointment(s), ${escalations} escalation(s) (+ their conversations & messages)`);
   if (!execute) {
     console.log("\nDRY RUN — re-run with --yes to wipe.");
     return;
   }
-  await db.lead.deleteMany({ where: { contractorId: c.id } }); // cascades to conversation/message/appointment/escalation
+  await db.lead.deleteMany({ where: { organizationId: c.id } }); // cascades to conversation/message/appointment/escalation
   console.log("  ✓ leads + all cascaded rows deleted. Re-trigger via the lead email to start fresh.");
 }
 main().catch((e) => { console.error(e); process.exitCode = 1; }).finally(() => process.exit());

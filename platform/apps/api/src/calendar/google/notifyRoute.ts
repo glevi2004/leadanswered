@@ -30,9 +30,9 @@ export function createGoogleNotifyRoute(deps: NotifyDeps) {
       return;
     }
     if (env.REDIS_URL) {
-      await enqueueInboundSync(conn.contractorId).catch((e) => console.error("[calendar] enqueue inbound failed:", e));
+      await enqueueInboundSync(conn.organizationId).catch((e) => console.error("[calendar] enqueue inbound failed:", e));
     } else {
-      await runInboundSync(deps, conn.contractorId).catch((e) => console.error("[calendar] inline inbound sync failed:", e));
+      await runInboundSync(deps, conn.organizationId).catch((e) => console.error("[calendar] inline inbound sync failed:", e));
     }
   };
 }

@@ -1,5 +1,5 @@
 // Prisma schema for Lead Answered — Phase 1 data model (SCOPE §4).
-// Vertical-neutral field names; only Sarah's conversation copy is homeowner-flavored.
+// Vertical-neutral names: Organization is the tenant business (any service vertical).
 
 generator client {
   provider = "prisma-client-js"
@@ -71,7 +71,7 @@ enum NotificationChannel {
   both
 }
 
-model Contractor {
+model Organization {
   id                   String   @id @default(cuid())
   name                 String
   companyName          String
@@ -82,7 +82,7 @@ model Contractor {
   standingAvailability Json     @default("{}")
   sarahName            String   @default("Sarah")
   sarahPersonaNotes    String?
-  // Customer-question topics Sarah loops the contractor in on (dashboard-editable; SCOPE §5.1).
+  // Customer-question topics Sarah loops the owner in on (dashboard-editable; SCOPE §5.1).
   escalationTopics     String[] @default([])
 
   // Onboarding (Phase 3): owner login link + whether they've finished self-serve setup.
@@ -94,7 +94,7 @@ model Contractor {
   includeOverrides String[] @default([])
   excludeOverrides String[] @default([])
 
-  // Telephony (SCOPE §9.5) — dedicated number per contractor.
+  // Telephony (SCOPE §9.5) — dedicated number per organization.
   twilioNumber        String?
   messagingServiceSid String?
   numberType          NumberType         @default(toll_free)
@@ -112,13 +112,13 @@ model Contractor {
 }
 
 model NotificationRecipient {
-  id           String  @id @default(cuid())
-  contractorId String
-  name         String
-  phone        String?
-  email        String?
+  id             String  @id @default(cuid())
+  organizationId String
+  name           String
+  phone          String?
+  email          String?
 
-  contractor    Contractor                 @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  organization  Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   subscriptions NotificationSubscription[]
 }
 
@@ -134,15 +134,15 @@ model NotificationSubscription {
 }
 
 model Lead {
-  id           String     @id @default(cuid())
-  contractorId String
-  contactName  String
-  contactPhone String
-  projectHint  String?
-  serviceTown  String?
-  serviceZip   String?
-  fullAddress  String?
-  source       String     @default("manual")
+  id             String     @id @default(cuid())
+  organizationId String
+  contactName    String
+  contactPhone   String
+  projectHint    String?
+  serviceTown    String?
+  serviceZip     String?
+  fullAddress    String?
+  source         String     @default("manual")
   // Idempotency key for email intake (Postmark MessageID) — a retried inbound
   // with the same id is skipped, never a duplicate lead + duplicate opening text.
   sourceMessageId String?  @unique
@@ -150,12 +150,12 @@ model Lead {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  contractor   Contractor    @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   conversation Conversation?
   appointments Appointment[]
   escalations  Escalation[]
 
-  @@index([contractorId, contactPhone])
+  @@index([organizationId, contactPhone])
 }
 
 model Conversation {
@@ -190,7 +190,7 @@ enum EscalationStatus {
 model Escalation {
   id             String           @id @default(cuid())
   leadId         String
-  contractorId   String
+  organizationId String
   conversationId String
   question       String
   answer         String?
@@ -198,10 +198,10 @@ model Escalation {
   createdAt      DateTime         @default(now())
   resolvedAt     DateTime?
 
-  lead       Lead       @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  contractor Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  lead         Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@index([contractorId, status])
+  @@index([organizationId, status])
 }
 
 enum AppointmentSyncState {
@@ -212,9 +212,9 @@ enum AppointmentSyncState {
 }
 
 model Appointment {
-  id           String            @id @default(cuid())
-  leadId       String
-  contractorId String
+  id             String            @id @default(cuid())
+  leadId         String
+  organizationId String
   // Calendar-grade interval. UTC instants stored as timestamp; 60-min default for v1.
   startAt      DateTime
   endAt        DateTime
@@ -236,21 +236,21 @@ model Appointment {
   cancelReason       String?
   createdAt          DateTime  @default(now())
 
-  lead       Lead       @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  contractor Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  lead         Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([leadId, status])
-  @@index([contractorId, startAt])
+  @@index([organizationId, startAt])
   // NOTE: Booking integrity is enforced by RAW-SQL constraints in the migration that
   // Prisma can't express: a btree_gist EXCLUDE that forbids two overlapping ACTIVE
-  // appointments per contractor, plus partial unique indexes (active start-per-contractor;
+  // appointments per organization, plus partial unique indexes (active start-per-org;
   // one active per lead). Do NOT `prisma migrate dev` against prod — it would try to drop them.
 }
 
-/// Per-contractor calendar provider connection. Empty/unused until calendar sync ships.
+/// Per-organization calendar provider connection. Empty/unused until calendar sync ships.
 model CalendarConnection {
   id                 String    @id @default(cuid())
-  contractorId       String
+  organizationId     String
   provider           String // 'google' | …
   externalCalendarId String?
   accessToken        String? // encrypted at rest once sync ships
@@ -268,7 +268,7 @@ model CalendarConnection {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  contractor Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@unique([contractorId, provider])
+  @@unique([organizationId, provider])
 }

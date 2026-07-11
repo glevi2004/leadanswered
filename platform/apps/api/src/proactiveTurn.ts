@@ -21,7 +21,7 @@ function toMessages(ctx: LeadContext): ModelMessage[] {
 }
 
 function quietFollowupSystem(ctx: LeadContext): string {
-  const c = ctx.contractor;
+  const c = ctx.organization;
   return [
     `You are ${c.sarahName}, the friendly assistant for ${c.companyName}. You represent ${c.companyName} warmly and professionally, and you text like a real person.`,
     c.personaNotes ? `Persona notes: ${c.personaNotes}` : "",
@@ -37,7 +37,7 @@ function quietFollowupSystem(ctx: LeadContext): string {
 }
 
 function escalationFollowupSystem(ctx: LeadContext): string {
-  const c = ctx.contractor;
+  const c = ctx.organization;
   return [
     `You are ${c.sarahName}, the friendly assistant for ${c.companyName}. You represent ${c.companyName} warmly and professionally, and you text like a real person.`,
     c.personaNotes ? `Persona notes: ${c.personaNotes}` : "",
@@ -74,7 +74,7 @@ export async function runProactiveTurn(
       return skip(situation, leadId, "terminal_status");
     const last = ctx.messages.at(-1);
     if (!last || last.direction !== "outbound") return skip(situation, leadId, "lead_replied");
-    // Waiting on the contractor (open escalation) → they're not "quiet", don't nudge them.
+    // Waiting on the organization (open escalation) → they're not "quiet", don't nudge them.
     if (await deps.store.findOpenEscalationByLead(leadId)) return skip(situation, leadId, "open_escalation");
     // One nudge per interaction (cleared at an interaction boundary).
     if ((ctx.conversation.gathered ?? {}).nudgedAt) return skip(situation, leadId, "already_nudged");
@@ -92,9 +92,9 @@ export async function runProactiveTurn(
         functionId: `proactive-${situation}`,
         metadata: {
           sessionId: ctx.conversation.id,
-          userId: ctx.contractor.id,
+          userId: ctx.organization.id,
           leadId,
-          contractorId: ctx.contractor.id,
+          organizationId: ctx.organization.id,
           tags: ["proactive", situation],
         },
       },

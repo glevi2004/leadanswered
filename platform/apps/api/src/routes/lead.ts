@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { createLeadAndGreet, type LeadDeps } from "../leadService.js";
-import { TEST_CONTRACTOR_ID } from "../seed.js";
+import { TEST_ORGANIZATION_ID } from "../seed.js";
 
 /** POST /lead — manual lead trigger (SCOPE §6 Phase 1, §9 stand-in). */
 export function createLeadRoute(deps: LeadDeps) {
@@ -8,7 +8,7 @@ export function createLeadRoute(deps: LeadDeps) {
     const b = req.body ?? {};
     const name = b.name;
     const phone = b.phone;
-    const contractorId = b.contractor_id ?? b.contractorId ?? TEST_CONTRACTOR_ID;
+    const organizationId = b.organization_id ?? b.organizationId ?? TEST_ORGANIZATION_ID;
     const project = b.project ?? b.projectHint;
 
     if (!name || !phone) {
@@ -18,7 +18,7 @@ export function createLeadRoute(deps: LeadDeps) {
 
     try {
       const result = await createLeadAndGreet(deps, {
-        contractorId: String(contractorId),
+        organizationId: String(organizationId),
         contactName: String(name),
         contactPhone: String(phone),
         projectHint: project ? String(project) : null,

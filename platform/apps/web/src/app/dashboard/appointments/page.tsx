@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireContractor, contractorTz } from "@/lib/dashboard-auth";
+import { requireOrganization, organizationTz } from "@/lib/dashboard-auth";
 import { listAppointments, type AppointmentRow } from "@/lib/dashboard";
 import { apptStatusBadge, formatWhen } from "@/lib/dashboard-ui";
 import { Badge } from "@/components/ui/badge";
@@ -37,9 +37,9 @@ function ApptList({ items, tz, empty, cancellable }: { items: AppointmentRow[]; 
 }
 
 export default async function AppointmentsPage() {
-  const contractor = await requireContractor();
-  const tz = contractorTz(contractor);
-  const appts = await listAppointments(contractor.id); // ascending by slot
+  const organization = await requireOrganization();
+  const tz = organizationTz(organization);
+  const appts = await listAppointments(organization.id); // ascending by slot
   const now = new Date().toISOString();
 
   const isActiveUpcoming = (a: AppointmentRow) =>

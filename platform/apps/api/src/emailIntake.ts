@@ -22,8 +22,8 @@ export interface EmailIntakeResult {
 
 /**
  * Turn a forwarded website lead-notification email into a Sarah conversation
- * (SCOPE §9): match the contractor by the `leads+{slug}@…` recipient, parse the
- * homeowner's name/phone/project, and fire the opening SMS. Never throws — a
+ * (SCOPE §9): match the organization by the `leads+{slug}@…` recipient, parse the
+ * customer's name/phone/project, and fire the opening SMS. Never throws — a
  * malformed email is logged and skipped (SCOPE §7.5), so the webhook always 200s.
  */
 export async function handleInboundEmail(
@@ -38,10 +38,10 @@ export async function handleInboundEmail(
     return { status: "skipped", reason: "no_slug" };
   }
 
-  const contractor = await deps.store.getContractorBySlug(slug);
-  if (!contractor) {
-    console.warn(`[email] unknown contractor slug "${slug}" — skipped`);
-    return { status: "skipped", reason: "unknown_contractor" };
+  const organization = await deps.store.getOrganizationBySlug(slug);
+  if (!organization) {
+    console.warn(`[email] unknown organization slug "${slug}" — skipped`);
+    return { status: "skipped", reason: "unknown_organization" };
   }
 
   const parsed = parseLeadEmail({
@@ -52,7 +52,7 @@ export async function handleInboundEmail(
     fromEmail: payload.From,
   });
   if (!parsed.contactPhone) {
-    console.warn(`[email] could not parse a phone for ${contractor.companyName} — skipped`);
+    console.warn(`[email] could not parse a phone for ${organization.companyName} — skipped`);
     return { status: "skipped", reason: "no_phone" };
   }
 
@@ -63,7 +63,7 @@ export async function handleInboundEmail(
   const key =
     payload.MessageID ??
     synthesizeEmailKey({
-      contractorId: contractor.id,
+      organizationId: organization.id,
       from: payload.From,
       subject: payload.Subject,
       phone: parsed.contactPhone,
@@ -76,7 +76,7 @@ export async function handleInboundEmail(
   let leadId: string;
   try {
     ({ leadId } = await createLeadAndGreet(deps, {
-      contractorId: contractor.id,
+      organizationId: organization.id,
       contactName: parsed.contactName ?? "there",
       contactPhone: parsed.contactPhone,
       projectHint: parsed.projectHint,
@@ -90,6 +90,6 @@ export async function handleInboundEmail(
     }
     throw e;
   }
-  console.log(`[email] new lead ${leadId} for ${contractor.companyName} from ${parsed.contactPhone}`);
+  console.log(`[email] new lead ${leadId} for ${organization.companyName} from ${parsed.contactPhone}`);
   return { status: "ok", leadId };
 }

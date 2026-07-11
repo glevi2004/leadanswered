@@ -21,7 +21,7 @@ platform/
 
 The three-deployable split (`web` / `api` / `worker`) is deliberate — see `SCOPE.md` §3.1. Do not collapse them into one app, and keep all long-running / queued / scheduled work out of `web`.
 
-> Status: **all three services are live in production** — `apps/api` (the "Sarah" tool-using agent, Vercel AI SDK, provider-agnostic) + `apps/worker` (BullMQ nudge) on Railway, `apps/web` (onboarding + admin, email+password invite-only auth) on Vercel, `packages/db` (Prisma) on Supabase. See `SCOPE.md` → "Architecture update (v3)" (three workflows: scripted intake → agent, + a contractor agent) and `AGENT_WORKFLOWS_PLAN.md` for the conversation design, and [`DEPLOY.md`](./DEPLOY.md) for the infra. Next up: the contractor dashboard (Phase 4).
+> Status: **all three services are live in production** — `apps/api` (the "Sarah" tool-using agent, Vercel AI SDK, provider-agnostic) + `apps/worker` (BullMQ nudge) on Railway, `apps/web` (onboarding + admin, email+password invite-only auth) on Vercel, `packages/db` (Prisma) on Supabase. See `SCOPE.md` → "Architecture update (v3)" (three workflows: scripted intake → agent, + a owner agent) and `AGENT_WORKFLOWS_PLAN.md` for the conversation design, and [`DEPLOY.md`](./DEPLOY.md) for the infra. Next up: the owner dashboard (Phase 4).
 
 ## Build order
 

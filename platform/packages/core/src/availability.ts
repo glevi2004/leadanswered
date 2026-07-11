@@ -8,7 +8,7 @@ import {
   zonedParts,
 } from "./timezone.js";
 
-/** Default on-site-estimate duration (minutes). Per-contractor configurable later. */
+/** Default on-site-estimate duration (minutes). Per-organization configurable later. */
 export const APPOINTMENT_DURATION_MIN = 60;
 
 /** A busy interval [startAt, endAt). Our active appointments now; external free/busy later. */
@@ -39,11 +39,11 @@ export function subtractBusy(
 
 /** An open, bookable stretch of time (a continuous free segment ≥ one appointment). */
 export interface OpenWindow {
-  /** LOCAL calendar date in the contractor's tz, YYYY-MM-DD. */
+  /** LOCAL calendar date in the organization's tz, YYYY-MM-DD. */
   date: string;
   startIso: string;
   endIso: string;
-  /** Human label Sarah can read/rephrase, e.g. "Mon, Jul 6 · 6:00-11:00 AM" (in the contractor's tz). */
+  /** Human label Sarah can read/rephrase, e.g. "Mon, Jul 6 · 6:00-11:00 AM" (in the organization's tz). */
   label: string;
 }
 
@@ -97,7 +97,7 @@ function subtractIntervals(start: number, end: number, busy: TimeRange[]): Array
 }
 
 /**
- * The open, bookable windows in [fromIso, toIso): the contractor's standing weekly windows (LOCAL
+ * The open, bookable windows in [fromIso, toIso): the organization's standing weekly windows (LOCAL
  * wall-clock hours in `timezone`), intersected with the query range + optional day/part-of-day filter,
  * MINUS busy time, keeping only segments long enough to hold a full appointment. Windows are converted
  * to UTC instants per calendar date via luxon (DST-correct). This is what Sarah reads to describe
@@ -186,8 +186,8 @@ export function isWithinStandingWindow(
   );
 }
 
-/** Is `now` inside the contractor's standing weekly availability (their "business hours")? An
- *  unconfigured contractor (no windows) is treated as always-open so we never block a send. */
+/** Is `now` inside the organization's standing weekly availability (their "business hours")? An
+ *  unconfigured organization (no windows) is treated as always-open so we never block a send. */
 export function isWithinBusinessHours(
   sa: { timezone?: string; windows?: AvailabilityWindow[] } | undefined,
   now: Date,
@@ -214,7 +214,7 @@ export function formatWeeklyAvailability(standingWindows: AvailabilityWindow[]):
     .join(", ");
 }
 
-// --- small formatters (rendered in the contractor's timezone) ---
+// --- small formatters (rendered in the organization's timezone) ---
 function formatDayLabel(dt: Date, timezone: string): string {
   return new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: safeZone(timezone) }).format(dt);
 }
@@ -229,7 +229,7 @@ function clockShort(hhmm: string): string {
   return m ? `${h12}:${String(m).padStart(2, "0")}${period}` : `${h12}${period}`;
 }
 
-/** Full slot label for SMS/notifications, e.g. "Monday, July 6 at 8:00 AM" in the contractor's tz. */
+/** Full slot label for SMS/notifications, e.g. "Monday, July 6 at 8:00 AM" in the organization's tz. */
 export function formatSlot(dt: Date | string, timezone: string = DEFAULT_TIMEZONE): string {
   const d = typeof dt === "string" ? new Date(dt) : dt;
   if (Number.isNaN(d.getTime())) return typeof dt === "string" ? dt : "";

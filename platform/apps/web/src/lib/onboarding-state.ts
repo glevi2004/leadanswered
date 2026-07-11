@@ -1,7 +1,7 @@
 /**
- * Shared client state for the contractor config — used by BOTH the onboarding
+ * Shared client state for the organization config — used by BOTH the onboarding
  * wizard (one section per step) and the settings page (all sections at once).
- * `buildConfig` turns this state into the `contractorConfigSchema` shape that
+ * `buildConfig` turns this state into the `organizationConfigSchema` shape that
  * `saveOnboardingAction` persists, so the two surfaces save identically.
  */
 
@@ -104,8 +104,8 @@ export type OnboardingState = {
   recipients: RecipientRow[];
 };
 
-/** Map a contractor DB row (supabase-js result) into the wizard/settings seed shape. */
-export function initialFromContractor(c: Record<string, any>): OnboardingInitial {
+/** Map a organization DB row (supabase-js result) into the wizard/settings seed shape. */
+export function initialFromOrganization(c: Record<string, any>): OnboardingInitial {
   return {
     companyName: c.companyName,
     sarahName: c.sarahName,
@@ -155,7 +155,7 @@ export function stateFromInitial(initial: OnboardingInitial): OnboardingState {
   };
 }
 
-/** Assemble the contractorConfig payload from the working state. */
+/** Assemble the organizationConfig payload from the working state. */
 export function buildConfig(s: OnboardingState) {
   return {
     companyName: s.company,

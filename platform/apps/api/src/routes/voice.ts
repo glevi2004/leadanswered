@@ -4,7 +4,7 @@ import { handleMissedCall, type TwilioVoiceInbound } from "../voiceIntake.js";
 import type { LeadDeps } from "../leadService.js";
 
 /**
- * POST /webhooks/twilio/voice — a contractor's *unanswered* call, conditional-forwarded
+ * POST /webhooks/twilio/voice — a organization's *unanswered* call, conditional-forwarded
  * to their Twilio number (SCOPE §9.7). The miss already happened at the carrier, so we
  * text the caller (inside handleMissedCall, via the Twilio REST API) and answer this leg
  * with a short spoken line + hangup. Always returns 200 with valid TwiML so a transient
@@ -14,17 +14,17 @@ export function createVoiceRoute(deps: LeadDeps) {
   return async function postVoice(req: Request, res: Response): Promise<void> {
     const body = (req.body ?? {}) as TwilioVoiceInbound;
 
-    // Personalize the spoken line if we can resolve the contractor; default gracefully.
+    // Personalize the spoken line if we can resolve the organization; default gracefully.
     let sarahName = "Sarah";
     let companyName = "the team";
     try {
-      const contractor = await deps.store.getContractorByTwilioNumber(String(body.To ?? "").trim());
-      if (contractor) {
-        sarahName = contractor.sarahName || sarahName;
-        companyName = contractor.companyName || companyName;
+      const organization = await deps.store.getOrganizationByTwilioNumber(String(body.To ?? "").trim());
+      if (organization) {
+        sarahName = organization.sarahName || sarahName;
+        companyName = organization.companyName || companyName;
       }
     } catch (err) {
-      console.error("[voice] contractor lookup for greeting failed (non-fatal):", err);
+      console.error("[voice] organization lookup for greeting failed (non-fatal):", err);
     }
 
     try {

@@ -3,14 +3,14 @@
 ```
 Website/email lead ─▶ [sequential intake] ─▶ [agent]
 Missed-call lead   ─▶ [sequential intake] ─▶ [agent]
-Contractor         ─▶ [agent] (always)
+Organization         ─▶ [agent] (always)
 ```
 
 **Mechanism (intake phase) — a fixed script, NOT an open agent.** Each intake step SENDS A SPECIFIC,
 PRE-WRITTEN MESSAGE (the locked copy in each workflow below). Code just fills the variables — `{name}`,
 `{project}`, `{address}`, `{day}`, `{time}`, `{window}` … — from what's been captured. **On the happy
 path the model does NOT write these messages** — it reads each reply, pulls the value it carries (the
-address, their name, the homeowner yes/no, the day/time), code records it and sends the next locked
+address, their name, the customer yes/no, the day/time), code records it and sends the next locked
 message. Because code owns the order, it never re-asks something already answered. **When a reply is
 *unexpected*, the model adapts and writes** (see "Every intake turn" below). When the script ends (booked / handed off / declined) →
 the conversation's `state` flips to `agent`, and only from then on does the model write freely. The
@@ -29,7 +29,7 @@ happens. It **never blindly fires the next message.** Each turn:
 2. **They answered AND volunteered more** (gave the address *and* "yeah it's my house") → record both →
    **skip** the step we already know → jump to the next *unanswered* one. It never re-asks what it has.
 3. **Off-script** — a question ("how much?", "can you come today?"), a comment, or info out of order →
-   the agent **handles it in its own words** (answers, or `escalate_to_contractor` for price / anything
+   the agent **handles it in its own words** (answers, or `escalate_to_organization` for price / anything
    only the owner can answer), then returns to the pending step. *(Here the model writes — it's not a
    locked message.)*
 4. **They pull back** ("I filled it but went with someone else", "nvm, I sorted it") → the model detects
@@ -68,12 +68,12 @@ What's the property address so I can get someone out to take a look? (street, ci
 Fallbacks: no name on the form → open with **"Hi there!"** and ask their name as its own step first.
 No project → drop "about your {project}" → *"Thanks for reaching out. I'm here to help get it taken care of."*
 
-**1 — Homeowner** — after they send the address. Records `qualify_lead{isDecisionMaker}`:
+**1 — Customer** — after they send the address. Records `qualify_lead{isDecisionMaker}`:
 ```
-Got it, thanks {name}! And are you the homeowner (or the person who'd approve the work)?
+Got it, thanks {name}! And are you the decision-maker (the person who'd approve the work)?
 ```
 
-**2 — Offer windows** — after homeowner = yes AND `qualify()` passes. `check_availability` (general):
+**2 — Offer windows** — after customer = yes AND `qualify()` passes. `check_availability` (general):
 ```
 Perfect! Here's when we could get someone out:
 • {window 1}
@@ -95,11 +95,11 @@ Which works best?
 You're all set for {weekday, month day} at {time}, {name}! We'll see you then. Anything else I can help with?
 ```
 
-### Branch A — not the homeowner (they answer #1 with "no / I rent")
+### Branch A — not the decision-maker (they answer #1 with "no / I rent")
 
 **A1 — ask for the owner's contact:**
 ```
-No problem! Could you share the homeowner's name and best phone number? I'll reach out to them directly to get it set up.
+No problem! Could you share the decision-maker's name and best phone number? I'll reach out to them directly to get it set up.
 ```
 
 **A2 — handoff close to the original contact** (once they give it; ends this thread):
@@ -107,14 +107,14 @@ No problem! Could you share the homeowner's name and best phone number? I'll rea
 Perfect, thank you! I'll reach out to {owner name} directly to get things going. Appreciate you passing it along!
 ```
 
-**A3 — Sarah reaches out to the homeowner** — a NEW lead for the owner. Two blocks, blank line:
+**A3 — Sarah reaches out to the customer** — a NEW lead for the owner. Two blocks, blank line:
 ```
 Hi {owner}! It's {assistant} with {company}. {referrer} reached out about {project} at {address} and passed along your number so I could get in touch. I'm here to help get it taken care of.
 
 Would you like me to get someone out to take a look?
 ```
 The owner's lead already has {project} + {address}, so on "yes" it skips straight to windows → times →
-booking. If the owner isn't the right person either → escalate to the contractor.
+booking. If the owner isn't the right person either → escalate to the organization.
 
 ### Branch B — out of service area (`qualify()` = out of area; confirm BEFORE declining, to catch typos)
 
@@ -143,7 +143,7 @@ non-linear rest — reschedule, questions, re-book, etc.).
 Once intake completes, hand to the open agent (today's engine) for the **non-linear** rest only:
 reschedule, cancel, answer/relay questions, re-book, "can you also look at…". Tools:
 `check_availability`, `book_appointment`, `reschedule_appointment`, `cancel_appointment`,
-`escalate_to_contractor`. Its prompt drops all the qualification driving — intake did that.
+`escalate_to_organization`. Its prompt drops all the qualification driving — intake did that.
 
 ---
 
@@ -151,7 +151,7 @@ reschedule, cancel, answer/relay questions, re-book, "can you also look at…". 
 
 **Event:** an unanswered call forwarded to Twilio. We know **nothing** but the phone number. Same
 mechanism (scripted messages, model only reads replies), same LOCKED copy. Only the FRONT differs;
-from the homeowner step on it's identical to Workflow 1.
+from the customer step on it's identical to Workflow 1.
 
 ### Front of the flow (missed-call specific)
 
@@ -167,42 +167,42 @@ New job → ask name + address in one message. Records `qualify_lead{name, fullA
 Happy to help get that taken care of! What's your name and property address? (street, city, and ZIP)
 ```
 
-NOT a new job (existing customer, a question, wrong number) → `escalate_to_contractor`, END intake:
+NOT a new job (existing customer, a question, wrong number) → `escalate_to_organization`, END intake:
 ```
 Got it! I'll let the team know and get right back to you!
 ```
 
 ### From here on — IDENTICAL to Workflow 1
 
-After the name+address reply: **Homeowner** (msg 1) → `qualify()` → **Windows** (2) → **Times** (3) →
-**Booking** (4), plus the same **Branch A** (not the homeowner) and **Branch B** (out of area, confirm
+After the name+address reply: **Customer** (msg 1) → `qualify()` → **Windows** (2) → **Times** (3) →
+**Booking** (4), plus the same **Branch A** (not the decision-maker) and **Branch B** (out of area, confirm
 then decline). Then → `phase = agent`.
 
 ---
 
 ## Escalation handoff (shared — the missed-call "not a job" branch, and any agent-phase escalate)
 
-Whenever Sarah escalates (`escalate_to_contractor`), the handoff runs and is **never a dead end**:
+Whenever Sarah escalates (`escalate_to_organization`), the handoff runs and is **never a dead end**:
 
-1. **Escalate** — the contractor is texted the lead's context/question ("…reply to answer them"), and
+1. **Escalate** — the organization is texted the lead's context/question ("…reply to answer them"), and
    the lead is told Sarah will get back to them (e.g. *"Got it! I'll let the team know and get right
    back to you!"*). The lead conversation flips to `phase = agent`.
-2. **Contractor answers** — replies to that text (handled in Workflow 3).
+2. **Owner answers** — replies to that text (handled in Workflow 3).
 3. **Agent relays it** — Sarah messages the lead back **in her own words** (agent-composed, using the
    lead's name + context), NOT the old rigid *"Quick update from {company}: …"* template.
 4. **Agent continues** — whatever the lead says next is handled by the open lead agent.
 
-Chain: **escalate → contractor answers → agent relays naturally → agent continues.** (The relay is a
+Chain: **escalate → organization answers → agent relays naturally → agent continues.** (The relay is a
 rigid template only in today's code because there was no agent phase; now there is.)
 
 ---
 
-## WORKFLOW 3 — Contractor  (always agent)
+## WORKFLOW 3 — Owner  (always agent)
 
-**Event:** a contractor texts the assistant. **No intake — agent from message one.** The "employee."
+**Event:** a owner texts the assistant. **No intake — agent from message one.** The "employee."
 
 **Tools:**
-- `find_leads({ name })` → the contractor's matching leads `[{ leadId, name, project, area, status }]`.
+- `find_leads({ name })` → the organization's matching leads `[{ leadId, name, project, area, status }]`.
 - `send_message_to_lead({ leadId, message })` → delivers `message` to that lead + drops it into their
   thread (the note is agent-composed, in Sarah's own words).
 - (later: `get_lead_status({ leadId })`, book/reschedule on behalf.)
@@ -217,7 +217,7 @@ back) and sends **nothing**; delivery only happens on a second call, and **code*
 draft exists AND the owner's latest reply reads as a yes before it fires. The model literally cannot
 message a customer without a real confirmation — it is not left to the prompt.
 
-**Contractor-facing messages** (functional, so fairly fixed):
+**Organization-facing messages** (functional, so fairly fixed):
 
 - Multiple matches:
 ```
@@ -242,7 +242,7 @@ Done! Sent to {name} ✅
 Hmm, I couldn't find a lead named {name}. Want to double-check the spelling?
 ```
 
-**Escalation-reply relay lives here:** when the contractor replies to an escalation text, this agent
+**Escalation-reply relay lives here:** when the owner replies to an escalation text, this agent
 recognizes it's answering the flagged question, composes the update to the lead **in her own words**,
 and sends it (step 3 of the Escalation handoff above).
 
@@ -254,7 +254,7 @@ proactive layer (unchanged).
 ## Routing (replaces one-size `handleInbound`)
 ```
 inbound →
-  sender is a contractor?         → Contractor agent
+  sender is a organization?         → Owner agent
   else (a lead):
     conversation.state == intake  → Intake engine (step-list chosen by `source`)
     conversation.state == agent   → Lead agent
@@ -276,19 +276,19 @@ cursor to keep in sync.
   adaptive one for off-script). When the last step completes → set `conversation.state = "agent"`.
 - **`intake/steps.website.ts`** / **`intake/steps.missedCall.ts`** — the ordered steps; each is
   `{ id, needs, message(vars), extracts, branches }`. The **LOCKED copy lives here, verbatim.**
-  Missed-call reuses the website steps from `homeowner` onward.
+  Missed-call reuses the website steps from `customer` onward.
 - **`intake/extract.ts`** — the focused reply reader: one `generateObject` call that, given the reply
   (+ any image) and the current step, returns captured fields + a flag
   (`answered | volunteered_more | off_script(+question) | withdrew`). This drives the branch.
-- **`agent/contractorTools.ts`** — `find_leads`, `send_message_to_lead`.
-- **`agent/contractorAgent.ts`** — the owner-facing tool loop; also composes the **escalation-reply
+- **`agent/organizationTools.ts`** — `find_leads`, `send_message_to_lead`.
+- **`agent/organizationAgent.ts`** — the owner-facing tool loop; also composes the **escalation-reply
   relay** to the lead.
 
 ### Changed files
-- **`conversationService.ts`** — `handleInbound` becomes the **ROUTER**: contractor sender → contractor
+- **`conversationService.ts`** — `handleInbound` becomes the **ROUTER**: owner sender → organization
   agent; lead + `phase != "agent"` → intake engine; lead + `phase == "agent"` → lead agent
   (`generateAgentReply`). Keep the conversation lock, idempotency, interaction-gap re-arm, nudge enqueue.
-  **Delete the templated relay** in `maybeRelayContractorReply` — relay moves into the contractor agent.
+  **Delete the templated relay** in `maybeRelayOrganizationReply` — relay moves into the owner agent.
 - **`leadService.ts`** — `createLeadAndGreet` / `reengageLead`: create/re-engage the lead, set
   `phase=intake`, call the **intake engine** to fire step 0. **Delete `runOpeningTurn` + `openingTrigger`**
   (opening = step 0's locked copy). A returning **booked** lead re-engages straight into `phase=agent`.
@@ -297,12 +297,12 @@ cursor to keep in sync.
   check_availability, book_appointment, escalate}`; lead-agent = `{check_availability, book, reschedule,
   cancel, escalate}`.
 - **`agent/ownerHandoff.ts`** — `handOffOwnerIfReady` **changes behavior**: instead of only pinging the
-  contractor, it **creates a new lead for the homeowner** + sends the outreach (Branch A3), which then
-  runs a short intake (project+address already known). Contractor still gets a heads-up.
+  organization, it **creates a new lead for the customer** + sends the outreach (Branch A3), which then
+  runs a short intake (project+address already known). Organization still gets a heads-up.
 - **`agent/runner.ts`** — `generateAgentReply` = the **lead AGENT phase** (post-intake); its prompt is
   trimmed of qualification-driving.
 - **`packages/core/src/prompt.ts`** — split the one mega-prompt into: **(a)** extractor prompt (read the
-  reply), **(b)** lead-agent prompt (non-linear), **(c)** contractor-agent prompt. `openingTrigger`
+  reply), **(b)** lead-agent prompt (non-linear), **(c)** organization-agent prompt. `openingTrigger`
   guidance is gone (now locked step 0).
 - **`packages/db/prisma/schema.prisma`** — redesign the `ConversationState` enum to
   `intake | agent | done` (one clean migration; empty DB). No `phase` field on `GatheredInfo` — the
@@ -312,7 +312,7 @@ cursor to keep in sync.
 - **`media.ts`** — the intake extractor also accepts inbound images (a photo of the damage mid-intake).
 
 ### Deleted
-- **`contractorCommands.ts`** + **`contractorCommands.test.ts`** — replaced by the contractor agent
+- **`organizationCommands.ts`** + **`organizationCommands.test.ts`** — replaced by the owner agent
   (keep `findLeadsByName`).
 
 ### Migration: **one clean migration** — redesign the `ConversationState` enum to `intake | agent | done`.
@@ -328,7 +328,7 @@ I read all ~30 test files line-by-line. Result: **fewer full rewrites than I fir
 I had mis-categorized.** Verified buckets:
 
 ### DELETE (1)
-- `contractorCommands.test.ts` — state machine gone (its coverage becomes the contractor-agent test).
+- `organizationCommands.test.ts` — state machine gone (its coverage becomes the organization-agent test).
 
 ### KEEP — verified independent of the refactor (14 files: 5 api + 9 core)
 - api: `integrity.test.ts`, `store/integrity.integration.test.ts`, `jobs/nudge.test.ts`,
@@ -346,53 +346,53 @@ I had mis-categorized.** Verified buckets:
   survive; the lead is still created `contactName:"Caller"` (name is captured *later* in intake), so that
   assertion stays; only the opening SMS text + start `state` change.
 - `agent/tools.test.ts` (7) — every tool gate survives (qualify / availability / book / reschedule /
-  cancel). **ADD**: `qualify_lead` writes `name`→`contactName`. **CHANGE**: the not-homeowner test —
-  `handOffOwnerIfReady` now **creates a homeowner lead + texts them** (not just a contractor ping).
+  cancel). **ADD**: `qualify_lead` writes `name`→`contactName`. **CHANGE**: the not-customer test —
+  `handOffOwnerIfReady` now **creates a customer lead + texts them** (not just a organization ping).
 
 ### SPLIT / REWRITE (the genuine flow tests)
 - **`conversationService.test.ts`** (10) → split, assertions redistributed so none are lost:
   - **`router.test.ts`** ← idempotent duplicate skipped; AI-error fails safe (no SMS); cold-inbound
-    (default skip / `allowColdInbound` starts a lead); contractor-sender routing.
+    (default skip / `allowColdInbound` starts a lead); organization-sender routing.
   - **intake-engine / lead-agent tests** ← end-to-end qualify→offer→book + owner notify; disqualify
     out-of-area; price question → no quote + no book; post-booking reschedule keeps `booked`.
-  - **contractor-agent test** ← the escalation loop + relay (now agent-composed, not the template).
+  - **organization-agent test** ← the escalation loop + relay (now agent-composed, not the template).
 - **`leadService.test.ts`** (2) → creates the lead + **starts intake** (fires step 0), `state=intake`;
-  the (contractor,phone) dedup + re-engage assertions stay.
+  the (organization,phone) dedup + re-engage assertions stay.
 - **`prompt.test.ts`** (6 / 23 assertions) → 3 suites: **lead-agent prompt** gets the tool + guardrail
   assertions (never-quote, geo-privacy, escalation topics, hasBooking→reschedule/cancel, disqualified
   handling); the **website-vs-missed-call OPENING** assertions move to **intake-step tests** (they verify
-  locked copy now, not a prompt); + new **extractor** + **contractor** prompt tests.
+  locked copy now, not a prompt); + new **extractor** + **organization** prompt tests.
 
 ### NEW unit tests
 - **`intake/engine.test.ts`** — the 4 branches (scripted extractor): answered → next locked message;
   volunteered-more → skips ahead; off-script → adapt/escalate then re-ask; withdrawal → warm close. Plus
   **name capture writes `contactName`**.
 - **`intake/steps.website.test.ts`** — happy path fires the exact **LOCKED copy** in order; Branch A
-  (not-homeowner → homeowner lead created + outreach); Branch B (out-of-area confirm → decline; corrected
+  (not-customer → customer lead created + outreach); Branch B (out-of-area confirm → decline; corrected
   address → re-qualify → continue).
 - **`intake/steps.missedCall.test.ts`** — opening → name+address **vs** escalate branch → merges to the
-  website steps from `homeowner` on.
-- **`agent/contractorAgent.test.ts`** — find_leads + disambiguation; **hard-gate send** (no delivery
+  website steps from `customer` on.
+- **`agent/organizationAgent.test.ts`** — find_leads + disambiguation; **hard-gate send** (no delivery
   without a pending draft + affirmative reply); escalation-reply relay is agent-composed.
 - **`agent/leadAgent.test.ts`** — post-intake: reschedule / cancel / answer-via-escalate / re-book.
 
 ### E2E — keep the machinery, restructure the scenarios (audited)
-- **`judge.ts` + `fixtures.ts`** (Sonnet judge + 4 timezone contractors) → **reuse as-is.**
+- **`judge.ts` + `fixtures.ts`** (Sonnet judge + 4 timezone organizations) → **reuse as-is.**
 - **`harness.ts`** → change ONLY the init — replace `createLeadAndGreet` with a channel-specific start
-  into the new router/intake engine. Keep the whole surface (`say`, `sayRaw`, `contractorReply`,
-  `status`, `appointments`, `escalations`, `offeredSlots`, `ownerSms`, `homeownerSms`).
+  into the new router/intake engine. Keep the whole surface (`say`, `sayRaw`, `organizationReply`,
+  `status`, `appointments`, `escalations`, `offeredSlots`, `ownerSms`, `customerSms`).
 - **Key insight:** the old e2e used the LLM judge for guardrails (one-question, warm tone, no em-dashes,
   geo-privacy) against the OPEN agent. In intake those are **guaranteed by the locked copy** → intake
   e2e asserts the scripted flow **deterministically** (exact messages + booking + branches), and the
   **judge-based guardrails move to the AGENT-PHASE e2e** (price / escalation / tone in open conversation).
 - New per-workflow e2e (covering all 18 old scenarios' intent): `website`, `missedcall`, `handoff`,
-  `outofarea`, `contractor`, `agentphase`. **10 guardrails to preserve** (from the audit): timezone-
+  `outofarea`, `organization`, `agentphase`. **10 guardrails to preserve** (from the audit): timezone-
   correct booking, address-before-book, no price quote, escalation discipline, geo-privacy, one-question /
   warm / no-em-dash, no fake confirmation, notification dispatch, idempotency, reschedule/cancel/reopen.
 
 ### Code notes the audit surfaced (must-do; already in Code changes)
 - `createLeadWithConversation` must default `state` to a valid new value (`intake`), not `"greeting"`.
-- `qualify_lead` name→`contactName`; `handOffOwnerIfReady` creates+texts the homeowner; escalation relay
+- `qualify_lead` name→`contactName`; `handOffOwnerIfReady` creates+texts the customer; escalation relay
   becomes agent-composed. The tests above verify each.
 
 ---
@@ -401,12 +401,12 @@ I had mis-categorized.** Verified buckets:
 
 - **`SCOPE.md`**
   - **§Architecture v2** (top) — "Sarah is a tool-using agent" → **three workflows** (two scripted-intake
-    → agent, one contractor agent). Fix the tools list (`check_availability`, + contractor tools).
+    → agent, one owner agent). Fix the tools list (`check_availability`, + organization tools).
   - **§5 "The Sarah conversation engine" + "Her job, in order"** — rewrite to intake-script → agent.
   - **§5 "Entry point matters… channel-aware prompting, *not* a separate agent"** — now WRONG: they ARE
     separate workflows. Rewrite.
-  - **§5.1 Decision-maker → homeowner hand-off** — now Sarah **texts the homeowner directly** (new lead),
-    not just pings the contractor. Update.
+  - **§5.1 Decision-maker → customer hand-off** — now Sarah **texts the customer directly** (new lead),
+    not just pings the organization. Update.
   - **§5.1 missed-call note + §9.7** ("intent-agnostic opening / channel-aware prompting") — replace with
     the missed-call workflow (its own steps + intent branch).
   - **§5.3 Proactive layer** — verify wording (nudge/escalation now fire during the agent phase, still
@@ -416,7 +416,7 @@ I had mis-categorized.** Verified buckets:
   - **§8 Escalation** — the relay is now **agent-composed** (not the `Quick update from…` template); §8.3.
   - **§13 Missed-call** — update to the workflow.
   - **ADD**: intake tests (website steps, missed-call steps, off-script adaptation, **name shows on the
-    dashboard**, owner-handoff outreach to the homeowner).
+    dashboard**, owner-handoff outreach to the customer).
 - **`README.md`** — update the high-level "how Sarah works" description.
 - **`DEPLOY.md` / `EMAIL.md`** — no change expected (deploy + email design unaffected); double-check
   DEPLOY's worker section still reads accurately.
@@ -424,9 +424,9 @@ I had mis-categorized.** Verified buckets:
 ## Sequencing
 1. **Website workflow** end-to-end (name fix → intake engine + 4-branch logic → website steps → agent
    handoff → doc updates for §5/§6).
-2. **Missed-call workflow** (opening → name+address / escalate branch → reuse from homeowner).
-3. **Contractor agent** (find_leads + send_message_to_lead + escalation relay) → delete
-   `contractorCommands.ts`.
+2. **Missed-call workflow** (opening → name+address / escalate branch → reuse from customer).
+3. **Owner agent** (find_leads + send_message_to_lead + escalation relay) → delete
+   `organizationCommands.ts`.
 
 ## Decisions (chosen for the stronger foundation)
 1. **Phase = a real `Conversation.state` column** (redesign the enum to `intake | agent | done`). One

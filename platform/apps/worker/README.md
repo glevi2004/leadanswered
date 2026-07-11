@@ -12,7 +12,7 @@ Future: escalation retries, appointment reminders, and the outbound growth engin
 
 The worker is a thin runner: `src/index.ts` loads env and calls `runWorker()` exported by `@leadanswered/api/worker`. That reuses the **same** Store, SMS senders, and job logic as the api, so behaviour matches the in-process tests exactly — no duplication.
 
-> Note: the **escalation relay** (contractor texts back → homeowner gets the answer) is handled synchronously in the `api` webhook, not here — it's event-driven, not timer-driven. The worker is only for genuinely delayed/scheduled work.
+> Note: the **escalation relay** (owner texts back → customer gets the answer) is handled synchronously in the `api` webhook, not here — it's event-driven, not timer-driven. The worker is only for genuinely delayed/scheduled work.
 
 ## Run it
 

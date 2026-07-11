@@ -1,4 +1,4 @@
-import type { AccountStatus } from "@/lib/contractors";
+import type { AccountStatus } from "@/lib/organizations";
 
 export type Variant = "default" | "secondary" | "destructive" | "outline";
 

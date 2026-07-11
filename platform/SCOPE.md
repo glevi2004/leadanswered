@@ -2,9 +2,9 @@
 
 ## Document purpose
 
-This is the build spec for **Lead Answered**, an AI SMS lead-response service for home-service contractors (initial vertical: roofers). It is written to be handed to Claude Code as the source of truth for development. Build in the phases described; do not build ahead of the current phase.
+This is the build spec for **Lead Answered**, an AI SMS lead-response service for service businesses (vertical-neutral by design). It is written to be handed to Claude Code as the source of truth for development. Build in the phases described; do not build ahead of the current phase.
 
-> **Status (current).** All three services are **deployed**: `apps/api` + `apps/worker` + Redis on **Railway**, `apps/web` on **Vercel** (`app.leadanswered.com`), Postgres on **Supabase** — see [`DEPLOY.md`](./DEPLOY.md). Auth is **email + password, invite-only** (Supabase Auth — *not* magic-link). Phases 1–3 (Sarah agent → email-parse intake → onboarding + admin) are live; the contractor **dashboard (Phase 4) is next.** Where sections below describe magic-link auth, a "Railway *or* Render" choice, or "run locally via ngrok" as the only path, this banner + `DEPLOY.md` are current.
+> **Status (current).** All three services are **deployed**: `apps/api` + `apps/worker` + Redis on **Railway**, `apps/web` on **Vercel** (`app.leadanswered.com`), Postgres on **Supabase** — see [`DEPLOY.md`](./DEPLOY.md). Auth is **email + password, invite-only** (Supabase Auth — *not* magic-link). Phases 1–3 (Sarah agent → email-parse intake → onboarding + admin) are live; the organization **dashboard (Phase 4) is next.** Where sections below describe magic-link auth, a "Railway *or* Render" choice, or "run locally via ngrok" as the only path, this banner + `DEPLOY.md` are current.
 
 ---
 
@@ -13,12 +13,12 @@ This is the build spec for **Lead Answered**, an AI SMS lead-response service fo
 The conversation engine was rebuilt from the original procedural state machine (extract → hardcoded directive ladder → reply) into a **provider-agnostic, tool-using agent**. This note overrides the older procedural descriptions where they conflict; the principles below still hold.
 
 - **Agent, not a procedure.** Each turn, the model reasons and **chooses tools**; it does not follow a fixed code-driven sequence. Built on the **Vercel AI SDK** (`generateText` + `tool()` + `stopWhen`), so the provider is swappable in one line (`apps/api/src/agent/provider.ts` — defaults to Claude/Haiku; OpenAI is swap-ready, not yet installed). The old two-pass extraction + `buildDirective` ladder + `decideTurn` are retired.
-- **"AI extracts, CODE decides" → "AI orchestrates, TOOLS decide."** Every business decision still lives in deterministic code — now inside the **tools** (`apps/api/src/agent/tools.ts`): `qualify_lead`, `get_availability`, `book_appointment`, `reschedule_appointment`, `cancel_appointment`, `escalate_to_contractor`. Each wraps the same pure `packages/core` functions; the **tool result is authoritative**, and the model may never assert a fact (coverage, an available time, "you're booked") a tool didn't return.
-- **New capabilities:** open-ended availability ("do you have next week?"), **reschedule / cancel**, post-booking conversations, **escalation to the contractor** (loop in the owner; the owner texts back and the answer is relayed to the homeowner), and a **quiet-lead nudge**.
+- **"AI extracts, CODE decides" → "AI orchestrates, TOOLS decide."** Every business decision still lives in deterministic code — now inside the **tools** (`apps/api/src/agent/tools.ts`): `qualify_lead`, `get_availability`, `book_appointment`, `reschedule_appointment`, `cancel_appointment`, `escalate_to_organization`. Each wraps the same pure `packages/core` functions; the **tool result is authoritative**, and the model may never assert a fact (coverage, an available time, "you're booked") a tool didn't return.
+- **New capabilities:** open-ended availability ("do you have next week?"), **reschedule / cancel**, post-booking conversations, **escalation to the organization** (loop in the owner; the owner texts back and the answer is relayed to the customer), and a **quiet-lead nudge**.
 - **Worker pulled forward.** The `apps/worker` deployable (BullMQ/Redis) now exists for delayed/async work (the nudge today). The escalation relay is webhook-driven (no worker needed). Notification senders + the Store are reused across api and worker.
 - **Observability:** Langfuse tracing (OpenTelemetry) on every agent turn + tool call (no-op unless `LANGFUSE_*` set).
 
-## ⚙️ Architecture update (v3) — three workflows: scripted intake → agent, + a contractor agent
+## ⚙️ Architecture update (v3) — three workflows: scripted intake → agent, + a owner agent
 
 The single open agent (v2) was split into **three explicit workflows** (authoritative spec + the locked
 message copy: `AGENT_WORKFLOWS_PLAN.md`). This overrides §5's single-engine description where they conflict.
@@ -28,9 +28,9 @@ message copy: `AGENT_WORKFLOWS_PLAN.md`). This overrides §5's single-engine des
   pre-written messages** (`apps/api/src/intake/engine.ts`); the model's ONLY intake job is to READ each
   reply (a structured extractor) and pull values — so it can never double-ask. Deterministic decisions
   reuse the tools (`qualify_lead` — now also captures the **name** → `lead.contactName`, fixing
-  "Caller"/"New lead" — `check_availability`, `book_appointment`, `escalate_to_contractor`).
-  - **Website/email:** opening asks the address → homeowner → windows → times → booking. Branch A (not
-    the homeowner → reach out to the homeowner as a NEW lead). Branch B (out of area → confirm the
+  "Caller"/"New lead" — `check_availability`, `book_appointment`, `escalate_to_organization`).
+  - **Website/email:** opening asks the address → customer → windows → times → booking. Branch A (not
+    the customer → reach out to the customer as a NEW lead). Branch B (out of area → confirm the
     address first, then decline).
   - **Missed call:** intent-agnostic opening ("how can we help?") → a new job asks name+address, anything
     else escalates → then reuses the website steps.
@@ -38,11 +38,11 @@ message copy: `AGENT_WORKFLOWS_PLAN.md`). This overrides §5's single-engine des
     given out of order; the engine answers/escalates or closes, then returns to the pending step.
 - **When intake ends (booked / handed off / declined) the conversation flips to `agent`** and the open
   tool-using agent (v2, `agent/runner.ts`) writes freely — reschedule, cancel, post-booking Qs, escalation.
-- **The contractor is ALWAYS an agent** (`agent/contractorAgent.ts`) — the owner directs the assistant
+- **The organization is ALWAYS an agent** (`agent/organizationAgent.ts`) — the owner directs the assistant
   ("text Levi we can start Monday") via `find_leads` + a **HARD-GATE send** (a draft is staged; **code**
   sends it only after the owner's explicit yes — the model can't message a customer on its own). The
   escalation-answer relay is now **composed by this agent in Sarah's own words**, not a rigid template.
-- **Routing:** `handleInbound` is a router — contractor sender → contractor agent; lead + `state=intake`
+- **Routing:** `handleInbound` is a router — owner sender → owner agent; lead + `state=intake`
   → intake engine; lead + `state=agent` → lead agent.
 
 ---
@@ -52,9 +52,9 @@ message copy: `AGENT_WORKFLOWS_PLAN.md`). This overrides §5's single-engine des
 Booking is a reservation system, so correctness is guaranteed by the **database**, not by app
 code that a race or a retry could slip past. These invariants hold under concurrent webhooks:
 
-1. **No double-booking.** At most one *active* (`proposed`/`confirmed`) appointment per contractor
+1. **No double-booking.** At most one *active* (`proposed`/`confirmed`) appointment per organization
    may occupy any time interval — enforced by a Postgres `btree_gist` **EXCLUDE** constraint on
-   `(contractorId, tsrange(startAt,endAt))` (+ a partial-unique on exact start). Two racing inserts:
+   `(organizationId, tsrange(startAt,endAt))` (+ a partial-unique on exact start). Two racing inserts:
    one commits, the other fails cleanly as `slot_taken`.
 2. **One active appointment per lead** — partial unique index; reschedule/cancel are therefore
    unambiguous.
@@ -77,7 +77,7 @@ These are tested by a **real-Postgres Tier-B suite** (the in-memory store cannot
 The agent reads + writes availability through a **`CalendarProvider` port** (Ports & Adapters) — the
 single contract the tools call: `getAvailability(range/day/part) → open windows`, `book`, `reschedule`,
 `cancel`, `getBusy`. Today the only adapter is **`InternalCalendarProvider`** (`apps/api/src/calendar/`):
-availability = the contractor's standing weekly **windows** (`{dayOfWeek, start, end}`) MINUS
+availability = the organization's standing weekly **windows** (`{dayOfWeek, start, end}`) MINUS
 `getBusyTimes` (our active appointments), computed by the pure `computeOpenWindows`
 (`packages/core/availability.ts`); booking delegates to the `Scheduler`, whose DB EXCLUDE constraints
 make double-booking impossible. Our `Appointment` table is **always** the booking source of truth;
@@ -89,17 +89,17 @@ Sarah reads the calendar like an employee: for a general question she describes 
 reason about any day.
 
 **Timezone (first-class, DST-correct).** Availability windows are **local wall-clock** times in the
-contractor's IANA timezone (`standingAvailability.timezone`, set in onboarding). All conversion between
+organization's IANA timezone (`standingAvailability.timezone`, set in onboarding). All conversion between
 local wall-time and UTC instants goes through one layer (`packages/core/timezone.ts`, backed by
 **luxon**) so DST is always correct — `computeOpenWindows`, `nextWeekStart`, `isWithinStandingWindow`,
 and the formatters all take the timezone. **Appointments are stored as UTC instants** (`startAt/endAt`;
-the `Appointment.timezone` column records the zone booked in); a UTC contractor is the identity case.
-Every time shown to a customer, the contractor (SMS/email + dashboard), and the prompt's "today" is
-rendered in the contractor's zone. Slot selection is **deterministic in code** (`resolveChosenSlot`):
+the `Appointment.timezone` column records the zone booked in); a UTC organization is the identity case.
+Every time shown to a customer, the organization (SMS/email + dashboard), and the prompt's "today" is
+rendered in the organization's zone. Slot selection is **deterministic in code** (`resolveChosenSlot`):
 the customer's stated time ("8 am", a label, or an id) is matched to the exact offered instant — the
 model never picks the slot id itself.
 
-The contractor's real **Google Calendar** is a **future adapter behind the same port** (that's where
+The organization's real **Google Calendar** is a **future adapter behind the same port** (that's where
 MCP fits) — a drop-in with ZERO agent changes; it's a ONE-WAY sync target, never the booking authority,
 never inside the booking transaction. The seam exists today (`CalendarConnection` model +
 `Appointment.external*`/`syncState` columns + `scheduler/README.md`); no Google code is built yet.
@@ -108,31 +108,31 @@ never inside the booking transaction. The seam exists today (`CalendarConnection
 
 ## 1. Product summary
 
-**One line:** When a homeowner submits a contractor's website contact form, Lead Answered texts them back within 60 seconds (as the contractor's assistant "Sarah"), qualifies the lead over SMS, proposes appointment slots from the contractor's standing availability, and notifies the contractor — with no action required from the contractor.
+**One line:** When a customer submits a organization's website contact form, Lead Answered texts them back within 60 seconds (as the organization's assistant "Sarah"), qualifies the lead over SMS, proposes appointment slots from the organization's standing availability, and notifies the organization — with no action required from the organization.
 
-**Who the customer is:** small/midsize home-service contractors (roofers first). They are NOT the SMS recipient — the _homeowner_ is. The contractor is who pays and who gets the final booking notification.
+**Who the customer is:** small/midsize service businesses (any vertical). They are NOT the SMS recipient — the _customer_ is. The organization is who pays and who gets the final booking notification.
 
-**Core value:** speed-to-lead. Homeowners contact multiple companies; the first to respond usually wins. Contractors lose leads nights/weekends/busy-season because they can't respond fast. Lead Answered responds in <60s, every time.
+**Core value:** speed-to-lead. Customers contact multiple companies; the first to respond usually wins. Organizations lose leads nights/weekends/busy-season because they can't respond fast. Lead Answered responds in <60s, every time.
 
 ---
 
 ## 2. The end-to-end flow (full v1 vision)
 
-1. Homeowner fills out a contractor's website contact form.
-2. The form (already) emails a lead notification to the contractor's inbox.
+1. Customer fills out a organization's website contact form.
+2. The form (already) emails a lead notification to the organization's inbox.
 3. **Lead Answered receives that lead** (Phase 2: by parsing a forwarded notification email; Phase 1: by a simple manual/API trigger).
-4. Within 60 seconds, the system sends the homeowner an SMS from a dedicated Twilio number, identifying as "Sarah," the contractor's assistant.
+4. Within 60 seconds, the system sends the customer an SMS from a dedicated Twilio number, identifying as "Sarah," the organization's assistant.
 5. "Sarah" (powered by Claude) holds a short SMS conversation to:
    - Confirm interest and basic project info
-   - Qualify the lead against the contractor's rules (in service area, project type offered, homeowner is decision-maker)
-   - Propose 2–3 appointment slots from the contractor's standing availability
+   - Qualify the lead against the organization's rules (in service area, project type offered, customer is decision-maker)
+   - Propose 2–3 appointment slots from the organization's standing availability
    - Confirm a chosen slot
-6. The system sends the contractor ONE notification (SMS and/or email): "New booked appointment: [name], [phone], [address], [project], [slot]." (Address is essential — it's how the contractor judges the job's location/area and plans the drive.)
-7. The homeowner gets a confirmation message (and optionally a calendar .ics).
+6. The system sends the organization ONE notification (SMS and/or email): "New booked appointment: [name], [phone], [address], [project], [slot]." (Address is essential — it's how the organization judges the job's location/area and plans the drive.)
+7. The customer gets a confirmation message (and optionally a calendar .ics).
 
 **Explicitly OUT of scope for v1:** inbound phone calls / **voice conversations** (no IVR / voice bot — Sarah never talks on the phone; the **missed-call text-back** trigger in §9.7 is the one exception, and it only *receives* a forwarded unanswered call and replies by **SMS**); giving quotes or pricing (Sarah books the on-site estimate, never quotes); post-booking communication beyond confirmation; CRM/calendar OAuth integrations; multi-channel (Facebook/Google LSA) lead sources; a self-serve customer dashboard.
 
-**Compliance & consent (must hold for every message):** SMS is sent **only** to homeowners who **affirmatively opted in** on the contractor's intake form — the `/optin` sample shows the model (an explicit, unchecked, optional consent checkbox). The lead/intake payload must carry that consent flag, and the system must **not** initiate SMS for a lead without it. Sending numbers are registered A2P traffic (toll-free verification now, 10DLC later — §9.6) with automatic STOP/HELP handling. The **contractor is contractually responsible** for obtaining consent and not submitting cold/purchased lists (Terms of Service §3). Full posture: `ops/legal.md`.
+**Compliance & consent (must hold for every message):** SMS is sent **only** to customers who **affirmatively opted in** on the organization's intake form — the `/optin` sample shows the model (an explicit, unchecked, optional consent checkbox). The lead/intake payload must carry that consent flag, and the system must **not** initiate SMS for a lead without it. Sending numbers are registered A2P traffic (toll-free verification now, 10DLC later — §9.6) with automatic STOP/HELP handling. The **organization is contractually responsible** for obtaining consent and not submitting cold/purchased lists (Terms of Service §3). Full posture: `ops/legal.md`.
 
 ---
 
@@ -141,7 +141,7 @@ never inside the booking transaction. The seam exists today (`CalendarConnection
 **Stack (TypeScript end-to-end):**
 
 - **Language:** TypeScript everywhere (one language across frontend + backend + workers).
-- **Frontend:** Next.js (onboarding UI + contractor dashboard), deployed on **Vercel**.
+- **Frontend:** Next.js (onboarding UI + owner dashboard), deployed on **Vercel**.
 - **Backend API + realtime/webhook service:** **Express** (Node), deployed on **Railway or Render** (billed for uptime, not per-request).
 - **Background/queue/cron worker:** a separate Node worker process using **BullMQ + Redis**, also on Railway/Render.
 - **ORM:** **Prisma**.
@@ -162,7 +162,7 @@ This is the most important architectural decision in the doc. Claude Code must N
 **(B) `api` — Express service on Railway/Render (always-on).** Handles:
 
 - Twilio inbound **webhooks** (incoming SMS → Sarah conversation engine → outbound SMS). Must be a stable always-on HTTP endpoint (serverless cold-starts + webhook timing don't mix well).
-- The **Sarah conversation engine** (each turn: load history + contractor config → Claude call → Twilio send → persist). Each turn is short, but lives here (not Vercel) so it shares the conversation/Twilio code with the webhook and isn't subject to serverless limits.
+- The **Sarah conversation engine** (each turn: load history + organization config → Claude call → Twilio send → persist). Each turn is short, but lives here (not Vercel) so it shares the conversation/Twilio code with the webhook and isn't subject to serverless limits.
 - Synchronous internal endpoints the web app or worker call.
 
 **(C) `worker` — Node + BullMQ/Redis on Railway/Render (always-on).** Handles everything long-running, delayed, retried, or scheduled:
@@ -172,7 +172,7 @@ This is the most important architectural decision in the doc. Claude Code must N
 - **The future outbound growth engine** (email 100/day, call sequencing, voicemail→email, callback cadence) — this is heavily queue/cron-based and is the single biggest reason the worker exists. Do NOT build the outbound engine inside Vercel or as inline web requests.
 - Any retried/delayed job (e.g., a gentle follow-up SMS to a quiet lead after a delay).
 
-**Shared:** a `packages/db` (Prisma client + schema) and `packages/core` (shared types, the contractor-config + geo + qualification logic) imported by (A), (B), and (C). Monorepo (e.g. turborepo or pnpm workspaces) so the three deployables share code without duplication.
+**Shared:** a `packages/db` (Prisma client + schema) and `packages/core` (shared types, the organization-config + geo + qualification logic) imported by (A), (B), and (C). Monorepo (e.g. turborepo or pnpm workspaces) so the three deployables share code without duplication.
 
 ### 3.2 What gets built WHEN (so boundaries aren't violated as phases progress)
 
@@ -190,7 +190,7 @@ This is the most important architectural decision in the doc. Claude Code must N
 2. **Conversation engine** (`api`, logic in `packages/core`) — manages each lead's conversation state and calls Claude.
 3. **SMS service** (`packages/core`, used by `api` + `worker`) — Twilio send/receive wrapper.
 4. **Lead intake** (`api`) — Phase 1: `/lead` POST; Phase 2: inbound email parser.
-5. **Contractor config store** (`packages/db`) — per-contractor settings.
+5. **Organization config store** (`packages/db`) — per-organization settings.
 6. **Geo/qualification service** (`packages/core`) — deterministic service-area + project-type + decision-maker checks (see §5.1).
 7. **Notification service** (`packages/core`, triggered from `api`; delivery jobs may run in `worker`) — multi-recipient, per-event notifications (see §5.2).
 8. **Provisioning service** (`worker`) — the Twilio number API chain (see §9.6).
@@ -201,46 +201,46 @@ This is the most important architectural decision in the doc. Claude Code must N
 
 ## 4. Data model (initial)
 
-- **contractor**: id, name, company_name, project_types (list), qualification_rules (JSON), standing_availability (JSON: `{timezone, windows: [{dayOfWeek, start, end}]}` — recurring weekly availability ranges), sarah_persona_notes, twilio_number, messaging_service_sid, number_type (toll_free | local), verification_status (pending | verified | failed), number_status (active | pending_swap | retired)
-  - NOTE: each contractor owns a DEDICATED number (never shared). The telephony fields support per-contractor provisioning, the toll-free verification lifecycle, and the future local-number upgrade/swap (see §9.5) without a schema migration.
+- **organization**: id, name, company_name, project_types (list), qualification_rules (JSON), standing_availability (JSON: `{timezone, windows: [{dayOfWeek, start, end}]}` — recurring weekly availability ranges), sarah_persona_notes, twilio_number, messaging_service_sid, number_type (toll_free | local), verification_status (pending | verified | failed), number_status (active | pending_swap | retired)
+  - NOTE: each organization owns a DEDICATED number (never shared). The telephony fields support per-organization provisioning, the toll-free verification lifecycle, and the future local-number upgrade/swap (see §9.5) without a schema migration.
   - **Statuses (two independent dimensions — both INFORMATIONAL; neither gates the agent):**
     - **Account lifecycle is DERIVED, never a stored column**: `New → Invited → Live`, computed from Supabase auth (has the owner accepted = email confirmed / signed in) + `onboarding_complete`. Onboarding is **admin-led and precedes the invite** (§3): `New` = created, awaiting the admin-run wizard; the admin **finishing the wizard sends the invite** → `Invited` (a rare `Onboarded` state covers "onboarded but the invite hasn't gone out"); `Live` = accepted + signed in. Surfaced as the "Account" chip in `/admin`. There is **no separate onboarding-call status** — the admin runs the wizard on the call, so the call ≈ the onboarding. A sales/CRM "I onboarded them" note would be a future CRM field, not a status.
-    - `verification_status` (pending|verified|failed) = the **Twilio toll-free carrier verification**, set **manually** by the admin to mirror Twilio (no auto-sync yet — see §9.6, the "Status (current)" note, and the deferred cron in §11). Surfaced as the "Line" chip in `/admin` + the contractor's "Your line" badge. It does **not** gate Sarah's texting; carrier deliverability is enforced by Twilio, not our code.
+    - `verification_status` (pending|verified|failed) = the **Twilio toll-free carrier verification**, set **manually** by the admin to mirror Twilio (no auto-sync yet — see §9.6, the "Status (current)" note, and the deferred cron in §11). Surfaced as the "Line" chip in `/admin` + the organization's "Your line" badge. It does **not** gate Sarah's texting; carrier deliverability is enforced by Twilio, not our code.
     - `number_status` (active|pending_swap|retired) = reserved for the future local-number swap (§9.5); **not read by any code yet**.
     - **Coming later — a third dimension, subscription status** (active|past_due|canceled), Stripe-driven. Unlike these two, it **will gate the product** (pause Sarah on churn) and is where offboarding/churn lives. Soft-cancel keeps the account; hard-delete is reserved for test resets / GDPR. See §11 "Billing, subscriptions & offboarding".
   - **`project_types` are human labels, entered + shown verbatim** (e.g. "Roof repair") — not slugs. Onboarding/settings present them as a chip picker (curated suggestions + free-text add); the lead-matching normalization (§5.1) is internal and never rewrites them.
   - **Service area is structured, NOT free-text** (see §5.1): `base_locations` (JSON: list of `{address_or_zip, radius_miles}`), `include_overrides` (list of towns/zips always in-area), `exclude_overrides` (list of towns/zips never served). Qualification is computed deterministically against these; the AI never judges geography.
   - Single `notify_phone`/`notify_email` are REMOVED — notifications are handled by the `notification_recipient` table below.
-- **notification_recipient**: id, contractor_id, name, phone, email
+- **notification_recipient**: id, organization_id, name, phone, email
 - **notification_subscription**: id, recipient_id, event_type (booking_confirmed | new_qualified_lead | new_inquiry | lead_unresponsive | disqualified_lead), channels (sms | email | both) — see §5.2
-- **lead**: id, contractor_id, contact_name, contact_phone, project_hint, service_town, service_zip, full_address, source, status (new/contacted/qualifying/booked/disqualified/no_response), created_at
-  - NOTE: the lead's contact is named generically (`contact_name`, `contact_phone`) rather than "homeowner\_*". v1 targets homeowners, but the product may later serve verticals where the lead is a property manager, commercial client, etc. Neutral field names now = no schema migration later. This naming principle applies everywhere: the DB and code use vertical-neutral terms; only the *conversation copy\* (what Sarah actually says) is homeowner-flavored, and that lives in the system prompt, not the schema.
-  - ADDRESS: `service_town`/`service_zip` are captured early for the service-area qualification check (§5.1). `full_address` (street-level) is confirmed before booking, since the contractor needs the exact address to attend the on-site estimate and it goes in the `booking_confirmed` notification.
+- **lead**: id, organization_id, contact_name, contact_phone, project_hint, service_town, service_zip, full_address, source, status (new/contacted/qualifying/booked/disqualified/no_response), created_at
+  - NOTE: the lead's contact is named generically (`contact_name`, `contact_phone`) rather than "customer\_*". v1 targets customers, but the product may later serve verticals where the lead is a property manager, commercial client, etc. Neutral field names now = no schema migration later. This naming principle applies everywhere: the DB and code use vertical-neutral terms; only the *conversation copy\* (what Sarah actually says) is customer-flavored, and that lives in the system prompt, not the schema.
+  - ADDRESS: `service_town`/`service_zip` are captured early for the service-area qualification check (§5.1). `full_address` (street-level) is confirmed before booking, since the organization needs the exact address to attend the on-site estimate and it goes in the `booking_confirmed` notification.
   - SOURCE: `source` is free-text for the intake channel — `manual` (`/lead`), `email` (forwarded lead email, §9), `missed_call` (an unanswered call forwarded to the Twilio number, §9.7), `inbound_sms` (cold text when `ALLOW_INBOUND_LEADS` is on). `source_message_id` is the per-channel idempotency key (email MessageID, or the voice `CallSid`).
-  - DEDUPE (one lead per contact): a lead is **unique per `(contractor, contact_phone)`**. Every intake path (`/lead`, email, missed-call) does a find-or-create — a returning contact **re-engages their existing lead** (one continuous conversation, matching the single SMS thread they see) rather than spawning a duplicate. `source_message_id @unique` still dedupes the same *event* (a re-sent email / re-POSTed call).
+  - DEDUPE (one lead per contact): a lead is **unique per `(organization, contact_phone)`**. Every intake path (`/lead`, email, missed-call) does a find-or-create — a returning contact **re-engages their existing lead** (one continuous conversation, matching the single SMS thread they see) rather than spawning a duplicate. `source_message_id @unique` still dedupes the same *event* (a re-sent email / re-POSTed call).
 - **conversation**: id, lead_id, state (greeting/qualifying/proposing_slots/confirming/done), created_at, updated_at
 - **message**: id, conversation_id, direction (inbound/outbound), body, timestamp
-- **appointment**: id, lead_id, contractor_id, slot_datetime, status (proposed/confirmed/shown/no_show), created_at
+- **appointment**: id, lead_id, organization_id, slot_datetime, status (proposed/confirmed/shown/no_show), created_at
 
 ---
 
 ## 5. The "Sarah" conversation engine (the heart of the product)
 
-**Persona:** Sarah is the contractor's friendly, efficient assistant. She is NOT to be deceptive, but she represents the contractor. Warm, concise, human, texts like a real person (short messages, no corporate stiffness).
+**Persona:** Sarah is the organization's friendly, efficient assistant. She is NOT to be deceptive, but she represents the organization. Warm, concise, human, texts like a real person (short messages, no corporate stiffness).
 
 **Her job, in order:**
 
-1. **Open fast & warm:** reference that the homeowner just reached out via the website, thank them, confirm she's from [Company].
+1. **Open fast & warm:** reference that the customer just reached out via the website, thank them, confirm she's from [Company].
 2. **Confirm/gather minimal project info:** what they need (roof repair/replacement/etc.), property address or town (for service-area + scam check).
-3. **Qualify** against contractor rules:
+3. **Qualify** against organization rules:
    - In service area?
-   - Project type the contractor offers?
-   - Is the contact the decision-maker? (in v1 this is the homeowner; phrased neutrally because in future verticals the decision-maker may be a property manager, commercial client, etc. — keep the qualification _logic_ vertical-neutral, with "homeowner" as just the current example)
+   - Project type the organization offers?
+   - Is the contact the decision-maker? (in v1 this is the customer; phrased neutrally because in future verticals the decision-maker may be a property manager, commercial client, etc. — keep the qualification _logic_ vertical-neutral, with "customer" as just the current example)
 4. **NEVER quote a price.** If asked, redirect: acknowledge the question, explain accurate pricing requires an on-site look, pivot to booking the free estimate. (This is a hard rule — pricing is impossible over text and quoting would be a disaster.)
-5. **Propose 2–3 specific slots** from the contractor's standing availability.
+5. **Propose 2–3 specific slots** from the organization's standing availability.
 6. **Before confirming the booking, confirm the FULL street address** (the qualify step only needed town/zip; the on-site estimate needs the exact address). Store as `full_address`.
-7. **Confirm the chosen slot**, tell them the contractor will see them then.
-8. **Hand off:** trigger the contractor notification (includes the full address).
+7. **Confirm the chosen slot**, tell them the organization will see them then.
+8. **Hand off:** trigger the organization notification (includes the full address).
 
 **Entry point matters (unknown-intent triage).** The steps above assume a **website/email lead** — someone who explicitly asked for an estimate. A **missed call** (§9.7) is unknown-intent, so Sarah starts one step earlier: she opens by asking _how she can help_ and does not assume an estimate or ask for an address. Only a **new-project** intent proceeds into qualify→book; an existing customer, a general question, or a non-sales caller is routed to the loop-in/escalation path (§8) instead of being qualified. **(v3 update:** website and missed-call are now **separate scripted-intake workflows**, not one channel-aware prompt — see the v3 banner + `AGENT_WORKFLOWS_PLAN.md`.)
 
@@ -248,27 +248,27 @@ This is the most important architectural decision in the doc. Claude Code must N
 
 - One question at a time. Short messages. Sound human.
 - If the lead is clearly out of scope (wrong area, wrong project), politely disqualify and don't book.
-- If the homeowner goes quiet, a single gentle follow-up after a delay; don't spam.
-- All persona + rules delivered via a **system prompt** that is assembled per-contractor (injecting their company name, service area, project types, availability, and any custom notes).
+- If the customer goes quiet, a single gentle follow-up after a delay; don't spam.
+- All persona + rules delivered via a **system prompt** that is assembled per-organization (injecting their company name, service area, project types, availability, and any custom notes).
 
-**Implementation:** each inbound SMS → load conversation history + contractor config → build system prompt → call Claude with full message history → send Claude's reply via Twilio → persist both messages → update conversation state. Use the conversation `state` field + the message history to keep Claude on-track. Claude returns **structured output (JSON)** alongside its message so the code knows the state and any extracted data (see §5.1) — e.g. `{ reply: "...", extracted: { town, zip, project_type, is_decision_maker }, proposed_action: "none|qualify|propose_slots|book|disqualify" }`. **The code, not Claude, makes the qualify/disqualify/book decision** based on the extracted data (see §5.1).
+**Implementation:** each inbound SMS → load conversation history + organization config → build system prompt → call Claude with full message history → send Claude's reply via Twilio → persist both messages → update conversation state. Use the conversation `state` field + the message history to keep Claude on-track. Claude returns **structured output (JSON)** alongside its message so the code knows the state and any extracted data (see §5.1) — e.g. `{ reply: "...", extracted: { town, zip, project_type, is_decision_maker }, proposed_action: "none|qualify|propose_slots|book|disqualify" }`. **The code, not Claude, makes the qualify/disqualify/book decision** based on the extracted data (see §5.1).
 
 ---
 
 ## 5.1 Qualification & service-area logic (AI extracts, CODE decides)
 
-**Hard principle:** the AI handles natural-language understanding; deterministic CODE makes every qualification decision. Claude never "judges" whether a town is in-area or whether a project is offered — it only _extracts_ what the homeowner said, and code checks it against structured contractor config. This is both more reliable (no geography hallucination) and auditable (you can see exactly why a lead qualified or not).
+**Hard principle:** the AI handles natural-language understanding; deterministic CODE makes every qualification decision. Claude never "judges" whether a town is in-area or whether a project is offered — it only _extracts_ what the customer said, and code checks it against structured organization config. This is both more reliable (no geography hallucination) and auditable (you can see exactly why a lead qualified or not).
 
 **Note (missed-call entry):** the qualify path only engages once there's a real **new-project** intent — a missed caller who is an existing customer or just has a question is not run through qualification or disqualified (see §9.7); Sarah routes them via escalation instead.
 
 **The division of labor, per inbound message:**
 
 - **Claude (extraction):** from the conversation, extract structured fields when present — `town`, `zip` (or full address), `project_type`, and signals about whether the contact is the decision-maker. Returns them in its JSON output.
-- **Code (decision):** evaluates the extracted fields against the contractor's structured config and sets the qualification result. Claude is then told the result (via the next system-prompt assembly) and phrases the response, but does not decide.
+- **Code (decision):** evaluates the extracted fields against the organization's structured config and sets the qualification result. Claude is then told the result (via the next system-prompt assembly) and phrases the response, but does not decide.
 
 **Service-area check (the robust, composed approach — all layers together):**
 
-1. **Contractor config (set at onboarding, editable in settings)** stores service area as structured data:
+1. **Organization config (set at onboarding, editable in settings)** stores service area as structured data:
    - `base_locations`: one or more origin points (address/zip) with a `radius_miles` each. (The broad net.)
    - `include_overrides`: explicit towns/zips always considered in-area (the "I'll go there even though it's far" exceptions).
    - `exclude_overrides`: explicit towns/zips never served (the "I don't go there even though it's close" exceptions).
@@ -276,11 +276,11 @@ This is the most important architectural decision in the doc. Claude Code must N
 3. **Geocoding:** use a geocoding provider (e.g., Google Geocoding API, or a US Census/zip-centroid dataset for a free offline option). Cache results. This lives in `packages/core` as a `geo` module; it is called by the qualification service, NOT by Claude.
 4. **If extraction is ambiguous** (lead hasn't given a town yet): Claude's job is to _ask_ for it naturally; code doesn't decide area until a location is extracted.
 
-**Project-type check:** the contractor's `project_types` are stored + shown **verbatim** — human labels like "Roof repair", never slugs. Matching is invisible: code reduces **both** the lead's extracted `project_type` **and** each of the contractor's labels through a small synonym map (e.g. "new roof"/"leak" → `roof_repair`) to a shared key, in-memory for this one check, then compares (`normalizeProjectType` in `packages/core/qualification.ts`). It never alters what's stored or displayed. Not an AI judgment. A *custom* label that doesn't hit a synonym won't deterministically match loose wording → it falls through to the AI/escalation path (see §11 for per-contractor synonyms).
+**Project-type check:** the organization's `project_types` are stored + shown **verbatim** — human labels like "Roof repair", never slugs. Matching is invisible: code reduces **both** the lead's extracted `project_type` **and** each of the organization's labels through a small synonym map (e.g. "new roof"/"leak" → `roof_repair`) to a shared key, in-memory for this one check, then compares (`normalizeProjectType` in `packages/core/qualification.ts`). It never alters what's stored or displayed. Not an AI judgment. A *custom* label that doesn't hit a synonym won't deterministically match loose wording → it falls through to the AI/escalation path (see §11 for per-organization synonyms).
 
-**Decision-maker → homeowner hand-off (deterministic, code-fired):** if the lead confirms they're NOT the homeowner/decision-maker, Sarah asks for the homeowner's name + phone. **(v3 update:** the intake **Branch A** now also **reaches out to the homeowner directly as a NEW lead** — `intake/engine.ts` — in addition to the contractor heads-up below.)** Code — not the model's discretion — pings every contractor recipient with that contact exactly once (`agent/ownerHandoff.ts`, guarded by `gathered.ownerHandoffDone`). A backstop in `conversationService` also `extractPhone`s the inbound, so the ping fires even if the model never passes the number to `qualify_lead`. The model only phrases the ask + the close; the trigger is code — because leaving this to the model (via `escalate_to_contractor`) proved unreliable across models (both Haiku and Sonnet skipped it).
+**Decision-maker → customer hand-off (deterministic, code-fired):** if the lead confirms they're NOT the customer/decision-maker, Sarah asks for the decision-maker's name + phone. **(v3 update:** the intake **Branch A** now also **reaches out to the customer directly as a NEW lead** — `intake/engine.ts` — in addition to the organization heads-up below.)** Code — not the model's discretion — pings every organization recipient with that contact exactly once (`agent/ownerHandoff.ts`, guarded by `gathered.ownerHandoffDone`). A backstop in `conversationService` also `extractPhone`s the inbound, so the ping fires even if the model never passes the number to `qualify_lead`. The model only phrases the ask + the close; the trigger is code — because leaving this to the model (via `escalate_to_organization`) proved unreliable across models (both Haiku and Sonnet skipped it).
 
-**Decision-maker check:** Claude extracts signals ("it's my house" / "I'd need to ask my landlord"); code applies the contractor's rule (e.g., require decision-maker = true to book). Phrased neutrally so it carries to non-homeowner verticals.
+**Decision-maker check:** Claude extracts signals ("it's my house" / "I'd need to ask my landlord"); code applies the organization's rule (e.g., require decision-maker = true to book). Phrased neutrally so it carries to non-customer verticals.
 
 **Outcome:** the qualification service returns `{ in_area, project_offered, is_decision_maker, qualified }`. Code uses `qualified` to drive the conversation (proceed to slots vs. politely disqualify) and to fire the right notification event (§5.2).
 
@@ -288,7 +288,7 @@ This is the most important architectural decision in the doc. Claude Code must N
 
 ## 5.2 Notification system (multi-recipient, per-event)
 
-**Replaces the single `notify_phone`/`notify_email`.** A contractor can have MULTIPLE notification recipients (owner + office manager + sales rep), each subscribing to chosen event types on chosen channels.
+**Replaces the single `notify_phone`/`notify_email`.** A organization can have MULTIPLE notification recipients (owner + office manager + sales rep), each subscribing to chosen event types on chosen channels.
 
 **Base event taxonomy (extensible later, but these are the v1 base):**
 
@@ -300,7 +300,7 @@ This is the most important architectural decision in the doc. Claude Code must N
 
 **Structure:** recipients × events × channels.
 
-- A `notification_recipient` belongs to a contractor: `{ name, phone, email }`.
+- A `notification_recipient` belongs to a organization: `{ name, phone, email }`.
 - Each recipient has subscriptions: for each event type, which channels (SMS, email, or both) they receive. Stored as a `notification_subscription` (recipient_id, event_type, channels) or a JSON prefs blob on the recipient.
 - Defaults applied on onboarding: the primary owner recipient is subscribed to `booking_confirmed` + `new_qualified_lead` on both channels; others opt-in.
 
@@ -310,8 +310,8 @@ This is the most important architectural decision in the doc. Claude Code must N
 
 Everything Sarah *initiates* (not a live reply) runs through **one mechanism** — `apps/api/src/proactiveTurn.ts` — that reads the conversation, writes a **context-aware** message OR **stays silent**, and is lifecycle-gated. This replaces the old static template strings.
 
-- **Quiet-lead nudge** (`jobs/nudge.ts`): a single follow-up **per interaction** (guarded by `gathered.nudgedAt`, re-armed at an interaction boundary — a re-contact after a gap, or a concluded thread). Skipped while an **escalation is open** (they're waiting on the contractor, not quiet), if the lead already replied, or if terminal. Deferred outside the contractor's **business hours** (no 2am texts). It writes a contextual line — or nothing — never a canned estimate pitch.
-- **Escalation lifecycle** (`jobs/escalationSla.ts`): a loop-in the contractor hasn't answered is chased — stage 1 re-pings the owner (louder) + an optional positive customer reassurance (business hours only); still unanswered → status **`expired`** with an urgent **owner-only** alert. Sarah **never** tells the customer we couldn't reach the team.
+- **Quiet-lead nudge** (`jobs/nudge.ts`): a single follow-up **per interaction** (guarded by `gathered.nudgedAt`, re-armed at an interaction boundary — a re-contact after a gap, or a concluded thread). Skipped while an **escalation is open** (they're waiting on the organization, not quiet), if the lead already replied, or if terminal. Deferred outside the organization's **business hours** (no 2am texts). It writes a contextual line — or nothing — never a canned estimate pitch.
+- **Escalation lifecycle** (`jobs/escalationSla.ts`): a loop-in the organization hasn't answered is chased — stage 1 re-pings the owner (louder) + an optional positive customer reassurance (business hours only); still unanswered → status **`expired`** with an urgent **owner-only** alert. Sarah **never** tells the customer we couldn't reach the team.
 - **Intent** (`set_intent` tool → `gathered.intent`): `new_project | existing_customer | general_question | other` — so follow-ups and notifications fit the situation.
 - **Memory:** a returning customer's full thread is one conversation (one lead per contact, §4), plus a RELATIONSHIP cue (appointment history) injected into the prompt.
 - **Observability:** every proactive decision (sent + each skip/silence, with a reason) is logged as a structured `[proactive]` line and traced (`functionId: proactive-<situation>`).
@@ -329,26 +329,26 @@ Everything Sarah *initiates* (not a live reply) runs through **one mechanism** �
 
 ### Phase 1 — Sarah MVP (demoable)
 
-- `/lead` POST endpoint (manual trigger: name, phone, contractor_id).
+- `/lead` POST endpoint (manual trigger: name, phone, organization_id).
 - On new lead → fire the opening SMS as Sarah.
 - Full Sarah conversation: greet → qualify → propose slots → confirm.
-- Per-contractor config (start with ONE hardcoded test contractor).
-- Contractor notification (SMS/email) on booking.
-- Postgres persistence via Prisma of contractors/leads/conversations/messages/appointments.
-- **Done when:** you POST a fake lead and can have a full SMS conversation with Sarah that ends in a booked slot + you (as the contractor) get notified. THIS IS THE DEMO.
+- Per-organization config (start with ONE hardcoded test organization).
+- Organization notification (SMS/email) on booking.
+- Postgres persistence via Prisma of organizations/leads/conversations/messages/appointments.
+- **Done when:** you POST a fake lead and can have a full SMS conversation with Sarah that ends in a booked slot + you (as the organization) get notified. THIS IS THE DEMO.
 
 ### Phase 2 — Email-parse intake
 
 - Inbound email endpoint (e.g., via a service like Postmark/SendGrid inbound, or IMAP polling of leads@leadanswered.com).
-- Parser extracts homeowner name + phone + project hint from a forwarded lead-notification email.
-- Handle the common formats first; per-contractor parsing config for odd ones.
+- Parser extracts customer name + phone + project hint from a forwarded lead-notification email.
+- Handle the common formats first; per-organization parsing config for odd ones.
 - **Done when:** forwarding a real lead-notification email triggers the Sarah SMS automatically.
 
-### Phase 3 — Onboarding UI (contractor self-serve setup)
+### Phase 3 — Onboarding UI (organization self-serve setup)
 
-A web app where a contractor sets themselves up without you touching the database. This is intentionally built EARLY (right after the Sarah core works) because it gives a premium experience and removes manual onboarding work. Collects everything the `contractor` record needs:
+A web app where a organization sets themselves up without you touching the database. This is intentionally built EARLY (right after the Sarah core works) because it gives a premium experience and removes manual onboarding work. Collects everything the `organization` record needs:
 
-> **Current admin flow (what's built — supersedes the self-serve framing above + the auto-provisioning vision below).** Setup is **admin-led (concierge / white-glove)**, not self-serve: handing a non-technical contractor the config wizard — especially the free-text persona notes, effectively a system prompt — is fragile, and they're usually phone-only on the onboarding call. So provisioning is **not** automated (you buy + configure the number in Twilio yourself), and the flow is **onboard → invite**: in `/admin` you **create the contractor (no invite yet → status `New`)**, then open them and click **Onboard** to run the **same wizard** on their behalf (on the call). **Finishing the wizard saves their config AND sends the first invite** (→ `Invited`). The owner clicks it, sets a password, sees a **welcome**, and lands on their already-configured **dashboard**; they never touch the wizard — they self-edit later in **Settings**. On **`/admin/[id]`**: **Save** edits fields only (no email); **Onboard / Edit setup** runs the wizard; **Send / Resend invite** is a separate manual action (recovery). **Account status (New → Invited → Live)** is derived (§4); toll-free line verification is tracked manually (§4, §9.6). The auto-provisioning + self-serve chain in the "On submit →" bullet below remains the future vision.
+> **Current admin flow (what's built — supersedes the self-serve framing above + the auto-provisioning vision below).** Setup is **admin-led (concierge / white-glove)**, not self-serve: handing a non-technical organization the config wizard — especially the free-text persona notes, effectively a system prompt — is fragile, and they're usually phone-only on the onboarding call. So provisioning is **not** automated (you buy + configure the number in Twilio yourself), and the flow is **onboard → invite**: in `/admin` you **create the organization (no invite yet → status `New`)**, then open them and click **Onboard** to run the **same wizard** on their behalf (on the call). **Finishing the wizard saves their config AND sends the first invite** (→ `Invited`). The owner clicks it, sets a password, sees a **welcome**, and lands on their already-configured **dashboard**; they never touch the wizard — they self-edit later in **Settings**. On **`/admin/[id]`**: **Save** edits fields only (no email); **Onboard / Edit setup** runs the wizard; **Send / Resend invite** is a separate manual action (recovery). **Account status (New → Invited → Live)** is derived (§4); toll-free line verification is tracked manually (§4, §9.6). The auto-provisioning + self-serve chain in the "On submit →" bullet below remains the future vision.
 
 - Company name, contact info
 - Notification phone + email (where booking alerts go)
@@ -357,12 +357,12 @@ A web app where a contractor sets themselves up without you touching the databas
 - Qualification rules
 - **Availability via a drag-to-paint week calendar** — a Google-Calendar-style week view (days as columns, 06:00–21:00 in 30-min rows) where you click-drag to paint available blocks; supports half-hours, split shifts, and any hours in range. Stored as `standing_availability` **windows** (`{dayOfWeek, start, end}` ranges); Sarah offers 60-min starts that fit within them (§5). This is NOT Google Calendar *integration* — it's a self-contained editor. (Calendar sync is a later enhancement; this gets the same outcome with zero integration.)
 - Sarah's name + persona tweaks
-- On submit → creates the contractor record + provisions their setup via the Twilio API: assigns a dedicated toll-free number, attaches a Messaging Service, configures the inbound webhook, submits toll-free verification, assigns the unique lead-forwarding address, then shows the number and fires the "your line is live" first SMS from Sarah to the contractor's own phone. **Full API chain, UX sequence, async verification handling, and the verification-failure fallback are specified in §9.6 — build per that section.**
-- **Done when:** a brand-new contractor can sign up, get their own dedicated number provisioned + sending (grace period), see it + receive Sarah's first text, and fully configure themselves through the UI, with their Sarah live.
+- On submit → creates the organization record + provisions their setup via the Twilio API: assigns a dedicated toll-free number, attaches a Messaging Service, configures the inbound webhook, submits toll-free verification, assigns the unique lead-forwarding address, then shows the number and fires the "your line is live" first SMS from Sarah to the organization's own phone. **Full API chain, UX sequence, async verification handling, and the verification-failure fallback are specified in §9.6 — build per that section.**
+- **Done when:** a brand-new organization can sign up, get their own dedicated number provisioned + sending (grace period), see it + receive Sarah's first text, and fully configure themselves through the UI, with their Sarah live.
 
-### Phase 4 — Contractor Dashboard (the ongoing product surface)
+### Phase 4 — Owner Dashboard (the ongoing product surface)
 
-The logged-in home base where contractors manage everything after onboarding. Pages/functionality mapped in §10. Built after onboarding since onboarding is the entry point that creates the account.
+The logged-in home base where organizations manage everything after onboarding. Pages/functionality mapped in §10. Built after onboarding since onboarding is the entry point that creates the account.
 
 ### Phase 5 — Hardening & enhancements (post first customers)
 
@@ -377,7 +377,7 @@ The logged-in home base where contractors manage everything after onboarding. Pa
 
 - **Sarah never gives pricing/quotes.** Always redirects to booking an on-site estimate.
 - **Sub-60-second response** to a new lead is the core promise — the opening SMS must fire immediately on lead intake.
-- **Each contractor has a DEDICATED number; numbers are NEVER shared across contractors** (see §9.5).
+- **Each organization has a DEDICATED number; numbers are NEVER shared across organizations** (see §9.5).
 - **AI extracts, code decides.** Qualification (area/project/decision-maker) is deterministic code, never an AI judgment (see §5.1).
 - **Respect deployment boundaries** (§3.1): no long-running/queued/scheduled work in the Next.js (`web`) app.
 - **Secrets only via env vars** — never hardcode keys.
@@ -410,7 +410,7 @@ Testing is specified up front deliberately: it keeps the build sustainable and s
 
 **Conversation engine / Sarah (`api`, `core`):**
 
-- Given an inbound SMS + conversation history, the engine calls Claude with the correctly-assembled per-contractor system prompt (mock Claude; assert prompt contents).
+- Given an inbound SMS + conversation history, the engine calls Claude with the correctly-assembled per-organization system prompt (mock Claude; assert prompt contents).
 - Persists both inbound and outbound messages; updates conversation `state` correctly.
 - **Idempotency:** the same Twilio webhook delivered twice produces exactly one outbound reply.
 - On Claude/Twilio error: logs, fails safe, does NOT crash the webhook or double-send.
@@ -434,18 +434,18 @@ Testing is specified up front deliberately: it keeps the build sustainable and s
 **Number provisioning (`worker`) — mock Twilio:**
 
 - Onboarding enqueues a provisioning job (web does NOT run it inline).
-- Happy path: search → buy → messaging service → webhook set → verification submitted → contractor record updated with number + `verification_status=pending`.
-- **Failure fallback:** verification failure triggers resubmit/replacement path + admin alert; contractor never left with a dead line.
-- First "your line is live" SMS is sent to the contractor's own phone on success.
+- Happy path: search → buy → messaging service → webhook set → verification submitted → organization record updated with number + `verification_status=pending`.
+- **Failure fallback:** verification failure triggers resubmit/replacement path + admin alert; organization never left with a dead line.
+- First "your line is live" SMS is sent to the organization's own phone on success.
 
 **Lead intake:**
 
 - Phase 1: `/lead` POST creates a lead + fires the opening SMS (mock Twilio).
-- Phase 2: email-parse extracts contact name/phone/project from sample notification emails (fixture set of real-world formats); routes to the correct contractor via the forwarding address; malformed email fails gracefully (logged, not crashed).
+- Phase 2: email-parse extracts contact name/phone/project from sample notification emails (fixture set of real-world formats); routes to the correct organization via the forwarding address; malformed email fails gracefully (logged, not crashed).
 
 **Onboarding & dashboard (`web`) — RTL + Playwright:**
 
-- Playwright E2E: a new contractor completes onboarding → sees their provisioned number → (mocked) first SMS path triggered → lands in dashboard. The critical revenue path; must stay green.
+- Playwright E2E: a new organization completes onboarding → sees their provisioned number → (mocked) first SMS path triggered → lands in dashboard. The critical revenue path; must stay green.
 - Availability calendar writes correct `standing_availability` **windows** JSON (contiguous 30-min cells merge into `{dayOfWeek, start, end}` ranges; round-trips exactly).
 - Settings edits persist and re-assemble Sarah's prompt / qualification config.
 
@@ -457,52 +457,52 @@ Testing is specified up front deliberately: it keeps the build sustainable and s
 
 ## 8. Success criteria for the first demo (Phase 1)
 
-A working flow where: a lead is submitted → the lead receives a Sarah SMS within seconds → a natural back-and-forth qualifies them and books a slot → the contractor receives a clean booking notification. Runnable locally with ngrok for Twilio webhooks, then deployable to Railway/Render. **The booking-flow integration test (§7.5) passing is part of "done" for Phase 1.**
+A working flow where: a lead is submitted → the lead receives a Sarah SMS within seconds → a natural back-and-forth qualifies them and books a slot → the organization receives a clean booking notification. Runnable locally with ngrok for Twilio webhooks, then deployable to Railway/Render. **The booking-flow integration test (§7.5) passing is part of "done" for Phase 1.**
 
 ---
 
 ## 9. Lead intake mechanism (how a lead reaches the system)
 
-**Decision: unique forwarding address per contractor. NOT inbox OAuth, NOT website changes.**
+**Decision: unique forwarding address per organization. NOT inbox OAuth, NOT website changes.**
 
-- Each contractor is assigned a unique inbound address, e.g. `leads+{contractor_slug}@leadanswered.com`.
-- During onboarding, the contractor adds a one-time auto-forwarding rule in their existing email so their website's lead-notification emails forward to that address. (For the first customers, Levi sets this up with them on a call.)
+- Each organization is assigned a unique inbound address, e.g. `leads+{organization_slug}@leadanswered.com`.
+- During onboarding, the organization adds a one-time auto-forwarding rule in their existing email so their website's lead-notification emails forward to that address. (For the first customers, Levi sets this up with them on a call.)
 - Lead Answered receives the forwarded email via an inbound-email service (e.g., Postmark/SendGrid/Mailgun inbound parse webhook, or IMAP polling of the leads mailbox).
-- The `+{contractor_slug}` (or the destination address) identifies which contractor the lead belongs to — no guessing.
-- A parser extracts contact name + phone + project hint. Start with the common notification formats; allow a per-contractor parsing hint for odd templates.
-- Extracted lead → **finds-or-creates** the lead (one per `(contractor, phone)`; a returning contact re-engages their existing lead, never a duplicate — §4) → fires the Sarah opening SMS.
+- The `+{organization_slug}` (or the destination address) identifies which organization the lead belongs to — no guessing.
+- A parser extracts contact name + phone + project hint. Start with the common notification formats; allow a per-organization parsing hint for odd templates.
+- Extracted lead → **finds-or-creates** the lead (one per `(organization, phone)`; a returning contact re-engages their existing lead, never a duplicate — §4) → fires the Sarah opening SMS.
 
-**Why this approach:** works with any email provider, requires no scary inbox permissions, no Google verification, and honors the core principle of never touching the contractor's website. The only friction (setting a forward rule) is handled during white-glove onboarding.
+**Why this approach:** works with any email provider, requires no scary inbox permissions, no Google verification, and honors the core principle of never touching the organization's website. The only friction (setting a forward rule) is handled during white-glove onboarding.
 
 **Phase 1 stand-in:** before email-parse is built, the `/lead` POST endpoint is the trigger (manual/testing). Email-parse (Phase 2) replaces the manual trigger for real use.
 
 ---
 
-## 9.5 Telephony & per-contractor number provisioning
+## 9.5 Telephony & per-organization number provisioning
 
-**Core decision: every contractor gets their OWN dedicated number. Numbers are NEVER shared across contractors** (a contractor must never see their competitor texting homeowners from the same number as them — this is a hard product requirement).
+**Core decision: every organization gets their OWN dedicated number. Numbers are NEVER shared across organizations** (a organization must never see their competitor texting customers from the same number as them — this is a hard product requirement).
 
 ### Number type strategy (phased by business stage)
 
-**v1 — Toll-free number per contractor.**
+**v1 — Toll-free number per organization.**
 
-- Each contractor is assigned their own dedicated toll-free number (8xx).
-- **Why toll-free for v1:** toll-free verification is done in-house by Twilio in ~3–5 business days (vs. 10DLC's ~10–15 days via external registry), verification is free, and — critically — **an unverified toll-free number can send during the verification grace period** (subject to caps ~2,000/day, far above a new contractor's lead volume). A 10DLC number is fully blocked until approved. So toll-free lets a new contractor go live essentially immediately while verification completes in the background.
+- Each organization is assigned their own dedicated toll-free number (8xx).
+- **Why toll-free for v1:** toll-free verification is done in-house by Twilio in ~3–5 business days (vs. 10DLC's ~10–15 days via external registry), verification is free, and — critically — **an unverified toll-free number can send during the verification grace period** (subject to caps ~2,000/day, far above a new organization's lead volume). A 10DLC number is fully blocked until approved. So toll-free lets a new organization go live essentially immediately while verification completes in the background.
 - Tradeoff accepted for v1: an 8xx number reads less "local" than an area-code number. Acceptable until a customer asks for local.
 
 **Future — Local (10DLC) number as a paid upgrade.**
 
-- When a contractor wants a local area-code number (more trustworthy-looking for a local trades business), that's a **paid upgrade tier**, because it requires 10DLC registration (~10–15 days, or ~72h via a specialized provider like Telgorithm).
-- Upgrade handling (the number-swap flow): keep the contractor's toll-free working during the ~15-day local-number registration. When the local number is approved, switch the contractor's active number to it. **Any inbound contact to the OLD (toll-free) number after the switch triggers an automated message** telling the homeowner Sarah's number has changed and that she'll text them shortly from the new number — then the new local number initiates contact. (This swap/handoff logic only exists for the upgrade path; it does NOT exist in base v1 since there's no swap.)
+- When a organization wants a local area-code number (more trustworthy-looking for a local trades business), that's a **paid upgrade tier**, because it requires 10DLC registration (~10–15 days, or ~72h via a specialized provider like Telgorithm).
+- Upgrade handling (the number-swap flow): keep the organization's toll-free working during the ~15-day local-number registration. When the local number is approved, switch the organization's active number to it. **Any inbound contact to the OLD (toll-free) number after the switch triggers an automated message** telling the customer Sarah's number has changed and that she'll text them shortly from the new number — then the new local number initiates contact. (This swap/handoff logic only exists for the upgrade path; it does NOT exist in base v1 since there's no swap.)
 - **Trigger to build the tiered plans:** once ~5+ customers have requested the local-number upgrade, formalize two plans — a cheaper toll-free tier and a pricier local-number tier — bundling other by-then-requested features to make the tiers cohesive.
 
 ### Number inventory strategy (phased by scale)
 
-**v1 (early, <~20 contractors): provision on-demand.**
+**v1 (early, <~20 organizations): provision on-demand.**
 
-- On contractor signup, the system provisions a fresh toll-free number via the Twilio API, configures it, submits verification, and relies on the grace period for immediate sending.
+- On organization signup, the system provisions a fresh toll-free number via the Twilio API, configures it, submits verification, and relies on the grace period for immediate sending.
 
-**Future (~20+ contractors / bigger clients): pre-warmed inventory pool.**
+**Future (~20+ organizations / bigger clients): pre-warmed inventory pool.**
 
 - Maintain a rolling pool of already-provisioned (and ideally already-verified) numbers so assignment is instant and there's zero risk of hitting grace-period caps under heavier volume. Replenish the pool in the background as numbers are assigned.
 
@@ -510,14 +510,14 @@ A working flow where: a lead is submitted → the lead receives a Sarah SMS with
 
 This is a deliberate product moment, not a backend afterthought — it should feel like real, premium software:
 
-1. During onboarding, the UI collects everything Twilio requires to provision + submit verification for a toll-free number (business name, address, EIN/BRN, use-case description, opt-in details, sample messages). Most of these are fields the onboarding form already needs for the contractor profile.
+1. During onboarding, the UI collects everything Twilio requires to provision + submit verification for a toll-free number (business name, address, EIN/BRN, use-case description, opt-in details, sample messages). Most of these are fields the onboarding form already needs for the organization profile.
 2. On submit, the backend calls the Twilio API to: provision a toll-free number → attach it to a Messaging Service → configure the inbound webhook → submit the toll-free verification request.
-3. The UI shows a brief loading/provisioning state, then presents: **"Here's your dedicated Lead Answered number: (833) XXX-XXXX"** — and ideally triggers a **first SMS from Sarah to the contractor's own phone** so they immediately see it working ("Hi, this is Sarah, [Company]'s new assistant — your Lead Answered line is live!"). That first-text moment is a high-impact trust/delight beat.
-4. Verification status is tracked on the contractor record and surfaced in the dashboard ("Your line" badge) + the `/admin` "Line" chip. **Today it's set manually** by the admin to mirror Twilio (which reports it via API/Console); the auto-sync poll is deferred (§11).
+3. The UI shows a brief loading/provisioning state, then presents: **"Here's your dedicated Lead Answered number: (833) XXX-XXXX"** — and ideally triggers a **first SMS from Sarah to the organization's own phone** so they immediately see it working ("Hi, this is Sarah, [Company]'s new assistant — your Lead Answered line is live!"). That first-text moment is a high-impact trust/delight beat.
+4. Verification status is tracked on the organization record and surfaced in the dashboard ("Your line" badge) + the `/admin` "Line" chip. **Today it's set manually** by the admin to mirror Twilio (which reports it via API/Console); the auto-sync poll is deferred (§11).
 
 ### Data model implication
 
-The `contractor` record owns its own telephony fields (see §4 update): `twilio_number`, `messaging_service_sid`, `number_type` (toll_free | local), `verification_status` (pending | verified | failed), `number_status` (active | pending_swap | retired). This structure supports per-contractor numbers, the verification lifecycle, and the future local-number swap without a migration.
+The `organization` record owns its own telephony fields (see §4 update): `twilio_number`, `messaging_service_sid`, `number_type` (toll_free | local), `verification_status` (pending | verified | failed), `number_status` (active | pending_swap | retired). This structure supports per-organization numbers, the verification lifecycle, and the future local-number swap without a migration.
 
 ### Provider note
 
@@ -533,17 +533,17 @@ The number setup is **fully integrated into onboarding via the Twilio API** — 
 
 1. **Search** — `GET AvailablePhoneNumbers/US/TollFree` to find an available toll-free number (optionally filter by capabilities: SMS required).
 2. **Purchase** — `POST IncomingPhoneNumbers` to buy the number onto the Lead Answered Twilio account.
-3. **Messaging Service** — create or reuse a Messaging Service, add the number to it, and set the inbound webhook URL so homeowner replies route back to the app and into the correct contractor's conversation. (A2P/toll-free best practice is a Messaging Service per sender; structure so each contractor's number is cleanly attributable.)
+3. **Messaging Service** — create or reuse a Messaging Service, add the number to it, and set the inbound webhook URL so customer replies route back to the app and into the correct organization's conversation. (A2P/toll-free best practice is a Messaging Service per sender; structure so each organization's number is cleanly attributable.)
 4. **Submit verification** — submit the toll-free verification request via the Trust Hub / TFV API, passing the business info collected in the onboarding form (legal name, address, **EIN/BRN — now effectively required for new toll-free verifications**, website, use-case description, opt-in details, sample messages).
-5. **Persist** — save `twilio_number`, `messaging_service_sid`, `number_type=toll_free`, `verification_status=pending`, `number_status=active` on the contractor record.
+5. **Persist** — save `twilio_number`, `messaging_service_sid`, `number_type=toll_free`, `verification_status=pending`, `number_status=active` on the organization record.
 
-### The onboarding UX sequence (what the contractor sees)
+### The onboarding UX sequence (what the organization sees)
 
-1. Contractor fills the onboarding form (which collects both their profile config AND everything Twilio needs — they just experience it as "setting up my account").
+1. Organization fills the onboarding form (which collects both their profile config AND everything Twilio needs — they just experience it as "setting up my account").
 2. On submit: a short **provisioning/loading state** ("Setting up your dedicated line…").
 3. **Reveal:** "Here's your dedicated Lead Answered number: **(833) XXX-XXXX**."
-4. **First-text delight beat:** immediately fire an SMS from Sarah to the **contractor's own cell** — e.g., "Hi, this is Sarah, [Company]'s new assistant — your Lead Answered line is live! 🎉". This works within seconds of signup **because toll-free can send during the verification grace period** (does not wait on full approval). This moment is what makes the product feel real and premium rather than like a generic AI agency.
-5. The contractor proceeds into the dashboard; nothing is blocked on verification.
+4. **First-text delight beat:** immediately fire an SMS from Sarah to the **organization's own cell** — e.g., "Hi, this is Sarah, [Company]'s new assistant — your Lead Answered line is live! 🎉". This works within seconds of signup **because toll-free can send during the verification grace period** (does not wait on full approval). This moment is what makes the product feel real and premium rather than like a generic AI agency.
+5. The organization proceeds into the dashboard; nothing is blocked on verification.
 
 ### Async verification handling
 
@@ -551,30 +551,30 @@ The number setup is **fully integrated into onboarding via the Twilio API** — 
 
 - Number purchase, webhook config, and the first send are **instant** (synchronous, within the onboarding request).
 - Verification **approval is asynchronous** (~3–5 business days). Twilio reports status via API/Console; poll or receive status callbacks and update `verification_status` (pending → verified | failed).
-- Surface the status in the dashboard as a quiet badge (e.g., "Verifying… your line is live and sending" → "Verified ✓"). The contractor never waits on it.
+- Surface the status in the dashboard as a quiet badge (e.g., "Verifying… your line is live and sending" → "Verified ✓"). The organization never waits on it.
 
 ### Failure fallback (must be built)
 
-- If toll-free verification **fails**, the system must: log the failure, auto-provision a replacement number and/or resubmit the verification with corrected info, and notify Levi (admin) to review. The contractor should not be left with a dead line — either the resubmission clears it or a replacement number is swapped in. Build this path; don't assume verification always succeeds (resubmissions are common).
+- If toll-free verification **fails**, the system must: log the failure, auto-provision a replacement number and/or resubmit the verification with corrected info, and notify Levi (admin) to review. The organization should not be left with a dead line — either the resubmission clears it or a replacement number is swapped in. Build this path; don't assume verification always succeeds (resubmissions are common).
 
 ---
 
 ## 9.7 Missed-call text-back intake (new lead source)
 
-Homeowners who **call** the contractor and don't get through are leads too. Missed-call
+Customers who **call** the organization and don't get through are leads too. Missed-call
 text-back turns an unanswered call into a Sarah SMS conversation — **without** a voice bot or
 IVR (Sarah never speaks on the phone). It's just a new lead **source** alongside email (§9) and
 the `/lead` trigger, and it reuses the same intake path.
 
-**Mechanism (v1).** The contractor enables carrier **conditional call forwarding** (no-answer +
+**Mechanism (v1).** The organization enables carrier **conditional call forwarding** (no-answer +
 busy) on their real business phone, forwarding to their dedicated Twilio number. When they miss a
 call, the carrier forwards it to Twilio → Twilio hits `POST /webhooks/twilio/voice` (in `api`).
 Because the miss already happened at the carrier, we **text the caller immediately** — no
 dial-back:
 
-- Identify the contractor by the Twilio number the call arrived on (`To`).
-- Read the homeowner's number from `From` (guarding against carriers that put the *forwarding*
-  number there — `ForwardedFrom` is the contractor's line, not the caller's).
+- Identify the organization by the Twilio number the call arrived on (`To`).
+- Read the customer's number from `From` (guarding against carriers that put the *forwarding*
+  number there — `ForwardedFrom` is the organization's line, not the caller's).
 - Create a lead with `source = "missed_call"` and fire Sarah's **intent-agnostic** opening SMS,
   reusing `createLeadAndGreet`. A caller's intent is unknown (new project, existing customer, a
   question, or a wrong number), so the opening apologizes for the miss and **asks how she can
@@ -582,7 +582,7 @@ dial-back:
   **channel-aware** (`prompt.ts` branches on the lead's `source`): a `missed_call` lead gets triage
   framing instead of the website-lead framing. The caller replies → the normal SMS engine (§5)
   takes over: a **new-project** intent runs the qualify→book flow; anything else routes to
-  `escalate_to_contractor` (loop in the owner, relay the answer back — §8).
+  `escalate_to_organization` (loop in the owner, relay the answer back — §8).
 - Answer the forwarded voice leg with a short spoken line + hangup ("sorry we missed you, texting
   you right now").
 
@@ -590,10 +590,10 @@ dial-back:
 — a re-POSTed webhook never creates a second lead/text. A *distinct* new call from a caller who is
 **genuinely mid-conversation** (last activity within the last hour) is skipped so we don't interrupt
 them; once that hour passes, a new call **re-engages their existing lead** ("welcome back" in the same
-thread) — one lead per `(contractor, phone)`, never a duplicate.
+thread) — one lead per `(organization, phone)`, never a duplicate.
 
-**Setup is per-contractor onboarding** (like the email-forward rule in §9): (1) point the Twilio
-number's Voice webhook at `/webhooks/twilio/voice`; (2) the contractor enables conditional call
+**Setup is per-organization onboarding** (like the email-forward rule in §9): (1) point the Twilio
+number's Voice webhook at `/webhooks/twilio/voice`; (2) the organization enables conditional call
 forwarding to that number. Toll-free numbers support inbound voice and being a forward target.
 
 **Consent.** Caller-initiated (they phoned the business), so texting back is a reasonable basis;
@@ -605,7 +605,7 @@ hardcoded number).
 
 ---
 
-## 10. Contractor Dashboard — full page map (Phase 4)
+## 10. Owner Dashboard — full page map (Phase 4)
 
 The logged-in web app. All data already exists in the schema from Phase 1, so these pages are views/editors over existing tables.
 
@@ -618,7 +618,7 @@ The logged-in web app. All data already exists in the schema from Phase 1, so th
 
 - List of all leads with status (new / qualifying / booked / disqualified / no-response).
 - Click a lead → full SMS thread (the `message` history), lead details, current state.
-- Read-only initially; later, allow the contractor to manually jump into a conversation ("take over from Sarah").
+- Read-only initially; later, allow the organization to manually jump into a conversation ("take over from Sarah").
 
 **c) Appointments**
 
@@ -629,7 +629,7 @@ The logged-in web app. All data already exists in the schema from Phase 1, so th
 
 - Edit Sarah's name + persona notes.
 - Edit qualification rules, service area, project types.
-- This edits the same per-contractor config that assembles Sarah's system prompt — no redeploy needed.
+- This edits the same per-organization config that assembles Sarah's system prompt — no redeploy needed.
 
 **e) Availability**
 
@@ -649,32 +649,32 @@ The logged-in web app. All data already exists in the schema from Phase 1, so th
 
 ## 11. Future enhancements (post core product — do NOT build early)
 
-- **Google Calendar OAuth sync** — "Sign in with Google" so Sarah proposes only genuinely-free slots and writes bookings back to the contractor's calendar. Replaces/augments the manual availability grid. Deferred due to OAuth + Google verification complexity; the availability grid delivers the same outcome without it.
+- **Google Calendar OAuth sync** — "Sign in with Google" so Sarah proposes only genuinely-free slots and writes bookings back to the organization's calendar. Replaces/augments the manual availability grid. Deferred due to OAuth + Google verification complexity; the availability grid delivers the same outcome without it.
 - **Additional lead channels** — Facebook Lead Ads, Google Local Services, Angi/etc., beyond website-form emails.
-- **Billing, subscriptions & offboarding (Stripe)** — the paid-account lifecycle + how a contractor churns. **Not built yet**; outlined here so the admin/status model (§4) stays coherent with it. Build when the first paying customers onboard.
-  - **Stripe is the source of truth for subscription state.** Checkout + the customer portal handle payment; **Stripe webhooks** (`checkout.session.completed`, `customer.subscription.updated/deleted`, `invoice.payment_failed`) drive a stored **subscription status** on the contractor: `active | past_due | canceled`. This is a **third status dimension** alongside Account lifecycle + Line verification (§4) — and, unlike those two (which are informational), it's the one that **gates the product**: on `canceled`, **pause Sarah** (stop processing inbound on that number) while **keeping all data**.
+- **Billing, subscriptions & offboarding (Stripe)** — the paid-account lifecycle + how a organization churns. **Not built yet**; outlined here so the admin/status model (§4) stays coherent with it. Build when the first paying customers onboard.
+  - **Stripe is the source of truth for subscription state.** Checkout + the customer portal handle payment; **Stripe webhooks** (`checkout.session.completed`, `customer.subscription.updated/deleted`, `invoice.payment_failed`) drive a stored **subscription status** on the organization: `active | past_due | canceled`. This is a **third status dimension** alongside Account lifecycle + Line verification (§4) — and, unlike those two (which are informational), it's the one that **gates the product**: on `canceled`, **pause Sarah** (stop processing inbound on that number) while **keeping all data**.
   - **Settings → "Manage subscription"** opens the Stripe customer portal (payment method, invoices, plan changes).
-  - **Soft-cancel, never hard-delete.** Cancelling marks the contractor `canceled` + pauses Sarah; the account and data are **retained** so they can be **reactivated** later (churned customers often return). Hard deletion is reserved for **GDPR erasure / test resets** — that's `apps/api/scripts/delete-contractor.ts`, which is NOT the churn path.
+  - **Soft-cancel, never hard-delete.** Cancelling marks the organization `canceled` + pauses Sarah; the account and data are **retained** so they can be **reactivated** later (churned customers often return). Hard deletion is reserved for **GDPR erasure / test resets** — that's `apps/api/scripts/delete-organization.ts`, which is NOT the churn path.
   - **Retention interception (custom cancel flow).** The in-app "Cancel" does **not** jump straight to Stripe's cancel — it first offers to **book a call with the founder**; only if they decline does it proceed. (Pattern borrowed from products that recover churn by talking to the user before they leave.)
   - **Cancellation email** — on cancel, send a branded "sorry to see you go" email (per `EMAIL.md`) linking a short **"why did you leave?" feedback form** + an offer to **book a call**.
-  - **Admin** — surface subscription status as a third chip + a filter for churned contractors, with a manual `canceled`/`reactivate` override for edge cases (payment-failure grace, comped accounts).
+  - **Admin** — surface subscription status as a third chip + a filter for churned organizations, with a manual `canceled`/`reactivate` override for edge cases (payment-failure grace, comped accounts).
 - **Per-booked-appointment billing** — usage-based billing on top of the subscription, per the pricing model.
-- **"Take over from Sarah"** — contractor manually steps into a live SMS conversation.
-- **Local (10DLC) number upgrade tier** — paid upgrade giving a contractor a local area-code number instead of toll-free. Requires 10DLC registration (~10–15 days on Twilio, or ~72h via a specialized provider). Includes the number-swap/handoff flow (old toll-free keeps working during registration; on switch, inbound contact to the old number auto-replies that Sarah's number changed and the new local number initiates contact). Build the formal tiered plans (cheaper toll-free vs. pricier local) once ~5+ customers request it.
-- **Pre-warmed number inventory pool** — maintain a rolling pool of pre-provisioned/pre-verified numbers for instant assignment and to avoid grace-period caps; build around ~20+ contractors / larger clients.
+- **"Take over from Sarah"** — organization manually steps into a live SMS conversation.
+- **Local (10DLC) number upgrade tier** — paid upgrade giving a organization a local area-code number instead of toll-free. Requires 10DLC registration (~10–15 days on Twilio, or ~72h via a specialized provider). Includes the number-swap/handoff flow (old toll-free keeps working during registration; on switch, inbound contact to the old number auto-replies that Sarah's number changed and the new local number initiates contact). Build the formal tiered plans (cheaper toll-free vs. pricier local) once ~5+ customers request it.
+- **Pre-warmed number inventory pool** — maintain a rolling pool of pre-provisioned/pre-verified numbers for instant assignment and to avoid grace-period caps; build around ~20+ organizations / larger clients.
 - **Alternative telephony provider eval** — if local-number provisioning speed becomes a bottleneck, evaluate a specialized 10DLC provider (e.g., Telgorithm, ~72h approvals) vs. staying on Twilio.
 - **Show-confirmation + reminders** — day-before/day-of confirmation texts to reduce no-shows.
-- **Project-type catalog + custom-type matching** — make the curated suggestion catalog (`DEFAULT_PROJECT_TYPES`) **admin-editable** (per-vertical, stored globally) instead of a code constant; and let a contractor attach **synonyms** to a custom type they add, so an off-catalog service (e.g. "Skylight installation") matches a homeowner's loose wording deterministically instead of falling through to the AI path (§5.1).
+- **Project-type catalog + custom-type matching** — make the curated suggestion catalog (`DEFAULT_PROJECT_TYPES`) **admin-editable** (per-vertical, stored globally) instead of a code constant; and let a organization attach **synonyms** to a custom type they add, so an off-catalog service (e.g. "Skylight installation") matches a customer's loose wording deterministically instead of falling through to the AI path (§5.1).
 
 ---
 
 ## 12. Revised build order (summary)
 
 0. **Echo Bot** — Twilio↔Claude SMS roundtrip. _(today)_
-1. **Sarah MVP** — `/lead` trigger → full qualify→book→notify conversation, one hardcoded contractor, Postgres/Prisma. _(the first demo)_
+1. **Sarah MVP** — `/lead` trigger → full qualify→book→notify conversation, one hardcoded organization, Postgres/Prisma. _(the first demo)_
 2. **Email-parse intake** — unique forwarding address replaces the manual trigger.
-3. **Onboarding UI** — contractor self-serve setup incl. availability grid; creates the contractor record + forwarding address.
-4. **Contractor Dashboard** — overview, conversations, appointments, bot settings, availability, account (per §10).
+3. **Onboarding UI** — organization self-serve setup incl. availability grid; creates the organization record + forwarding address.
+4. **Owner Dashboard** — overview, conversations, appointments, bot settings, availability, account (per §10).
 5. **Hardening & enhancements** — Postgres/deploy/monitoring, then the §11 enhancements (Google Calendar sync, billing, extra channels).
 
 **Guiding rule:** build one phase at a time, in order. Each phase should be usable/demoable before starting the next. Do not pull future-phase features forward.

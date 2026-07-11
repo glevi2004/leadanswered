@@ -1,5 +1,5 @@
 import type {
-  ContractorConfig,
+  OrganizationConfig,
   GatheredInfo,
   NotificationEventType,
   Stage,
@@ -8,7 +8,7 @@ import type {
 
 export interface LeadRecord {
   id: string;
-  contractorId: string;
+  organizationId: string;
   contactName: string;
   contactPhone: string;
   projectHint: string | null;
@@ -50,13 +50,13 @@ export interface RecipientRecord {
 
 export interface LeadContext {
   lead: LeadRecord;
-  contractor: ContractorConfig;
+  organization: OrganizationConfig;
   conversation: ConversationRecord;
   messages: MessageRecord[];
 }
 
 export interface CreateLeadInput {
-  contractorId: string;
+  organizationId: string;
   contactName: string;
   contactPhone: string;
   projectHint?: string | null;
@@ -72,11 +72,11 @@ export type LeadFieldPatch = Partial<
 export interface AppointmentRecord {
   id: string;
   leadId: string;
-  contractorId: string;
+  organizationId: string;
   startIso: string;
   endIso: string;
   status: string;
-  /** IANA timezone the contractor was in when booked (for correct display if their tz later changes). */
+  /** IANA timezone the organization was in when booked (for correct display if their tz later changes). */
   timezone?: string;
   /** Calendar-sync mirror (for inbound reconcile + loop prevention). */
   externalEventId?: string | null;
@@ -107,10 +107,10 @@ export type AppointmentSyncPatch = Partial<{
   syncedAt: string; // ISO
 }>;
 
-/** A contractor's connected external calendar (Google today). Tokens are stored ENCRYPTED at rest. */
+/** A organization's connected external calendar (Google today). Tokens are stored ENCRYPTED at rest. */
 export interface CalendarConnectionRecord {
   id: string;
-  contractorId: string;
+  organizationId: string;
   provider: string;
   externalCalendarId: string | null;
   accessToken: string | null; // encrypted
@@ -125,12 +125,12 @@ export interface CalendarConnectionRecord {
   channelToken: string | null;
   channelExpiresAt: string | null; // ISO
 }
-export type CalendarConnectionPatch = Partial<Omit<CalendarConnectionRecord, "id" | "contractorId" | "provider">>;
+export type CalendarConnectionPatch = Partial<Omit<CalendarConnectionRecord, "id" | "organizationId" | "provider">>;
 
 export interface EscalationRecord {
   id: string;
   leadId: string;
-  contractorId: string;
+  organizationId: string;
   conversationId: string;
   question: string;
   status: string;
@@ -138,19 +138,19 @@ export interface EscalationRecord {
 
 /** Persistence port. Implemented by MemoryStore (demo/tests) and PrismaStore (production). */
 export interface Store {
-  getContractor(id: string): Promise<ContractorConfig | null>;
-  getContractorByTwilioNumber(toNumber: string): Promise<ContractorConfig | null>;
-  /** Match a contractor by their lead-email slug (leads+{slug}@…) — email intake (SCOPE §9). */
-  getContractorBySlug(slug: string): Promise<ContractorConfig | null>;
-  getRecipients(contractorId: string): Promise<RecipientRecord[]>;
+  getOrganization(id: string): Promise<OrganizationConfig | null>;
+  getOrganizationByTwilioNumber(toNumber: string): Promise<OrganizationConfig | null>;
+  /** Match a organization by their lead-email slug (leads+{slug}@…) — email intake (SCOPE §9). */
+  getOrganizationBySlug(slug: string): Promise<OrganizationConfig | null>;
+  getRecipients(organizationId: string): Promise<RecipientRecord[]>;
   createLeadWithConversation(input: CreateLeadInput): Promise<LeadContext>;
   /** Email idempotency — has a lead already been created from this email key? */
   findLeadBySourceMessageId(sourceMessageId: string): Promise<{ id: string } | null>;
   findActiveContextByPhones(toNumber: string, fromNumber: string): Promise<LeadContext | null>;
-  /** Most recent lead+conversation for this contractor+phone — dedupe at intake (one lead per contact). */
-  findLeadContextByContractorPhone(contractorId: string, phone: string): Promise<LeadContext | null>;
-  /** Fuzzy-search a contractor's leads by contact name (contractor "text {name}" commands). */
-  findLeadsByName(contractorId: string, name: string): Promise<LeadRecord[]>;
+  /** Most recent lead+conversation for this organization+phone — dedupe at intake (one lead per contact). */
+  findLeadContextByOrganizationPhone(organizationId: string, phone: string): Promise<LeadContext | null>;
+  /** Fuzzy-search a organization's leads by contact name (organization "text {name}" commands). */
+  findLeadsByName(organizationId: string, name: string): Promise<LeadRecord[]>;
   getContextByLeadId(leadId: string): Promise<LeadContext | null>;
 
   // --- Concurrency & idempotency ---
@@ -178,45 +178,45 @@ export interface Store {
   /** Atomically insert the appointment + flip lead/conversation to booked. Conflicts → BookOutcome. */
   bookAppointment(input: {
     leadId: string;
-    contractorId: string;
+    organizationId: string;
     startIso: string;
     endIso: string;
     timezone: string;
   }): Promise<BookOutcome>;
   /** Active (proposed/confirmed) appointments overlapping the window — for availability subtraction. */
-  getBusyTimes(contractorId: string, window: { startIso: string; endIso: string }): Promise<TimeRange[]>;
+  getBusyTimes(organizationId: string, window: { startIso: string; endIso: string }): Promise<TimeRange[]>;
   /** The lead's single active appointment (guaranteed ≤1 by the DB) — for reschedule/cancel. */
   getActiveAppointmentByLead(leadId: string): Promise<AppointmentRecord | null>;
   /** All appointments for a lead (history) — relationship memory for the prompt. */
   getAppointmentsByLead(leadId: string): Promise<AppointmentRecord[]>;
-  /** Reschedule a specific appointment to a new slot, guarded against contractor conflicts. */
+  /** Reschedule a specific appointment to a new slot, guarded against organization conflicts. */
   rescheduleAppointment(id: string, startIso: string, endIso: string): Promise<BookOutcome>;
   updateAppointment(id: string, patch: AppointmentPatch): Promise<void>;
   /** Fetch one appointment by id — the calendar-sync worker + the appointment-change handler use it. */
   getAppointmentById(id: string): Promise<AppointmentRecord | null>;
   /** Reverse-map a Google event id → our appointment, for inbound reconcile. */
-  findAppointmentByExternalEventId(contractorId: string, externalEventId: string): Promise<AppointmentRecord | null>;
+  findAppointmentByExternalEventId(organizationId: string, externalEventId: string): Promise<AppointmentRecord | null>;
   /** Record the OUTBOUND-sync state of an appointment (external ids / etag / syncState). Never in a tx. */
   updateAppointmentSync(id: string, patch: AppointmentSyncPatch): Promise<void>;
 
   // --- Calendar connections (Google Calendar two-way sync) ---
-  getCalendarConnection(contractorId: string, provider?: string): Promise<CalendarConnectionRecord | null>;
-  /** Look up a connection by its Google push-channel id (webhook → which contractor). */
+  getCalendarConnection(organizationId: string, provider?: string): Promise<CalendarConnectionRecord | null>;
+  /** Look up a connection by its Google push-channel id (webhook → which organization). */
   getCalendarConnectionByChannel(channelId: string): Promise<CalendarConnectionRecord | null>;
   /** All currently-connected calendars (worker polling / channel-renewal sweep). */
   listConnectedCalendars(): Promise<CalendarConnectionRecord[]>;
-  upsertCalendarConnection(contractorId: string, provider: string, patch: CalendarConnectionPatch): Promise<CalendarConnectionRecord>;
+  upsertCalendarConnection(organizationId: string, provider: string, patch: CalendarConnectionPatch): Promise<CalendarConnectionRecord>;
 
-  // --- Escalations (loop in the contractor; relay their answer back) ---
+  // --- Escalations (loop in the organization; relay their answer back) ---
   createEscalation(input: {
     leadId: string;
-    contractorId: string;
+    organizationId: string;
     conversationId: string;
     question: string;
   }): Promise<EscalationRecord>;
-  /** The most recent OPEN escalation for a contractor — to match their reply. */
-  findOpenEscalationByContractorReply(contractorId: string): Promise<EscalationRecord | null>;
-  /** The most recent OPEN escalation for a lead — to suppress nudges while they wait on the contractor. */
+  /** The most recent OPEN escalation for a organization — to match their reply. */
+  findOpenEscalationByOwnerReply(organizationId: string): Promise<EscalationRecord | null>;
+  /** The most recent OPEN escalation for a lead — to suppress nudges while they wait on the organization. */
   findOpenEscalationByLead(leadId: string): Promise<EscalationRecord | null>;
   /** Conditional resolve — true only if it actually flipped open→resolved (idempotent relay guard). */
   resolveEscalationIfOpen(id: string, answer: string): Promise<boolean>;

@@ -1,8 +1,8 @@
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
-import type { ContractorConfigInput } from "@/lib/config";
+import type { OrganizationConfigInput } from "@/lib/config";
 
 /**
- * Contractor read/write helpers (server-only) via supabase-js with the service-role
+ * Organization read/write helpers (server-only) via supabase-js with the service-role
  * key. Access is enforced in our own code (middleware + role checks), so bypassing
  * RLS is intentional. NOTE: Prisma's id/updatedAt are app-side defaults, so inserts
  * must supply them explicitly.
@@ -11,7 +11,7 @@ import type { ContractorConfigInput } from "@/lib/config";
 const nowIso = () => new Date().toISOString();
 const newId = () => crypto.randomUUID();
 
-export interface ContractorListRow {
+export interface OrganizationListRow {
   id: string;
   companyName: string;
   slug: string | null;
@@ -21,20 +21,20 @@ export interface ContractorListRow {
   onboardingComplete: boolean;
 }
 
-export async function listContractors(): Promise<ContractorListRow[]> {
+export async function listOrganizations(): Promise<OrganizationListRow[]> {
   const sb = createSupabaseAdmin();
   const { data, error } = await sb
-    .from("Contractor")
+    .from("Organization")
     .select("id, companyName, slug, twilioNumber, verificationStatus, ownerEmail, onboardingComplete, createdAt")
     .order("createdAt", { ascending: false });
   if (error) throw error;
-  return (data ?? []) as ContractorListRow[];
+  return (data ?? []) as OrganizationListRow[];
 }
 
-export async function getContractorByOwnerEmail(email: string) {
+export async function getOrganizationByOwnerEmail(email: string) {
   const sb = createSupabaseAdmin();
   const { data, error } = await sb
-    .from("Contractor")
+    .from("Organization")
     .select("*, recipients:NotificationRecipient(*, subscriptions:NotificationSubscription(*))")
     .eq("ownerEmail", email.toLowerCase())
     .maybeSingle();
@@ -42,11 +42,11 @@ export async function getContractorByOwnerEmail(email: string) {
   return data;
 }
 
-/** Full contractor row + recipients by id — seeds the admin-run onboarding wizard. */
-export async function getContractorConfigById(id: string) {
+/** Full organization row + recipients by id — seeds the admin-run onboarding wizard. */
+export async function getOrganizationConfigById(id: string) {
   const sb = createSupabaseAdmin();
   const { data, error } = await sb
-    .from("Contractor")
+    .from("Organization")
     .select("*, recipients:NotificationRecipient(*, subscriptions:NotificationSubscription(*))")
     .eq("id", id)
     .maybeSingle();
@@ -63,7 +63,7 @@ export async function getContractorConfigById(id: string) {
  */
 export type AccountStatus = "none" | "new" | "onboarded" | "invited" | "live";
 
-export interface ContractorListRowWithStatus extends ContractorListRow {
+export interface OrganizationListRowWithStatus extends OrganizationListRow {
   accountStatus: AccountStatus;
 }
 
@@ -98,8 +98,8 @@ function accountStatusFrom(
   return onboardingComplete ? "onboarded" : "new"; // no auth user yet → not invited
 }
 
-export async function listContractorsWithStatus(): Promise<ContractorListRowWithStatus[]> {
-  const rows = await listContractors();
+export async function listOrganizationsWithStatus(): Promise<OrganizationListRowWithStatus[]> {
+  const rows = await listOrganizations();
   const emails = rows.map((r) => r.ownerEmail).filter((e): e is string => !!e);
   const accepted = emails.length ? await ownerAcceptanceMap(emails) : new Map<string, boolean>();
   return rows.map((r) => ({
@@ -112,7 +112,7 @@ export async function listContractorsWithStatus(): Promise<ContractorListRowWith
   }));
 }
 
-export interface ContractorAdminDetail {
+export interface OrganizationAdminDetail {
   id: string;
   companyName: string;
   slug: string | null;
@@ -123,10 +123,10 @@ export interface ContractorAdminDetail {
   accountStatus: AccountStatus;
 }
 
-/** Full contractor row + derived accountStatus, for the /admin/[id] manage page. */
-export async function getContractorById(id: string): Promise<ContractorAdminDetail | null> {
+/** Full organization row + derived accountStatus, for the /admin/[id] manage page. */
+export async function getOrganizationById(id: string): Promise<OrganizationAdminDetail | null> {
   const sb = createSupabaseAdmin();
-  const { data, error } = await sb.from("Contractor").select("*").eq("id", id).maybeSingle();
+  const { data, error } = await sb.from("Organization").select("*").eq("id", id).maybeSingle();
   if (error) throw error;
   if (!data) return null;
   const row = data as Record<string, any>;
@@ -147,7 +147,7 @@ export async function getContractorById(id: string): Promise<ContractorAdminDeta
   };
 }
 
-export async function createContractorShell(input: {
+export async function createOrganizationShell(input: {
   companyName: string;
   slug: string;
   twilioNumber: string;
@@ -156,7 +156,7 @@ export async function createContractorShell(input: {
 }): Promise<{ id: string }> {
   const sb = createSupabaseAdmin();
   const id = newId();
-  const { error } = await sb.from("Contractor").insert({
+  const { error } = await sb.from("Organization").insert({
     id,
     name: input.companyName, // owner name captured during onboarding; default to company
     companyName: input.companyName,
@@ -171,7 +171,7 @@ export async function createContractorShell(input: {
   return { id };
 }
 
-export async function updateContractorAdmin(
+export async function updateOrganizationAdmin(
   id: string,
   patch: {
     companyName?: string;
@@ -188,16 +188,16 @@ export async function updateContractorAdmin(
   if (patch.twilioNumber !== undefined) data.twilioNumber = patch.twilioNumber;
   if (patch.verificationStatus !== undefined) data.verificationStatus = patch.verificationStatus;
   if (patch.ownerEmail) data.ownerEmail = patch.ownerEmail.toLowerCase();
-  const { error } = await sb.from("Contractor").update(data).eq("id", id);
+  const { error } = await sb.from("Organization").update(data).eq("id", id);
   if (error) throw error;
 }
 
 /** Persist the client's self-serve config + replace their notification recipients. */
-export async function setContractorConfig(id: string, config: ContractorConfigInput): Promise<void> {
+export async function setOrganizationConfig(id: string, config: OrganizationConfigInput): Promise<void> {
   const sb = createSupabaseAdmin();
 
   const { error: e1 } = await sb
-    .from("Contractor")
+    .from("Organization")
     .update({
       companyName: config.companyName,
       sarahName: config.sarahName,
@@ -216,14 +216,14 @@ export async function setContractorConfig(id: string, config: ContractorConfigIn
   if (e1) throw e1;
 
   // Replace recipients (sequential — onboarding is low-concurrency).
-  const { error: e2 } = await sb.from("NotificationRecipient").delete().eq("contractorId", id);
+  const { error: e2 } = await sb.from("NotificationRecipient").delete().eq("organizationId", id);
   if (e2) throw e2;
 
   for (const r of config.recipients) {
     const recipientId = newId();
     const { error: e3 } = await sb.from("NotificationRecipient").insert({
       id: recipientId,
-      contractorId: id,
+      organizationId: id,
       name: r.name,
       phone: r.phone ?? null,
       email: r.email ?? null,

@@ -31,15 +31,15 @@ export type NotificationEventType = (typeof NOTIFICATION_EVENT_TYPES)[number];
 
 /**
  * Curated project-type suggestions shown as one-click chips in onboarding/settings. These are just
- * starting points — contractors can remove them and add their own free-text. (Roofing-flavored for
- * now; making this catalog admin-editable is a roadmap item — SCOPE §11.)
+ * generic, cross-trade starting points — organizations remove them and add their own free-text to
+ * match their vertical. (Making this catalog per-vertical/admin-editable is a roadmap item — SCOPE §11.)
  */
 export const DEFAULT_PROJECT_TYPES = [
-  "Roof repair",
-  "Roof replacement",
-  "Gutters",
+  "Repair",
+  "Installation",
+  "Replacement",
+  "Maintenance",
   "Inspection",
-  "Storm damage",
 ] as const;
 
 const zip5 = z.string().regex(/^\d{5}$/, "must be a 5-digit ZIP");
@@ -56,7 +56,7 @@ const recipientSchema = z
   })
   .refine((r) => !!r.phone || !!r.email, { message: "a recipient needs a phone or an email" });
 
-export const contractorConfigSchema = z.object({
+export const organizationConfigSchema = z.object({
   companyName: z.string().min(1, "company name is required"),
   sarahName: z.string().min(1).default("Sarah"),
   personaNotes: z.string().nullish(),
@@ -82,6 +82,6 @@ export const contractorConfigSchema = z.object({
   recipients: z.array(recipientSchema).default([]),
 });
 
-export type ContractorConfigInput = z.infer<typeof contractorConfigSchema>;
+export type OrganizationConfigInput = z.infer<typeof organizationConfigSchema>;
 
 export const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];

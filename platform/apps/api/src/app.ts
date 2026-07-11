@@ -19,7 +19,7 @@ import {
 } from "./calendar/google/oauthRoutes.js";
 import { createGoogleNotifyRoute } from "./calendar/google/notifyRoute.js";
 import { createAppointmentChangeRoute } from "./routes/appointments.js";
-import { testContractor, testRecipients } from "./seed.js";
+import { testOrganization, testRecipients } from "./seed.js";
 
 export interface BuildDeps {
   store?: Store;
@@ -29,16 +29,16 @@ export interface BuildDeps {
   now?: () => Date;
 }
 
-/** Production: Postgres via Prisma. Demo: in-memory store seeded with the test contractor. */
+/** Production: Postgres via Prisma. Demo: in-memory store seeded with the test organization. */
 export async function buildStore(): Promise<Store> {
   if (usePostgres()) {
     const { PrismaStore } = await import("./store/prismaStore.js");
     return new PrismaStore();
   }
   const mem = new MemoryStore();
-  mem.seedContractor(testContractor, testRecipients);
+  mem.seedOrganization(testOrganization, testRecipients);
   console.warn(
-    "[api] DATABASE_URL not set — using in-memory store (data not persisted). Seeded test contractor 'Apex Roofing'.",
+    "[api] DATABASE_URL not set — using in-memory store (data not persisted). Seeded test organization 'Apex Roofing'.",
   );
   return mem;
 }
@@ -49,7 +49,7 @@ export async function createApp(overrides: BuildDeps = {}): Promise<Express> {
   const sms =
     overrides.sms ??
     (useTwilio()
-      ? new TwilioSmsSender(testContractor.twilioNumber!)
+      ? new TwilioSmsSender(testOrganization.twilioNumber!)
       : new ConsoleSmsSender());
   const email =
     overrides.email ??
@@ -86,7 +86,7 @@ export async function createApp(overrides: BuildDeps = {}): Promise<Express> {
     app.post("/google/notifications", createGoogleNotifyRoute(deps));
   }
 
-  // Dashboard-initiated appointment change (cancel/reschedule) — the other trigger of applyContractorChange.
+  // Dashboard-initiated appointment change (cancel/reschedule) — the other trigger of applyOwnerChange.
   // Works even without Google connected (it just won't push); needs the shared state secret to auth the web.
   if (env.CALENDAR_STATE_SECRET) {
     app.post("/appointments/change", createAppointmentChangeRoute(deps));

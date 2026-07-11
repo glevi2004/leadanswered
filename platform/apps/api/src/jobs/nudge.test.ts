@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { MemoryStore } from "../store/memoryStore.js";
 import { CapturingEmail, CapturingSms, scriptedModel } from "../testkit.js";
-import { testContractor, testRecipients, TEST_CONTRACTOR_ID } from "../seed.js";
+import { testOrganization, testRecipients, TEST_ORGANIZATION_ID } from "../seed.js";
 import { runNudgeJob } from "./nudge.js";
 
 const NOW = new Date("2026-06-15T08:00:00Z");
@@ -9,7 +9,7 @@ const PHONE = "+19788105602";
 
 function setup(modelText = "Hey Levi, still happy to help whenever you're ready!") {
   const store = new MemoryStore();
-  store.seedContractor(testContractor, testRecipients);
+  store.seedOrganization(testOrganization, testRecipients);
   return {
     store,
     sms: new CapturingSms(),
@@ -20,7 +20,7 @@ function setup(modelText = "Hey Levi, still happy to help whenever you're ready!
 
 async function quietLead(store: MemoryStore) {
   const ctx = await store.createLeadWithConversation({
-    contractorId: TEST_CONTRACTOR_ID, contactName: "Levi", contactPhone: PHONE, source: "manual",
+    organizationId: TEST_ORGANIZATION_ID, contactName: "Levi", contactPhone: PHONE, source: "manual",
   });
   await store.appendMessage(ctx.conversation.id, { direction: "outbound", body: "What's the property address?" });
   await store.updateLeadFields(ctx.lead.id, { status: "contacted" });
@@ -41,11 +41,11 @@ describe("runNudgeJob (context-aware quiet-lead follow-up)", () => {
     expect(sms.sent.filter((s) => s.to === PHONE)).toHaveLength(1);
   });
 
-  it("does NOT nudge while an escalation is OPEN (they're waiting on the contractor)", async () => {
+  it("does NOT nudge while an escalation is OPEN (they're waiting on the organization)", async () => {
     const { store, sms, email, model } = setup();
     const ctx = await quietLead(store);
     await store.createEscalation({
-      leadId: ctx.lead.id, contractorId: TEST_CONTRACTOR_ID, conversationId: ctx.conversation.id,
+      leadId: ctx.lead.id, organizationId: TEST_ORGANIZATION_ID, conversationId: ctx.conversation.id,
       question: "when are you coming?",
     });
 
@@ -68,7 +68,7 @@ describe("runNudgeJob (context-aware quiet-lead follow-up)", () => {
   it("does NOT nudge a lead who already replied (last message is inbound)", async () => {
     const { store, sms, email, model } = setup();
     const ctx = await store.createLeadWithConversation({
-      contractorId: TEST_CONTRACTOR_ID, contactName: "Levi", contactPhone: PHONE, source: "manual",
+      organizationId: TEST_ORGANIZATION_ID, contactName: "Levi", contactPhone: PHONE, source: "manual",
     });
     await store.appendMessage(ctx.conversation.id, { direction: "outbound", body: "What's the address?" });
     await store.appendMessage(ctx.conversation.id, { direction: "inbound", body: "100 Linden St" });
@@ -80,7 +80,7 @@ describe("runNudgeJob (context-aware quiet-lead follow-up)", () => {
   it("does NOT nudge a booked lead", async () => {
     const { store, sms, email, model } = setup();
     const ctx = await store.createLeadWithConversation({
-      contractorId: TEST_CONTRACTOR_ID, contactName: "Levi", contactPhone: PHONE, source: "manual",
+      organizationId: TEST_ORGANIZATION_ID, contactName: "Levi", contactPhone: PHONE, source: "manual",
     });
     await store.appendMessage(ctx.conversation.id, { direction: "outbound", body: "Booked!" });
     await store.updateLeadFields(ctx.lead.id, { status: "booked" });

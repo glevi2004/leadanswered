@@ -1,8 +1,8 @@
-import type { ContractorConfig, GatheredInfo, SmsSender } from "@leadanswered/core";
+import type { OrganizationConfig, GatheredInfo, SmsSender } from "@leadanswered/core";
 import type { ConversationRecord, LeadRecord, Store } from "../store/types.js";
 
 export interface HandoffState {
-  contractor: ContractorConfig;
+  organization: OrganizationConfig;
   lead: LeadRecord;
   conversation: ConversationRecord;
   gathered: GatheredInfo;
@@ -22,23 +22,23 @@ export function extractPhone(text: string): string | null {
 }
 
 /**
- * DETERMINISTIC not-the-homeowner hand-off. When the lead is confirmed NOT the decision-maker and we
- * have the homeowner's phone, CODE (not the model) pings every contractor recipient with that contact,
+ * DETERMINISTIC not-the-decision-maker hand-off. When the lead is confirmed NOT the decision-maker and we
+ * have the decision-maker's phone, CODE (not the model) pings every organization recipient with that contact,
  * exactly once. It's a guaranteed side-effect — the model has no say in whether it fires. Returns true
  * if it fired this call. Mutates + persists `state.gathered.ownerHandoffDone` for idempotency.
  */
 export async function handOffOwnerIfReady(deps: HandoffDeps, state: HandoffState): Promise<boolean> {
   const g = state.gathered;
-  const requireDM = state.contractor.qualificationRules?.requireDecisionMaker !== false;
+  const requireDM = state.organization.qualificationRules?.requireDecisionMaker !== false;
   if (!requireDM || g.isDecisionMaker !== false || !g.ownerPhone || g.ownerHandoffDone) return false;
 
   const leadName = state.lead.contactName || "A lead";
   const owner = `${g.ownerName ? g.ownerName + " " : ""}${g.ownerPhone}`;
   const body =
-    `🏠 ${leadName} (${state.lead.contactPhone}) reached out but isn't the homeowner. ` +
-    `Homeowner contact: ${owner}. Reach out to them to book the free on-site estimate.`;
+    `📇 ${leadName} (${state.lead.contactPhone}) reached out but isn't the decision-maker. ` +
+    `Decision-maker contact: ${owner}. Reach out to them to book the free on-site estimate.`;
 
-  const recipients = await deps.store.getRecipients(state.contractor.id);
+  const recipients = await deps.store.getRecipients(state.organization.id);
   for (const r of recipients) {
     if (r.phone) {
       try {

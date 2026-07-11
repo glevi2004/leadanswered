@@ -1,28 +1,28 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { MemoryStore } from "../store/memoryStore.js";
 import { handleInbound } from "../conversationService.js";
-import { __resetContractorAgent } from "./contractorAgent.js";
-import { testContractor, testRecipients, TEST_CONTRACTOR_ID } from "../seed.js";
+import { __resetOwnerAgent } from "./ownerAgent.js";
+import { testOrganization, testRecipients, TEST_ORGANIZATION_ID } from "../seed.js";
 import { CapturingSms, scriptedModel } from "../testkit.js";
 
-const TO = testContractor.twilioNumber!; // the assistant number
-const OWNER = "+18335559999"; // the contractor's recipient phone
+const TO = testOrganization.twilioNumber!; // the assistant number
+const OWNER = "+18335559999"; // the organization's recipient phone
 const LEVI = "+15550001111";
 const DANA = "+15550003333";
 const CUSTOMER = "+15557778888";
 
 function seed(): MemoryStore {
   const s = new MemoryStore();
-  s.seedContractor(testContractor, testRecipients);
+  s.seedOrganization(testOrganization, testRecipients);
   return s;
 }
 
-describe("contractor agent (Workflow 3) — the owner directs the assistant", () => {
-  beforeEach(() => __resetContractorAgent());
+describe("organization agent (Workflow 3) — the owner directs the assistant", () => {
+  beforeEach(() => __resetOwnerAgent());
 
   it("hard gate: drafts + reads back, sends to the lead ONLY after the owner's yes", async () => {
     const store = seed();
-    const ctx = await store.createLeadWithConversation({ contractorId: TEST_CONTRACTOR_ID, contactName: "Levi Ramos", contactPhone: LEVI, projectHint: "roof leak" });
+    const ctx = await store.createLeadWithConversation({ organizationId: TEST_ORGANIZATION_ID, contactName: "Levi Ramos", contactPhone: LEVI, projectHint: "roof leak" });
     const sms = new CapturingSms();
     const model = scriptedModel([
       { tool: "find_leads", input: { name: "Levi" } },
@@ -46,7 +46,7 @@ describe("contractor agent (Workflow 3) — the owner directs the assistant", ()
 
   it("sends nothing when the owner says no", async () => {
     const store = seed();
-    const ctx = await store.createLeadWithConversation({ contractorId: TEST_CONTRACTOR_ID, contactName: "Dana Lee", contactPhone: DANA, projectHint: "roof" });
+    const ctx = await store.createLeadWithConversation({ organizationId: TEST_ORGANIZATION_ID, contactName: "Dana Lee", contactPhone: DANA, projectHint: "roof" });
     const sms = new CapturingSms();
     const model = scriptedModel([
       { tool: "find_leads", input: { name: "Dana" } },
@@ -64,8 +64,8 @@ describe("contractor agent (Workflow 3) — the owner directs the assistant", ()
 
   it("escalation reply is relayed to the customer in Sarah's own words (not a rigid template)", async () => {
     const store = seed();
-    const ctx = await store.createLeadWithConversation({ contractorId: TEST_CONTRACTOR_ID, contactName: "Chris", contactPhone: CUSTOMER, projectHint: "metal roof" });
-    await store.createEscalation({ leadId: ctx.lead.id, contractorId: TEST_CONTRACTOR_ID, conversationId: ctx.conversation.id, question: "Do we install metal roofs?" });
+    const ctx = await store.createLeadWithConversation({ organizationId: TEST_ORGANIZATION_ID, contactName: "Chris", contactPhone: CUSTOMER, projectHint: "metal roof" });
+    await store.createEscalation({ leadId: ctx.lead.id, organizationId: TEST_ORGANIZATION_ID, conversationId: ctx.conversation.id, question: "Do we install metal roofs?" });
     const sms = new CapturingSms();
     const model = scriptedModel([{ text: "Yes, we do metal roofs! Happy to get you on the schedule." }]);
     const deps = { store, model, sms };

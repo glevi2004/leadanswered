@@ -31,7 +31,7 @@ Production runs on **Railway** (api + worker + Redis) and **Vercel** (web). Post
 ## Webhooks (point at the Railway api)
 
 - Twilio number SMS webhook → `/webhooks/twilio/sms`
-- Twilio number **Voice** webhook ("A call comes in", HTTP POST) → `/webhooks/twilio/voice` — missed-call text-back (SCOPE §9.7). Each contractor also enables **conditional call forwarding** (no-answer + busy) on their real phone → their Twilio number, so unanswered calls forward here.
+- Twilio number **Voice** webhook ("A call comes in", HTTP POST) → `/webhooks/twilio/voice` — missed-call text-back (SCOPE §9.7). Each organization also enables **conditional call forwarding** (no-answer + busy) on their real phone → their Twilio number, so unanswered calls forward here.
 - Postmark inbound (server `InboundHookUrl`) → `/webhooks/email/postmark/<POSTMARK_INBOUND_SECRET>`
 - Supabase Auth → Site URL + Redirect URLs = `https://app.leadanswered.com`
 
@@ -46,7 +46,7 @@ The `appointment_integrity` migration adds constraints that **cannot** be applie
 duplicate/overlapping active appointments exist, so wipe lead data first:
 
 1. **Back up:** `pg_dump "$DATABASE_URL" > backup.sql`.
-2. **Wipe lead-scoped data** (preserves contractors + config + recipients):
+2. **Wipe lead-scoped data** (preserves organizations + config + recipients):
    `cd platform/apps/api && pnpm exec tsx scripts/wipe-lead-data.ts` (dry run) → re-run with `--yes`.
 3. **Migrate:** `pnpm --filter @leadanswered/db migrate:deploy` (adds `btree_gist` + the EXCLUDE/partial-unique constraints to the now-clean table).
 4. **Deploy the app** (api + worker) — the constraint-handling code and the constraints must ship together.

@@ -1,16 +1,16 @@
 /**
- * Hard-delete a contractor and its Supabase Auth user — for resetting a test account so the
+ * Hard-delete a organization and its Supabase Auth user — for resetting a test account so the
  * full create→invite→onboard flow can be re-run from scratch. This is a DESTRUCTIVE, irreversible
  * wipe (not the churn/offboarding flow — that SOFT-cancels and keeps the user; see SCOPE §11).
  *
- * All Contractor relations are `onDelete: Cascade`, so deleting the one row removes its leads,
+ * All Organization relations are `onDelete: Cascade`, so deleting the one row removes its leads,
  * conversations, messages, appointments, escalations, recipients, subscriptions, and calendar
  * connections automatically. The Auth user is then removed via the GoTrue admin REST API.
  *
  * Dry-run by default (prints the blast radius). Pass --yes to actually delete.
- *   cd apps/api && pnpm exec tsx scripts/delete-contractor.ts --email=owner@x.com         # dry run
- *   cd apps/api && pnpm exec tsx scripts/delete-contractor.ts --email=owner@x.com --yes    # delete
- *   (add --keep-auth to delete the contractor data but keep the Supabase login)
+ *   cd apps/api && pnpm exec tsx scripts/delete-organization.ts --email=owner@x.com         # dry run
+ *   cd apps/api && pnpm exec tsx scripts/delete-organization.ts --email=owner@x.com --yes    # delete
+ *   (add --keep-auth to delete the organization data but keep the Supabase login)
  */
 import { config } from "dotenv";
 import { expand } from "dotenv-expand";
@@ -46,31 +46,31 @@ async function handleAuthUser(email: string): Promise<string> {
 
 async function main() {
   if (!EMAIL) {
-    console.error("Usage: tsx scripts/delete-contractor.ts --email=owner@x.com [--yes] [--keep-auth]");
+    console.error("Usage: tsx scripts/delete-organization.ts --email=owner@x.com [--yes] [--keep-auth]");
     process.exit(1);
   }
   const db = getPrisma();
-  const c = await db.contractor.findFirst({ where: { ownerEmail: EMAIL } });
+  const c = await db.organization.findFirst({ where: { ownerEmail: EMAIL } });
 
   if (!c) {
-    console.log(`No contractor with ownerEmail=${EMAIL}.`);
+    console.log(`No organization with ownerEmail=${EMAIL}.`);
   } else {
     const [leads, appts, escalations, recipients] = await Promise.all([
-      db.lead.count({ where: { contractorId: c.id } }),
-      db.appointment.count({ where: { contractorId: c.id } }),
-      db.escalation.count({ where: { contractorId: c.id } }),
-      db.notificationRecipient.count({ where: { contractorId: c.id } }),
+      db.lead.count({ where: { organizationId: c.id } }),
+      db.appointment.count({ where: { organizationId: c.id } }),
+      db.escalation.count({ where: { organizationId: c.id } }),
+      db.notificationRecipient.count({ where: { organizationId: c.id } }),
     ]);
-    console.log(`Contractor: ${c.companyName} — ${c.id}`);
+    console.log(`Organization: ${c.companyName} — ${c.id}`);
     console.log(
       `  cascades to: ${leads} lead(s), ${appts} appointment(s), ${escalations} escalation(s), ` +
         `${recipients} recipient(s) (+ their conversations/messages/subscriptions/calendar connections)`,
     );
     if (execute) {
-      await db.contractor.delete({ where: { id: c.id } });
-      console.log("  ✓ contractor + all cascaded rows deleted");
+      await db.organization.delete({ where: { id: c.id } });
+      console.log("  ✓ organization + all cascaded rows deleted");
     } else {
-      console.log("  DRY RUN — would delete the contractor (cascades to everything above).");
+      console.log("  DRY RUN — would delete the organization (cascades to everything above).");
     }
   }
 

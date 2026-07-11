@@ -3,7 +3,7 @@ import {
   parseLeadEmail,
   normalizePhone,
   slugFromLeadAddress,
-  contractorLeadAddress,
+  organizationLeadAddress,
 } from "./leadEmail.js";
 
 describe("normalizePhone", () => {
@@ -33,8 +33,8 @@ describe("slugFromLeadAddress", () => {
   it("returns null for a non-lead address", () => {
     expect(slugFromLeadAddress("hello@leadanswered.com")).toBeNull();
   });
-  it("round-trips with contractorLeadAddress", () => {
-    const addr = contractorLeadAddress("apex", "leads.leadanswered.com");
+  it("round-trips with organizationLeadAddress", () => {
+    const addr = organizationLeadAddress("apex", "leads.leadanswered.com");
     expect(slugFromLeadAddress(addr)).toBe("apex");
   });
 });

@@ -15,11 +15,11 @@ A live-user QA pass over **every** current capability (frontend + backend). Work
 
 **Accounts**
 - Admin (you): `levi@leadanswered.com` / `LeadAnswered-e266051e`
-- Contractor (Apex Roofing owner): `levigabrielcramos@gmail.com` / `LeadAnswered-d50f2b4d`
+- Organization (Apex Roofing owner): `levigabrielcramos@gmail.com` / `LeadAnswered-d50f2b4d`
 
 **You'll need**
-- A phone that can send/receive SMS (to play the "homeowner").
-- The contractor's **Twilio number** (shown on the dashboard / set in `/admin`).
+- A phone that can send/receive SMS (to play the "customer").
+- The organization's **Twilio number** (shown on the dashboard / set in `/admin`).
 - An email account to forward a "lead" email from.
 
 **Known constraints (not bugs)**
@@ -34,12 +34,12 @@ A live-user QA pass over **every** current capability (frontend + backend). Work
 
 ## 1. Authentication
 
-- [X] **1.1 Sign in (happy path).** Sign in as the contractor → lands on `/dashboard`.
+- [X] **1.1 Sign in (happy path).** Sign in as the organization → lands on `/dashboard`.
 - [X] **1.2 Wrong password.** Bad password → inline error, no crash.
 - [X] **1.3 Admin routing.** Sign in as admin → lands on `/admin` (not the dashboard).
 - [X] **1.4 Gating.** While signed out, open `/dashboard`, `/admin`, `/onboarding` directly → each redirects to `/sign-in`.
 - [X] **1.5 Sign out.** From the dashboard sidebar → "Sign out" → back to `/sign-in`; revisiting `/dashboard` redirects to sign-in.
-- [X] **1.6 Forgot password.** `/sign-in` → "Forgot your password?" → enter the contractor email → "reset link on its way" confirmation, and the reset email arrives (via Postmark).
+- [X] **1.6 Forgot password.** `/sign-in` → "Forgot your password?" → enter the organization email → "reset link on its way" confirmation, and the reset email arrives (via Postmark).
 - [X] **1.7 Reset link (only if you got the email).** Click it → set a new password → signed in. (Then reset it back via the script if needed.)
 - [X] **1.8 Reset email is branded** (`platform/EMAIL.md` applied to Supabase). Trigger a reset (1.6); the email shows the **"A" logo + "Lead Answered"** header, the **green CTA button**, body copy per §2.1, the raw-link fallback, and the **"Every lead, answered in 60 seconds" + "© 2026 Lead Answered"** footer.
 - [X] **1.9 Email renders everywhere.** That same email looks correct in **Gmail desktop + Gmail mobile** (logo loads, button is tappable, layout doesn't break, no clipped/forwarded look).
@@ -50,19 +50,19 @@ A live-user QA pass over **every** current capability (frontend + backend). Work
 
 ## 2. Admin console (`/admin`)
 
-- [X] **2.1 List + status chips.** Each contractor is a card: company, owner email, slug, number, and **two chips** — **Account** (New / Onboarded / Invited / Live) + **Line** (pending / verified / failed). A freshly-created contractor reads **New**. Hovering a chip shows its meaning.
-- [X] **2.2 Create contractor (no invite).** Fill "New contractor" → **"Create contractor"** → success ("Onboard them next"); the new row appears as **New**, and **NO email is sent** (Postmark outbound stays flat). Creating no longer invites.
-- [X] **2.3 Onboard — admin runs the wizard.** Open the contractor → **Onboard** → `/admin/[id]/onboard` → fill the whole wizard → **"Finish & send invite"** → back on the contractor page the status is **Invited**, and the owner gets the **branded** invite email (per EMAIL.md — see 1.10). Exactly one invite is sent.
-- [X] **2.4 Contractor accepts → welcome → dashboard.** Open the invite (same browser) → set a password → a **Welcome** screen (NOT the wizard) → "Go to my dashboard" → the **already-configured** dashboard. The Account chip flips to **Live**.
+- [X] **2.1 List + status chips.** Each organization is a card: company, owner email, slug, number, and **two chips** — **Account** (New / Onboarded / Invited / Live) + **Line** (pending / verified / failed). A freshly-created organization reads **New**. Hovering a chip shows its meaning.
+- [X] **2.2 Create organization (no invite).** Fill "New organization" → **"Create organization"** → success ("Onboard them next"); the new row appears as **New**, and **NO email is sent** (Postmark outbound stays flat). Creating no longer invites.
+- [X] **2.3 Onboard — admin runs the wizard.** Open the organization → **Onboard** → `/admin/[id]/onboard` → fill the whole wizard → **"Finish & send invite"** → back on the organization page the status is **Invited**, and the owner gets the **branded** invite email (per EMAIL.md — see 1.10). Exactly one invite is sent.
+- [X] **2.4 Organization accepts → welcome → dashboard.** Open the invite (same browser) → set a password → a **Welcome** screen (NOT the wizard) → "Go to my dashboard" → the **already-configured** dashboard. The Account chip flips to **Live**.
 - [X] **2.5 Manage — Save ≠ invite.** On `/admin/[id]`, change company / owner / number / slug / line-verification → **Save changes** → reload shows the change, **and NO email is sent**. Editing never invites.
-- [X] **2.6 Manual send/resend invite.** The Invite card sends exactly one email; it's **disabled until onboarded**, reads "Send invite" before the owner has an account and "Resend invite" after. Re-running **Onboard / Edit setup** on an already-invited contractor does **not** re-send the invite.
+- [X] **2.6 Manual send/resend invite.** The Invite card sends exactly one email; it's **disabled until onboarded**, reads "Send invite" before the owner has an account and "Resend invite" after. Re-running **Onboard / Edit setup** on an already-invited organization does **not** re-send the invite.
 - [X] **2.7 Admin can't see the dashboard.** As admin, opening `/dashboard` redirects to `/admin`.
 
 ---
 
 ## 3. Onboarding wizard (admin-run — `/admin/[id]/onboard`)
 
-Onboarding is **admin-led**: in `/admin`, open a contractor and click **Onboard** to run the wizard on their behalf (usually on a call). It's pre-filled with current config. The old contractor-facing `/onboarding` route is retired (it redirects home).
+Onboarding is **admin-led**: in `/admin`, open a organization and click **Onboard** to run the wizard on their behalf (usually on a call). It's pre-filled with current config. The old organization-facing `/onboarding` route is retired (it redirects home).
 
 - [X] **3.1 Step rail.** Left rail shows 6 steps (Business → Service area → Availability → Loop me in → Notifications → Review) with the current step active and prior steps green/checked.
 - [X] **3.2 Mobile progress.** Narrow the window → the rail hides and a top progress bar ("Step X of 6") appears.
@@ -85,7 +85,7 @@ Onboarding is **admin-led**: in `/admin`, open a contractor and click **Onboard*
 - [X] **4.5 Theme toggle.** Top-right sun/moon → flips light/dark across the whole app; reload keeps your choice.
 - [X] **4.6 Overview.** KPI cards (Total leads / Qualifying / Booked / Upcoming visits) show real numbers; "Recent leads", "Your line" (number + its Twilio toll-free line-verification badge), and "Upcoming appointments" render.
 - [X] **4.7 Leads list.** `/dashboard/leads` → table of all leads (name, phone, project, town, status badge, first seen). Columns collapse responsively on narrow screens.
-- [ ] **4.8 Lead detail.** Click a lead → the **full Sarah ↔ homeowner SMS thread** as chat bubbles (homeowner left/grey, Sarah right/green, with names + times), plus that lead's appointments and any escalations.
+- [ ] **4.8 Lead detail.** Click a lead → the **full Sarah ↔ customer SMS thread** as chat bubbles (customer left/grey, Sarah right/green, with names + times), plus that lead's appointments and any escalations.
 - [ ] **4.9 Appointments.** `/dashboard/appointments` → "Upcoming" and "Past & cancelled" sections with lead, time, status badge; lead names link to detail.
 - [ ] **4.10 Settings (decoupled).** `/dashboard/settings` → all config sections on one page as cards (NOT the wizard). Edit a field → "Save changes" → "Saved ✓"; reload shows the change.
 - [ ] **4.11 Equivalence.** A change saved in Settings shows up if you (as admin) then open the wizard (`/admin/[id]/onboard`), and vice-versa.
@@ -94,8 +94,8 @@ Onboarding is **admin-led**: in `/admin`, open a contractor and click **Onboard*
 
 ## 5. Tenant isolation (security)
 
-- [ ] **5.1 Other tenant's lead 404s.** As the contractor, open `/dashboard/leads/<a-random-or-other-id>` → **404**, never another company's data.
-- [ ] **5.2 Scope.** The dashboard only ever shows leads/appointments belonging to the signed-in contractor.
+- [ ] **5.1 Other tenant's lead 404s.** As the organization, open `/dashboard/leads/<a-random-or-other-id>` → **404**, never another company's data.
+- [ ] **5.2 Scope.** The dashboard only ever shows leads/appointments belonging to the signed-in organization.
 
 ---
 
@@ -122,17 +122,17 @@ These are the bugs the integrity rebuild fixed (see SCOPE → "Data Integrity & 
 ## 6. Sarah — conversational behavior (now automated)
 
 > **v3 workflows (`AGENT_WORKFLOWS_PLAN.md`):** a new lead now runs a **scripted intake** first — the
-> opening + address/homeowner/windows/times/booking asks are **locked copy** (verify they read exactly
+> opening + address/customer/windows/times/booking asks are **locked copy** (verify they read exactly
 > as scripted, one question at a time, no double-asks), and the **name** the customer gives shows on the
 > dashboard lead (no more "Caller"/"New lead"). Off-script replies (a question, "I went with someone
 > else") should adapt, not plow ahead. After booking/handoff/decline the thread flips to the **open
 > agent** (reschedule/cancel/Qs). Missed-call opens "how can we help?"; a not-a-job reply escalates.
-> Contractor texts ("text Levi we can start Monday") go to the **contractor agent** — it reads the draft
+> Organization texts ("text Levi we can start Monday") go to the **owner agent** — it reads the draft
 > back and sends only after your **yes** (nothing reaches the customer before that).
 
 **Sarah's conversational behavior is covered by the automated E2E suite** — real Claude driven through
 full conversations, asserting on outcomes + a Sonnet judge. It's the source of truth for the specific
-scenarios (qualification in/out of area + referral escalation, tenant → homeowner hand-off, availability
+scenarios (qualification in/out of area + referral escalation, tenant → customer hand-off, availability
 windows, timezone-correct booking incl. "8 am books 8 AM local", reschedule/cancel, idempotency,
 price/tone/service-area guardrails, escalation relay). See `apps/api/src/e2e/README.md`.
 
@@ -143,13 +143,13 @@ RUN_E2E=1 pnpm --filter @leadanswered/api test:e2e      # run before shipping an
 Run it **per feature** as you finish it — that replaces most of the old manual §6 typing. What still
 needs a **human** (things E2E can't see) is below:
 
-- [ ] **6.1 Real SMS delivery.** From an actual phone, text the contractor's Twilio number in an existing
+- [ ] **6.1 Real SMS delivery.** From an actual phone, text the organization's Twilio number in an existing
   thread → Sarah's reply actually arrives on the handset within seconds (proves Twilio send/receive, not
   just the agent logic the E2E suite covers).
 - [ ] **6.2 Dashboard reflects a booking.** After a booked conversation, the **Appointment** shows in
-  Overview "Upcoming", the Appointments page, and Lead detail — with the time in the contractor's
+  Overview "Upcoming", the Appointments page, and Lead detail — with the time in the organization's
   timezone — and the lead status badge reads **Booked**.
-- [ ] **6.3 Contractor notification arrives.** The owner's real phone/email actually receives the
+- [ ] **6.3 Organization notification arrives.** The owner's real phone/email actually receives the
   "New booking / Qualified lead / turn-away / hand-off / escalation" message (delivery, not just capture).
 - [ ] **6.4 Langfuse trace.** A live conversation produces a readable trace (tool calls, timings) in
   Langfuse for debugging.
@@ -170,8 +170,8 @@ needs a **human** (things E2E can't see) is below:
 ## 8. Escalation (loop-in)
 
 - [ ] **8.1 Trigger.** In a conversation, ask Sarah something in your **escalation topics** (e.g. "do you offer financing?") → instead of guessing, Sarah says she'll check with the team; an **open escalation** appears on the Lead detail.
-- [ ] **8.2 Owner alert.** The escalation is texted to the contractor/owner number.
-- [ ] **8.3 Relay.** Reply (as the owner) to that escalation text → your answer is relayed back to the homeowner; the escalation flips to **resolved**.
+- [ ] **8.2 Owner alert.** The escalation is texted to the organization/owner number.
+- [ ] **8.3 Relay.** Reply (as the owner) to that escalation text → your answer is relayed back to the customer; the escalation flips to **resolved**.
 - [ ] **8.4 SLA + expiry.** If the owner does NOT answer the loop-in, the owner gets a louder **reminder** (and the customer may get one positive "still on it" during business hours — never an admission of delay). Still unanswered → the escalation goes **`expired`** with an urgent owner-only alert; the customer is never told we couldn't reach the team.
 
 ---
@@ -211,14 +211,14 @@ needs a **human** (things E2E can't see) is below:
 
 ## 13. Missed-call text-back
 
-> Requires setup: (a) the Twilio number's **Voice** webhook → `/webhooks/twilio/voice`; (b) **conditional call forwarding** (no-answer + busy) enabled on the "contractor" phone → the Twilio number (`+18444157642`). Use two phones: **C** = contractor (forwarding on), **H** = homeowner (the other number).
+> Requires setup: (a) the Twilio number's **Voice** webhook → `/webhooks/twilio/voice`; (b) **conditional call forwarding** (no-answer + busy) enabled on the "organization" phone → the Twilio number (`+18444157642`). Use two phones: **C** = organization (forwarding on), **H** = customer (the other number).
 
 - [ ] **13.1 Missed call → text.** From **H**, call **C**'s real number; don't answer. Within seconds **H** receives Sarah's opening SMS — she apologizes for missing the call and **asks how she can help**. She does NOT assume an estimate or ask for an address yet.
 - [ ] **13.2 Lead created.** A new lead appears on the dashboard with **source = `missed_call`** (contact = H's number).
 - [ ] **13.3 New-project intent → book.** Reply from **H** with a new job (e.g. "I need a quote for a new roof") → Sarah qualifies (ownership/address) and books, exactly as §6.
 - [ ] **13.4 Non-estimate intent → loop-in.** In a *fresh* missed call, reply with a non-sales intent (e.g. "just have a question about my existing roof") → Sarah does NOT push an estimate or ask for an address; she loops in the owner via **escalation** (an open escalation appears on the lead; the owner is texted). Owner replies → the answer relays back to **H** (per §8).
 - [ ] **13.5 Recency / one lead per contact.** A rapid redelivery of the *same* call does **not** create a second lead or text. A repeat call **within ~1h** of the last activity is skipped (no re-text). A call **after ~1h** re-engages the **same** lead with a fresh "welcome back" text — it never creates a duplicate lead (§4). (To exercise the >1h path without waiting, shrink `RECENT_CONVERSATION_WINDOW_MS` or rely on the unit test.)
-- [ ] **13.6 Caller-ID (first-call check).** In `railway logs`, the `[voice] inbound call …` line shows the homeowner as `From` (not `ForwardedFrom`). If a carrier swaps them, note it — the code prefers `From` and bails if it looks like the contractor's own line.
+- [ ] **13.6 Caller-ID (first-call check).** In `railway logs`, the `[voice] inbound call …` line shows the customer as `From` (not `ForwardedFrom`). If a carrier swaps them, note it — the code prefers `From` and bails if it looks like the organization's own line.
 
 ---
 

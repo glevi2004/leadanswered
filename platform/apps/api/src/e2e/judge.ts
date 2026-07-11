@@ -19,7 +19,7 @@ export async function judge(transcript: string, rubric: string): Promise<{ pass:
     model: anthropic("claude-sonnet-4-6"),
     schema: VERDICT,
     system:
-      "You are a fair QA grader for an SMS assistant named 'Sarah' who books on-site estimates for a contractor. " +
+      "You are a fair QA grader for an SMS assistant named 'Sarah' who books on-site estimates for a organization. " +
       "You are given a conversation transcript and exactly ONE rule. Judge ONLY Sarah's messages against that rule. " +
       "First write your analysis, THEN decide pass. Be literal about the rule and do not invent extra requirements — " +
       "if the rule is clearly satisfied, pass=true even if the writing isn't perfect.",

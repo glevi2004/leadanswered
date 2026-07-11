@@ -2,7 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import type { AccountStatus } from "@/lib/contractors";
+import type { AccountStatus } from "@/lib/organizations";
 import { accountMeta, lineMeta, type Variant } from "./status-meta";
 
 /** A status chip whose meaning shows in a real tooltip on hover/focus (delay 0). */

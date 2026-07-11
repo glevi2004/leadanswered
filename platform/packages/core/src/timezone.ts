@@ -2,12 +2,12 @@ import { DateTime, IANAZone } from "luxon";
 
 /**
  * The single timezone conversion layer (SCOPE §5). Availability windows are stored as LOCAL wall-clock
- * times ("HH:MM") in the contractor's IANA timezone; appointment instants are stored in UTC. luxon does
+ * times ("HH:MM") in the organization's IANA timezone; appointment instants are stored in UTC. luxon does
  * every wall-time ⇄ instant conversion here so the rest of the codebase never hand-rolls offset math
  * (which is wrong at DST boundaries). Months are 1-12 (luxon convention), dow is 0=Sun..6=Sat.
  */
 
-/** The one fallback timezone used everywhere a contractor tz is missing (SCOPE §5.1). */
+/** The one fallback timezone used everywhere a organization tz is missing (SCOPE §5.1). */
 export const DEFAULT_TIMEZONE = "America/New_York";
 
 /** True if `tz` is a real IANA zone (e.g. "America/New_York"), so we never store garbage. */
