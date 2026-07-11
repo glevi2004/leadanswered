@@ -89,7 +89,7 @@ export function SarahWidget() {
           <ChevronDown className="size-6" />
         ) : (
           // Intercom-style mark: a white speech bubble — circle with one sharp corner.
-          <span aria-hidden className="block size-6 rounded-full rounded-bl-none bg-white" />
+          <span aria-hidden className="block size-6 rounded-full rounded-br-none bg-white" />
         )}
         {pendingCount > 0 && !widgetOpen && (
           <span className="absolute -right-0.5 -top-0.5 flex size-5 items-center justify-center rounded-full bg-destructive text-[11px] font-bold text-white ring-2 ring-background">
