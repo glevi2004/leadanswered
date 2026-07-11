@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Maximize2, Sparkles, X } from "lucide-react";
+import { ChevronDown, Maximize2, Sparkles, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useSarah } from "./sarah-context";
 import { SarahThread } from "./SarahThread";
@@ -85,7 +85,12 @@ export function SarahWidget() {
         onClick={() => setWidgetOpen(!widgetOpen)}
         className="btn-glow fixed bottom-5 right-5 z-50 flex size-14 items-center justify-center rounded-full"
       >
-        <Sparkles className="size-6" />
+        {widgetOpen ? (
+          <ChevronDown className="size-6" />
+        ) : (
+          // Intercom-style mark: a white speech bubble — circle with one sharp corner.
+          <span aria-hidden className="block size-6 rounded-full rounded-bl-none bg-white" />
+        )}
         {pendingCount > 0 && !widgetOpen && (
           <span className="absolute -right-0.5 -top-0.5 flex size-5 items-center justify-center rounded-full bg-destructive text-[11px] font-bold text-white ring-2 ring-background">
             {pendingCount}
