@@ -18,6 +18,6 @@ export async function cancelAppointmentAction(appointmentId: string): Promise<{ 
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ cid, appointmentId, action: "cancel" }),
   }).catch(() => null);
-  revalidatePath("/dashboard/appointments");
+  revalidatePath("/schedule");
   return { ok: !!(res && res.ok) };
 }

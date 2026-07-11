@@ -28,7 +28,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ lea
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <Link href="/dashboard/leads" className="text-sm text-muted-foreground hover:text-foreground">
+        <Link href="/crm" className="text-sm text-muted-foreground hover:text-foreground">
           ← Back to leads
         </Link>
         <div className="mt-2 flex flex-wrap items-center gap-3">

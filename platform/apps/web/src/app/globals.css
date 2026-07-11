@@ -133,9 +133,175 @@
   --primary: #34c759;
   --primary-foreground: #ffffff;
   --ring: #34c759;
+  --radius: 0.75rem;
+  --bubble-them: #e9e9eb;
+  --bubble-them-fg: #1b1b1f;
 }
 .dark {
   --primary: #34c759;
   --primary-foreground: #052e16;
   --ring: #34c759;
+  --bubble-them: #2c2c2e;
+  --bubble-them-fg: #f2f2f7;
+}
+
+/* ===== Landing-page design language, app edition ===== */
+
+/* Primary CTA with the marketing site's green glow. */
+.btn-glow {
+  background: linear-gradient(180deg, #4be06a 0%, #30d158 97%);
+  border: 1px solid #22b94a;
+  color: #fff;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 1px 2px rgba(16, 24, 40, 0.08),
+    0 3px 10px rgba(48, 209, 88, 0.32);
+  transition: all 0.18s ease;
+}
+.btn-glow:hover {
+  background: linear-gradient(180deg, #3ed95f 0%, #22b94a 97%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 1px 2px rgba(16, 24, 40, 0.1),
+    0 5px 16px rgba(48, 209, 88, 0.42);
+  transform: translateY(-1px);
+}
+
+.serif-accent {
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif;
+  font-style: italic;
+  font-weight: 400;
+}
+.text-gradient-green {
+  background: linear-gradient(135deg, #22b94a 0%, #30d158 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Soft card hover lift (landing .card-hover). */
+.card-lift {
+  transition: all 0.2s ease;
+}
+.card-lift:hover {
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.04),
+    0 10px 28px rgba(16, 24, 40, 0.09);
+  border-color: rgba(48, 209, 88, 0.35);
+  transform: translateY(-2px);
+}
+
+/* Subtle green radial wash for hero-ish headers. */
+.green-wash {
+  background-image: radial-gradient(60% 90% at 18% 0%, rgba(48, 209, 88, 0.09) 0%, rgba(48, 209, 88, 0) 100%);
+}
+
+/* ===== iMessage bubbles (same construction as the marketing demo) ===== */
+.msg {
+  position: relative;
+  max-width: 78%;
+  padding: 7px 13px 8px;
+  border-radius: 18px;
+  font-size: 14.5px;
+  line-height: 1.32;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+.msg-them {
+  background: var(--bubble-them);
+  color: var(--bubble-them-fg);
+}
+.msg-me {
+  background: #34c759;
+  color: #fff;
+}
+/* received tail (bottom-left) */
+.msg-them::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  bottom: 0;
+  left: -7px;
+  height: 19px;
+  width: 19px;
+  background: var(--bubble-them);
+  border-bottom-right-radius: 16px;
+}
+.msg-them::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  bottom: 0;
+  left: -11px;
+  height: 19px;
+  width: 11px;
+  background: var(--bubble-surface, var(--background));
+  border-bottom-right-radius: 11px;
+}
+/* sent tail (bottom-right) */
+.msg-me::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  bottom: 0;
+  right: -7px;
+  height: 19px;
+  width: 19px;
+  background: #34c759;
+  border-bottom-left-radius: 16px;
+}
+.msg-me::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  bottom: 0;
+  right: -11px;
+  height: 19px;
+  width: 11px;
+  background: var(--bubble-surface, var(--background));
+  border-bottom-left-radius: 11px;
+}
+
+.typing-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #8e8e93;
+  display: inline-block;
+  margin-right: 4px;
+  animation: typing 1.4s infinite ease-in-out;
+}
+.typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+  margin-right: 0;
+}
+@keyframes typing {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Widget panel entrance */
+@keyframes widget-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.widget-in {
+  animation: widget-in 0.18s ease-out;
 }

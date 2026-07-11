@@ -36,7 +36,7 @@ export default async function WelcomePage() {
               notifications anytime.
             </li>
           </ul>
-          <Button render={<Link href="/dashboard" />} className="mx-auto">
+          <Button render={<Link href="/home" />} className="mx-auto">
             Go to my dashboard
           </Button>
         </CardContent>

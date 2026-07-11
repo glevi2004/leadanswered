@@ -17,7 +17,7 @@ function ApptList({ items, tz, empty, cancellable }: { items: AppointmentRow[]; 
           <div key={a.id} className="flex items-center justify-between rounded-md px-2 py-2">
             <div className="min-w-0">
               {a.lead ? (
-                <Link href={`/dashboard/leads/${a.lead.id}`} className="text-sm font-medium text-primary hover:underline">
+                <Link href={`/crm/${a.lead.id}`} className="text-sm font-medium text-primary hover:underline">
                   {a.lead.contactName || a.lead.contactPhone || "Lead"}
                 </Link>
               ) : (

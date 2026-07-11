@@ -41,7 +41,7 @@ export default async function LeadsPage() {
                 return (
                   <TableRow key={l.id} className="hover:bg-muted/50">
                     <TableCell className="font-medium">
-                      <Link href={`/dashboard/leads/${l.id}`} className="text-primary hover:underline">
+                      <Link href={`/crm/${l.id}`} className="text-primary hover:underline">
                         {l.contactName || l.contactPhone || "New lead"}
                       </Link>
                     </TableCell>

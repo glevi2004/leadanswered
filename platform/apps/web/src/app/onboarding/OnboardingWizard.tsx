@@ -75,7 +75,7 @@ type SaveResult = { error?: string; ok?: boolean; warning?: string };
 export function OnboardingWizard({
   initial,
   save = saveOnboardingAction,
-  afterHref = "/dashboard",
+  afterHref = "/home",
   finishLabel = "Finish setup",
 }: {
   initial: OnboardingInitial;

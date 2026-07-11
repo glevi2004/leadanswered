@@ -29,16 +29,16 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Protect everything except the public surface (00-foundation §7):
+  // auth pages and the customer-facing /q (quote accept) + /i (invoice pay) pages.
   const path = request.nextUrl.pathname;
-  const protectedPath =
-    path.startsWith("/admin") ||
-    path.startsWith("/onboarding") ||
-    path.startsWith("/dashboard") ||
-    path.startsWith("/welcome") ||
-    path.startsWith("/status") ||
-    path.startsWith("/set-password") ||
-    path.startsWith("/reset-password");
-  if (protectedPath && !user) {
+  const publicPath =
+    path === "/sign-in" ||
+    path === "/forgot-password" ||
+    path.startsWith("/auth/") ||
+    path.startsWith("/q/") ||
+    path.startsWith("/i/");
+  if (!publicPath && !user) {
     return NextResponse.redirect(new URL("/sign-in", request.url));
   }
 

@@ -2,7 +2,23 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, CalendarDays, Settings, LogOut } from "lucide-react";
+import {
+  CalendarDays,
+  ChartNoAxesColumn,
+  FileText,
+  Globe,
+  House,
+  LogOut,
+  PenLine,
+  Receipt,
+  Settings,
+  Sparkles,
+  Star,
+  Timer,
+  Users,
+  UsersRound,
+  type LucideIcon,
+} from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -11,25 +27,75 @@ import {
   SidebarGroupContent,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { MODULES, NAV_CLUSTERS } from "@/lib/data/registry";
+import type { ModuleKey, ModuleStatus, SurfaceKey } from "@/lib/data/shared";
+import { useSarah } from "@/components/sarah/sarah-context";
 
-const ITEMS = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard, exact: true },
-  { href: "/dashboard/leads", label: "Leads", icon: Users, exact: false },
-  { href: "/dashboard/appointments", label: "Appointments", icon: CalendarDays, exact: false },
-  { href: "/dashboard/settings", label: "Settings", icon: Settings, exact: false },
-];
+const ICONS: Record<string, LucideIcon> = {
+  House,
+  Sparkles,
+  Users,
+  CalendarDays,
+  FileText,
+  Receipt,
+  Timer,
+  Globe,
+  PenLine,
+  Star,
+  ChartNoAxesColumn,
+  UsersRound,
+  Settings,
+};
 
-export function AppSidebar({ companyName }: { companyName: string }) {
+/**
+ * The OS sidebar (00 §2): unlabeled clusters separated by spacing — the sales
+ * pillars never render in the app. Settings pinned to the footer.
+ */
+export function AppSidebar({
+  companyName,
+  statuses,
+}: {
+  companyName: string;
+  statuses: Record<ModuleKey, ModuleStatus>;
+}) {
   const pathname = usePathname();
+  const { pendingCount } = useSarah();
+
+  const renderItem = (key: SurfaceKey) => {
+    const entry = MODULES[key];
+    const status = entry.defaultStatus ? statuses[key as ModuleKey] : "live";
+    if (status === "hidden") return null;
+    const active = pathname === entry.route || pathname.startsWith(entry.route + "/");
+    const Icon = ICONS[entry.icon] ?? Sparkles;
+    return (
+      <SidebarMenuItem key={key}>
+        <SidebarMenuButton isActive={active} tooltip={entry.label} render={<Link href={entry.route} />}>
+          <Icon />
+          <span>{entry.label}</span>
+        </SidebarMenuButton>
+        {key === "sarah" && pendingCount > 0 && (
+          <SidebarMenuBadge className="rounded-full bg-primary px-1.5 text-primary-foreground">
+            {pendingCount}
+          </SidebarMenuBadge>
+        )}
+        {key !== "sarah" && status === "coming_soon" && (
+          <SidebarMenuBadge className="text-[10px] text-muted-foreground group-data-[collapsible=icon]:hidden">
+            soon
+          </SidebarMenuBadge>
+        )}
+      </SidebarMenuItem>
+    );
+  };
 
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <div className="flex items-center gap-2 px-1 py-1.5">
-          <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
+          <div className="btn-glow flex size-7 shrink-0 items-center justify-center rounded-lg text-sm font-bold">
             {companyName.slice(0, 1).toUpperCase()}
           </div>
           <span className="truncate font-semibold group-data-[collapsible=icon]:hidden">{companyName}</span>
@@ -37,28 +103,18 @@ export function AppSidebar({ companyName }: { companyName: string }) {
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {ITEMS.map((it) => {
-                const active = it.exact ? pathname === it.href : pathname.startsWith(it.href);
-                const Icon = it.icon;
-                return (
-                  <SidebarMenuItem key={it.href}>
-                    <SidebarMenuButton isActive={active} tooltip={it.label} render={<Link href={it.href} />}>
-                      <Icon />
-                      <span>{it.label}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {NAV_CLUSTERS.map((cluster, i) => (
+          <SidebarGroup key={i} className={i > 0 ? "pt-0" : undefined}>
+            <SidebarGroupContent>
+              <SidebarMenu>{cluster.map(renderItem)}</SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
 
       <SidebarFooter>
         <SidebarMenu>
+          {renderItem("settings")}
           <SidebarMenuItem>
             <SidebarMenuButton tooltip="Sign out" render={<a href="/auth/signout" />}>
               <LogOut />

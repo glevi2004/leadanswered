@@ -14,5 +14,5 @@ export async function disconnectCalendarAction(): Promise<void> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ cid }),
   }).catch(() => {});
-  revalidatePath("/dashboard/settings");
+  revalidatePath("/settings");
 }
