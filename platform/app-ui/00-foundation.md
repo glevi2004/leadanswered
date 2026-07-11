@@ -55,8 +55,9 @@ registry, patterns) is new.
 - Nav renders from one registry (see §5 `MODULES`) — a module whose status is `hidden` never
   renders; `coming_soon` renders with a small `soon` chip; `preview` renders normally (the page
   itself carries the preview banner).
-- Header per page = `PageHeader` (see §8): title, optional preview badge, page actions, and an
-  **"Ask Sarah"** button that opens the widget pre-focused.
+- Header per page = `PageHeader` (see §8): title, optional preview badge, page actions. No
+  Ask-Sarah button here — the widget launcher is the ONE entry point to Sarah (Levi: redundant
+  affordances read as clutter); contextual Ask-Sarah CTAs live only inside empty/gated states.
 - Mobile: sidebar becomes the existing Sheet drawer; the widget launcher stays bottom-right,
   above any sticky page actions.
 
@@ -288,7 +289,7 @@ now is fine). Charts follow the `dataviz` conventions when built; chart token va
 
 **Shared components (`src/components/app/`):**
 
-- `PageHeader` — title, optional module `preview` badge, actions slot, "Ask Sarah" button.
+- `PageHeader` — title, optional module `preview` badge, actions slot (no Ask-Sarah button — see §2).
 - `DataTable` — built on `@tanstack/react-table` + the existing shadcn `table`: search, column
   filters, sort, pagination, responsive column hiding, empty-state slot. Client-side over mock
   fixtures; server-side pagination is a later `real.ts` concern behind the same props.

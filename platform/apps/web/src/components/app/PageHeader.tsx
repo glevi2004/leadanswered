@@ -1,10 +1,7 @@
-"use client";
-
-import { Sparkles } from "lucide-react";
-import { useSarah } from "@/components/sarah/sarah-context";
-import { Button } from "@/components/ui/button";
-
-/** Standard page header (00 §8): title, optional preview badge, actions, Ask Sarah. */
+/**
+ * Standard page header (00 §8): title, optional preview badge, actions slot.
+ * No Ask-Sarah button here — the global widget launcher is the one entry point.
+ */
 export function PageHeader({
   title,
   description,
@@ -16,8 +13,6 @@ export function PageHeader({
   preview?: boolean;
   actions?: React.ReactNode;
 }) {
-  const { openWidget } = useSarah();
-
   return (
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
@@ -31,12 +26,7 @@ export function PageHeader({
         </div>
         {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
       </div>
-      <div className="flex items-center gap-2">
-        {actions}
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={openWidget}>
-          <Sparkles className="size-3.5 text-primary" /> Ask Sarah
-        </Button>
-      </div>
+      {actions && <div className="flex items-center gap-2">{actions}</div>}
     </div>
   );
 }

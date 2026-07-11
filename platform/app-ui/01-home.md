@@ -76,10 +76,12 @@ quote/review stat tiles, the drive-time route note, and site status (all served 
   own words, exactly like texting her back), and stalled items (quiet quote `q_1043`, quiet lead
   Linda Tran) that deep-link to their record. When empty, the region collapses to one quiet line:
   *"Nothing needs you right now — Sarah's got it."*
-- **StatCards** — four `StatCard`s (00 §8), each a link to its module: **New leads this week** →
-  `/crm`, **Booked this week** → `/schedule`, **Quotes awaiting reply** (count + outstanding total)
-  → `/quotes`, **Reviews collected** (count + average) → `/reviews`. Weekly delta shown when the
-  data supports it.
+- **StatCards** — four `StatCard`s (00 §8) that read as **the pipeline, left to right** (Levi
+  review, 2026-07-11): **New leads this week** (hint: median response time — the origin promise)
+  → `/crm`, **Booked this week** → `/schedule`, **Quotes out** (count + $ waiting on a yes) →
+  `/quotes`, **Owed to you** ($ outstanding, overdue highlighted in red) → `/invoices`. Reviews
+  are NOT a tile — reputation moves to a compact card in the right column (with the schedule
+  glance + status row): count + average in demo, promise copy until 09 ships.
 - **What Sarah did** — the `SarahAction` feed, Today / This week tabs, grouped by day, each row
   time + summary + deep link (`href`). Footer: "See everything →" to `/sarah` (the full activity
   log lives there; Home shows the most recent ~10).
@@ -150,10 +152,13 @@ type AttentionItem = { id: string; at: string /* ISO */; href: string } & (
 
 interface HomeStats {
   newLeadsThisWeek: number      // derived — count Lead.createdAt >= start of week (org tz)
+  medianResponseSecs?: number   // derived — first outbound minus lead createdAt (the <60s promise)
   bookedThisWeek: number        // derived — count Appointment.status='confirmed', startAt this week
-  quotesAwaitingReply: number   // maps from: none (new — Quote, 06-quotes)
+  quotesAwaiting: number | null // maps from: none (new — Quote, 06-quotes); null → soon tile
   quotesAwaitingCents?: number  // maps from: none (new — 06); integer cents per 00 §9
-  reviewsCollected: number      // maps from: none (new — ReviewRequest, 09-reviews)
+  owedCents: number | null      // maps from: none (new — Invoice, 08); null → soon tile
+  overdueCents?: number         // maps from: none (new — 08); rendered destructive
+  reviewsCollected: number | null // maps from: none (new — ReviewRequest, 09); right-column card
   reviewsAvg?: number           // maps from: none (new — 09); e.g. 4.9
 }
 

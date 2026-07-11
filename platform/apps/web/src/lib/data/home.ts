@@ -22,12 +22,15 @@ export interface OpenEscalation {
 }
 
 export interface HomeData {
+  /** The stat row reads as the pipeline: Leads → Booked → Quotes out → Owed. null = module not live → `soon` tile. */
   stats: {
     newLeadsThisWeek: number;
+    medianResponseSecs?: number;
     bookedThisWeek: number;
-    /** null = module not live yet → muted `soon` tile */
     quotesAwaiting: number | null;
     quotesAwaitingCents?: number;
+    owedCents: number | null;
+    overdueCents?: number;
     reviewsCollected: number | null;
     reviewsAvg?: number;
   };
@@ -72,7 +75,8 @@ export async function getHomeDataReal(organizationId: string, timezone: string):
       newLeadsThisWeek: leads.filter((l) => l.createdAt >= weekStart).length,
       bookedThisWeek: appts.filter((a) => a.status === "confirmed" && a.createdAt >= weekStart).length,
       quotesAwaiting: null, // Quotes module not live → soon tile
-      reviewsCollected: null, // Reviews module not live → soon tile
+      owedCents: null, // Invoices module not live → soon tile
+      reviewsCollected: null, // Reviews module not live → soon card
     },
     scheduleGlance: {
       dayLabel: glanceDay ? dayLabel(upcoming[0]!.startAt, timezone) : "",

@@ -41,6 +41,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <SarahProvider
+      key={demo ? "demo" : "real"} // remount the client state when the demo toggle flips
       demo={demo}
       ownerName={ownerName}
       initialMessages={demo ? APEX_THREAD : welcome}

@@ -121,9 +121,12 @@ export const APEX_ESCALATIONS = [
 
 export const APEX_HOME_STATS = {
   newLeadsThisWeek: 6,
+  medianResponseSecs: 42,
   bookedThisWeek: 4,
   quotesAwaiting: 1,
-  quotesAwaitingCents: 185_000,
+  quotesAwaitingCents: 185_000, // q_1043 Alvarez
+  owedCents: 338_000, // inv_2032 Sullivan $2,400 + inv_2033 Delgado $980
+  overdueCents: 240_000, // Sullivan, 14 days
   reviewsCollected: 21,
   reviewsAvg: 4.9,
 };

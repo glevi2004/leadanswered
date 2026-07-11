@@ -46,24 +46,42 @@ export default async function HomePage() {
 
       <NeedsAttention escalations={data.escalations} />
 
+      {/* The pipeline, left to right: what came in → what became work → what's waiting on a yes → where money is stuck. */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="New leads this week" value={data.stats.newLeadsThisWeek} />
-        <StatCard label="Booked this week" value={data.stats.bookedThisWeek} />
         <StatCard
-          label="Quotes awaiting reply"
+          label="New leads this week"
+          value={data.stats.newLeadsThisWeek}
+          hint={
+            data.stats.medianResponseSecs != null
+              ? `every one answered in ~${data.stats.medianResponseSecs}s`
+              : "Sarah answers every one in under 60s"
+          }
+          href="/crm"
+        />
+        <StatCard label="Booked this week" value={data.stats.bookedThisWeek} href="/schedule" />
+        <StatCard
+          label="Quotes out"
           soon={data.stats.quotesAwaiting === null}
           value={data.stats.quotesAwaiting ?? undefined}
           hint={
             data.stats.quotesAwaitingCents != null
-              ? `$${(data.stats.quotesAwaitingCents / 100).toLocaleString()} outstanding`
+              ? `$${(data.stats.quotesAwaitingCents / 100).toLocaleString()} waiting on a yes`
               : undefined
           }
+          href="/quotes"
         />
         <StatCard
-          label="Reviews collected"
-          soon={data.stats.reviewsCollected === null}
-          value={data.stats.reviewsCollected ?? undefined}
-          hint={data.stats.reviewsAvg != null ? `${data.stats.reviewsAvg}★ average` : undefined}
+          label="Owed to you"
+          soon={data.stats.owedCents === null}
+          value={data.stats.owedCents != null ? `$${(data.stats.owedCents / 100).toLocaleString()}` : undefined}
+          hint={
+            data.stats.overdueCents ? (
+              <span className="font-medium text-destructive">
+                ${(data.stats.overdueCents / 100).toLocaleString()} overdue
+              </span>
+            ) : undefined
+          }
+          href="/invoices"
         />
       </div>
 
@@ -121,6 +139,28 @@ export default async function HomePage() {
                   </li>
                 ))}
               </ol>
+            )}
+          </div>
+
+          <div className="card-lift rounded-2xl border bg-card p-5 shadow-xs">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold">Reputation</h2>
+              <Link href="/reviews" className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+                Reviews <ArrowRight className="size-3" />
+              </Link>
+            </div>
+            {data.stats.reviewsCollected === null ? (
+              <p className="mt-3 text-sm text-muted-foreground">
+                Sarah will text your past customers for reviews the moment the campaign goes live —
+                most owners see a wave in week one.
+              </p>
+            ) : (
+              <div className="mt-3 flex items-baseline gap-2">
+                <p className="text-3xl font-semibold tracking-tight">{data.stats.reviewsCollected}</p>
+                <p className="text-sm text-muted-foreground">
+                  new reviews · <span className="font-medium text-foreground">{data.stats.reviewsAvg}★</span> average
+                </p>
+              </div>
             )}
           </div>
 
