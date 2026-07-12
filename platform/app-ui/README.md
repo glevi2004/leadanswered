@@ -27,7 +27,7 @@ notes to the real schema; tenant = **Organization** (the Prisma rename has lande
 | `11-analytics.md` | The ROI numbers: funnel, trends, response time, per-source breakdown. |
 | `12-team.md` | Members + roles; crew texts Sarah with scoped permissions (SMS-first invites). |
 | `13-settings.md` | Tabbed settings: business, area, services, Sarah persona, notifications, line, integrations, billing (incl. the cancel-retention flow). |
-| `14-icons.md` | KiwiIcons: our own animated icon system (Resend-style choreography, the kiwi-seed motif, motion architecture, per-icon storyboard, build order). |
+| `14-icons.md` | KiwiIcons: our own animated icon system (Resend-style choreography, own-drawn paths, motion architecture, per-icon storyboard, build order). |
 
 ## Open questions — the decisions you owe (rolled up from every doc's §8)
 

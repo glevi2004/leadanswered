@@ -33,7 +33,7 @@
 |---|---|---|---|
 | **(a) Own paths + own motion system** (recommended) — copy the proven open-source pattern (pqoqubbw/icons, MIT: per-icon client components, imperative start/stop handle, motion variants) but **author our own 14 paths** in our stroke style | ★★★ | medium | none |
 | (b) Adopt pqoqubbw/icons as-is (animated lucide-compatible set) | ★ | fastest | none, but looks like every other 2025 SaaS |
-| (c) Paid animated sets (Lordicon/Rive) | ★★ | fast | runtime + license, hard to theme the seed |
+| (c) Paid animated sets (Lordicon/Rive) | ★★ | fast | runtime + license, hard to match our stroke style |
 
 Recommendation: **(a)** — 14 icons is a small enough set to own outright.
 
@@ -56,7 +56,7 @@ icons/
   1. `hover`/`focus-visible` on the parent `group` (sidebar row, button) — the Resend moment;
   2. **route-activation**: when a nav item becomes active, the sidebar calls
      `startAnimation()` once — the icon "celebrates" being selected, then settles into its
-     **active pose** (seed filled, slight weight increase);
+     **active pose** (settled end-state of its choreography);
   3. `press`: a fast 0.92 scale squish on the whole svg.
 - **Physics defaults:** springs `stiffness 320 / damping 17`, stagger `50ms`, total
   choreography ≤ 450ms. Draw-on effects via `pathLength` 0→1. Transform/opacity/stroke only.
@@ -98,7 +98,7 @@ no motion dependency there.
 1. `motion` dep + `kiwi-icon.tsx` primitive + `variants.ts` + **two pilot icons (Home, Sarah)**
    wired into the sidebar with hover/active/press triggers, plus a dev-only `/dev/icons`
    gallery route to review the set side by side (hover-all / play-all buttons).
-2. Levi reviews physics + the seed idea on the pilots → tune constants once, globally.
+2. Levi reviews the physics on the pilots → tune constants once, globally.
 3. The remaining 11 nav icons + registry/AppSidebar switchover; lucide stays for generic UI
    chrome (chevrons, x, check — not identity surfaces).
 4. The launcher special + gated/empty-state mount choreography.
