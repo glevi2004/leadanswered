@@ -318,6 +318,14 @@ now is fine). Charts follow the `dataviz` conventions when built; chart token va
 ## 9. States & voice (conventions, enforced in review)
 
 - Preview banner text, coming-soon teaser shape, and empty-state voice: exactly as §4.
+- **Categorical colors** (the one place chrome gets color in the monochrome app — approved
+  2026-07-11): every `Approval.kind` + the escalation Question has its own hue, shown in the kind
+  CHIP only (no edge stripes — seamless); the label always carries the meaning. Registry lives in
+  `ApprovalCard.tsx` (`KIND_META`): message blue #3B82F6 · quote violet #8B5CF6 · invoice emerald
+  #10B981 · review ask amber #F59E0B · blog post pink #EC4899 · social post cyan #06B6D4 · site
+  edit indigo #6366F1 · question orange #F97316. New kinds claim an unused hue there. Home shows
+  needs-you as INBOX ROWS (direction A): chip · summary · wait time, actions on hover, full draft
+  in the widget.
 - Timezone: every timestamp rendered in the organization's zone (reuse `organizationTz` helpers).
 - Money: integer cents in contracts, formatted `$14,200` in UI.
 - The PRODUCT is "the app," never "the dashboard," in copy. (Exception, Levi 2026-07-11: the

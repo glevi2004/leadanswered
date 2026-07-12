@@ -4,23 +4,6 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  CalendarDays,
-  ChartNoAxesColumn,
-  FileText,
-  Globe,
-  House,
-  LogOut,
-  PenLine,
-  Receipt,
-  Settings,
-  MessageCircle,
-  Star,
-  Timer,
-  Users,
-  UsersRound,
-  type LucideIcon,
-} from "lucide-react";
-import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
@@ -35,30 +18,44 @@ import {
 import { MODULES, NAV_CLUSTERS } from "@/lib/data/registry";
 import type { ModuleKey, ModuleStatus, SurfaceKey } from "@/lib/data/shared";
 import { useSarah } from "@/components/sarah/sarah-context";
-import { DashboardIcon } from "@/components/icons/dashboard";
+import { DashboardIcon, type IconState } from "@/components/icons/dashboard";
 import { SarahIcon } from "@/components/icons/sarah";
 import { CrmIcon } from "@/components/icons/crm";
 import { ScheduleIcon } from "@/components/icons/schedule";
+import {
+  AnalyticsIcon,
+  ContentIcon,
+  FollowupsIcon,
+  InvoicesIcon,
+  QuotesIcon,
+  ReviewsIcon,
+  SettingsIcon,
+  SignOutIcon,
+  TeamIcon,
+  WebsiteIcon,
+} from "@/components/icons/nav-icons";
 
-const ICONS: Record<string, LucideIcon> = {
-  House,
-  MessageCircle,
-  Users,
-  CalendarDays,
-  FileText,
-  Receipt,
-  Timer,
-  Globe,
-  PenLine,
-  Star,
-  ChartNoAxesColumn,
-  UsersRound,
-  Settings,
+/** The full animated nav set (14-icons.md) — one component per surface. */
+const KIWI_ICONS: Record<SurfaceKey, React.ComponentType<{ state?: IconState; className?: string }>> = {
+  home: DashboardIcon,
+  sarah: SarahIcon,
+  crm: CrmIcon,
+  schedule: ScheduleIcon,
+  quotes: QuotesIcon,
+  invoices: InvoicesIcon,
+  followups: FollowupsIcon,
+  website: WebsiteIcon,
+  content: ContentIcon,
+  reviews: ReviewsIcon,
+  analytics: AnalyticsIcon,
+  team: TeamIcon,
+  settings: SettingsIcon,
 };
 
 /**
  * The OS sidebar (00 §2): unlabeled clusters separated by spacing — the sales
- * pillars never render in the app. Settings pinned to the footer.
+ * pillars never render in the app. Settings pinned to the footer. Row-level
+ * hover drives each icon's choreography.
  */
 export function AppSidebar({
   companyName,
@@ -69,26 +66,17 @@ export function AppSidebar({
 }) {
   const pathname = usePathname();
   const { pendingCount } = useSarah();
-  // KiwiIcons pilot (app-ui/14-icons.md): row-level hover drives the icon choreography.
-  const [hoveredKey, setHoveredKey] = React.useState<SurfaceKey | null>(null);
+  const [hoveredKey, setHoveredKey] = React.useState<string | null>(null);
+
+  const stateFor = (key: string, active: boolean): IconState =>
+    hoveredKey === key ? "hover" : active ? "active" : "idle";
 
   const renderItem = (key: SurfaceKey) => {
     const entry = MODULES[key];
     const status = entry.defaultStatus ? statuses[key as ModuleKey] : "live";
     if (status === "hidden") return null;
     const active = pathname === entry.route || pathname.startsWith(entry.route + "/");
-    const Icon = ICONS[entry.icon] ?? MessageCircle;
-    const iconState = hoveredKey === key ? ("hover" as const) : active ? ("active" as const) : ("idle" as const);
-    const kiwiIcon =
-      key === "home" ? (
-        <DashboardIcon state={iconState} />
-      ) : key === "sarah" ? (
-        <SarahIcon state={iconState} />
-      ) : key === "crm" ? (
-        <CrmIcon state={iconState} />
-      ) : key === "schedule" ? (
-        <ScheduleIcon state={iconState} />
-      ) : null;
+    const KiwiIcon = KIWI_ICONS[key];
     return (
       <SidebarMenuItem
         key={key}
@@ -101,11 +89,13 @@ export function AppSidebar({
           className="gap-2.5 [&>svg]:size-[18px]"
           render={<Link href={entry.route} />}
         >
-          {kiwiIcon ?? <Icon />}
+          <KiwiIcon state={stateFor(key, active)} />
           <span>{entry.label}</span>
         </SidebarMenuButton>
+        {/* badge uses an explicit fg/bg pair + counters for its built-in
+            hover/active text swaps (they turned the number invisible on ink) */}
         {key === "sarah" && pendingCount > 0 && (
-          <SidebarMenuBadge className="rounded-full bg-primary px-1.5 text-primary-foreground">
+          <SidebarMenuBadge className="rounded-full bg-foreground px-1.5 text-background peer-hover/menu-button:text-background peer-data-active/menu-button:text-background">
             {pendingCount}
           </SidebarMenuBadge>
         )}
@@ -144,9 +134,16 @@ export function AppSidebar({
       <SidebarFooter>
         <SidebarMenu>
           {renderItem("settings")}
-          <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Sign out" className="gap-2.5 [&>svg]:size-[18px]" render={<a href="/auth/signout" />}>
-              <LogOut />
+          <SidebarMenuItem
+            onMouseEnter={() => setHoveredKey("signout")}
+            onMouseLeave={() => setHoveredKey((k) => (k === "signout" ? null : k))}
+          >
+            <SidebarMenuButton
+              tooltip="Sign out"
+              className="gap-2.5 [&>svg]:size-[18px]"
+              render={<a href="/auth/signout" />}
+            >
+              <SignOutIcon state={stateFor("signout", false)} />
               <span>Sign out</span>
             </SidebarMenuButton>
           </SidebarMenuItem>

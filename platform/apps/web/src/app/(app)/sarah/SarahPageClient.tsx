@@ -5,25 +5,33 @@ import { CircleCheck, } from "lucide-react";
 import { useSarah } from "@/components/sarah/sarah-context";
 import { SarahThread } from "@/components/sarah/SarahThread";
 import { SarahComposer } from "@/components/sarah/SarahComposer";
-import { ApprovalCard } from "@/components/app/ApprovalCard";
+import { ApprovalRows } from "@/components/app/ApprovalRows";
 import { SarahActionRow } from "@/components/app/SarahActionRow";
 import { EmptyState } from "@/components/app/EmptyState";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MODULES } from "@/lib/data/registry";
 import type { ModuleKey } from "@/lib/data/shared";
+import type { OpenEscalation } from "@/lib/data/home";
 import { cn } from "@/lib/utils";
 import { SarahIcon } from "@/components/icons/sarah";
 
 /** /sarah — the full-screen surface: chat, the activity log, the approvals queue (02-sarah). */
-export function SarahPageClient() {
+export function SarahPageClient({
+  defaultTab = "chat",
+  escalations = [],
+}: {
+  defaultTab?: string;
+  escalations?: OpenEscalation[];
+}) {
   const { messages, typing, approvals, actions, pendingCount } = useSarah();
+  const [tab, setTab] = React.useState(defaultTab);
   const [moduleFilter, setModuleFilter] = React.useState<ModuleKey | "core" | "all">("all");
 
   const modulesInFeed = Array.from(new Set(actions.map((a) => a.module)));
   const filtered = moduleFilter === "all" ? actions : actions.filter((a) => a.module === moduleFilter);
 
   return (
-    <Tabs defaultValue="chat" className="flex min-h-0 flex-1 flex-col">
+    <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
       {/* md:pr keeps the tabs clear of the frame's floating corner controls */}
       <div className="flex items-center justify-between gap-3 md:pr-44">
         <div className="flex items-center gap-2.5">
@@ -33,7 +41,7 @@ export function SarahPageClient() {
           <div>
             <h1 className="text-xl font-semibold tracking-tight leading-none">Sarah</h1>
             <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="size-1.5 rounded-full bg-primary" /> Answering your line right now
+              <span className="size-1.5 rounded-full bg-emerald-500" /> Answering your line right now
             </p>
           </div>
         </div>
@@ -42,9 +50,9 @@ export function SarahPageClient() {
           <TabsTrigger value="activity">Activity</TabsTrigger>
           <TabsTrigger value="approvals" className="gap-1.5">
             Approvals
-            {pendingCount > 0 && (
+            {pendingCount + escalations.length > 0 && (
               <span className="flex size-4.5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                {pendingCount}
+                {pendingCount + escalations.length}
               </span>
             )}
           </TabsTrigger>
@@ -92,17 +100,15 @@ export function SarahPageClient() {
       </TabsContent>
 
       <TabsContent value="approvals" className="mt-4">
-        {approvals.length === 0 ? (
+        {approvals.length + escalations.length === 0 ? (
           <EmptyState
             icon={CircleCheck}
             title="Nothing waiting on you."
             body="Sarah will ask before anything goes out to a customer — drafts land here for your OK."
           />
         ) : (
-          <div className="grid max-w-4xl gap-3 lg:grid-cols-2">
-            {approvals.map((a) => (
-              <ApprovalCard key={a.id} approval={a} />
-            ))}
+          <div className="rounded-2xl border bg-card p-5 shadow-xs">
+            <ApprovalRows escalations={escalations} onAnswerEscalation={() => setTab("chat")} />
           </div>
         )}
       </TabsContent>

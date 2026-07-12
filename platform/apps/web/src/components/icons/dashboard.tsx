@@ -10,7 +10,7 @@ export type IconState = "idle" | "hover" | "active";
 
 const settle = { type: "spring", stiffness: 320, damping: 17 } as const;
 
-export function DashboardIcon({ state, className }: { state: IconState; className?: string }) {
+export function DashboardIcon({ state = "idle", className }: { state?: IconState; className?: string }) {
   return (
     <motion.svg
       viewBox="0 0 24 24"

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, MapPin } from "lucide-react";
+import { ArrowRight, MapPin, Star } from "lucide-react";
 import { requireOrganization, organizationTz } from "@/lib/dashboard-auth";
 import { isDemoMode } from "@/lib/data/gating";
 import { getHomeDataMock, getHomeDataReal } from "@/lib/data/home";
@@ -155,10 +155,17 @@ export default async function HomePage() {
                 most owners see a wave in week one.
               </p>
             ) : (
-              <div className="mt-3 flex items-baseline gap-2">
-                <p className="text-3xl font-semibold tracking-tight">{data.stats.reviewsCollected}</p>
-                <p className="text-sm text-muted-foreground">
-                  new reviews · <span className="font-medium text-foreground">{data.stats.reviewsAvg}★</span> average
+              <div className="mt-3">
+                <div className="flex items-center gap-2.5">
+                  <p className="text-3xl font-semibold tracking-tight">{data.stats.reviewsAvg}</p>
+                  <div className="flex gap-0.5" aria-label={`${data.stats.reviewsAvg} star average`}>
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star key={i} className="size-4 fill-amber-400 text-amber-400" />
+                    ))}
+                  </div>
+                </div>
+                <p className="mt-1.5 text-sm text-muted-foreground">
+                  {data.stats.reviewsCollected} new reviews collected
                 </p>
               </div>
             )}
@@ -170,8 +177,8 @@ export default async function HomePage() {
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-2 text-muted-foreground">
                   <span className="relative flex size-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
-                    <span className="relative inline-flex size-2 rounded-full bg-primary" />
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+                    <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
                   </span>
                   Sarah is answering
                 </span>

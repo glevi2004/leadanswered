@@ -8,14 +8,20 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
-const KIND_LABEL: Record<ApprovalKind, string> = {
-  customer_message: "Message",
-  quote: "Quote",
-  invoice: "Invoice",
-  review_ask: "Review ask",
-  post: "Blog post",
-  social_post: "Social post",
-  site_edit: "Site edit",
+/**
+ * Categorical color per approval kind (the one place chrome gets color in the
+ * monochrome app — approved palette, 2026-07-11). Chip only, no edge stripes
+ * (Levi: seamless); the label always carries the meaning, color is
+ * reinforcement. Shared by the approval cards and Home's inbox rows.
+ */
+export const KIND_META: Record<ApprovalKind, { label: string; chip: string }> = {
+  customer_message: { label: "Message", chip: "bg-blue-500/10 text-blue-700 dark:text-blue-300" },
+  quote: { label: "Quote", chip: "bg-violet-500/10 text-violet-700 dark:text-violet-300" },
+  invoice: { label: "Invoice", chip: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" },
+  review_ask: { label: "Review ask", chip: "bg-amber-500/10 text-amber-700 dark:text-amber-300" },
+  post: { label: "Blog post", chip: "bg-pink-500/10 text-pink-700 dark:text-pink-300" },
+  social_post: { label: "Social post", chip: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300" },
+  site_edit: { label: "Site edit", chip: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300" },
 };
 
 /**
@@ -28,16 +34,16 @@ export function ApprovalCard({ approval, compact }: { approval: Approval; compac
   const [draft, setDraft] = React.useState(approval.preview);
 
   return (
-    <div
-      className={cn(
-        "card-lift rounded-2xl border bg-card p-3.5 text-card-foreground shadow-xs",
-        "border-l-2 border-l-primary",
-      )}
-    >
+    <div className="card-lift rounded-2xl border bg-card p-3.5 text-card-foreground shadow-xs">
       <div className="flex items-center justify-between gap-2">
         <p className="truncate text-sm font-semibold">{approval.summary}</p>
-        <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
-          {KIND_LABEL[approval.kind]}
+        <span
+          className={cn(
+            "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium",
+            KIND_META[approval.kind].chip,
+          )}
+        >
+          {KIND_META[approval.kind].label}
         </span>
       </div>
 

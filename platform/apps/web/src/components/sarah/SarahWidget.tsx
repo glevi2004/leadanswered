@@ -33,7 +33,7 @@ export function SarahWidget() {
               </span>
               <span className="text-sm font-semibold">Sarah</span>
               <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                <span className="size-1.5 rounded-full bg-primary" /> online
+                <span className="size-1.5 rounded-full bg-emerald-500" /> online
               </span>
             </div>
             <div className="flex items-center gap-0.5">

@@ -86,7 +86,7 @@ export async function getHomeDataReal(organizationId: string, timezone: string):
   };
 }
 
-async function listOpenEscalations(organizationId: string): Promise<OpenEscalation[]> {
+export async function listOpenEscalations(organizationId: string): Promise<OpenEscalation[]> {
   const sb = createSupabaseAdmin();
   const { data, error } = await sb
     .from("Escalation")

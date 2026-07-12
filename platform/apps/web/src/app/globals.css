@@ -128,13 +128,13 @@
     }
 }
 
-/* Brand: Lead Answered — the AbacatePay-derived palette (yellow-green #9EEA6C + brown-green
-   #244C4E, vivid accent #58C411), matching the marketing site. Sarah's chat bubbles
-   stay iMessage green (#34c759) — that's the SMS metaphor, not brand chrome. */
+/* App palette: MONOCHROME (Levi, 2026-07-11 — Claude/Notion feel; tried the
+   brown-green ink, reverted — plain neutral ink won). The landing page keeps
+   its green. Color only for semantics: status dots (emerald), rating stars
+   (amber), destructive red, and Sarah's iMessage bubbles (#34c759 — the
+   texting metaphor, kept on purpose). Primary/ring inherit the shadcn neutral
+   defaults above. */
 :root {
-  --primary: #58c411;
-  --primary-foreground: #244c4e;
-  --ring: #58c411;
   --radius: 0.75rem;
   --bubble-them: #e9e9eb;
   --bubble-them-fg: #1b1b1f;
@@ -143,36 +143,41 @@
   --sidebar-accent: oklch(0.91 0 0);
 }
 .dark {
-  --primary: #9eea6c;
-  --primary-foreground: #244c4e;
-  --ring: #9eea6c;
-  --bubble-them: #2c2c2e;
+  --bubble-them: #3a3a3c;
   --bubble-them-fg: #f2f2f7;
-  --sidebar: oklch(0.115 0 0);
-  --sidebar-accent: oklch(0.23 0 0);
+  /* Lifted dark ramp (Levi: default was too dark) — everything a few steps lighter. */
+  --background: oklch(0.19 0 0);
+  --card: oklch(0.245 0 0);
+  --popover: oklch(0.245 0 0);
+  --secondary: oklch(0.3 0 0);
+  --muted: oklch(0.3 0 0);
+  --accent: oklch(0.3 0 0);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
+  --sidebar: oklch(0.155 0 0);
+  --sidebar-accent: oklch(0.27 0 0);
 }
 
-/* ===== Landing-page design language, app edition ===== */
+/* ===== Shared patterns, monochrome edition ===== */
 
-/* Primary CTA — flat style (name kept from the glow era to avoid churn):
-   yellow-green fill, brown-green content, colors invert on hover. */
+/* Primary CTA (class name kept from the glow era to avoid churn): ink slab,
+   paper text — flips automatically in dark via the primary tokens. */
 .btn-glow {
-  background: #9eea6c;
+  background: var(--primary);
   border: 1px solid transparent;
-  color: #244c4e;
+  color: var(--primary-foreground);
   transition: all 0.18s ease;
 }
 .btn-glow:hover {
-  background: #244c4e;
-  color: #9eea6c;
+  opacity: 0.88;
 }
 
 .text-gradient-green {
-  /* flat now — the vivid accent (name kept to avoid markup churn) */
-  color: #58c411;
+  /* monochrome now — the greeting accent is plain ink (name kept to avoid churn) */
+  color: inherit;
 }
 
-/* Soft card hover lift (landing .card-hover). */
+/* Soft card hover lift. */
 .card-lift {
   transition: all 0.2s ease;
 }
@@ -180,13 +185,16 @@
   box-shadow:
     0 1px 2px rgba(16, 24, 40, 0.04),
     0 10px 28px rgba(16, 24, 40, 0.09);
-  border-color: rgba(158, 234, 108, 0.6);
   transform: translateY(-2px);
 }
 
-/* Subtle green radial wash for hero-ish headers. */
+/* Subtle neutral radial wash for hero-ish headers. */
 .green-wash {
-  background-image: radial-gradient(60% 90% at 18% 0%, rgba(158, 234, 108, 0.16) 0%, rgba(158, 234, 108, 0) 100%);
+  background-image: radial-gradient(
+    60% 90% at 18% 0%,
+    color-mix(in oklab, var(--foreground) 5%, transparent) 0%,
+    transparent 100%
+  );
 }
 
 /* ===== iMessage bubbles (same construction as the marketing demo) ===== */
