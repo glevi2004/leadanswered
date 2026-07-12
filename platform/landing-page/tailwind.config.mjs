@@ -24,16 +24,19 @@ export default {
           400: "#dde3ec",
           500: "#c2cad8",
         },
-        /* brand = iMessage bubble green */
+        /* brand = the two AbacatePay primaries: yellow-green #9EEA6C + brown-green #244C4E,
+           with their vivid accent #58C411 in the middle. (Sarah's demo bubbles stay
+           iMessage green — that's the SMS metaphor, not brand chrome.) */
         brand: {
-          50: "#ecfdf2",
-          100: "#d4f8e0",
-          200: "#9ceeb4",
-          400: "#4be06a",
-          500: "#30d158",
-          600: "#22b94a",
-          700: "#1a9c3e",
-          800: "#15732e",
+          50: "#e6f9da",
+          100: "#d4f1b8",
+          200: "#bfe998",
+          400: "#9eea6c",
+          500: "#7fdc4a",
+          600: "#58c411",
+          700: "#468f14",
+          800: "#2f6b10",
+          900: "#244c4e",
         },
       },
       boxShadow: {
