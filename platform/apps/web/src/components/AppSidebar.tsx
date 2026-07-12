@@ -77,10 +77,7 @@ export function AppSidebar({
     const Icon = ICONS[entry.icon] ?? Sparkles;
     const kiwiIcon =
       key === "home" ? (
-        <HomeIcon
-          state={hoveredKey === key ? "hover" : active ? "active" : "idle"}
-          className="!size-[18px]"
-        />
+        <HomeIcon state={hoveredKey === key ? "hover" : active ? "active" : "idle"} />
       ) : null;
     return (
       <SidebarMenuItem
