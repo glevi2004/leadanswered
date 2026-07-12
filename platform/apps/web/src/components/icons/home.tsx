@@ -6,7 +6,8 @@ import { motion } from "motion/react";
  * KiwiIcons pilot (app-ui/14-icons.md §5): Home.
  * Geometry = lucide's house (same proportions, rounded joins, 2px stroke) so it
  * matches the rest of the set at rest; the motion is ours. Hover: springy pop,
- * the shell redraws, the door swings open and shuts. Active (/home): door ajar.
+ * the shell redraws, the door swings open and shuts. The door is closed at rest
+ * AND active — the ajar pose read as a broken tilt, not an open door.
  */
 export type IconState = "idle" | "hover" | "active";
 
@@ -52,10 +53,10 @@ export function HomeIcon({ state, className }: { state: IconState; className?: s
         variants={{
           idle: { rotate: 0, transition: settle },
           hover: {
-            rotate: [0, -28, 0],
+            rotate: [0, -20, 0],
             transition: { delay: 0.18, duration: 0.6, times: [0, 0.45, 1], ease: "easeInOut" },
           },
-          active: { rotate: -14, transition: settle },
+          active: { rotate: 0, transition: settle },
         }}
       />
     </motion.svg>

@@ -85,7 +85,12 @@ export function AppSidebar({
         onMouseEnter={() => setHoveredKey(key)}
         onMouseLeave={() => setHoveredKey((k) => (k === key ? null : k))}
       >
-        <SidebarMenuButton isActive={active} tooltip={entry.label} render={<Link href={entry.route} />}>
+        <SidebarMenuButton
+          isActive={active}
+          tooltip={entry.label}
+          className="gap-2.5 [&>svg]:size-[18px]"
+          render={<Link href={entry.route} />}
+        >
           {kiwiIcon ?? <Icon />}
           <span>{entry.label}</span>
         </SidebarMenuButton>
@@ -130,7 +135,7 @@ export function AppSidebar({
         <SidebarMenu>
           {renderItem("settings")}
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Sign out" render={<a href="/auth/signout" />}>
+            <SidebarMenuButton tooltip="Sign out" className="gap-2.5 [&>svg]:size-[18px]" render={<a href="/auth/signout" />}>
               <LogOut />
               <span>Sign out</span>
             </SidebarMenuButton>

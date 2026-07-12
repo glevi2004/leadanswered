@@ -37,6 +37,12 @@
 
 Recommendation: **(a)** — 14 icons is a small enough set to own outright.
 
+> **DECIDED (2026-07-11, after live iteration):** the set stays **lucide** — a Phosphor migration
+> was built and reverted (regular read too thin at nav sizes, bold too chunky; the geometry never
+> matched the app's optical weight the way lucide does). Uniqueness comes from **motion only**:
+> lucide geometry + our choreography (the committed Home pilot is the template). The open-source
+> pqoqubbw/icons set (MIT, animated lucide) is the reference for per-icon choreography ideas.
+
 ## 4. Architecture (`apps/web/src/components/icons/`)
 
 ```
