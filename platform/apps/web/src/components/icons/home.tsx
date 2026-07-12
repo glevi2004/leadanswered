@@ -1,21 +1,18 @@
 "use client";
 
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
 
 /**
  * KiwiIcons pilot (app-ui/14-icons.md §5): Home.
- * Choreography: house outline draws in → the door swings open and settles.
- * `active` = the settled end-pose (door ajar). Controlled by the parent row
- * (hover comes from the whole nav row, not just the icon).
+ * Hover: the icon springs up, the house redraws itself, the door swings open
+ * and slams back. Active (/home): door sits ajar. Reduced-motion handling
+ * arrives shell-wide via MotionConfig when the full set ships.
  */
 export type IconState = "idle" | "hover" | "active";
 
 const settle = { type: "spring", stiffness: 320, damping: 17 } as const;
 
 export function HomeIcon({ state, className }: { state: IconState; className?: string }) {
-  const reduced = useReducedMotion();
-  const s: IconState = reduced ? (state === "hover" ? "idle" : state) : state;
-
   return (
     <motion.svg
       viewBox="0 0 24 24"
@@ -26,7 +23,17 @@ export function HomeIcon({ state, className }: { state: IconState; className?: s
       strokeLinejoin="round"
       className={className}
       initial="idle"
-      animate={s}
+      animate={state}
+      variants={{
+        idle: { scale: 1, rotate: 0, transition: settle },
+        hover: {
+          scale: [1, 1.22, 1],
+          rotate: [0, -8, 0],
+          transition: { duration: 0.55, times: [0, 0.35, 1], ease: "easeInOut" },
+        },
+        active: { scale: 1, rotate: 0, transition: settle },
+      }}
+      style={{ transformOrigin: "50% 100%" }}
       aria-hidden
     >
       {/* house shell: roof sweep + walls */}
@@ -34,7 +41,7 @@ export function HomeIcon({ state, className }: { state: IconState; className?: s
         d="M5.5 9.6 12 4l6.5 5.6M5.5 9.6V20h13V9.6"
         variants={{
           idle: { pathLength: 1, transition: settle },
-          hover: { pathLength: [0.2, 1], transition: { duration: 0.38, ease: "easeOut" } },
+          hover: { pathLength: [0, 1], transition: { duration: 0.5, ease: "easeOut" } },
           active: { pathLength: 1 },
         }}
       />
@@ -45,10 +52,10 @@ export function HomeIcon({ state, className }: { state: IconState; className?: s
         variants={{
           idle: { rotate: 0, transition: settle },
           hover: {
-            rotate: [0, -16, 0],
-            transition: { delay: 0.16, duration: 0.55, times: [0, 0.45, 1], ease: "easeInOut" },
+            rotate: [0, -35, 0],
+            transition: { delay: 0.2, duration: 0.6, times: [0, 0.45, 1], ease: "easeInOut" },
           },
-          active: { rotate: -12, transition: settle },
+          active: { rotate: -18, transition: settle },
         }}
       />
     </motion.svg>
