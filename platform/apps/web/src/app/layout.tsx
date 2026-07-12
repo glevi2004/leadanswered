@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import "leaflet/dist/leaflet.css";
 import { cn } from "@/lib/utils";
 import { AuthHashHandler } from "@/components/AuthHashHandler";
 import { ThemeProvider } from "@/components/theme-provider";

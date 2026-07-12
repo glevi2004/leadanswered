@@ -1,63 +1,47 @@
 import Link from "next/link";
+import { Upload } from "lucide-react";
 import { requireOrganization, organizationTz } from "@/lib/dashboard-auth";
-import { listLeads } from "@/lib/dashboard";
-import { leadStatusBadge, formatWhen } from "@/lib/dashboard-ui";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { isDemoMode } from "@/lib/data/gating";
+import { listContactsMock, listContactsReal } from "@/lib/data/crm";
+import { APEX } from "@/lib/data/fixtures/apex";
+import { PageHeader } from "@/components/app/PageHeader";
+import { EmptyState } from "@/components/app/EmptyState";
+import { CrmIndex } from "@/components/crm/CrmIndex";
+import { Button } from "@/components/ui/button";
 
-export default async function LeadsPage() {
+export const metadata = { title: "CRM — Lead Answered" };
+
+export default async function CrmPage() {
   const organization = await requireOrganization();
-  const tz = organizationTz(organization);
-  const leads = await listLeads(organization.id);
+  const demo = await isDemoMode();
+  const tz = demo ? APEX.timezone : organizationTz(organization);
+  const contacts = demo ? listContactsMock() : await listContactsReal(organization.id);
+
+  // Needs-follow-up + attention markers (05-crm §2): derived from what Sarah is
+  // chasing. Demo = the cast's storylines; real = quiet leads until 10 ships.
+  const needsFollowupIds = demo ? ["ct_alvarez", "ct_tran"] : contacts.filter((c) => c.stage === "no_response").map((c) => c.id);
+  const attentionIds = demo ? ["ct_alvarez"] : [];
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Leads</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{leads.length} total</p>
-      </div>
+    <div className="flex flex-col gap-5">
+      <PageHeader
+        title="CRM"
+        description="Every lead and customer, organized and worked automatically."
+        actions={
+          <Button variant="outline" size="sm" className="gap-1.5" render={<Link href="/crm/import" />}>
+            <Upload className="size-3.5" /> Import your history
+          </Button>
+        }
+      />
 
-      {leads.length === 0 ? (
-        <Card className="p-8 text-center text-sm text-muted-foreground">
-          No leads yet. When someone texts your number or a lead email comes in, they'll appear here.
-        </Card>
+      {contacts.length === 0 ? (
+        <EmptyState
+          title="Sarah's ready."
+          body="The moment someone texts your number, misses you by phone, or fills out your site's form, they'll appear here. Or bring your history in — Sarah reads it and knows your business day one."
+          askSarah
+        />
       ) : (
-        <Card className="overflow-hidden py-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead className="hidden sm:table-cell">Phone</TableHead>
-                <TableHead className="hidden md:table-cell">Project</TableHead>
-                <TableHead className="hidden lg:table-cell">Town</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="hidden sm:table-cell">First seen</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {leads.map((l) => {
-                const b = leadStatusBadge(l.status);
-                return (
-                  <TableRow key={l.id} className="hover:bg-muted/50">
-                    <TableCell className="font-medium">
-                      <Link href={`/crm/${l.id}`} className="text-primary hover:underline">
-                        {l.contactName || l.contactPhone || "New lead"}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell text-muted-foreground">{l.contactPhone ?? "—"}</TableCell>
-                    <TableCell className="hidden md:table-cell text-muted-foreground">{l.projectHint ?? "—"}</TableCell>
-                    <TableCell className="hidden lg:table-cell text-muted-foreground">{l.serviceTown ?? "—"}</TableCell>
-                    <TableCell>
-                      <Badge variant={b.variant}>{b.label}</Badge>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell text-muted-foreground">{formatWhen(l.createdAt, tz)}</TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </Card>
+        <CrmIndex contacts={contacts} needsFollowupIds={needsFollowupIds} attentionIds={attentionIds} timezone={tz} />
       )}
     </div>
   );

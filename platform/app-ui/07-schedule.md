@@ -278,8 +278,12 @@ New — flagged for the kit / `components/app/`:
    travel routing actually ships? Changes `ScheduleItem.arrivalWindow` from preview to contract.
 3. **Availability editor location:** fully moves here (13-settings holds only a cross-link — the
    spec assumes this) or stays editable in both places? Duplicated editors = drift risk.
-4. **Day-route map:** ship the free Google Embed `directions` map in the rail from day one, or text
-   rail + map stub until routing is real? (Embed is free/unlimited; the stub is zero risk.)
+4. ~~**Day-route map**~~ — *resolved (Levi go-ahead, 2026-07-12): shipped as Leaflet + OSM
+   (zero keys) — numbered pins in route order + base marker, deliberately DASHED straight
+   connectors until real road-routing ships api-side (then upgrade to Google directions
+   polylines). Fail-open: renders only when stops carry lat/lng (demo fixtures have coords;
+   real geocoding is TRAVEL_ROUTING backend work). ItemSheet gained the "Get directions"
+   deep link.*
 5. **Confirm surface for the customer notice:** inline "Review & send" dialog on this page vs.
    always routing through the Sarah widget's Approval card — pick ONE pattern (it becomes the
    template for Quotes/Invoices sends too).

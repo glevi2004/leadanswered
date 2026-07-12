@@ -1,76 +1,35 @@
-import Link from "next/link";
 import { requireOrganization, organizationTz } from "@/lib/dashboard-auth";
-import { listAppointments, type AppointmentRow } from "@/lib/dashboard";
-import { apptStatusBadge, formatWhen } from "@/lib/dashboard-ui";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CancelButton } from "./CancelButton";
+import { isDemoMode } from "@/lib/data/gating";
+import { getRouteMock, listItemsMock, listItemsReal } from "@/lib/data/schedule";
+import { APEX, APEX_BASE } from "@/lib/data/fixtures/apex";
+import { getCalendarConnection } from "@/lib/calendar";
+import type { AvailabilityWindow } from "@/lib/onboarding-state";
+import { PageHeader } from "@/components/app/PageHeader";
+import { ScheduleTabs } from "@/components/schedule/ScheduleTabs";
 
-function ApptList({ items, tz, empty, cancellable }: { items: AppointmentRow[]; tz: string; empty: string; cancellable?: boolean }) {
-  if (items.length === 0) return <p className="py-4 text-sm text-muted-foreground">{empty}</p>;
-  return (
-    <div className="flex flex-col gap-1">
-      {items.map((a) => {
-        const b = apptStatusBadge(a.status);
-        const active = a.status === "confirmed" || a.status === "proposed";
-        return (
-          <div key={a.id} className="flex items-center justify-between rounded-md px-2 py-2">
-            <div className="min-w-0">
-              {a.lead ? (
-                <Link href={`/crm/${a.lead.id}`} className="text-sm font-medium text-primary hover:underline">
-                  {a.lead.contactName || a.lead.contactPhone || "Lead"}
-                </Link>
-              ) : (
-                <span className="text-sm font-medium">Lead</span>
-              )}
-              <p className="text-xs text-muted-foreground">{formatWhen(a.startAt, tz)}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant={b.variant}>{b.label}</Badge>
-              {cancellable && active && <CancelButton appointmentId={a.id} />}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+export const metadata = { title: "Schedule — Lead Answered" };
 
-export default async function AppointmentsPage() {
+const APEX_WINDOWS: AvailabilityWindow[] = [1, 2, 3, 4, 5].map((dayOfWeek) => ({ dayOfWeek, start: "08:00", end: "17:00" }));
+
+export default async function SchedulePage() {
   const organization = await requireOrganization();
-  const tz = organizationTz(organization);
-  const appts = await listAppointments(organization.id); // ascending by slot
-  const now = new Date().toISOString();
-
-  const isActiveUpcoming = (a: AppointmentRow) =>
-    a.startAt >= now && (a.status === "proposed" || a.status === "confirmed");
-  const upcoming = appts.filter(isActiveUpcoming);
-  const past = appts.filter((a) => !isActiveUpcoming(a)).reverse(); // most recent first
+  const demo = await isDemoMode();
+  const tz = demo ? APEX.timezone : organizationTz(organization);
+  const items = demo ? listItemsMock() : await listItemsReal(organization.id);
+  const windows: AvailabilityWindow[] = demo
+    ? APEX_WINDOWS
+    : ((organization.standingAvailability?.windows as AvailabilityWindow[]) ?? []);
+  const conn = await getCalendarConnection(organization.id).catch(() => null);
+  const sync = { state: conn?.status === "connected" ? ("connected" as const) : ("not_connected" as const), email: conn?.email ?? undefined };
+  const routeFixture = demo ? getRouteMock(items[0] ? items[0].startAt.slice(0, 10) : "") ?? null : null;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Appointments</h1>
-        <p className="mt-1 text-sm text-muted-foreground">On-site estimates Sarah has scheduled.</p>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Upcoming</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ApptList items={upcoming} tz={tz} empty="Nothing booked yet." cancellable />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Past &amp; cancelled</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ApptList items={past} tz={tz} empty="Nothing here yet." />
-        </CardContent>
-      </Card>
+    <div className="flex flex-col gap-5">
+      <PageHeader
+        title="Schedule"
+        description="Estimates and jobs on one calendar, in your timezone."
+      />
+      <ScheduleTabs items={items} demo={demo} timezone={tz} windows={windows} sync={sync} routeFixture={routeFixture} base={demo ? APEX_BASE : null} />
     </div>
   );
 }

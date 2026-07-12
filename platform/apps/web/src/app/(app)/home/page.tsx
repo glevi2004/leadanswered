@@ -71,7 +71,7 @@ export default async function HomePage() {
           href="/quotes"
         />
         <StatCard
-          label="Owed to you"
+          label="Awaiting payment"
           soon={data.stats.owedCents === null}
           value={data.stats.owedCents != null ? `$${(data.stats.owedCents / 100).toLocaleString()}` : undefined}
           hint={

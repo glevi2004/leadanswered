@@ -65,3 +65,15 @@ export function formatTime(iso: string, timezone = DEFAULT_TZ): string {
     return "";
   }
 }
+
+/** Pipeline stages (05-crm) — lead side reuses LEAD_STATUS, customer side is new. */
+const PIPELINE_STAGE: Record<string, StatusBadge> = {
+  ...LEAD_STATUS,
+  job_scheduled: { label: "Job scheduled", variant: "default" },
+  job_done: { label: "Job done", variant: "default" },
+  paid: { label: "Paid", variant: "default" },
+  past_customer: { label: "Past customer", variant: "secondary" },
+};
+
+export const stageBadge = (stage: string): StatusBadge =>
+  PIPELINE_STAGE[stage] ?? { label: stage, variant: "secondary" };

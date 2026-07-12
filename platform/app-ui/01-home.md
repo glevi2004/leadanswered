@@ -79,7 +79,8 @@ quote/review stat tiles, the drive-time route note, and site status (all served 
 - **StatCards** — four `StatCard`s (00 §8) that read as **the pipeline, left to right** (Levi
   review, 2026-07-11): **New leads this week** (hint: median response time — the origin promise)
   → `/crm`, **Booked this week** → `/schedule`, **Quotes out** (count + $ waiting on a yes) →
-  `/quotes`, **Owed to you** ($ outstanding, overdue highlighted in red) → `/invoices`. Reviews
+  `/quotes`, **Awaiting payment** ($ outstanding, overdue highlighted in red; "Owed to you"
+  rejected as too harsh — Levi 2026-07-12) → `/invoices`. Reviews
   are NOT a tile — reputation moves to a compact card in the right column (with the schedule
   glance + status row): count + average in demo, promise copy until 09 ships.
 - **What Sarah did** — the `SarahAction` feed, Today / This week tabs, grouped by day, each row

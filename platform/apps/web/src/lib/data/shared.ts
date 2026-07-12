@@ -61,3 +61,34 @@ export interface SarahMessage {
   body: string;
   via: "sms" | "app";
 }
+
+import type { PipelineStage } from "./crm/types";
+
+/** A person the business talks to — lead early, customer later (00 §6). */
+export interface Contact {
+  id: string;
+  kind: "lead" | "customer"; // 'customer' is new (CRM entity)
+  name: string; // maps from: Lead.contactName
+  phone: string; // maps from: Lead.contactPhone
+  email?: string; // maps from: none (new)
+  address?: string; // maps from: Lead.fullAddress
+  town?: string; // maps from: Lead.serviceTown
+  zip?: string; // maps from: Lead.serviceZip
+  stage: PipelineStage; // maps from: Lead.status (superset; owned by 05-crm)
+  source: string; // maps from: Lead.source, + 'import'
+  tags: string[]; // maps from: none (new)
+  lastActivityAt: string; // ISO; derived
+  createdAt: string;
+}
+
+/** One entry on a contact's unified timeline (00 §6). */
+export type TimelineEvent = { id: string; at: string; contactId: string } & (
+  | { type: "message"; direction: "inbound" | "outbound"; body: string; via: "sms" | "app" }
+  | { type: "appointment"; appointmentId: string; startAt: string; status: string }
+  | { type: "escalation"; question: string; status: "open" | "resolved" | "expired" }
+  | { type: "quote"; quoteId: string; label: string; totalCents: number; status: string }
+  | { type: "invoice"; invoiceId: string; label: string; totalCents: number; status: string }
+  | { type: "review"; rating: 1 | 2 | 3 | 4 | 5; excerpt?: string }
+  | { type: "note"; body: string; author: string }
+  | { type: "import"; source: string }
+);
