@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -34,6 +35,7 @@ import {
 import { MODULES, NAV_CLUSTERS } from "@/lib/data/registry";
 import type { ModuleKey, ModuleStatus, SurfaceKey } from "@/lib/data/shared";
 import { useSarah } from "@/components/sarah/sarah-context";
+import { HomeIcon } from "@/components/icons/home";
 
 const ICONS: Record<string, LucideIcon> = {
   House,
@@ -64,6 +66,8 @@ export function AppSidebar({
 }) {
   const pathname = usePathname();
   const { pendingCount } = useSarah();
+  // KiwiIcons pilot (app-ui/14-icons.md): row-level hover drives the icon choreography.
+  const [hoveredKey, setHoveredKey] = React.useState<SurfaceKey | null>(null);
 
   const renderItem = (key: SurfaceKey) => {
     const entry = MODULES[key];
@@ -71,10 +75,18 @@ export function AppSidebar({
     if (status === "hidden") return null;
     const active = pathname === entry.route || pathname.startsWith(entry.route + "/");
     const Icon = ICONS[entry.icon] ?? Sparkles;
+    const kiwiIcon =
+      key === "home" ? (
+        <HomeIcon state={active ? "active" : hoveredKey === key ? "hover" : "idle"} />
+      ) : null;
     return (
-      <SidebarMenuItem key={key}>
+      <SidebarMenuItem
+        key={key}
+        onMouseEnter={() => setHoveredKey(key)}
+        onMouseLeave={() => setHoveredKey((k) => (k === key ? null : k))}
+      >
         <SidebarMenuButton isActive={active} tooltip={entry.label} render={<Link href={entry.route} />}>
-          <Icon />
+          {kiwiIcon ?? <Icon />}
           <span>{entry.label}</span>
         </SidebarMenuButton>
         {key === "sarah" && pendingCount > 0 && (
