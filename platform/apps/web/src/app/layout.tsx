@@ -9,7 +9,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "Lead Answered",
+  title: "KiwiOS",
   description: "Your AI assistant that answers and books every lead.",
 };
 

@@ -15,7 +15,7 @@ export default async function WelcomePage() {
     <main className="flex min-h-screen items-center justify-center p-6">
       <Card className="w-full max-w-lg">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Welcome to Lead Answered</CardTitle>
+          <CardTitle className="text-2xl">Welcome to KiwiOS</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-5 text-sm text-muted-foreground">
           <p className="text-center">

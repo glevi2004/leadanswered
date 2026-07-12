@@ -1,7 +1,7 @@
 import { requireOrganization } from "@/lib/dashboard-auth";
 import { SarahPageClient } from "./SarahPageClient";
 
-export const metadata = { title: "Sarah — Lead Answered" };
+export const metadata = { title: "Sarah — KiwiOS" };
 
 export default async function SarahPage() {
   await requireOrganization();

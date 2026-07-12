@@ -53,7 +53,7 @@ function SignIn() {
     <main className="flex min-h-screen items-center justify-center p-6">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-2xl">Lead Answered</CardTitle>
+          <CardTitle className="text-2xl">KiwiOS</CardTitle>
           <CardDescription>Sign in to your account.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
