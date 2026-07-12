@@ -1,12 +1,13 @@
 "use client";
 
-import { CircleCheck, MessageCircleQuestion, Sparkles } from "lucide-react";
+import { CircleCheck, MessageCircleQuestion } from "lucide-react";
 import { useSarah } from "@/components/sarah/sarah-context";
 import { ApprovalCard } from "@/components/app/ApprovalCard";
 import { SarahActionRow } from "@/components/app/SarahActionRow";
 import { EmptyState } from "@/components/app/EmptyState";
 import { Button } from "@/components/ui/button";
 import type { OpenEscalation } from "@/lib/data/home";
+import { SarahIcon } from "@/components/icons/sarah";
 
 /** "Needs you" — pending approvals (from the shared Sarah state) + open escalations. */
 export function NeedsAttention({ escalations }: { escalations: OpenEscalation[] }) {
@@ -40,7 +41,7 @@ export function NeedsAttention({ escalations }: { escalations: OpenEscalation[] 
             </div>
             <p className="mt-1.5 text-sm text-muted-foreground">“{e.question}”</p>
             <Button size="sm" variant="outline" className="mt-2.5 h-7 gap-1 px-3" onClick={openWidget}>
-              <Sparkles className="size-3.5 text-primary" /> Answer via Sarah
+              <SarahIcon className="size-3.5 text-primary" /> Answer via Sarah
             </Button>
           </div>
         ))}
@@ -55,7 +56,7 @@ export function ActivityDigest() {
   if (actions.length === 0) {
     return (
       <EmptyState
-        icon={Sparkles}
+        icon={SarahIcon}
         title="Everything Sarah does will show up here."
         body="She's answering your line right now — bookings, replies, and follow-ups land in this feed."
       />

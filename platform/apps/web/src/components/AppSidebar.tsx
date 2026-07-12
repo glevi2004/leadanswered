@@ -13,7 +13,7 @@ import {
   PenLine,
   Receipt,
   Settings,
-  Sparkles,
+  MessageCircle,
   Star,
   Timer,
   Users,
@@ -35,11 +35,14 @@ import {
 import { MODULES, NAV_CLUSTERS } from "@/lib/data/registry";
 import type { ModuleKey, ModuleStatus, SurfaceKey } from "@/lib/data/shared";
 import { useSarah } from "@/components/sarah/sarah-context";
-import { HomeIcon } from "@/components/icons/home";
+import { DashboardIcon } from "@/components/icons/dashboard";
+import { SarahIcon } from "@/components/icons/sarah";
+import { CrmIcon } from "@/components/icons/crm";
+import { ScheduleIcon } from "@/components/icons/schedule";
 
 const ICONS: Record<string, LucideIcon> = {
   House,
-  Sparkles,
+  MessageCircle,
   Users,
   CalendarDays,
   FileText,
@@ -74,10 +77,17 @@ export function AppSidebar({
     const status = entry.defaultStatus ? statuses[key as ModuleKey] : "live";
     if (status === "hidden") return null;
     const active = pathname === entry.route || pathname.startsWith(entry.route + "/");
-    const Icon = ICONS[entry.icon] ?? Sparkles;
+    const Icon = ICONS[entry.icon] ?? MessageCircle;
+    const iconState = hoveredKey === key ? ("hover" as const) : active ? ("active" as const) : ("idle" as const);
     const kiwiIcon =
       key === "home" ? (
-        <HomeIcon state={hoveredKey === key ? "hover" : active ? "active" : "idle"} />
+        <DashboardIcon state={iconState} />
+      ) : key === "sarah" ? (
+        <SarahIcon state={iconState} />
+      ) : key === "crm" ? (
+        <CrmIcon state={iconState} />
+      ) : key === "schedule" ? (
+        <ScheduleIcon state={iconState} />
       ) : null;
     return (
       <SidebarMenuItem

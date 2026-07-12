@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronDown, Maximize2, Sparkles, X } from "lucide-react";
+import { ChevronDown, Maximize2, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useSarah } from "./sarah-context";
 import { SarahThread } from "./SarahThread";
 import { SarahComposer } from "./SarahComposer";
 import { ApprovalCard } from "@/components/app/ApprovalCard";
+import { SarahIcon } from "@/components/icons/sarah";
 
 /**
  * The global Sarah widget (00 §3): Apollo-style launcher, bottom-right on every
@@ -28,7 +29,7 @@ export function SarahWidget() {
           <header className="flex shrink-0 items-center justify-between border-b px-4 py-3">
             <div className="flex items-center gap-2">
               <span className="btn-glow flex size-7 items-center justify-center rounded-full">
-                <Sparkles className="size-3.5" />
+                <SarahIcon className="size-3.5" />
               </span>
               <span className="text-sm font-semibold">Sarah</span>
               <span className="flex items-center gap-1 text-[11px] text-muted-foreground">

@@ -47,7 +47,7 @@ export const trades: Trade[] = [
     trade: "roofing",
     company: "Apex Roofing",
     initials: "AR",
-    metaTitle: "The AI Operating System for Roofers | KiwiOS",
+    metaTitle: "The AI Operating System for Roofers | Lead Answered",
     metaDescription:
       "Website, leads, quotes, scheduling, reviews, and invoicing for roofers — run by texting one assistant, Sarah. We build it with you, free, as a design partner.",
     h1: "The AI operating system for roofers.",
@@ -84,7 +84,7 @@ export const trades: Trade[] = [
     trade: "HVAC",
     company: "Peak Heating & Air",
     initials: "PH",
-    metaTitle: "The AI Operating System for HVAC Companies | KiwiOS",
+    metaTitle: "The AI Operating System for HVAC Companies | Lead Answered",
     metaDescription:
       "Website, leads, quotes, scheduling, reviews, and invoicing for HVAC companies — run by texting one assistant, Sarah. We build it with you, free, as a design partner.",
     h1: "The AI operating system for HVAC companies.",
@@ -121,7 +121,7 @@ export const trades: Trade[] = [
     trade: "plumbing",
     company: "Rapid Plumbing Co.",
     initials: "RP",
-    metaTitle: "The AI Operating System for Plumbers | KiwiOS",
+    metaTitle: "The AI Operating System for Plumbers | Lead Answered",
     metaDescription:
       "Website, leads, quotes, scheduling, reviews, and invoicing for plumbers — run by texting one assistant, Sarah. We build it with you, free, as a design partner.",
     h1: "The AI operating system for plumbers.",
@@ -158,7 +158,7 @@ export const trades: Trade[] = [
     trade: "electrical",
     company: "Bright Spark Electric",
     initials: "BS",
-    metaTitle: "The AI Operating System for Electricians | KiwiOS",
+    metaTitle: "The AI Operating System for Electricians | Lead Answered",
     metaDescription:
       "Website, leads, quotes, scheduling, reviews, and invoicing for electricians — run by texting one assistant, Sarah. We build it with you, free, as a design partner.",
     h1: "The AI operating system for electricians.",
@@ -195,7 +195,7 @@ export const trades: Trade[] = [
     trade: "solar",
     company: "SunPath Solar",
     initials: "SP",
-    metaTitle: "The AI Operating System for Solar Installers | KiwiOS",
+    metaTitle: "The AI Operating System for Solar Installers | Lead Answered",
     metaDescription:
       "Website, leads, quotes, scheduling, reviews, and invoicing for solar installers — run by texting one assistant, Sarah. We build it with you, free, as a design partner.",
     h1: "The AI operating system for solar installers.",
@@ -232,7 +232,7 @@ export const trades: Trade[] = [
     trade: "remodeling",
     company: "Craftline Remodeling",
     initials: "CR",
-    metaTitle: "The AI Operating System for Remodelers | KiwiOS",
+    metaTitle: "The AI Operating System for Remodelers | Lead Answered",
     metaDescription:
       "Website, leads, quotes, scheduling, reviews, and invoicing for remodelers — run by texting one assistant, Sarah. We build it with you, free, as a design partner.",
     h1: "The AI operating system for remodelers.",
@@ -269,7 +269,7 @@ export const trades: Trade[] = [
     trade: "landscaping",
     company: "Evergreen Lawn & Landscape",
     initials: "EL",
-    metaTitle: "The AI Operating System for Landscapers | KiwiOS",
+    metaTitle: "The AI Operating System for Landscapers | Lead Answered",
     metaDescription:
       "Website, leads, quotes, scheduling, reviews, and invoicing for landscapers — run by texting one assistant, Sarah. We build it with you, free, as a design partner.",
     h1: "The AI operating system for landscapers.",
@@ -306,7 +306,7 @@ export const trades: Trade[] = [
     trade: "restoration",
     company: "FirstResponse Restoration",
     initials: "FR",
-    metaTitle: "The AI Operating System for Restoration Companies | KiwiOS",
+    metaTitle: "The AI Operating System for Restoration Companies | Lead Answered",
     metaDescription:
       "Website, leads, quotes, scheduling, reviews, and invoicing for restoration companies — run by texting one assistant, Sarah. We build it with you, free, as a design partner.",
     h1: "The AI operating system for restoration companies.",

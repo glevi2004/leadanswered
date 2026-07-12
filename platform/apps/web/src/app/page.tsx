@@ -21,8 +21,8 @@ export default async function Home() {
             <CardTitle>You're almost set</CardTitle>
             <CardDescription>
               {organization
-                ? "Your KiwiOS contact is finishing your setup — you'll be up and running shortly."
-                : `We don't have an account linked to ${user.email} yet. Your KiwiOS contact will get you set up shortly.`}
+                ? "Your Lead Answered contact is finishing your setup — you'll be up and running shortly."
+                : `We don't have an account linked to ${user.email} yet. Your Lead Answered contact will get you set up shortly.`}
             </CardDescription>
           </CardHeader>
           <CardContent>

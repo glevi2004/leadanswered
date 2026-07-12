@@ -128,7 +128,7 @@
     }
 }
 
-/* Brand: KiwiOS — the AbacatePay-derived palette (yellow-green #9EEA6C + brown-green
+/* Brand: Lead Answered — the AbacatePay-derived palette (yellow-green #9EEA6C + brown-green
    #244C4E, vivid accent #58C411), matching the marketing site. Sarah's chat bubbles
    stay iMessage green (#34c759) — that's the SMS metaphor, not brand chrome. */
 :root {
@@ -154,7 +154,7 @@
 
 /* ===== Landing-page design language, app edition ===== */
 
-/* Primary CTA — flat KiwiOS style (name kept from the glow era to avoid churn):
+/* Primary CTA — flat style (name kept from the glow era to avoid churn):
    yellow-green fill, brown-green content, colors invert on hover. */
 .btn-glow {
   background: #9eea6c;
@@ -168,7 +168,7 @@
 }
 
 .text-gradient-green {
-  /* flat now — the vivid KiwiOS accent (name kept to avoid markup churn) */
+  /* flat now — the vivid accent (name kept to avoid markup churn) */
   color: #58c411;
 }
 

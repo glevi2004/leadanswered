@@ -11,7 +11,7 @@ export default async function SetPasswordPage() {
     <main className="flex min-h-screen items-center justify-center p-6">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>Welcome to KiwiOS</CardTitle>
+          <CardTitle>Welcome to Lead Answered</CardTitle>
           <CardDescription>
             Set a password for <strong>{user.email}</strong> to access your dashboard — your assistant
             is already set up and ready.

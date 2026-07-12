@@ -20,15 +20,15 @@ export interface SurfaceEntry {
 
 export const MODULES: Record<SurfaceKey, SurfaceEntry> = {
   home: {
-    label: "Home",
+    label: "Dashboard",
     route: "/home",
-    icon: "House",
+    icon: "LayoutGrid",
     sarahChips: ["Anything waiting on me?", "What's today look like?", "How are we doing this week?"],
   },
   sarah: {
     label: "Sarah",
     route: "/sarah",
-    icon: "Sparkles",
+    icon: "MessageCircle",
     sarahChips: ["Anything waiting on me?", "What's Thursday look like?", "Who's gone quiet?"],
   },
   crm: {

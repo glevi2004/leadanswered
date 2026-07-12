@@ -1,9 +1,8 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import { useSarah } from "@/components/sarah/sarah-context";
 import { Button } from "@/components/ui/button";
+import { SarahIcon } from "@/components/icons/sarah";
 
 /**
  * Empty state in the product voice (00 §4): what Sarah/we will do —
@@ -15,7 +14,7 @@ export function EmptyState({
   body,
   askSarah,
 }: {
-  icon?: LucideIcon;
+  icon?: React.ComponentType<{ className?: string }>;
   title: string;
   body?: string;
   askSarah?: boolean;
@@ -28,7 +27,7 @@ export function EmptyState({
       {body && <p className="max-w-sm text-sm text-muted-foreground">{body}</p>}
       {askSarah && (
         <Button variant="outline" size="sm" className="mt-2 gap-1.5" onClick={openWidget}>
-          <Sparkles className="size-3.5 text-primary" /> Ask Sarah
+          <SarahIcon className="size-3.5 text-primary" /> Ask Sarah
         </Button>
       )}
     </div>

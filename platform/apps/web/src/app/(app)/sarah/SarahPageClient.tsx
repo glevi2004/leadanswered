@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CircleCheck, Sparkles } from "lucide-react";
+import { CircleCheck, } from "lucide-react";
 import { useSarah } from "@/components/sarah/sarah-context";
 import { SarahThread } from "@/components/sarah/SarahThread";
 import { SarahComposer } from "@/components/sarah/SarahComposer";
@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MODULES } from "@/lib/data/registry";
 import type { ModuleKey } from "@/lib/data/shared";
 import { cn } from "@/lib/utils";
+import { SarahIcon } from "@/components/icons/sarah";
 
 /** /sarah — the full-screen surface: chat, the activity log, the approvals queue (02-sarah). */
 export function SarahPageClient() {
@@ -27,7 +28,7 @@ export function SarahPageClient() {
       <div className="flex items-center justify-between gap-3 md:pr-44">
         <div className="flex items-center gap-2.5">
           <span className="btn-glow flex size-9 items-center justify-center rounded-full">
-            <Sparkles className="size-4.5" />
+            <SarahIcon className="size-4.5" />
           </span>
           <div>
             <h1 className="text-xl font-semibold tracking-tight leading-none">Sarah</h1>
@@ -80,7 +81,7 @@ export function SarahPageClient() {
           ))}
         </div>
         {filtered.length === 0 ? (
-          <EmptyState icon={Sparkles} title="Everything Sarah does will show up here." />
+          <EmptyState icon={SarahIcon} title="Everything Sarah does will show up here." />
         ) : (
           <div className="flex max-w-2xl flex-col">
             {filtered.map((a) => (

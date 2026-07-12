@@ -7,7 +7,7 @@ export async function GET(context) {
   );
 
   return rss({
-    title: "KiwiOS Blog",
+    title: "Lead Answered Blog",
     description:
       "Speed-to-lead playbooks for home-service businesses — win more jobs by answering first.",
     site: context.site,
