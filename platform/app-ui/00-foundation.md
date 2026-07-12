@@ -320,7 +320,9 @@ now is fine). Charts follow the `dataviz` conventions when built; chart token va
 - Preview banner text, coming-soon teaser shape, and empty-state voice: exactly as §4.
 - Timezone: every timestamp rendered in the organization's zone (reuse `organizationTz` helpers).
 - Money: integer cents in contracts, formatted `$14,200` in UI.
-- "App," never "dashboard," in all UI copy. Sarah is referred to by name, never "the AI."
+- The PRODUCT is "the app," never "the dashboard," in copy. (Exception, Levi 2026-07-11: the
+  overview page's nav label IS "Dashboard" — route stays `/home`.) Sarah is referred to by
+  name, never "the AI."
 
 ## 10. Open questions
 
