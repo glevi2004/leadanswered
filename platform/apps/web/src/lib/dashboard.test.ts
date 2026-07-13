@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { leadStatusBadge, apptStatusBadge, formatWhen, formatTime } from "./dashboard-ui";
+import { statusChip, formatWhen, formatTime } from "./dashboard-ui";
 
 // Mock the service-role client so getLeadDetail's query is observable + controllable.
 const h = vi.hoisted(() => {
@@ -19,15 +19,17 @@ vi.mock("@/lib/supabase/admin", () => ({ createSupabaseAdmin: () => h.client }))
 
 import { getLeadDetail } from "./dashboard";
 
-describe("status badges", () => {
-  it("maps known + unknown lead statuses", () => {
-    expect(leadStatusBadge("booked")).toEqual({ label: "Booked", variant: "default" });
-    expect(leadStatusBadge("disqualified").variant).toBe("destructive");
-    expect(leadStatusBadge("mystery")).toEqual({ label: "mystery", variant: "secondary" });
+describe("statusChip", () => {
+  it("maps known statuses to their family chip", () => {
+    expect(statusChip("booked").label).toBe("Booked");
+    expect(statusChip("booked").chip).toContain("emerald");
+    expect(statusChip("disqualified").chip).toContain("red");
+    expect(statusChip("overdue").chip).toContain("red");
+    expect(statusChip("accepted").chip).toContain("emerald");
+    expect(statusChip("sent").chip).toContain("blue");
   });
-  it("maps appointment statuses", () => {
-    expect(apptStatusBadge("confirmed").variant).toBe("default");
-    expect(apptStatusBadge("cancelled").variant).toBe("destructive");
+  it("falls back to gray for unknown statuses", () => {
+    expect(statusChip("mystery")).toEqual({ label: "mystery", chip: "bg-muted text-muted-foreground" });
   });
 });
 

@@ -173,7 +173,7 @@ now") so the demo feels alive. Real `MemberProvider` = Supabase service-role rea
 
 ## 6. Components
 
-- **From 00 §8:** `PageHeader` (title, preview badge, `+ Add someone`, Ask Sarah) · `DataTable`
+- **From 00 §8:** `PageHeader` (title, `+ Add someone` action) · `DataTable`
   (members; responsive column hiding drops last-active first) · `EmptyState` / `GatedState` ·
   `StatusBadge` (role chip; app-access chip; `pending_hello` amber) · toasts via sonner.
 - **From the kit additions (00 §8):** `avatar` (initials fallback) · `dialog` (add member,
@@ -190,8 +190,8 @@ now") so the demo feels alive. Real `MemberProvider` = Supabase service-role rea
 - **`coming_soon`** (real partners until this ships): `GatedState` teaser with the REBRAND §3.4
   promise verbatim — *"Your team — Your crew can text Sarah too, with the permissions you set."*
   — plus "Ask Sarah about it" (opens the widget).
-- **`preview`** (demo accounts / `?demo=1`): full UI on the Apex fixtures + the standard slim
-  amber banner — *"Preview — we're building this with you. Ask Sarah about it."*
+- **`preview`** (demo accounts / `?demo=1`): full UI on the Apex fixtures, no banner or badge
+  (00 §4).
 - **Live, owner-only so far:** never an empty table — the owner is always row one (backfilled
   from `Organization.ownerEmail`). Beneath it, the setup voice: *"It's just you so far. Add your
   crew and Sarah introduces herself by text — no app setup, they just text her like you do."*

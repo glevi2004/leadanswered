@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ChevronsLeft, ChevronsRight } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -14,10 +15,13 @@ import {
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { MODULES, NAV_CLUSTERS } from "@/lib/data/registry";
 import type { ModuleKey, ModuleStatus, SurfaceKey } from "@/lib/data/shared";
 import { useSarah } from "@/components/sarah/sarah-context";
+import { DemoToggle } from "@/components/app/DemoToggle";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { DashboardIcon, type IconState } from "@/components/icons/dashboard";
 import { SarahIcon } from "@/components/icons/sarah";
 import { CrmIcon } from "@/components/icons/crm";
@@ -60,12 +64,16 @@ const KIWI_ICONS: Record<SurfaceKey, React.ComponentType<{ state?: IconState; cl
 export function AppSidebar({
   companyName,
   statuses,
+  demo,
 }: {
   companyName: string;
   statuses: Record<ModuleKey, ModuleStatus>;
+  demo: boolean;
 }) {
   const pathname = usePathname();
   const { pendingCount } = useSarah();
+  const { state, toggleSidebar, isMobile } = useSidebar();
+  const collapsed = state === "collapsed" && !isMobile;
   const [hoveredKey, setHoveredKey] = React.useState<string | null>(null);
 
   const stateFor = (key: string, active: boolean): IconState =>
@@ -109,11 +117,21 @@ export function AppSidebar({
   };
 
   return (
-    // Quo-style shell: the rail sits naked on the app background (inset variant),
-    // never collapses on desktop (resize instead — SidebarResizer); mobile keeps the Sheet.
-    <Sidebar variant="inset" collapsible="offcanvas">
+    // Quo-style shell: the rail sits naked on the app background (inset variant).
+    // « next to the company name collapses to an Apollo-style icon rail
+    // (Levi 2026-07-13); expanded width stays drag-resizable (SidebarResizer).
+    <Sidebar variant="inset" collapsible="icon">
       <SidebarHeader>
-        <div className="flex items-center gap-2 px-1 py-1.5">
+        <div className="flex items-center gap-2 px-1 py-1.5 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:px-0">
+          <button
+            type="button"
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={collapsed ? "Expand (⌘B)" : "Collapse (⌘B)"}
+            onClick={toggleSidebar}
+            className="order-last ml-auto hidden rounded-md p-1 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground md:block group-data-[collapsible=icon]:order-first group-data-[collapsible=icon]:ml-0"
+          >
+            {collapsed ? <ChevronsRight className="size-4" /> : <ChevronsLeft className="size-4" />}
+          </button>
           <div className="btn-glow flex size-7 shrink-0 items-center justify-center rounded-lg text-sm font-bold">
             {companyName.slice(0, 1).toUpperCase()}
           </div>
@@ -132,6 +150,11 @@ export function AppSidebar({
       </SidebarContent>
 
       <SidebarFooter>
+        {/* utility toggles live here, above Settings (Levi 2026-07-12); hidden on the icon rail */}
+        <div className="flex items-center justify-between gap-1.5 px-2 pb-1 group-data-[collapsible=icon]:hidden">
+          <DemoToggle demo={demo} />
+          <ThemeToggle />
+        </div>
         <SidebarMenu>
           {renderItem("settings")}
           <SidebarMenuItem

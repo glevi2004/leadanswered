@@ -68,8 +68,8 @@ quote/review stat tiles, the drive-time route note, and site status (all served 
 
 **Regions.**
 
-- **PageHeader** (00 §8) — title "Home", a one-line time-of-day greeting as the description, the
-  standard "Ask Sarah" button. No preview badge, ever (core module).
+- **PageHeader** (00 §8) — title "Home", a one-line time-of-day greeting as the description.
+  No Ask-Sarah button (00 §2) and no badges.
 - **Needs your attention** — full-width stack, at most ~5 items, oldest-first within severity:
   pending `Approval`s (inline approve/edit/decline — the same hard-gate cards as the widget), open
   escalations (`esc_301` with an inline answer box — the owner's reply is relayed by Sarah in her
@@ -231,9 +231,9 @@ No DataTable on this page — Home never shows tables (that framing died with th
 
 ## 7. States
 
-- **Gating:** none for the page — Home is core, always live, no preview banner. But StatCards and
+- **Gating:** none for the page — Home is core, always live. But StatCards and
   regions summarize *other* modules: a tile whose module is `preview` shows the Apex fixture number
-  with a small `preview` dot-badge (tapping through lands on that module's own preview banner); a
+  unlabeled (previews render unmarked — 00 §4); a
   tile whose module is `coming_soon` renders muted with a `soon` chip and links to the teaser.
   The site-status line hides entirely until Website exists for the account. Home itself never
   looks broken because a sibling module isn't built.
@@ -267,3 +267,26 @@ No DataTable on this page — Home never shows tables (that framing died with th
 5. **Inline escalation answers on Home** — keep the inline answer box (spec'd), or deep-link to
    the CRM contact thread to answer in context? Determines whether Home needs the relay api call
    at all.
+
+
+## 9. Reconciliation note (2026-07-12 audit)
+
+**As built (doc statements superseded):**
+- "Needs your attention" is the shared Linear-style **`ApprovalRows`** inbox inside a "Needs you"
+  card (00 §9) — not per-item cards. Count = approvals + open escalations (`pendingCount`, one
+  number on every surface). Escalation rows show the actual question; **Answer via Sarah**
+  prefills the widget composer and the send resolves the escalation (Sarah relays in her words).
+  The doc's inline-textarea relay is superseded by this flow. Edit is inline in the row and the
+  edited text IS what sends.
+- PageHeader title is the greeting itself ("Morning, Marcus"), not "Home"; no Ask-Sarah button.
+- 4th stat tile = **"Awaiting payment"** (Levi: "owed" too harsh); wireframe's Reviews tile is a
+  right-column card. In demo the money tiles click through to the CRM records that carry the
+  cited quote/invoices (`/crm/ct_alvarez`, `/crm/ct_imp_0`) until Quotes/Invoices exist.
+- Schedule glance DERIVES from the Thursday trio fixture (same people/times as the Schedule
+  page — Patel/Brennan/Rivera), rows link to `/crm/[contactId]`, and the `routeNote` line is
+  back ("Routed shortest-drive — 40-min gap at 1:00").
+- Fixture stats: 6 new / 4 booked / reviews **33** (the full arc: test 11 + wave 21 + Dana).
+- Feed shows 7 recent actions under "What Sarah's been doing."
+
+**Deferred:** stalled-item kind (quiet quote/lead in the inbox) · Today/This-week feed tabs +
+day grouping · website status line in "Everything's running" · `AttentionItem` unified type.

@@ -4,16 +4,16 @@ import { requireOrganization, organizationTz } from "@/lib/dashboard-auth";
 import { isDemoMode } from "@/lib/data/gating";
 import { getHomeDataMock, getHomeDataReal } from "@/lib/data/home";
 import { APEX } from "@/lib/data/fixtures/apex";
-import { formatTime } from "@/lib/dashboard-ui";
+import { formatTime, FAMILY_CHIP } from "@/lib/dashboard-ui";
 import { PageHeader } from "@/components/app/PageHeader";
 import { StatCard } from "@/components/app/StatCard";
 import { Badge } from "@/components/ui/badge";
 import { NeedsAttention, ActivityDigest } from "./HomeClient";
 
-const verifyCopy: Record<string, { text: string; variant: "default" | "secondary" | "destructive" }> = {
-  verified: { text: "Verified", variant: "default" },
-  pending: { text: "Verifying — live & sending", variant: "secondary" },
-  failed: { text: "Needs attention", variant: "destructive" },
+const verifyCopy: Record<string, { text: string; chip: string }> = {
+  verified: { text: "Verified", chip: FAMILY_CHIP.emerald },
+  pending: { text: "Verifying — live & sending", chip: FAMILY_CHIP.blue },
+  failed: { text: "Needs attention", chip: FAMILY_CHIP.red },
 };
 
 function greeting(tz: string): string {
@@ -44,7 +44,7 @@ export default async function HomePage() {
         description="Here's where things stand."
       />
 
-      <NeedsAttention escalations={data.escalations} />
+      <NeedsAttention />
 
       {/* The pipeline, left to right: what came in → what became work → what's waiting on a yes → where money is stuck. */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -68,7 +68,7 @@ export default async function HomePage() {
               ? `$${(data.stats.quotesAwaitingCents / 100).toLocaleString()} waiting on a yes`
               : undefined
           }
-          href="/quotes"
+          href={demo ? "/crm/ct_alvarez" : "/quotes"}
         />
         <StatCard
           label="Awaiting payment"
@@ -81,7 +81,7 @@ export default async function HomePage() {
               </span>
             ) : undefined
           }
-          href="/invoices"
+          href={demo ? "/crm/ct_imp_0" : "/invoices"}
         />
       </div>
 
@@ -116,29 +116,40 @@ export default async function HomePage() {
                 Nothing on the calendar yet — Sarah books estimates straight into it.
               </p>
             ) : (
-              <ol className="mt-3 flex flex-col">
-                {data.scheduleGlance.items.map((item, i) => (
-                  <li key={item.id} className="relative flex gap-3 pb-4 last:pb-0">
-                    {i < data.scheduleGlance.items.length - 1 && (
-                      <span className="absolute left-[5px] top-4 h-full w-px bg-border" aria-hidden />
-                    )}
-                    <span className="mt-1.5 size-[11px] shrink-0 rounded-full border-2 border-primary bg-background" />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium">
-                        {formatTime(item.startAt, tz)} · {item.name}
-                      </p>
-                      <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                        {item.town && (
-                          <>
-                            <MapPin className="size-3" /> {item.town}
-                          </>
+              <>
+                <ol className="mt-3 flex flex-col">
+                  {data.scheduleGlance.items.map((item, i) => (
+                    <li key={item.id} className="relative flex gap-3 pb-4 last:pb-0">
+                      {i < data.scheduleGlance.items.length - 1 && (
+                        <span className="absolute left-[5px] top-4 h-full w-px bg-border" aria-hidden />
+                      )}
+                      <span className="mt-1.5 size-[11px] shrink-0 rounded-full border-2 border-primary bg-background" />
+                      <div className="min-w-0">
+                        {item.contactId ? (
+                          <Link href={`/crm/${item.contactId}`} className="text-sm font-medium underline-offset-2 hover:underline">
+                            {formatTime(item.startAt, tz)} · {item.name}
+                          </Link>
+                        ) : (
+                          <p className="text-sm font-medium">
+                            {formatTime(item.startAt, tz)} · {item.name}
+                          </p>
                         )}
-                        {item.driveGapAfter && <span className="text-primary">· {item.driveGapAfter}</span>}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
+                        <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                          {item.town && (
+                            <>
+                              <MapPin className="size-3" /> {item.town}
+                            </>
+                          )}
+                          {item.driveGapAfter && <span className="text-primary">· {item.driveGapAfter}</span>}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+                {data.scheduleGlance.routeNote && (
+                  <p className="mt-1 text-xs text-muted-foreground">{data.scheduleGlance.routeNote}</p>
+                )}
+              </>
             )}
           </div>
 
@@ -186,7 +197,7 @@ export default async function HomePage() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Your line</span>
-                <Badge variant={v.variant}>{v.text}</Badge>
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${v.chip}`}>{v.text}</span>
               </div>
             </div>
           </div>

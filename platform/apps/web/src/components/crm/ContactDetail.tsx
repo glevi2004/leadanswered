@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import type { TimelineEvent } from "@/lib/data/shared";
 import type { ContactDetail as Detail } from "@/lib/data/crm";
 import { LEAD_STAGES, type PipelineStage } from "@/lib/data/crm/types";
-import { stageBadge, formatWhen } from "@/lib/dashboard-ui";
+import { statusChip, formatWhen } from "@/lib/dashboard-ui";
 import { updateLeadStageAction } from "@/app/(app)/crm/actions";
 import { useSarah } from "@/components/sarah/sarah-context";
 import { SarahIcon } from "@/components/icons/sarah";
@@ -38,9 +38,9 @@ export function ContactDetail({ detail, demo, timezone }: { detail: Detail; demo
     setStage(next);
     if (!demo && LEAD_STAGES.includes(next)) {
       await updateLeadStageAction(c.id, next);
-      toast.success(`Moved to ${stageBadge(next).label}`);
+      toast.success(`Moved to ${statusChip(next).label}`);
     } else {
-      toast.success(`Moved to ${stageBadge(next).label}`, {
+      toast.success(`Moved to ${statusChip(next).label}`, {
         description: demo ? undefined : "Customer-side stages go live with the customer entity.",
       });
     }
@@ -64,7 +64,7 @@ export function ContactDetail({ detail, demo, timezone }: { detail: Detail; demo
     toast.success("Note added", { description: demo ? undefined : "Note storage ships with the customer entity." });
   };
 
-  const b = stageBadge(stage);
+  const chip = statusChip(stage);
 
   return (
     <div className="flex flex-col gap-5">
@@ -79,12 +79,12 @@ export function ContactDetail({ detail, demo, timezone }: { detail: Detail; demo
               <Badge variant="outline" className="capitalize">{c.kind}</Badge>
               <DropdownMenu>
                 <DropdownMenuTrigger className="focus:outline-none">
-                  <Badge variant={b.variant} className="cursor-pointer">{b.label} ▾</Badge>
+                  <span className={`cursor-pointer rounded-full px-2 py-0.5 text-[11px] font-medium ${chip.chip}`}>{chip.label} ▾</span>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
                   {ALL_STAGES.map((s) => (
                     <DropdownMenuItem key={s} onClick={() => changeStage(s)}>
-                      {stageBadge(s).label}
+                      {statusChip(s).label}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
@@ -106,7 +106,7 @@ export function ContactDetail({ detail, demo, timezone }: { detail: Detail; demo
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={openWidget}>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => openWidget({ entity: c.name })}>
               <SarahIcon className="size-3.5" /> Ask Sarah about {c.name.split(" ")[0]}
             </Button>
             {/* stub per 05-crm §3 — visible so partners see where it's going */}
@@ -147,9 +147,11 @@ export function ContactDetail({ detail, demo, timezone }: { detail: Detail; demo
           <div className="rounded-2xl border bg-card p-4">
             <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Up next</h3>
             {sb.nextAppointment ? (
-              <p className="mt-2 text-sm">
+              <p className="mt-2 flex flex-wrap items-center gap-1.5 text-sm">
                 Estimate — {formatWhen(sb.nextAppointment.startAt, timezone)}
-                <span className="text-muted-foreground"> · {sb.nextAppointment.status}</span>
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${statusChip(sb.nextAppointment.status).chip}`}>
+                  {statusChip(sb.nextAppointment.status).label}
+                </span>
               </p>
             ) : (
               <p className="mt-2 text-sm text-muted-foreground">Nothing scheduled.</p>
@@ -160,15 +162,19 @@ export function ContactDetail({ detail, demo, timezone }: { detail: Detail; demo
               <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Money</h3>
               <div className="mt-2 flex flex-col gap-1.5 text-sm">
                 {sb.openQuote && (
-                  <p>
+                  <p className="flex flex-wrap items-center gap-1.5">
                     {sb.openQuote.label} · {money(sb.openQuote.totalCents)}
-                    <span className="text-muted-foreground"> · {sb.openQuote.status}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${statusChip(sb.openQuote.status).chip}`}>
+                      {statusChip(sb.openQuote.status).label}
+                    </span>
                   </p>
                 )}
                 {sb.openInvoice && (
-                  <p>
+                  <p className="flex flex-wrap items-center gap-1.5">
                     {sb.openInvoice.label} · {money(sb.openInvoice.totalCents)}
-                    <span className="text-muted-foreground"> · {sb.openInvoice.status}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${statusChip(sb.openInvoice.status).chip}`}>
+                      {statusChip(sb.openInvoice.status).label}
+                    </span>
                   </p>
                 )}
               </div>

@@ -1,6 +1,6 @@
 /** Schedule-owned types (07-schedule §4). */
 
-export type ScheduleItemKind = "estimate" | "job"; // 'estimate' maps from Appointment; 'job' is NEW
+export type ScheduleItemKind = "estimate" | "job" | "block"; // 'estimate' maps from Appointment; 'job'/'block' are NEW
 
 export interface ScheduleItem {
   id: string; // maps from: Appointment.id (estimates)
@@ -10,6 +10,7 @@ export interface ScheduleItem {
   startAt: string; // ISO UTC; maps from: Appointment.startAt
   endAt: string; // maps from: Appointment.endAt
   allDay?: boolean; // multi-day jobs render as banners (new)
+  label?: string; // job descriptor ("roof replacement") — kept separate from the name
   status: "proposed" | "confirmed" | "completed" | "no_show" | "cancelled" | "shown" | "rescheduled";
   address?: string;
   town?: string;
@@ -43,4 +44,15 @@ export interface RoutePlan {
 export interface CalendarSyncStatus {
   state: "not_connected" | "connected" | "needs_reconnect";
   email?: string;
+}
+
+/** A content item overlaid on the calendar (07 §2 "Posts layer") — a read-only
+ *  projection from 04-content's Post/SocialPost; ScheduleItem never learns about posts. */
+export interface SchedulePost {
+  id: string;
+  title: string;
+  at: string; // ISO — the publish/scheduled moment
+  kind: "post" | "social_post";
+  status: string; // published | posted | scheduled
+  href: string; // /content/[id]
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import type { RoutePlan, ScheduleItem, CalendarSyncStatus } from "@/lib/data/schedule/types";
+import type { RoutePlan, ScheduleItem, CalendarSyncStatus, SchedulePost } from "@/lib/data/schedule/types";
 import type { AvailabilityWindow } from "@/lib/onboarding-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScheduleClient, type RouteBase } from "./ScheduleClient";
@@ -15,9 +15,13 @@ export function ScheduleTabs(props: {
   sync: CalendarSyncStatus;
   routeFixture: RoutePlan | null;
   base: RouteBase | null;
+  /** The Posts layer (07 §2) — passed through to ScheduleClient. */
+  posts?: SchedulePost[];
+  /** deep link: /schedule?tab=availability (Settings cross-links here) */
+  defaultTab?: "calendar" | "availability";
 }) {
   return (
-    <Tabs defaultValue="calendar">
+    <Tabs defaultValue={props.defaultTab ?? "calendar"}>
       <TabsList>
         <TabsTrigger value="calendar">Calendar</TabsTrigger>
         <TabsTrigger value="availability">Availability</TabsTrigger>

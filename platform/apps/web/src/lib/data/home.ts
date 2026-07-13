@@ -34,7 +34,7 @@ export interface HomeData {
     reviewsCollected: number | null;
     reviewsAvg?: number;
   };
-  scheduleGlance: { dayLabel: string; items: ScheduleGlanceItem[] };
+  scheduleGlance: { dayLabel: string; routeNote?: string; items: ScheduleGlanceItem[] };
   escalations: OpenEscalation[];
 }
 

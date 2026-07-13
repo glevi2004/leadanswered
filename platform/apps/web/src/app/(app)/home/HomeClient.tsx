@@ -7,15 +7,14 @@ import { ApprovalRows } from "@/components/app/ApprovalRows";
 import { SarahIcon } from "@/components/icons/sarah";
 import { SarahActionRow } from "@/components/app/SarahActionRow";
 import { EmptyState } from "@/components/app/EmptyState";
-import type { OpenEscalation } from "@/lib/data/home";
 
 /**
  * "Needs you" — the shared Linear-style approval inbox (ApprovalRows) inside
  * a standard dashboard card.
  */
-export function NeedsAttention({ escalations }: { escalations: OpenEscalation[] }) {
-  const { approvals } = useSarah();
-  const nothing = approvals.length === 0 && escalations.length === 0;
+export function NeedsAttention() {
+  const { pendingCount } = useSarah();
+  const nothing = pendingCount === 0;
 
   if (nothing) {
     return (
@@ -31,7 +30,7 @@ export function NeedsAttention({ escalations }: { escalations: OpenEscalation[] 
       <div className="mb-1 flex items-center justify-between">
         <div className="flex items-baseline gap-2">
           <h2 className="text-sm font-semibold">Needs you</h2>
-          <span className="text-xs text-muted-foreground/70">{approvals.length + escalations.length}</span>
+          <span className="text-xs text-muted-foreground/70">{pendingCount}</span>
         </div>
         <Link
           href="/sarah?tab=approvals"
@@ -40,7 +39,7 @@ export function NeedsAttention({ escalations }: { escalations: OpenEscalation[] 
           Approvals <ArrowRight className="size-3" />
         </Link>
       </div>
-      <ApprovalRows escalations={escalations} />
+      <ApprovalRows />
     </section>
   );
 }

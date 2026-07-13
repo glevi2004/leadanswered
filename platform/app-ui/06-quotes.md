@@ -274,7 +274,7 @@ Mock providers per 00 §5: mutations mutate nothing — success + sonner toast, 
 
 ## 6. Components
 
-- **Shared (00 §8):** `PageHeader` (preview badge, Ask Sarah, actions slot), `DataTable`
+- **Shared (00 §8):** `PageHeader` (title, actions slot), `DataTable`
   (index), `StatusBadge` — extend the status map with the six `QuoteStatus` values,
   `EmptyState` / `GatedState`, `Timeline` (quote events on the CRM contact page — rendered by
   05, typed by 00), sonner toasts, `skeleton` via `loading.tsx`.
@@ -294,7 +294,7 @@ Mock providers per 00 §5: mutations mutate nothing — success + sonner toast, 
 ## 7. States
 
 - **Gated:** `quotes` defaults to `preview` for demo accounts, `coming_soon` for real partners
-  (00 §4). Preview = full UI on the fixtures above + the standard amber banner. Coming-soon =
+  (00 §4). Preview = full UI on the fixtures above, no banner or badge. Coming-soon =
   `GatedState` with the REBRAND §3.4 promise verbatim: *"Draft and send quotes by text. →
   'Quote the Miller job.'"* + Ask Sarah.
 - **Live, no data yet:** never "Create your first quote." `EmptyState`: *"Sarah's ready to

@@ -197,7 +197,7 @@ History tab plus `SarahAction`s. Nothing in this module creates `Approval`s yet 
   quiet-leads group reads real data via `real.ts`. The **quote / invoice / estimate groups are
   per-group preview**: they render mock fixtures with a small `preview` chip ("ships with
   Quotes/Invoices — ask Sarah about it") keyed off the `quotes`/`invoices` module statuses in the
-  registry. No whole-page amber banner when the module itself is live.
+  registry. No whole-page banner ever (00 §4 — previews render unlabeled).
 - **Running-with-no-data:** the good news state, in the product voice — *"Nothing's gone quiet.
   Sarah is watching every open lead, quote, and invoice — anything that stalls shows up here."*
   Never "create your first follow-up." Empty groups collapse to their one-line header + that
@@ -224,3 +224,33 @@ History tab plus `SarahAction`s. Nothing in this module creates `Approval`s yet 
    log lines). Confirm the one-mechanism route before `real.ts` is planned.
 5. **No-show estimate chases:** depend on show-confirmation/no-show tracking (SCOPE Phase 5,
    unbuilt). Keep the empty group on the board as a promise, or hide the group until it ships?
+
+
+## 9. Built note (2026-07-13)
+
+Kept after an explicit should-this-exist debate (Levi): the board earns its place as the
+watch-the-agent-think surface — autonomy AND restraint on one screen. Built complete on the
+mock seam (`FollowupsClient` + `lib/data/followups/types.ts` + the `APEX_CHASES` /
+`APEX_FOLLOWUP_RULES` / `APEX_CHASE_LOG` fixtures):
+
+- **Board** — all four groups populated with cross-page-coherent cast: Linda Tran (lead, armed,
+  attempt 1 of 2 — matches act_4 + her timeline nudge), Jorge Alvarez (quote, HELD on esc_301),
+  Frank Sullivan (INV-2032, armed, business-hours deferral), Maria Santos (Saturday no-show from
+  the schedule fixture, rebook angle). Cards show attempt counts, next-nudge times, hold reasons
+  in Sarah's words, and her planned angle.
+- **The payoff beat:** the held card's [Answer — she picks it back up] prefills the widget/dock
+  with the escalation answer; SENDING it re-arms the chase live (held → armed, new angle, next
+  nudge tomorrow 9:15) — stats update in place. §8 Q3 resolved as spec'd: "Nudge now" on a held
+  chase gets "Sarah looked and decided not to text — {reason}" (honest > obedient).
+- **Nudge now** increments attempts, logs a History entry, and exhausts honestly ("out of
+  planned attempts — she stops here") with a [Try once more] override. Pause/Resume/Resolve
+  all live (local state).
+- **Rules** — per-kind cards: enabled switch, cadence-in-words, editable tone note, and the
+  non-negotiables as fixed facts. Cadence itself not editable (§8 Q2 default stands).
+- **History** — DataTable of sent/skipped/deferred decisions with reasons in Sarah's words and
+  outcome chips (booked/replied/still quiet).
+- Chase vocabulary joined the central `statusChip` registry: armed=blue, held/skipped/still
+  quiet=amber, deferred/out-of-attempts=gray, resolved=emerald.
+- Gating: module stays `coming_soon` for real accounts (GatedState); demo renders the full
+  board. The §7 "live with per-group preview chips" model is DEFERRED until the lead group's
+  `real.ts` read model exists.

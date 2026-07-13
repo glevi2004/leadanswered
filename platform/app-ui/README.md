@@ -99,3 +99,12 @@ notes to the real schema; tenant = **Organization** (the Prisma rename has lande
 React to any doc by section number ("06 §3: change X"). When the set is approved, implementation
 starts with 00-foundation on branch `app-ui`, then modules in the reading order above — per
 `../APP_UI_PLAN.md` §5, code only on your explicit go.
+
+---
+
+**Reconciliation 2026-07-12:** a 7-agent audit compared every built module (00/01/02/05/07/09)
+against these docs and the cross-page fixture story. Each affected doc now ends with a
+"Reconciliation note (2026-07-12 audit)" — corrected statements + an explicit Deferred list.
+Resolved open questions: widget shortcut = `⌘/`; Schedule month view = built; day-route map =
+Leaflet/OSM. The needs-you badge rule is locked: approvals + open escalations, one number on
+every surface.

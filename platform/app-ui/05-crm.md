@@ -288,3 +288,30 @@ Kit additions already planned in 00 §8 and used here: `tabs` (views), `select` 
    whether `CrmProvider` needs `createContact`.
 5. **Customer-side stage ownership:** are `job_scheduled`/`job_done` driven by Schedule (07) and
    Invoices (08) events, or manually set here? Double-entry risk if both.
+
+
+## 9. Reconciliation note (2026-07-12 audit)
+
+**As built (doc statements superseded):**
+- ALL stage/status color comes from the central **`statusChip`** registry (00 §9) — table Stage
+  cells, the stage strip, the filter labels, the detail header dropdown, timeline markers, and
+  the sidebar's Up-next/Money lines (small pills). The old `StatusBadge`/`stageBadge` layer is
+  DELETED; `accepted` (emerald) and `overdue` (red) joined the registry for quote/invoice
+  states.
+- **"Ask Sarah about {name}" now passes the record**: `openWidget({ entity: c.name })` → the
+  composer context chip reads "On: CRM · Dana Miller". The §3 context contract is met at the
+  UI level (the api `sendTurn` envelope stays future).
+- Timeline quote/invoice markers no longer link to the `/quotes`//`invoices` coming-soon stubs —
+  the record lives on this timeline until those modules exist (then restore per-record links).
+- Money sidebar: Dana carries Q-1042 accepted + INV-2031 paid (the doc's hero example renders
+  now); Sullivan (`ct_imp_0`, INV-2032 overdue) and Delgado (`ct_imp_1`, INV-2033 sent) ground
+  Home's "Awaiting payment" numbers with real, clickable records.
+- Sarah chips (registry): "Who needs a follow-up?" · "What do you know about this lead?" —
+  one set per module, index and detail alike.
+- Import wizard exists at `/crm/import` (4 steps, mock run with progress).
+
+**Deferred:** `CrmProvider` abstraction + real `ImportJob` wiring · import hardening
+(index banner while running, `failed` state + retry, duplicate-upload warning, 10-row preview)
+· `TagInput` (tag add is a prompt; no removal) · row overflow menu · Tag filter + saved
+filters + numbered pagination · empty-state "Bring your history in" CTA button (currently
+ask-Sarah affordance + prose link).

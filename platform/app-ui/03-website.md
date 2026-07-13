@@ -27,62 +27,68 @@ describe → preview → publish loop); `coming_soon` for real partners until th
 
 ## 2. Layout
 
-Two tabs: **Site** (the builder — default) and **Performance** (visits, leads, visibility).
+**A takeover workspace, not a page** (Levi, 2026-07-12 — matched against the real Lovable UI):
+opening Website replaces the whole app shell. The nav sidebar is GONE — the chat column takes
+its place — and the rounded page frame is gone too; the builder owns the full viewport. **← Back**
+(top-left) returns to the app. The global widget launcher is hidden here (the chat IS the left
+column). Implementation: `/website` lives in its own route layout OUTSIDE the `(app)` shell
+group (00 §7).
 
-**Site tab** — the Lovable-style split view. Desktop:
+Two modes, as pills in the top bar: **Site** (default) and **Performance**.
 
 ```
-┌──────────────────────────────────────────────────────────────────────────┐
-│ PageHeader: Website  [preview]                  [View live site ↗]       │
-├──────────────────────────────────────────────────────────────────────────┤
-│ [ Site ] [ Performance ]                                                 │
-├───────────────────────────┬──────────────────────────────────────────────┤
-│ ✦ Sarah — site changes    │  apexroofingma.com   Page: [Home ▾]  🖥 📱   │
-│                           │  ● Draft — not published   [Publish] [⋯]     │
-│ You: put the copper       │ ┌──────────────────────────────────────────┐ │
-│  gutters we do on the     │ │                                          │ │
-│  services page            │ │                                          │ │
-│ Sarah: Done — added a     │ │        live preview (iframe)             │ │
-│  "Copper gutters" section │ │        of the DRAFT version              │ │
-│  to Services. Take a look │ │                                          │ │
-│  → it's in the preview.   │ │                                          │ │
-│  Publish when ready.      │ │                                          │ │
-│                           │ │                                          │ │
-│ You: use a photo from     │ │                                          │ │
-│  the Miller job           │ └──────────────────────────────────────────┘ │
-│ Sarah: Swapped it in ✓    │  [⋯] menu: Version history · Discard draft   │
-│                           │                                              │
-│ [ Ask for a change…   ➤ ] │                                              │
-│ ("Add a page" · "Change   │                                              │
-│  the hours" · "New hero") │                                              │
-└───────────────────────────┴──────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────┐
+│ ←  apexroofingma.com  [Site|Performance]  Home ▾ 🖥📱⟳↗  ●Draft ⋯ [Publish]│
+├──────────────┬─────────────────────────────────────────────────────────────┤
+│ (chat, naked │                                                             │
+│  on the shell│    ┌───────────────────────────────────────────────────┐    │
+│  background) │    │                                                   │    │
+│              │    │      the canvas — a floating rounded surface,     │    │
+│ You: put the │    │      iframe of the DRAFT version                  │    │
+│  copper gut… │    │                                                   │    │
+│ Sarah: Done —│    │                                                   │    │
+│  take a look │    │                                                   │    │
+│  → preview.  │    │                                                   │    │
+│              │    └───────────────────────────────────────────────────┘    │
+│ (chips)      │                                                             │
+│ [Ask… ➤]     │                                                             │
+└──────────────┴─────────────────────────────────────────────────────────────┘
 ```
+
+- **Top bar** (one slim row, the only chrome): ← back + the domain; the Site/Performance pills;
+  the preview controls — page switcher, device toggle, refresh, open-preview-in-new-tab (Site
+  mode only); then the draft/live chip, an overflow ⋯ (Version history · View live site ·
+  Discard draft), and **Publish** — the loudest button on the screen, top-right, exactly where
+  Lovable puts it. **Phone view = a real device mockup** (the shared `PhoneFrame` — bezel,
+  notch, status bar; Levi 2026-07-12), never just a narrowed pane.
 
 - **Left: the site chat.** This is Sarah (see §3) with website context pinned — same bubbles
-  and composer as the widget, scoped chips. The conversation doubles as the **edit log**: every
+  and composer as the widget, scoped chips. It sits NAKED on the shell background: no card, no
+  border, no boxed header — full column height, chips above the composer, composer pinned at
+  the bottom (Lovable's chat column). The conversation doubles as the **edit log**: every
   applied change is a Sarah reply anchored to a `SiteEdit`, so "what changed and why" reads as
   a thread, not a table.
-- **Right: the live preview.** An iframe of the site — the **draft version** when one exists,
-  else the published site. Controls: page switcher (`SitePage` list as a dropdown), device
-  toggle (desktop/phone width), draft/published state chip, **Publish** (primary, only when a
-  draft differs), and an overflow menu: **Version history** (list + restore) and **Discard
-  draft**.
+- **Right: the canvas.** The preview as a **floating rounded surface** with shadow and breathing
+  room on the shell background (the Quo-frame language) — never a bordered box with a toolbar
+  crammed on top. An iframe of the **draft version** when one exists, else the published site;
+  all its controls live in the top bar.
 - **Draft model (Lovable-style):** edits never touch the live site. Sarah's changes stack onto
   one open **draft version**; the preview always shows it; Publish makes it live in one step.
   There is exactly one open draft at a time — more edits extend it.
 - **Version history:** sheet listing `SiteVersion`s (summary, when, by whom), newest first;
   **Restore** re-opens an old version as a new draft (never mutates history).
-- **Performance tab:** hero stats row — 30-day visits sparkline + total (1,284), **leads from
+- **Performance mode:** the pill swaps the CANVAS (the chat column stays put — like Lovable's
+  More→Analytics view). Content: hero stats row — 30-day visits sparkline + total (1,284), **leads from
   your site** (12 → links `/crm?source=website`) — then the **Visibility panel**: keyword
   rankings with delta arrows ("roofer newton ma" #3 ▲2), Google Business Profile status
   (✓ Connected · 4.9★ · 27), and **AI answers** as one human sentence (*"Ask ChatGPT for a
   roofer in Newton and Apex comes up."*) with the plumbing (structured data, llms.txt, sitemap)
   behind a "details" disclosure. Footer: snapshot date.
 
-**Mobile:** the split stacks — preview on top (full-width iframe, device toggle hidden, page
-switcher kept), chat below as the primary interaction; Publish is a sticky bottom bar when a
-draft exists. Performance tab stacks stats → visibility. Widget launcher stays bottom-right;
-on this page the launcher opens the SAME site chat (no second conversation).
+**Mobile:** still the takeover — canvas on top (full-width, device toggle hidden, page switcher
+kept in the bar), chat below as the primary interaction. The top bar stays (back · pills ·
+Publish), so no sticky publish bar is needed. Performance mode stacks stats → visibility. No
+widget launcher here — the site chat IS the Sarah surface on this screen.
 
 ## 3. Sarah
 
@@ -101,7 +107,12 @@ This page is the clearest expression of "text Sarah, or use the app — same ass
   via a card). Off-page asks — Marcus texts *"add spring cleanup to the services page"* from
   his truck, or asks via the widget elsewhere — stage the same draft AND an
   `Approval(kind: 'site_edit')` card whose **[Review]** deep-links into this builder with the
-  draft in the preview; approving there = Publish. One gate, two doors (02-sarah).
+  draft in the preview; approving there = Publish. On SMS, Sarah also texts back a **view-only
+  preview link** (`/p/[token]` — security posture in §5): *"Done — here's how it looks:
+  app.leadanswered.com/p/… Say yes and I'll publish it."* The owner's "yes" reply is the same
+  code-gated approval the SMS hard gate already runs (his phone number is the authenticated
+  identity on that channel). One gate, three doors — builder Publish, approval card, SMS yes —
+  all resolving the same `Approval` exactly once (02-sarah §7 race rule).
 - **What she does autonomously:** nothing user-visible. Draft-building, image optimization,
   SEO plumbing (structured data, llms.txt) happen without asking — they're below the waterline
   and reversible.
@@ -123,10 +134,13 @@ interface Site {
   status: 'building' | 'live'
   publishedVersionId: string
   draftVersionId?: string               // at most ONE open draft
-  previewUrl: string                    // iframe src for a given version (draft or published)
+  previewUrl: string                    // the tokenized /p/[token] URL for a given version —
+                                        //   ONE page serves the in-app iframe AND Sarah's
+                                        //   texted link (view-only, signed + expiring; §5)
   visits30d: number
-  visitsSeries: number[]                // sparkline
+  visitsSeries: number[]                // daily, last 30 days
   leadsFromSite30d: number              // derived: count Lead.source='website' in window
+  leadsSeries: number[]                 // daily new site leads; charted as the CUMULATIVE climb
 }
 
 interface SitePage {
@@ -189,34 +203,52 @@ Roof Replacement · Roof Repair · Gallery · Reviews · Contact; visits 1,284/3
 | Action | Surface | Mechanism | Sarah's engine? |
 |---|---|---|---|
 | Ask for a change | site chat composer / chips / widget / SMS | `POST /sarah/turn` with website context (02-sarah) → engine + site pipeline extend the draft → preview refreshes | **Yes** |
-| Publish | preview toolbar / sticky bar (mobile) / approval card off-page | server action → api (HMAC-`cid`): promote draft → published; emits `SarahAction` | No model call — code publishes (the explicit yes) |
+| Open a texted preview link | `/p/[token]` — public, outside the app shell | GET renders that version read-only; no session, no actions, no state change | No |
+| Publish | preview toolbar / sticky bar (mobile) / approval card / SMS "yes" (off-page) | server action → api (HMAC-`cid`): promote draft → published; emits `SarahAction` | No model call — code publishes (the explicit yes) |
 | Discard draft | overflow menu, confirm dialog | server action → api; draft edits → `discarded`; Sarah acknowledges in-thread next turn | No |
 | Restore a version | version history sheet | server action → api: old version → NEW draft; preview switches to it | No |
-| Switch page / device | preview toolbar | client-side (iframe src param / width) | No |
-| View live site | PageHeader | external link, new tab | No |
+| Switch page / device | top bar | client-side (iframe src param / width) | No |
+| View live site | top bar ⋯ menu | external link, new tab | No |
 | View leads from site | Performance stat | link `/crm?source=website` (filter owned by 05) | No |
 | Expand SEO details | Visibility panel | client-side disclosure | No |
+
+**Preview links — the security posture (decided 2026-07-12): the link *shows*, it never *does*.**
+`/p/[token]` is **view-only** — it carries zero publish power, so a leaked or forwarded link can
+only ever show a draft of a site that's about to be public anyway. Publishing happens ONLY through
+the existing gates (builder [Publish] · approval card · SMS "yes", §3). Mechanics: the token is
+HMAC-signed (the existing `cid`/`signState` pattern — no new auth machinery), encodes
+`{ organizationId, siteId, versionId, exp }`, and expires (~7 days). Rules that must hold:
+**side-effect-free on GET** — SMS apps and carriers prefetch every texted URL, so a fetch must
+never change state, publish, or count as "seen"; **`noindex`** so drafts stay out of Google;
+**one consistent domain** (`app.leadanswered.com/p/…`) so the owner learns what a real Sarah link
+looks like (cheap phishing hygiene); **version-scoped** — an old link shows its old version, never
+silently the newest draft; expired → the §7 expired state, never an error page.
 
 **Mock behavior** (00 §5): the preview iframe serves fixture snapshots (a static rendering per
 version); "ask for a change" replies from a scripted Sarah and flips the fixture draft;
 Publish/Discard/Restore mutate nothing — optimistic UI + toast + a fake `SarahAction`, so the
-full loop demos end-to-end.
+full loop demos end-to-end. The texted-link flow demos too: a fixture token (`/p/demo_v14`)
+renders the same snapshot the iframe shows.
 
 ## 6. Components
 
-From 00 §8: `PageHeader`, `Tabs`, `StatusBadge`, `EmptyState`, `StatCard`, sonner toasts,
-`dialog` (discard/publish confirm), `sheet` (version history), `dropdown-menu` (page switcher,
-overflow). Reused from 02-sarah: the chat bubbles/composer (`SarahMessage` rendering) — the site
-chat must not fork the widget's components. **New, this module owns:** `PreviewFrame` (iframe +
-device toggle + page switcher + draft chip — the only genuinely new interactive component),
-`VersionHistorySheet`, `SparklineStat` (shared with 11-analytics if it wants it). Flag: none of
-these exist in the kit yet.
+From 00 §8: `StatusBadge`, `EmptyState`, `StatCard`, sonner toasts, `dialog` (discard confirm),
+`sheet` (version history), `dropdown-menu` (page switcher, overflow). **No `PageHeader`, no
+`Tabs`** — the takeover top bar replaces both (§2). Reused from 02-sarah: the chat
+bubbles/composer (`SarahMessage` rendering) — the site
+chat must not fork the widget's components. **New, this module owns:** `BuilderTopBar` (back ·
+pills · preview controls · draft chip · ⋯ · Publish), `PreviewCanvas` (the floating iframe
+surface: device width + busy shimmer),
+`VersionHistorySheet`, `SparklineStat` (shared with 11-analytics if it wants it), and the
+`/p/[token]` **public preview shell** — full-bleed version render under a slim "Draft — not
+published yet" bar, `noindex`, outside the `(app)` route group (00 §7, sibling of `/q`/`/i`).
+Flag: none of these exist in the kit yet.
 
 ## 7. States
 
 - **`coming_soon`** (real partners pre-build): `GatedState` teaser — *"A fast, modern site,
   built fresh. Every lead flows straight to Sarah."* + Ask Sarah.
-- **`preview`** (demo): full builder on fixtures, amber banner per 00 §4.
+- **`preview`** (demo): full builder on fixtures — no banner or badge (00 §4).
 - **`live`, `status: 'building'`** (we're mid-build): THE moment this page earns trust — the
   preview shows the in-progress draft (*"We're building apexroofingma.com now — watch it take
   shape, and tell Sarah anything you want different."*). The build is a spectator sport, and
@@ -231,6 +263,9 @@ these exist in the kit yet.
   (*"That one didn't take — trying again"* / escalates to us), never a dead spinner.
 - **Preview fails to load** (iframe error): fall back to the latest screenshot + *"Preview
   hiccup — your live site is fine."* with retry.
+- **Expired preview link** (`/p/[token]` past its TTL, opened from an old text): *"This preview
+  has expired — text Sarah for a fresh link."* Calm read-only page, never an error screen; the
+  GET changes nothing (§5).
 - **Publish in flight / already published elsewhere:** optimistic; conditional update loses →
   toast *"Already published"* and chip resolves (same race rule as approvals, 02-sarah §7).
 - **Errors/loading:** route `loading.tsx` skeleton (split view with shimmer panes); mutations

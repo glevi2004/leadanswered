@@ -30,8 +30,8 @@ Apex fixtures below (`coming_soon` for real partners), served by `data/reviews/m
 │ Reviews                                    [preview]   [Ask Sarah]   │
 ├──────────────────────────────────────────────────────────────────────┤
 │  ┌──────────────┐  ┌──────────────┐  ┌────────────────────────────┐  │
-│  │    +22       │  │    4.9 ★     │  │  On Google:  31 → 53       │  │
-│  │ new reviews  │  │ avg rating   │  │  since we started          │  │
+│  │    +22       │  │    4.9 ★     │  │  Google reviews:  53       │  │
+│  │ new reviews  │  │ avg rating   │  │  +22 since campaign start  │  │
 │  │ 21 campaign  │  │ (new asks)   │  │  ▁▂▃▅▆█  (weekly count)    │  │
 │  │ · 1 ongoing  │  └──────────────┘  └────────────────────────────┘  │
 │  └──────────────┘                                                    │
@@ -53,6 +53,27 @@ Apex fixtures below (`coming_soon` for real partners), served by `data/reviews/m
 │  ask and sends it for your OK.                          [Settings]  │
 └──────────────────────────────────────────────────────────────────────┘
 ```
+
+**Built 2026-07-12 (operability pass — the page became a machine you can run, not a diorama):**
+
+- **Toolbar:** left, the provenance chip — *Google Business Profile: Apex Roofing — Newton ✓*
+  (→ Settings; same trust pattern as Schedule's sync chip — numbers must say where they come
+  from). Right, **[+ New campaign]** → `/reviews/new` — THE entry point (it was missing entirely;
+  the wizard was unreachable).
+- **Campaigns card** replaces the single hardcoded "Active campaign": a LIST — running/paused
+  rows (status chip · mini progress · asked/reviewed counts · pause/resume · a LIVE
+  "N awaiting your OK" link into `/sarah?tab=approvals`, counted from pending `review_ask`
+  approvals — no more hardcoded 1) and completed rows (reviews/asks/avg/when → detail). Rows
+  click through. Empty state: "No campaigns yet" + the pitch.
+- **After every job** (was the bare on/off toggle): its own card — explainer line + the last
+  3 post-job asks (name, status chip, detail, [Review] on the one awaiting approval) + the
+  toggle. The ongoing machine finally has a face.
+- **Feed:** filter chips (All / Campaign / After a job), per-review **"View on Google ↗"**
+  link, and the bad-review story: a 3★ item carries a *kept private* chip + "Under 4★, Sarah
+  asks what went wrong instead of sending the Google link — this never posted publicly."
+- Fixtures: `APEX_CAMPAIGNS` = the running wave + **`camp_test_0` "Newton neighbors test"**
+  (completed: 11 reviews from 24 asks, Google 20→31 — the small test that led to the big wave)
+  + `APEX_ONGOING_ASKS`.
 
 ### Campaign detail — `/reviews/[campaignId]`
 
@@ -79,19 +100,30 @@ Apex fixtures below (`coming_soon` for real partners), served by `data/reviews/m
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
+**Built 2026-07-12:** funnel says **replied** (matches the table status — "responded" was
+naming drift) · **[Edit the ask]** and **[Change pacing]** inline sections (mock save, honest
+copy: applies to unsent targets only) · **completed** campaigns get a results-summary card
+(reviews/asks/avg + Google before→after) and lose the pause button · a fresh queue (no rows
+yet) renders "The queue is set — the first asks land in your approvals tomorrow at 9:00."
+
 ### Setup wizard — `/reviews/new` (4 steps; we pre-fill everything — the owner confirms, not builds)
 
 1. **Audience** — "Your 214 imported customers" (from `imp_qb1`; cross-link 05-crm import). Shows
    the exclusions we already applied: **already reviewed (19) · opted out (2) · open lead (4) ·
-   bad number (2) → 187 will be asked**. No import yet? The step says *"We'll import your customer
-   list first — ask Sarah"* (opens the widget; links `/crm` import). No manual list-building.
+   bad number (2) → 187 will be asked**. *Built 2026-07-12:* **"See the list"** expands the
+   eligible names (scrollable, `APEX_AUDIENCE_NAMES`) with per-person ✕ remove / put back — the
+   count updates live ("185 will be asked · 2 removed by you"). Zero imported → the step is
+   replaced by an import hand-off card → `/crm`. No manual list-building.
 2. **The ask** — live `AskPreview` phone mockup: **Marcus Reed's headshot** (MMS) + ⭐⭐⭐⭐⭐ + the
    message, personalized per target — *"Hi Mike, it's Marcus from Apex Roofing…"* — ending in the
    **Google review link** (GBP). Editable template + reminder copy; photo upload; link field.
 3. **Pacing** — drip **N/day** (default 15) inside business hours, org timezone. Copy states the
    compliance rules plainly: never a blast, STOP handled automatically, one ask + one reminder max.
-4. **Launch** — recap card → **"Start the wave."** Sarah begins drafting; first sends arrive as
-   `review_ask` Approvals (§3).
+4. **Launch** — recap card + a **campaign name** field (prefilled "Past-customer wave — {month}")
+   → **"Start the wave."** *Built 2026-07-12:* launch actually CREATES the campaign — stored via
+   the `localCampaigns` localStorage seam (UI-first stand-in for the Campaign model) — and lands
+   on its detail page with the full queue visible and merged into the home Campaigns list. Sarah
+   begins drafting; first sends arrive as `review_ask` Approvals (§3).
 
 ### Mobile
 
@@ -224,15 +256,18 @@ interface ReviewsProvider {        // data/reviews/provider.ts (00 §5 seam)
 | Reminder send | *(no UI action)* | — | worker, once per target at `remindAfterDays`, inside the window | automatic |
 | Review detected | *(no UI action)* | — | request → `reviewed`; emits `TimelineEvent 'review'` + `SarahAction`; wall updates (detection: §8.3) | automatic |
 
-All server-action results toast via sonner (00 §8). Mock mutations mutate nothing (00 §5).
+All server-action results toast via sonner (00 §8). Mock mutations mutate nothing (00 §5) —
+EXCEPT campaign creation (built 2026-07-12): wizard launch persists to the `localCampaigns`
+localStorage seam so the created campaign survives navigation (home list + detail render it);
+swap to the real `Campaign` row when the model ships. Edit-the-ask / pacing / pause / per-target
+pause are toast-only local state.
 
 ## 6. Components
 
-From the kit + 00 §8 additions: `PageHeader` (title, preview badge, "Ask Sarah"), `StatCard`
+From the kit + 00 §8 additions: `PageHeader` (title, actions slot), `StatCard`
 (the wall — plus a small weekly-count spark via `chart`, per `dataviz` conventions), `DataTable`
-(targets: search, status filter, paused filter, responsive collapse), `StatusBadge` (map
-`ReviewRequestStatus`: queued=muted · sent=blue · replied=indigo · reviewed=green ·
-opted_out=amber · failed=red), `progress` (campaign bar), `dialog` (pause-campaign confirm),
+(targets: search, status filter, paused filter, responsive collapse), `statusChip()` from `lib/dashboard-ui.ts` (the central semantic families, 00 §9: queued=gray ·
+sent=blue · replied=violet · reviewed=emerald · opted_out=amber · failed=red), `progress` (campaign bar), `dialog` (pause-campaign confirm),
 `avatar` (owner photo, reviewer initials), `tabs` (detail: Targets / Settings), `sonner`,
 `EmptyState` / `GatedState`, `skeleton` via `loading.tsx`.
 
@@ -251,7 +286,7 @@ opted_out=amber · failed=red), `progress` (campaign bar), `dialog` (pause-campa
 
 - **`coming_soon`** — `GatedState` with the REBRAND §3.4 promise verbatim: *"Sarah texts every
   past customer who never left one. Your first win, day one."* + "Ask Sarah about it."
-- **`preview`** (demo default) — full UI on the Apex fixtures + the amber banner (00 §4).
+- **`preview`** (demo default) — full UI on the Apex fixtures, no banner or badge (00 §4).
 - **`live`, no import yet** — not empty-empty: the wall shows Google-today (31 · 4.6★) and the
   page says *"First we'll import your customer list — then Sarah asks every past customer who
   never reviewed you. Ask Sarah to start the import."* Links the CRM import (05). Never
@@ -287,3 +322,24 @@ opted_out=amber · failed=red), `progress` (campaign bar), `dialog` (pause-campa
    event contract.
 5. **Reminder tuning.** Fixed one-reminder-at-3-days, or owner-configurable copy/timing in the
    wizard? (Contract already carries `reminderAfterDays`; UI exposure is the decision.)
+
+
+## 9. Reconciliation note (2026-07-12 audit)
+
+**Numbers canon (locked with Levi):** the wall tells the FULL arc — test wave 11 + big wave 21
++ ongoing (Dana) 1 = **+33 new reviews**; Google 20 → 53 as one chain (test 20→31, wave 31→52
+— `googleAfter` is wave-only — + Dana = 53). Home's Reputation card (33), Sarah's scripted
+review answer, and the SEO fixture's GBP count (53) all agree with the wall now.
+
+**§4 contract — reconciled to `lib/data/reviews/types.ts`:** `completedAt` → `endedAt` ·
+`ReviewRequest`'s per-stage timestamps (`remindAt`, `repliedAt`, `replyExcerpt`, …) are
+collapsed into one `detail` string + `sentAt`/`rating` (re-expand when the model ships) ·
+`ask.ownerPhotoUrl` deferred (AskPreview renders "MR" initials) · wizard-launched campaigns
+persist through the `localCampaigns` localStorage seam (stands in for the Campaign row).
+
+**Deferred:** targets-table status + paused-only filters (DataTable's toolbar slot is ready) ·
+AskPreview inside the approval card's expanded view · wizard photo upload + reminder-copy
+editing (detail's "Edit the ask" edits the main template only) · "[see who]" opted-out list ·
+weekly-count spark on the wall · pause-campaign confirm dialog · §7 live-state flows (no-import
+/ imported-not-launched page states; the wizard's zero-import hand-off exists) · route
+`loading.tsx`/`error.tsx` · the `ReviewsProvider` seam.

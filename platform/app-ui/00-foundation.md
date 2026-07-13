@@ -19,7 +19,7 @@ registry, patterns) is new.
 
 ```
 ┌────────────┬──────────────────────────────────────────────────┐
-│ ◆ Apex     │  {PageHeader: title · preview-badge? · actions}  │
+│ ◆ Apex     │  {PageHeader: title · actions}                   │
 │   Roofing  │                                                  │
 │            │                                                  │
 │ Home       │                                                  │
@@ -49,7 +49,9 @@ registry, patterns) is new.
   content scrolling INSIDE the frame). Shell background: soft gray light / near-black dark. RULE:
   `--sidebar` and `--sidebar-accent` (the menu hover/active pill) always move TOGETHER — changing
   the rail color alone makes hovers invisible (happened 2026-07-11).
-- **No collapse trigger on desktop.** The rail is always present; instead it's **drag-resizable**
+- **Collapse to an icon rail** (Levi 2026-07-13, Apollo-style): a **«** button next to the
+  company name collapses the sidebar to icons-only (tooltips carry the labels; **»** expands;
+  ⌘B toggles; state persists via the kit's `sidebar_state` cookie). When expanded it's **drag-resizable**
   (`SidebarResizer`: handle on the rail edge, 192–336px clamp, live via `--sidebar-width`,
   persisted in the `sidebar_width` cookie, double-click resets). Mobile keeps the Sheet drawer +
   its trigger (only way to open it).
@@ -61,9 +63,9 @@ registry, patterns) is new.
 - The **Sarah nav item carries a badge** = pending `Approval` count (same count as the widget
   launcher badge).
 - Nav renders from one registry (see §5 `MODULES`) — a module whose status is `hidden` never
-  renders; `coming_soon` renders with a small `soon` chip; `preview` renders normally (the page
-  itself carries the preview banner).
-- Header per page = `PageHeader` (see §8): title, optional preview badge, page actions. No
+  renders; `coming_soon` renders with a small `soon` chip; `preview` renders normally — no
+  banner or badge (§4).
+- Header per page = `PageHeader` (see §8): title + page actions. No
   Ask-Sarah button here — the widget launcher is the ONE entry point to Sarah (Levi: redundant
   affordances read as clutter); contextual Ask-Sarah CTAs live only inside empty/gated states.
 - Mobile: sidebar becomes the existing Sheet drawer; the widget launcher stays bottom-right,
@@ -102,9 +104,20 @@ page + engine contract).
                                                    └────┘     pending approvals
 ```
 
-- **Launcher:** fixed bottom-right, 56px circle, brand green, ✦ mark; badge = pending approvals.
-  Keyboard `⌘/` toggles. Open/closed state in `localStorage`.
-- **Panel:** 380px × min(640px, 80vh) card, bottom-right; full-screen sheet on mobile. Header:
+- **Trigger (Apollo-style, Levi 2026-07-12):** the bottom-right launcher bubble is GONE. Sarah
+  opens from a top-right **"✦ Sarah" pill** in the frame's corner-controls cluster (ink-filled
+  while open; badge = pending approvals + open escalations — the ONE needs-you number). Two
+  display modes, toggled from the panel header and persisted in `sarah_widget_mode`:
+  **docked** (default) — a full-height 380px lane OUTSIDE the rounded frame, on the shell
+  background (the website builder's chat-lane twin); the frame compresses beside it;
+  **floating** — the corner card.
+  On mobile the floating card is always the surface (the dock is md+). Components:
+  `SarahTrigger` / `SarahDock` / `SarahWidget` share one header + body in `SarahWidget.tsx`.
+  The demo-data + theme toggles moved OFF the frame corner into the SIDEBAR footer, above
+  Settings (Levi 2026-07-12) — the frame corner holds only the Sarah pill.
+  Keyboard `⌘/` toggles. Open/closed state in `localStorage`. Hidden on `/sarah` (that page IS
+  Sarah) and in the `/website` builder takeover (the site chat IS the left column — 03 §2).
+- **Floating panel:** 380px × min(640px, 100dvh − 6rem) card, bottom-right; full-screen sheet on mobile. Header:
   Sarah + status, expand-to-`/sarah`, close.
 - **Page context:** every message sends `{ route, module, entityId? }` (e.g. on
   `/crm/ct_dana` → `{ module: 'crm', entityId: 'ct_dana' }`) so "quote this job" needs no names.
@@ -133,11 +146,14 @@ type ModuleStatus = 'live' | 'preview' | 'coming_soon' | 'hidden'
   `maps from: none (new)`), with code-level defaults so absent keys resolve sensibly
   (today's defaults: `crm: live`, `schedule: live`, everything else `preview` for demo accounts,
   `coming_soon` for real partners until each ships).
-- **`live`** — real data via the real provider. **`preview`** — full UI on mock fixtures + a
-  slim amber banner: *"Preview — we're building this with you. Ask Sarah about it."* Never a
-  broken or empty screen. **`coming_soon`** — teaser page: the module's one-line sales promise
-  (REBRAND §3.4 copy verbatim) + "Ask Sarah about it" (opens widget). **`hidden`** — absent.
-- **Demo mode:** admin-only override (`?demo=1`, persisted in a cookie) forces every non-live
+- **`live`** — real data via the real provider. **`preview`** — full UI on mock fixtures,
+  **no banner or badge** (Levi 2026-07-12: the whole app is pre-launch, labeling individual
+  modules "preview" is noise — revisit only when real partners use live modules alongside mock
+  ones). Never a broken or empty screen. **`coming_soon`** — teaser page: the module's one-line
+  sales promise (REBRAND §3.4 copy verbatim) + "Ask Sarah about it" (opens widget).
+  **`hidden`** — absent.
+- **Demo mode:** owner-visible toggle (`DemoToggle` sets the `la_demo` cookie client-side;
+  admin-only gating + `?demo=1` deferred) forces every non-live
   module to `preview` — the full-app walkthrough for design-partner calls.
 - Empty states inside `live` modules follow the product truth: *"We're setting this up for you"*
   voice — never "Create your first X."
@@ -160,6 +176,9 @@ data/
   <module>/mock.ts     → MockProvider — serves fixtures/apex.ts
   <module>/real.ts     → RealProvider — Supabase service-role reads / server actions / api calls
   index.ts             → getProvider(module, organization) → status === 'live' ? real : mock
+                         ^ AS BUILT (2026-07-12): no factory yet — modules export loose
+                           listXMock()/listXReal() pairs and pages branch on the demo cookie
+                           (crm/schedule) — the per-module `getProvider` refactor is DEFERRED.
 ```
 
 - Pages stay **server components**; they call `getProvider(...)` and render — a module goes
@@ -279,12 +298,15 @@ the "app not dashboard" truth):
 | `/reviews`, `/followups` | 09, 10 | |
 | `/analytics`, `/team`, `/settings` | 11, 12, 13 | |
 | `/q/[token]`, `/i/[token]` | customer-facing quote-accept / invoice-pay | **public**, no auth; spec'd in 06/08 |
+| `/p/[token]` | site draft preview (Sarah texts it to the owner) | **public**, view-only, signed + expiring token; spec'd in 03 §5 |
 | `/dashboard/*` | permanent redirects | `/dashboard`→`/home`, `/dashboard/leads[/:id]`→`/crm[/:id]`, `/dashboard/appointments`→`/schedule`, `/dashboard/settings`→`/settings` |
 
 - Implementation: one `(app)` route group holding the shell layout (sidebar + widget); auth
-  pages and `/q|/i` stay outside it.
+  pages and `/q|/i|/p` stay outside it. `/website` ALSO lives outside it — the builder is a
+  full-viewport takeover (03 §2): the chat replaces the sidebar, no widget, ← back returns to
+  the app.
 - `middleware.ts` flips from an allow-list of protected prefixes to **protect-everything-except**
-  public paths (`/sign-in`, `/forgot-password`, `/auth/*`, `/q/*`, `/i/*`). Role gating stays
+  public paths (`/sign-in`, `/forgot-password`, `/auth/*`, `/q/*`, `/i/*`, `/p/*`). Role gating stays
   per-page (`requireOrganization` / `isAdminEmail`), unchanged.
 
 ## 8. UI kit additions & shared patterns
@@ -297,7 +319,7 @@ now is fine). Charts follow the `dataviz` conventions when built; chart token va
 
 **Shared components (`src/components/app/`):**
 
-- `PageHeader` — title, optional module `preview` badge, actions slot (no Ask-Sarah button — see §2).
+- `PageHeader` — title, actions slot (no preview badge — §4; no Ask-Sarah button — see §2).
 - `DataTable` — built on `@tanstack/react-table` + the existing shadcn `table`: search, column
   filters, sort, pagination, responsive column hiding, empty-state slot. Client-side over mock
   fixtures; server-side pagination is a later `real.ts` concern behind the same props.
@@ -317,7 +339,7 @@ now is fine). Charts follow the `dataviz` conventions when built; chart token va
 
 ## 9. States & voice (conventions, enforced in review)
 
-- Preview banner text, coming-soon teaser shape, and empty-state voice: exactly as §4.
+- Coming-soon teaser shape and empty-state voice: exactly as §4; preview surfaces render unlabeled.
 - **Categorical colors** (the one place chrome gets color in the monochrome app — approved
   2026-07-11): every `Approval.kind` + the escalation Question has its own hue, shown in the kind
   CHIP only (no edge stripes — seamless); the label always carries the meaning. Registry lives in
@@ -326,6 +348,22 @@ now is fine). Charts follow the `dataviz` conventions when built; chart token va
   edit indigo #6366F1 · question orange #F97316. New kinds claim an unused hue there. Home shows
   needs-you as INBOX ROWS (direction A): chip · summary · wait time, actions on hover, full draft
   in the widget.
+- **Semantic STATUS colors** (approved 2026-07-12): every status chip app-wide (pipeline stages,
+  appointment statuses, campaign/target statuses, line verification, sync, on/off) colors by
+  MEANING via six families, one registry — `lib/dashboard-ui.ts` `statusChip()` / `FAMILY_CHIP`:
+  **gray** not started/dormant (new, queued, draft, proposed, past customer, off, not connected,
+  rescheduled) · **blue** in flight (contacted, sent, running, verifying) · **violet** being
+  worked (qualifying, replied, job scheduled, job done) · **emerald** good outcome (booked,
+  confirmed, showed, paid, reviewed, completed, verified, synced, on) · **amber** stalled/needs
+  an eye (no response, paused, opted out, reconnect) · **red** lost/failed (disqualified,
+  cancelled, failed, no-show). Soft-tint chip rendering (10% bg, strong text), same construction
+  as the kind chips. Statuses and kinds never share a list, so hue overlap is safe. New statuses
+  join a FAMILY in that one registry — never a bespoke color at a call site.
+- **Calendar kind tints** (2026-07-12): the Schedule grid colors event BLOCKS by kind — identity,
+  not meaning: estimate blue tint · job violet tint · block hatched gray (status then modifies:
+  proposed dashed, past faded, no-show red). Same soft-tint construction, but borders use OPAQUE
+  weights (`border-blue-300 dark:border-blue-800`) — alpha oklab borders composite to a yellow
+  fringe in Chromium. Registry: `itemLook()` in `ScheduleClient.tsx`; details in 07-schedule §2.
 - Timezone: every timestamp rendered in the organization's zone (reuse `organizationTz` helpers).
 - Money: integer cents in contracts, formatted `$14,200` in UI.
 - The PRODUCT is "the app," never "the dashboard," in copy. (Exception, Levi 2026-07-11: the
@@ -336,7 +374,7 @@ now is fine). Charts follow the `dataviz` conventions when built; chart token va
 
 1. ~~Sidebar group labels~~ — *resolved (Levi): nav clusters are UNLABELED, separated by
    spacing only; the sales pillars never render in the app.*
-2. Widget keyboard shortcut `⌘/` — fine, or reserve for a future command palette and use `⌘j`?
+2. ~~Widget keyboard shortcut~~ — *resolved: `⌘/` (and `Ctrl+/`) shipped in `sarah-context`.*
 3. Demo mode: is a cookie-persisted `?demo=1` (admin-only) enough, or do you want a dedicated
    always-demo account (e.g. `demo@leadanswered.com` seeded with Apex Roofing)?
 
@@ -345,3 +383,22 @@ now is fine). Charts follow the `dataviz` conventions when built; chart token va
 - Twilio webhooks (`/webhooks/twilio/sms`, `/voice`) have **no signature validation** — add
   `X-Twilio-Signature` verification when we next touch the api.
 - `POST /lead` is unauthenticated in prod — gate it (shared secret at minimum).
+
+
+## 11. Reconciliation note (2026-07-12 audit)
+
+Code-vs-doc drift verified and resolved this date; what follows is the record.
+
+**Doc corrected to match the build:** monochrome launcher + speech-bubble mark (§3) · panel
+height (§3) · demo toggle reality (§4) · `⌘/` resolved (§10) · badge = approvals + escalations
+on ALL surfaces: sidebar, launcher, /sarah tab, Home "Needs you" — escalations live in
+`SarahProvider` (seeded by the app layout: fixtures in demo, `listOpenEscalations` real).
+
+**Superseded code removed:** `leadStatusBadge` / `apptStatusBadge` / `stageBadge`
+(→ `statusChip`, §9), the registry's unused `icon` field (sidebar icons come from the animated
+`KIWI_ICONS` set, 14-icons), and `PageHeader`'s `preview` prop (no banners anywhere, §4).
+
+**Deferred (real, but each its own build):** the `getProvider` factory refactor ·
+`loading.tsx` for the remaining routes (schedule, reviews, and the unbuilt modules) · public
+`/q/[token]` + `/i/[token]` pages (middleware already whitelists them) · admin-gating the demo
+toggle.

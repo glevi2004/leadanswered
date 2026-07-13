@@ -14,14 +14,14 @@ import { cn } from "@/lib/utils";
  * (Levi: seamless); the label always carries the meaning, color is
  * reinforcement. Shared by the approval cards and Home's inbox rows.
  */
-export const KIND_META: Record<ApprovalKind, { label: string; chip: string }> = {
-  customer_message: { label: "Message", chip: "bg-blue-500/10 text-blue-700 dark:text-blue-300" },
-  quote: { label: "Quote", chip: "bg-violet-500/10 text-violet-700 dark:text-violet-300" },
-  invoice: { label: "Invoice", chip: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" },
-  review_ask: { label: "Review ask", chip: "bg-amber-500/10 text-amber-700 dark:text-amber-300" },
-  post: { label: "Blog post", chip: "bg-pink-500/10 text-pink-700 dark:text-pink-300" },
-  social_post: { label: "Social post", chip: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300" },
-  site_edit: { label: "Site edit", chip: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300" },
+export const KIND_META: Record<ApprovalKind, { label: string; chip: string; dot: string }> = {
+  customer_message: { label: "Message", chip: "bg-blue-500/10 text-blue-700 dark:text-blue-300", dot: "bg-blue-500" },
+  quote: { label: "Quote", chip: "bg-violet-500/10 text-violet-700 dark:text-violet-300", dot: "bg-violet-500" },
+  invoice: { label: "Invoice", chip: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300", dot: "bg-emerald-500" },
+  review_ask: { label: "Review ask", chip: "bg-amber-500/10 text-amber-700 dark:text-amber-300", dot: "bg-amber-500" },
+  post: { label: "Blog post", chip: "bg-pink-500/10 text-pink-700 dark:text-pink-300", dot: "bg-pink-500" },
+  social_post: { label: "Social post", chip: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300", dot: "bg-cyan-500" },
+  site_edit: { label: "Site edit", chip: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300", dot: "bg-indigo-500" },
 };
 
 /**
@@ -62,7 +62,7 @@ export function ApprovalCard({ approval, compact }: { approval: Approval; compac
       )}
 
       <div className="mt-2.5 flex items-center gap-2">
-        <Button size="sm" className="btn-glow h-7 gap-1 px-3" onClick={() => approve(approval.id)}>
+        <Button size="sm" className="btn-glow h-7 gap-1 px-3" onClick={() => approve(approval.id, draft)}>
           <Check className="size-3.5" /> Send it
         </Button>
         <Button

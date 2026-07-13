@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { CalendarDays, FileText, MessageCircleQuestion, NotebookPen, Receipt, Star, Upload } from "lucide-react";
 import type { TimelineEvent } from "@/lib/data/shared";
-import { formatTime, formatWhen } from "@/lib/dashboard-ui";
+import { formatTime, formatWhen, statusChip } from "@/lib/dashboard-ui";
 import { cn } from "@/lib/utils";
 
 /**
@@ -27,12 +27,18 @@ const TYPE_LABELS: Record<string, string> = {
 
 const money = (cents: number) => `$${(cents / 100).toLocaleString()}`;
 
+/** Central-registry status chip, marker-row sized (00 §9 — no bespoke status text). */
+function StatusPill({ status }: { status: string }) {
+  const c = statusChip(status);
+  return <span className={cn("ml-0.5 inline-block rounded-full px-1.5 py-px text-[10px] font-medium", c.chip)}>{c.label}</span>;
+}
+
 function Marker({ icon: Icon, children, href }: { icon: React.ComponentType<{ className?: string }>; children: React.ReactNode; href?: string }) {
   const row = (
     <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
       <span className="h-px w-8 bg-border" />
       <Icon className="size-3.5 shrink-0" />
-      <span className={cn("truncate", href && "underline-offset-2 hover:text-foreground hover:underline")}>{children}</span>
+      <span className={cn("flex min-w-0 items-center gap-1 truncate", href && "underline-offset-2 hover:text-foreground hover:underline")}>{children}</span>
       <span className="h-px w-8 bg-border" />
     </div>
   );
@@ -91,19 +97,19 @@ export function Timeline({ events, timezone, sarahName = "Sarah" }: { events: Ti
             case "appointment":
               return (
                 <Marker key={e.id} icon={CalendarDays} href="/schedule">
-                  Estimate — {formatWhen(e.startAt, timezone)} · {e.status}
+                  Estimate — {formatWhen(e.startAt, timezone)} <StatusPill status={e.status} />
                 </Marker>
               );
             case "quote":
               return (
-                <Marker key={e.id} icon={FileText} href={`/quotes`}>
-                  {e.label} · {money(e.totalCents)} · {e.status}
+                <Marker key={e.id} icon={FileText}>
+                  {e.label} · {money(e.totalCents)} <StatusPill status={e.status} />
                 </Marker>
               );
             case "invoice":
               return (
-                <Marker key={e.id} icon={Receipt} href={`/invoices`}>
-                  {e.label} · {money(e.totalCents)} · {e.status}
+                <Marker key={e.id} icon={Receipt}>
+                  {e.label} · {money(e.totalCents)} <StatusPill status={e.status} />
                 </Marker>
               );
             case "review":
@@ -115,7 +121,7 @@ export function Timeline({ events, timezone, sarahName = "Sarah" }: { events: Ti
             case "escalation":
               return (
                 <Marker key={e.id} icon={MessageCircleQuestion}>
-                  Asked: “{e.question}” · {e.status}
+                  Asked: “{e.question}” <StatusPill status={e.status} />
                 </Marker>
               );
             case "note":

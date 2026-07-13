@@ -306,3 +306,11 @@
 .widget-in {
   animation: widget-in 0.18s ease-out;
 }
+
+/* While drag-resizing the sidebar, suspend its collapse transitions so the
+   rail tracks the pointer 1:1 (same feel as the website builder's chat column).
+   The 200ms ease-linear stays for the offcanvas collapse/expand. */
+[data-slot="sidebar-wrapper"][data-resizing="true"] [data-slot="sidebar-gap"],
+[data-slot="sidebar-wrapper"][data-resizing="true"] [data-slot="sidebar-container"] {
+  transition: none;
+}

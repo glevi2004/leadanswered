@@ -79,5 +79,7 @@ parallelizable.
 ## 5. After specs are approved
 
 Code only on Levi's explicit go, on branch `app-ui`: foundation first, then modules — screens with
-real data behind them (Home, CRM, Schedule, Settings) wire to it; everything else runs on the mock
-seam until its backend ships per its own FEATURES.md development plan.
+real data behind them (Home, CRM, Schedule) wire to it; everything else runs on the mock seam
+until its backend ships per its own FEATURES.md development plan. **Settings is built LAST**
+(Levi, 2026-07-12): it depends on the final shape of every other page, so reshaping it early
+would mean re-reshaping it repeatedly.

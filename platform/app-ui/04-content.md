@@ -30,59 +30,58 @@ integration, no scheduling worker. The whole page runs on `fixtures/apex.ts` thr
 Route `/content` (marketing cluster, 00 §2). Three tabs; drafts-first because that's what
 needs the owner.
 
+> **Redesigned 2026-07-12 (Levi):** content items are **DECOUPLED** — a blog post and a
+> Facebook post are separate cards with separate yes/no's, even when Sarah drafted both from
+> the same job (she used two tools; the job is provenance, not structure). The page shows the
+> CONTENT ITSELF, never metadata about it: every card is post-shaped, and the click-through
+> preview renders the real artifact in a **phone mockup** (the shared `PhoneFrame`, same
+> device language as the landing-page demo and reviews' AskPreview). No "Approve both."
+
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│ PageHeader: Content  [preview]     (f Facebook — Apex Roofing ✓)       │
-│                                    [Ask Sarah for a post]              │
+│ PageHeader: Content            (f Facebook — Apex Roofing ✓)           │
 ├────────────────────────────────────────────────────────────────────────┤
-│ [ Drafts (1) ]   [ Published ]   [ Calendar ]                          │
+│ [ Drafts (2) ]   [ Published ]   [ Calendar ]                          │
 ├────────────────────────────────────────────────────────────────────────┤
-│ WAITING ON YOU                                                         │
-│ ┌────────────────────────────────────────────────────────────────────┐ │
-│ │ ▣▣▣▣  A full roof replacement in Newton                            │ │
-│ │ 4 photos · from your texts after the Miller job · drafted 2:14 PM  │ │
-│ │ “When the Millers called about their 20-year-old roof, we knew…”   │ │
-│ │ ✓ Facebook version ready to post with it                           │ │
-│ │        [Read & approve →]   [Approve both]   [Not this one]        │ │
-│ └────────────────────────────────────────────────────────────────────┘ │
+│ ┌── card: post-shaped ───────────────┐ ┌── card: post-shaped ────────┐ │
+│ │ (A) Apex Roofing · 2:14 PM  [Blog] │ │ (A) Apex Roofing   [Facebook]│ │
+│ │ A full roof replacement in Newton  │ │ Another Newton roof done     │ │
+│ │ When the Millers called about…     │ │ right ✅ 20 years old,       │ │
+│ │ ▣ lead photo                       │ │ replaced in two days…        │ │
+│ │ apexroofingma.com/blog · draft     │ │ ▣ photo   👍 💬 ↗ (grayed)   │ │
+│ └────────────────────────────────────┘ └──────────────────────────────┘ │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Drafts tab** — pending `Approval`s of kind `'post'`/`'social_post'`, projected as wide
-  cards: photo thumbnails, title, source line ("from your texts after the Miller job"),
-  first-line excerpt, a chip when a paired Facebook version exists. `[Read & approve →]` goes
-  to the detail; `[Approve both]` / `[Not this one]` act inline (same hard-gate as the widget).
-- **Published tab** — card grid (photo-forward, not a table): lead photo, title, publish date
-  (org tz), destination chips (**Site** · **Facebook**), and a one-line stat stub
-  ("214 views · 12 likes"). Card click → detail (read-only render + stats + permalinks).
-- **Calendar tab** — a small month grid (`MonthGrid`, §6): dots/short labels on days with
-  published or scheduled items, color by status; click a day → popover listing its items,
-  linking to detail. Month switcher, "Today" button. That's all it is — a glanceable rhythm
-  view, not an editor.
+- **Every card is the same post-card anatomy** — avatar + "Apex Roofing" + time up top, the
+  text, the photo — so blog and Facebook items read as siblings; the **kind chip** (KIND_META:
+  pink Blog post · cyan Facebook post) is the identity. A blog card's footer shows its site
+  destination; a Facebook card's footer shows the grayed like/comment/share row. Cards show
+  the CONTENT (title + opening lines / the actual FB text), never an "excerpt" in quotes.
+- **Drafts tab** — every pending item (kinds `'post'` and `'social_post'`), independent cards,
+  chip "waiting on you." Click → the preview (below), where approve/edit/decline live.
+- **Published tab** — same cards with proof: status chip + stats ("214 views" / "12 likes ·
+  3 comments") + overflow (view on site / on Facebook / ask Sarah to repost).
+- **Calendar tab** — the **same calendar grammar as Schedule** (Levi 2026-07-13): the shared
+  `CalendarMonth` (extracted from 07's month view — Monday-first bordered grid, today pill,
+  labeled item rows, org-timezone dates), showing only content items with their kind dots
+  (blog pink · Facebook cyan). Click an item → the phone-preview overlay; **drag a scheduled
+  post to another day to reschedule it** (published items are past — fixed). And the reverse
+  lens: Schedule's toolbar gets a "Posts" toggle overlaying these items on the business
+  calendar (07 §2).
 
-**Detail** — `/content/[postId]`, the read-the-full-draft surface. Blog and social variant
-side by side:
+**Preview** — opens as an **overlay on the feed** (card click → dialog, no navigation — Levi
+2026-07-12); `/content/[id]` renders the same surface for deep links (posts AND social posts
+share the route). The artifact rendered in a **`PhoneFrame`** — a Facebook post as it appears in the Facebook app; a blog post as the
+mobile article on apexroofingma.com (site header, headline, photos, body). Beside the phone
+(below, on mobile): the kind chip + status, **[Put it on my site] / [Post to Facebook]**,
+**[Edit]** (flips the phone screen to editable title/body in place), **[Schedule…]**,
+**[Not this one]**. Published items: same phone, read-only, permalink + stats instead of
+actions.
 
-```
-┌ ← Content            A full roof replacement in Newton        [draft] ┐
-│ From 4 photos Marcus texted · job: Dana Miller (→ /crm/ct_dana)       │
-├────────────────────────────────────┬───────────────────────────────────┤
-│ BLOG POST — apexroofing.com        │ FACEBOOK VERSION                  │
-│ [▣▣▣▣ photo strip → lightbox]      │ ▣ lead photo                      │
-│ Title            (inline edit)     │ Short, casual body (inline edit)  │
-│ Body — rendered ⇄ edit toggle      │ “Another Newton roof done right…” │
-│ SEO snippet: meta title · descr.   │                                   │
-├────────────────────────────────────┴───────────────────────────────────┤
-│ [Approve & publish]  [Approve both]  [Schedule…]  [Decline]            │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-- Published posts reuse the same detail read-only: rendered post, permalinks
-  ("View on your site ↗" / "View on Facebook ↗"), stats row.
-- **Mobile:** tabs persist; draft cards and published cards stack single-column; detail
-  stacks (blog first, then the Facebook version) with the approve bar sticky at the bottom;
-  the Calendar tab collapses to a chronological agenda list grouped by week. Sarah launcher
-  stays bottom-right above the sticky bar (foundation §2).
+- **Mobile:** cards stack single-column; the preview puts the phone first, actions as a
+  sticky bar below. The Calendar tab collapses to a chronological agenda list. Sarah launcher
+  stays bottom-right (foundation §2).
 
 ## 3. Sarah
 
@@ -181,21 +180,22 @@ flip in-memory status, and enqueue a fake `SarahAction` so the demo feels alive 
 
 | Action | Surface | Mock (`content/mock.ts`) | Real (`content/real.ts`, later) | Sarah's engine? |
 |---|---|---|---|---|
-| **Approve & publish** (`post`) | detail, draft card | resolve `Approval`, `status: 'published'`, set `publishedAt/Url`, toast "Live on apexroofing.com", enqueue SarahAction | server action → HMAC-`cid` api call: engine resolves the hard-gate, publish tool writes to the site CMS (03-website) | **Yes** — approvals are the hard-gate; Sarah confirms in-thread ("Published — link on the way") |
-| **Approve & post** (`social_post`) | detail, draft card | resolve `Approval`, `status: 'posted'`, fake permalink | api call: engine hard-gate → Meta Graph API post | **Yes** |
-| **Approve both** | draft card, detail bar | both of the above atomically | one api call resolving both approvals | **Yes** |
-| **Decline** (either) | card "Not this one", detail | `Approval → 'declined'`, item to status `'declined'` (kept, not deleted) | api call; Sarah acknowledges and can be asked to redo it via the widget | **Yes** |
-| **Edit draft** (`updateDraft`: title/bodyMd/seo; `updateSocialDraft`: body) | detail inline edit | returns edited object, local state | server action, direct Post/SocialPost write | No — owner's own edit; Sarah sees the final text at approval |
-| **Schedule…** (`schedulePost(id, date)`) | detail bar, date-picker | `status: 'scheduled'`, appears on the calendar | server action + worker job to publish at time (same hard-gate already satisfied) | No (approval already given) |
-| **Ask Sarah for a post** | PageHeader | opens the widget pre-focused with a drafting prompt — not a mutation | same | **Yes** — she drafts; a new `Approval` lands in Drafts |
+| **Put it on my site** (`post`) | preview | resolve `Approval`, `status: 'published'`, set `publishedAt/Url`, toast "Live on apexroofingma.com", enqueue SarahAction | server action → HMAC-`cid` api call: engine resolves the hard-gate, publish tool writes to the site CMS (03-website) | **Yes** — approvals are the hard-gate; Sarah confirms in-thread ("Published — link on the way") |
+| **Post to Facebook** (`social_post`) | preview | resolve `Approval`, `status: 'posted'`, fake permalink | api call: engine hard-gate → Meta Graph API post | **Yes** |
+| **Decline** (either) | preview "Not this one" | `Approval → 'declined'`, item to status `'declined'` (kept, not deleted) | api call; Sarah acknowledges and can be asked to redo it via the widget | **Yes** |
+| **Edit draft** (`updateDraft`: title/bodyMd; `updateSocialDraft`: body) | preview — Edit flips the phone screen editable | returns edited object, local state | server action, direct Post/SocialPost write | No — owner's own edit; Sarah sees the final text at approval |
+| **Schedule…** (`schedulePost(id, date)`) | preview, date-picker | `status: 'scheduled'`, appears on the calendar | server action + worker job to publish at time (same hard-gate already satisfied) | No (approval already given) |
+
+*(No "Approve both" — items are decoupled; wanting both is a thing you tell Sarah, not a
+button. Approving a blog post and its sibling Facebook post are two independent yes's.)*
 
 No "New post" editor: authoring is Sarah-only, by design (the promise is *text her the
 photos*, not *here's a CMS*).
 
 ## 6. Components
 
-From the kit / foundation §8: `PageHeader` (title, preview badge, Facebook-connected chip in
-the actions slot, "Ask Sarah for a post"), `tabs`, `Card` + `StatusBadge` (`draft`/`scheduled`/
+From the kit / foundation §8: `PageHeader` (title, Facebook-connected chip in
+the actions slot), `tabs`, `Card` + `StatusBadge` (`draft`/`scheduled`/
 `published`/`posted`/`failed`), `EmptyState`, `GatedState`, `dialog` (photo lightbox,
 composed), `popover` (calendar day peek), `calendar` + date-picker (the Schedule… action),
 `dropdown-menu` (published-card overflow: view on site / view on Facebook / ask Sarah to
@@ -203,19 +203,24 @@ repost), `sonner`, `skeleton` via `loading.tsx`.
 
 **Missing from the kit (flagging per template):**
 
-- `MonthGrid` — an events month grid (the shadcn `calendar` is a date-*picker*, not an events
-  calendar). Small, custom; likely reused by 07-schedule.
-- `MarkdownView` — render `bodyMd` in-app (react-markdown or equivalent; new dependency).
+- `CalendarMonth` — the shared events month grid (Schedule's month-view construction,
+  generalized; one calendar language app-wide — supersedes the earlier one-off `MonthGrid`).
+- `MarkdownView` — render `bodyMd` in-app (tiny built-in renderer; a markdown dependency
+  arrives with the CMS, not before).
 - `PhotoStrip` — thumbnail row + lightbox; composable from `dialog`, worth extracting since
   Quotes/Reviews will want it too.
+- `PhoneFrame` — the shared device mockup (bezel + notch + status bar; the landing-page demo's
+  language, generalized from reviews' AskPreview). Used here for both previews, and by
+  03-website's phone view.
+- `PostCard` / `FacebookPostBody` / `BlogPhoneScreen` — module-local: the post-shaped card and
+  the two phone-screen renderings.
 
 ## 7. States
 
 - **`coming_soon`** — `GatedState` teaser with the REBRAND §3.4 promise copy verbatim:
   *"Blog posts — Finished a job? Text Sarah the photos and she writes a post about it."* ·
   *"Social — She'll post it to Facebook too."* + "Ask Sarah about it" (opens the widget).
-- **`preview`** (demo default) — full UI on the Apex fixtures + the slim amber banner, exact
-  foundation copy: *"Preview — we're building this with you. Ask Sarah about it."*
+- **`preview`** (demo default) — full UI on the Apex fixtures, no banner or badge (00 §4).
 - **Running, no data yet** (`live`, nothing drafted/published — never build-it-yourself):
   - Drafts tab: *"Nothing waiting on you. Text Sarah photos from your next finished job and
     her draft will land here."*

@@ -30,14 +30,18 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   // Protect everything except the public surface (00-foundation §7):
-  // auth pages and the customer-facing /q (quote accept) + /i (invoice pay) pages.
+  // auth pages, the customer-facing /q (quote accept) + /i (invoice pay) pages,
+  // and /p (site draft preview — the view-only link Sarah texts, 03-website §5).
   const path = request.nextUrl.pathname;
   const publicPath =
     path === "/sign-in" ||
     path === "/forgot-password" ||
     path.startsWith("/auth/") ||
     path.startsWith("/q/") ||
-    path.startsWith("/i/");
+    path.startsWith("/i/") ||
+    path.startsWith("/p/") ||
+    // dev-only: screenshot-testable component previews, never reachable in production
+    (process.env.NODE_ENV === "development" && path.startsWith("/dev/"));
   if (!publicPath && !user) {
     return NextResponse.redirect(new URL("/sign-in", request.url));
   }

@@ -8,7 +8,7 @@ import { KIND_META } from "@/components/app/ApprovalCard";
 import { SarahIcon } from "@/components/icons/sarah";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import type { OpenEscalation } from "@/lib/data/home";
+import type { OpenEscalation } from "@/components/sarah/sarah-context";
 
 function waited(iso: string): string {
   const mins = Math.max(1, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
@@ -40,15 +40,18 @@ function RowBody({ children }: { children: React.ReactNode }) {
  * tab; the widget keeps compact ApprovalCards.
  */
 export function ApprovalRows({
-  escalations = [],
   onAnswerEscalation,
 }: {
-  escalations?: OpenEscalation[];
-  /** Where "Answer via Sarah" goes — defaults to the widget; /sarah jumps to its Chat tab. */
-  onAnswerEscalation?: () => void;
+  /** Where "Answer via Sarah" lands — defaults to the widget; /sarah jumps to its Chat tab. */
+  onAnswerEscalation?: (e: OpenEscalation) => void;
 }) {
-  const { approvals, approve, decline, openWidget } = useSarah();
-  const answer = onAnswerEscalation ?? openWidget;
+  const { approvals, escalations, approve, decline, openWidget, beginEscalationAnswer } = useSarah();
+  const answer =
+    onAnswerEscalation ??
+    ((e: OpenEscalation) => {
+      beginEscalationAnswer(e);
+      openWidget();
+    });
   const [hoverId, setHoverId] = React.useState<string | null>(null);
   const [pinnedId, setPinnedId] = React.useState<string | null>(null);
   const [editingId, setEditingId] = React.useState<string | null>(null);
@@ -92,7 +95,11 @@ export function ApprovalRows({
                       <p className="mt-2 pl-1 text-sm leading-relaxed text-muted-foreground">“{draft}”</p>
                     )}
                     <div className="mt-2.5 flex items-center gap-2 pb-1 pl-1">
-                      <Button size="sm" className="btn-glow h-7 px-3 text-xs" onClick={() => approve(a.id)}>
+                      <Button
+                        size="sm"
+                        className="btn-glow h-7 px-3 text-xs"
+                        onClick={() => approve(a.id, drafts[a.id] !== undefined ? drafts[a.id] : undefined)}
+                      >
                         Send it
                       </Button>
                       <Button
@@ -126,7 +133,7 @@ export function ApprovalRows({
               <MessageCircleQuestion className="mr-1 inline size-3" />
               Question
             </span>
-            <p className="min-w-0 flex-1 truncate text-sm font-medium">{e.contactName} asked something</p>
+            <p className="min-w-0 flex-1 truncate text-sm font-medium">{e.contactName}: “{e.question}”</p>
             <span className="shrink-0 text-xs text-muted-foreground">{waited(e.createdAt)}</span>
           </div>
           <AnimatePresence initial={false}>
@@ -134,7 +141,7 @@ export function ApprovalRows({
               <RowBody>
                 <p className="mt-2 pl-1 text-sm leading-relaxed text-muted-foreground">“{e.question}”</p>
                 <div className="mt-2.5 flex items-center gap-2 pb-1 pl-1" onClick={(ev) => ev.stopPropagation()}>
-                  <Button size="sm" variant="outline" className="h-7 gap-1.5 px-3 text-xs" onClick={answer}>
+                  <Button size="sm" variant="outline" className="h-7 gap-1.5 px-3 text-xs" onClick={() => answer(e)}>
                     <SarahIcon className="size-3.5" /> Answer via Sarah
                   </Button>
                 </div>

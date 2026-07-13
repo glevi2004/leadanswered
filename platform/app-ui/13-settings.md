@@ -203,9 +203,8 @@ as marcus@apexroofingma.com; billing `{ plan: "Design partner — free", status:
 
 ## 7. States
 
-- **Module status:** Settings is core app surface — always live, no preview banner on the page.
-  The **Billing tab alone** carries the preview treatment: slim amber banner *"Preview — we're
-  building this with you. Ask Sarah about it."* above the plan card.
+- **Module status:** Settings is core app surface — always live. The **Billing tab** runs on
+  fixtures until billing ships — unlabeled, like every preview surface (00 §4).
 - **Running-with-no-data:** never occurs for the form tabs — onboarding guarantees a complete
   config ("we set it up for you"). Recipients always starts with the owner row; the add-button
   copy stays invitational ("+ Add recipient — office, foreman, anyone who needs alerts").
@@ -236,3 +235,8 @@ as marcus@apexroofingma.com; billing `{ plan: "Design partner — free", status:
 5. **The retention call link** — external booking link (Cal.com/Google) for "Book a call with
    Levi," or does Sarah book it conversationally? Determines whether the cancel dialog needs a
    URL config or an engine hook.
+
+
+> **Built note (2026-07-12):** the Settings page now carries the promised cross-link —
+> "Availability lives in Schedule →" (`/schedule?tab=availability`). The editor itself stays in
+> Schedule only; no duplicate.

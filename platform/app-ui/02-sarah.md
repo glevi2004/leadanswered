@@ -297,3 +297,34 @@ the q_1043 follow-up chase); thread includes the Thursday-schedule exchange (`vi
 5. **Approval TTL:** the in-memory map expires drafts after 15 min; persisted Approvals need a
    policy — expire `customer_message` fast but let `review_ask`/`post` drafts live for days?
    (Drives the `expired` status + the resolved list.)
+
+
+## 9. Reconciliation note (2026-07-12 audit)
+
+**As built (doc statements superseded):**
+- The Approvals tab and Home share **`ApprovalRows`** (Linear-style rows, hover-expand, inline
+  edit) — not the card stack; the widget keeps compact `ApprovalCard`s. No group headers /
+  resolved-list yet (deferred below).
+- **Counts match everywhere now:** sidebar badge = launcher badge = Approvals tab = Home
+  "Needs you" = pending approvals + open escalations, all from `SarahProvider`
+  (`initialEscalations` seeded by the layout; real accounts fetch `listOpenEscalations`).
+- **Edit-then-approve sends the edit**: `approve(id, editedPreview?)` →
+  `resolveApproval(id, decision, editedPreview)`; both row and card editors pass their draft;
+  the activity entry says "Sent (with your edits)".
+- **Escalation answering**: "Answer via Sarah" (row, widget card, or /sarah tab → Chat) calls
+  `beginEscalationAnswer(e)` — prefills the composer ("Answer for Jorge: …"); the next send
+  resolves the escalation, logs a SarahAction, and Sarah confirms she'll relay it in her words.
+  The api-side `POST /sarah/escalations/:id/answer` stays future; this is the UI contract.
+- The **widget now renders escalation cards** above approvals (it must — its badge counts them).
+- `openWidget({ entity })` carries record context: "Ask Sarah about Dana" shows
+  "On: CRM · Dana Miller" in the composer's context chip (clears on route change).
+- Approval kinds in play: `customer_message, quote, invoice, review_ask, post, social_post,
+  site_edit` (registry `KIND_META`). Fixture ids are `apr_1..apr_5` (O'Brien review ask, the
+  site edit, the Nina Miller referral hello, the Miller blog + Facebook posts) + `esc_301`.
+  Sarah chips: "Anything waiting on me?" · "What's Thursday look like?" · "Who's gone quiet?".
+
+**Deferred:** pinned cards above the /sarah Chat thread · Activity search, day grouping, URL
+sync, and per-row href derivation from `contactId` · `?m=` scroll-to-message · via-app markers
++ day dividers in the thread · "Recently resolved" section · the `lib/data/sarah/` provider
+seam (`SarahThread`/`ActivityEntry` types, `sendTurn` context envelope) · contextual chip
+refresh.

@@ -26,7 +26,7 @@ export function EmptyState({
       <p className="text-sm font-medium">{title}</p>
       {body && <p className="max-w-sm text-sm text-muted-foreground">{body}</p>}
       {askSarah && (
-        <Button variant="outline" size="sm" className="mt-2 gap-1.5" onClick={openWidget}>
+        <Button variant="outline" size="sm" className="mt-2 gap-1.5" onClick={() => openWidget()}>
           <SarahIcon className="size-3.5 text-primary" /> Ask Sarah
         </Button>
       )}

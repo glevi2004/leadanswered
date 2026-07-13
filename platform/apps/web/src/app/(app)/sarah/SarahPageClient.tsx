@@ -11,19 +11,12 @@ import { EmptyState } from "@/components/app/EmptyState";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MODULES } from "@/lib/data/registry";
 import type { ModuleKey } from "@/lib/data/shared";
-import type { OpenEscalation } from "@/lib/data/home";
 import { cn } from "@/lib/utils";
 import { SarahIcon } from "@/components/icons/sarah";
 
 /** /sarah — the full-screen surface: chat, the activity log, the approvals queue (02-sarah). */
-export function SarahPageClient({
-  defaultTab = "chat",
-  escalations = [],
-}: {
-  defaultTab?: string;
-  escalations?: OpenEscalation[];
-}) {
-  const { messages, typing, approvals, actions, pendingCount } = useSarah();
+export function SarahPageClient({ defaultTab = "chat" }: { defaultTab?: string }) {
+  const { messages, typing, actions, pendingCount, beginEscalationAnswer } = useSarah();
   const [tab, setTab] = React.useState(defaultTab);
   const [moduleFilter, setModuleFilter] = React.useState<ModuleKey | "core" | "all">("all");
 
@@ -50,9 +43,9 @@ export function SarahPageClient({
           <TabsTrigger value="activity">Activity</TabsTrigger>
           <TabsTrigger value="approvals" className="gap-1.5">
             Approvals
-            {pendingCount + escalations.length > 0 && (
+            {pendingCount > 0 && (
               <span className="flex size-4.5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                {pendingCount + escalations.length}
+                {pendingCount}
               </span>
             )}
           </TabsTrigger>
@@ -100,7 +93,7 @@ export function SarahPageClient({
       </TabsContent>
 
       <TabsContent value="approvals" className="mt-4">
-        {approvals.length + escalations.length === 0 ? (
+        {pendingCount === 0 ? (
           <EmptyState
             icon={CircleCheck}
             title="Nothing waiting on you."
@@ -108,7 +101,12 @@ export function SarahPageClient({
           />
         ) : (
           <div className="rounded-2xl border bg-card p-5 shadow-xs">
-            <ApprovalRows escalations={escalations} onAnswerEscalation={() => setTab("chat")} />
+            <ApprovalRows
+              onAnswerEscalation={(e) => {
+                beginEscalationAnswer(e);
+                setTab("chat");
+              }}
+            />
           </div>
         )}
       </TabsContent>

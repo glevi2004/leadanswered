@@ -24,7 +24,7 @@ export function GatedState({ label, promise }: { label: string; promise: string 
         We build the OS with you, module by module. This one's on the map — tell Sarah if you want it
         pulled forward.
       </p>
-      <Button className="btn-glow gap-1.5" onClick={openWidget}>
+      <Button className="btn-glow gap-1.5" onClick={() => openWidget()}>
         <SarahIcon className="size-4" /> Ask Sarah about it
       </Button>
     </div>

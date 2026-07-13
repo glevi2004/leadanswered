@@ -5,27 +5,74 @@ import { ArrowUp } from "lucide-react";
 import { useSarah } from "./sarah-context";
 import { cn } from "@/lib/utils";
 
-/** Composer + per-page suggestion chips + the page-context chip (00 §3). */
-export function SarahComposer({ showContext, className }: { showContext?: boolean; className?: string }) {
-  const { sendMessage, chipsForCurrentPage, currentPageLabel, messages } = useSarah();
+/**
+ * Composer + per-page suggestion chips (00 §3) — Apollo-style big input card
+ * (Levi 2026-07-12): a rounded-2xl container with the (auto-growing) text area
+ * on top and a bottom rail holding the page-context chip + send. `onSend`/
+ * `chips`/`placeholder` let a scoped surface (the Website site chat, 03 §3)
+ * reuse this exact composer against its own thread — never a fork.
+ */
+export function SarahComposer({
+  showContext,
+  className,
+  onSend,
+  chips,
+  placeholder,
+}: {
+  showContext?: boolean;
+  className?: string;
+  onSend?: (body: string) => void;
+  chips?: string[];
+  placeholder?: string;
+}) {
+  const { sendMessage, chipsForCurrentPage, currentPageLabel, contextEntity, messages, composerPrefill, consumePrefill } = useSarah();
   const [text, setText] = React.useState("");
-  const inputRef = React.useRef<HTMLInputElement>(null);
+  const inputRef = React.useRef<HTMLTextAreaElement>(null);
+
+  const autosize = React.useCallback(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  }, []);
+
+  // escalation answers (and future deep links) prefill the composer once
+  React.useEffect(() => {
+    if (composerPrefill === null) return;
+    const t = consumePrefill();
+    if (t !== null) {
+      setText(t);
+      requestAnimationFrame(() => {
+        autosize();
+        inputRef.current?.focus();
+      });
+    }
+  }, [composerPrefill, consumePrefill, autosize]);
+  const send = onSend ?? sendMessage;
+  const chipList = chips ?? chipsForCurrentPage;
 
   const submit = (value?: string) => {
     const body = value ?? text;
     if (!body.trim()) return;
-    sendMessage(body);
+    send(body);
     setText("");
-    inputRef.current?.focus();
+    requestAnimationFrame(() => {
+      autosize();
+      inputRef.current?.focus();
+    });
   };
 
-  const showChips = messages.length < 12; // keep chips while the thread is young
+  const showChips = chipList.length > 0 && messages.length < 12; // keep chips while the thread is young
+  const contextLabel =
+    showContext && currentPageLabel && currentPageLabel !== "Sarah"
+      ? `${currentPageLabel}${contextEntity ? ` · ${contextEntity}` : ""}`
+      : null;
 
   return (
     <div className={cn("flex flex-col gap-2", className)}>
       {showChips && (
         <div className="flex flex-wrap gap-1.5">
-          {chipsForCurrentPage.map((chip) => (
+          {chipList.map((chip) => (
             <button
               key={chip}
               type="button"
@@ -42,28 +89,42 @@ export function SarahComposer({ showContext, className }: { showContext?: boolea
           e.preventDefault();
           submit();
         }}
-        className="flex items-center gap-2 rounded-full border bg-background py-1 pl-4 pr-1 shadow-xs focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15"
+        className="rounded-2xl border bg-background shadow-xs transition-shadow focus-within:border-ring/60 focus-within:ring-2 focus-within:ring-ring/15"
       >
-        {showContext && currentPageLabel && currentPageLabel !== "Sarah" && (
-          <span className="hidden shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground sm:inline">
-            On: {currentPageLabel}
-          </span>
-        )}
-        <input
+        <textarea
           ref={inputRef}
+          rows={1}
           value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Ask Sarah anything…"
-          className="h-8 w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          onChange={(e) => {
+            setText(e.target.value);
+            autosize();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              submit();
+            }
+          }}
+          placeholder={placeholder ?? "What can Sarah do for you?"}
+          className="block max-h-30 w-full resize-none bg-transparent px-3.5 pb-1 pt-3 text-sm outline-none placeholder:text-muted-foreground"
         />
-        <button
-          type="submit"
-          aria-label="Send"
-          disabled={!text.trim()}
-          className="btn-glow flex size-8 shrink-0 items-center justify-center rounded-full disabled:opacity-40 disabled:shadow-none"
-        >
-          <ArrowUp className="size-4" />
-        </button>
+        <div className="flex items-center justify-between gap-2 px-2 pb-2">
+          {contextLabel ? (
+            <span className="max-w-52 truncate rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+              On: {contextLabel}
+            </span>
+          ) : (
+            <span />
+          )}
+          <button
+            type="submit"
+            aria-label="Send"
+            disabled={!text.trim()}
+            className="btn-glow flex size-7 shrink-0 items-center justify-center rounded-full disabled:opacity-40 disabled:shadow-none"
+          >
+            <ArrowUp className="size-4" />
+          </button>
+        </div>
       </form>
     </div>
   );

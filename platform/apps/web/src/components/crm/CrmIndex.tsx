@@ -6,7 +6,7 @@ import { TriangleAlert } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { Contact } from "@/lib/data/shared";
 import type { CrmView, PipelineStage } from "@/lib/data/crm/types";
-import { stageBadge, formatWhen } from "@/lib/dashboard-ui";
+import { statusChip, formatWhen } from "@/lib/dashboard-ui";
 import { DataTable } from "@/components/app/DataTable";
 import { EmptyState } from "@/components/app/EmptyState";
 import { Badge } from "@/components/ui/badge";
@@ -85,8 +85,8 @@ export function CrmIndex({
         header: "Stage",
         accessorKey: "stage",
         cell: ({ getValue }) => {
-          const b = stageBadge(String(getValue()));
-          return <Badge variant={b.variant}>{b.label}</Badge>;
+          const c = statusChip(String(getValue()));
+          return <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", c.chip)}>{c.label}</span>;
         },
       },
       {
@@ -139,7 +139,7 @@ export function CrmIndex({
               stage === s ? "border-foreground/30 bg-muted font-medium text-foreground" : "text-muted-foreground hover:text-foreground",
             )}
           >
-            {stageBadge(s).label} {n}
+            {statusChip(s).label} {n}
           </button>
         ))}
       </div>
@@ -170,7 +170,7 @@ export function CrmIndex({
         }
         toolbar={
           <>
-            {filterSelect(stage, setStage, Array.from(stageCounts.keys()).map((s) => ({ value: s, label: stageBadge(s).label })), "Stage")}
+            {filterSelect(stage, setStage, Array.from(stageCounts.keys()).map((s) => ({ value: s, label: statusChip(s).label })), "Stage")}
             {filterSelect(source, setSource, sources.map((s) => ({ value: s, label: s.replace("_", " ") })), "Source")}
           </>
         }

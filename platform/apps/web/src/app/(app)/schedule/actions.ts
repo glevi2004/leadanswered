@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireOrganization } from "@/lib/dashboard-auth";
+import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { signOrganizationHandoff } from "@/lib/calendar";
 
 /**
@@ -37,4 +38,23 @@ export async function rescheduleAppointmentAction(
   }).catch(() => null);
   revalidatePath("/schedule");
   return { ok: !!(res && res.ok) };
+}
+
+/**
+ * Mark how a past visit went (07-schedule §5) — REAL, direct status write (shown | no_show),
+ * tenant-guarded. No customer texting involved, so no api/hard-gate round trip needed.
+ */
+export async function markAppointmentOutcomeAction(
+  appointmentId: string,
+  outcome: "shown" | "no_show",
+): Promise<{ ok: boolean }> {
+  const organization = await requireOrganization();
+  const sb = createSupabaseAdmin();
+  const { error } = await sb
+    .from("Appointment")
+    .update({ status: outcome, updatedAt: new Date().toISOString() })
+    .eq("id", appointmentId)
+    .eq("organizationId", organization.id); // tenant guard
+  revalidatePath("/schedule");
+  return { ok: !error };
 }

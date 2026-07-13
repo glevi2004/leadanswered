@@ -28,6 +28,7 @@ export function SidebarResizer() {
     if (!el) return;
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
+    el.setAttribute("data-resizing", "true"); // suspends the width transition (globals.css)
     const move = (ev: PointerEvent) => {
       el.style.setProperty("--sidebar-width", `${clamp(ev.clientX)}px`);
     };
@@ -36,6 +37,7 @@ export function SidebarResizer() {
       window.removeEventListener("pointerup", up);
       document.body.style.removeProperty("cursor");
       document.body.style.removeProperty("user-select");
+      el.removeAttribute("data-resizing");
       persist(clamp(ev.clientX));
     };
     window.addEventListener("pointermove", move);

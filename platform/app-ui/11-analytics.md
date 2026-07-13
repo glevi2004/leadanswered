@@ -228,8 +228,8 @@ Module-local (not kit candidates yet):
 - **`coming_soon`** (default for real partners until this ships): `GatedState` teaser with the
   REBRAND §3.4 line verbatim — *"Analytics — Every visit, call, and lead in one place."* — plus
   "Ask Sarah about it."
-- **`preview`** (demo accounts / `?demo=1`): full page on the Apex fixtures above + the slim
-  amber banner: *"Preview — we're building this with you. Ask Sarah about it."*
+- **`preview`** (demo accounts / `?demo=1`): full page on the Apex fixtures above, no banner
+  or badge (00 §4).
 - **`live`, early days** (running-with-no-data): never an empty chart wall. Sections render
   with whatever exists and Sarah's voice fills the gap: *"I've been on the job since Tuesday —
   your first full week of numbers lands Friday."* Stat cards show real counts (even small);

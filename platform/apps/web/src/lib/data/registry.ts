@@ -9,7 +9,6 @@ export interface SurfaceEntry {
   label: string;
   route: string;
   /** lucide icon name, resolved in AppSidebar (registry stays server-safe). */
-  icon: string;
   group?: NavGroup; // absent = core surface (Home, Sarah, Settings)
   defaultStatus?: ModuleStatus; // absent = always live (core surfaces)
   /** Widget suggestion chips for this surface. */
@@ -22,19 +21,16 @@ export const MODULES: Record<SurfaceKey, SurfaceEntry> = {
   home: {
     label: "Dashboard",
     route: "/home",
-    icon: "LayoutGrid",
     sarahChips: ["Anything waiting on me?", "What's today look like?", "How are we doing this week?"],
   },
   sarah: {
     label: "Sarah",
     route: "/sarah",
-    icon: "MessageCircle",
     sarahChips: ["Anything waiting on me?", "What's Thursday look like?", "Who's gone quiet?"],
   },
   crm: {
     label: "CRM",
     route: "/crm",
-    icon: "Users",
     group: "pipeline",
     defaultStatus: "live",
     sarahChips: ["Who needs a follow-up?", "What do you know about this lead?"],
@@ -43,7 +39,6 @@ export const MODULES: Record<SurfaceKey, SurfaceEntry> = {
   schedule: {
     label: "Schedule",
     route: "/schedule",
-    icon: "CalendarDays",
     group: "pipeline",
     defaultStatus: "live",
     sarahChips: ["What does Thursday look like?", "Move my 2pm", "Any gaps this week?"],
@@ -52,7 +47,6 @@ export const MODULES: Record<SurfaceKey, SurfaceEntry> = {
   quotes: {
     label: "Quotes",
     route: "/quotes",
-    icon: "FileText",
     group: "pipeline",
     defaultStatus: "coming_soon",
     sarahChips: ["Draft a quote", "What's still unanswered?"],
@@ -61,7 +55,6 @@ export const MODULES: Record<SurfaceKey, SurfaceEntry> = {
   invoices: {
     label: "Invoices",
     route: "/invoices",
-    icon: "Receipt",
     group: "pipeline",
     defaultStatus: "coming_soon",
     sarahChips: ["Invoice the Miller job", "Who owes me money?"],
@@ -70,7 +63,6 @@ export const MODULES: Record<SurfaceKey, SurfaceEntry> = {
   followups: {
     label: "Follow-ups",
     route: "/followups",
-    icon: "Timer",
     group: "pipeline",
     defaultStatus: "coming_soon",
     sarahChips: ["Who's gone quiet?", "Why haven't you texted Jorge?"],
@@ -79,7 +71,6 @@ export const MODULES: Record<SurfaceKey, SurfaceEntry> = {
   website: {
     label: "Website",
     route: "/website",
-    icon: "Globe",
     group: "marketing",
     defaultStatus: "coming_soon",
     sarahChips: ["Add a page", "Change the hours", "How do I look on Google?"],
@@ -88,16 +79,14 @@ export const MODULES: Record<SurfaceKey, SurfaceEntry> = {
   content: {
     label: "Content",
     route: "/content",
-    icon: "PenLine",
     group: "marketing",
     defaultStatus: "coming_soon",
-    sarahChips: ["Write a post about my last job", "What's drafted?"],
+    sarahChips: ["Draft a post from my last job's photos", "What's going out this week?", "Change something in the Miller draft"],
     promise: "Finished a job? Text Sarah the photos and she writes a post about it.",
   },
   reviews: {
     label: "Reviews",
     route: "/reviews",
-    icon: "Star",
     group: "marketing",
     defaultStatus: "coming_soon",
     sarahChips: ["How's the review campaign going?", "Ask the Millers for a review"],
@@ -106,7 +95,6 @@ export const MODULES: Record<SurfaceKey, SurfaceEntry> = {
   analytics: {
     label: "Analytics",
     route: "/analytics",
-    icon: "ChartNoAxesColumn",
     group: "business",
     defaultStatus: "coming_soon",
     sarahChips: ["How's this month vs. last?", "Where do my leads come from?"],
@@ -115,7 +103,6 @@ export const MODULES: Record<SurfaceKey, SurfaceEntry> = {
   team: {
     label: "Team",
     route: "/team",
-    icon: "UsersRound",
     group: "business",
     defaultStatus: "coming_soon",
     sarahChips: ["Add Danny to the team", "What can my crew see?"],
@@ -124,7 +111,6 @@ export const MODULES: Record<SurfaceKey, SurfaceEntry> = {
   settings: {
     label: "Settings",
     route: "/settings",
-    icon: "Settings",
     sarahChips: ["Change my hours", "Who gets booking texts?", "Update my service area"],
   },
 };

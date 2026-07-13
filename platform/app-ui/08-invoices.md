@@ -236,7 +236,7 @@ enqueue a fake `SarahAction` where natural (send, remind, mark paid).
 
 ## 6. Components
 
-- From 00 §8: `PageHeader` (title, preview badge, `+ New invoice`, Ask Sarah), `DataTable`
+- From 00 §8: `PageHeader` (title, `+ New invoice` action), `DataTable`
   (search, status filter, responsive hiding, empty-state slot), `StatCard` ×3, `StatusBadge`
   (extend the map with the six invoice statuses — overdue red, paid green, viewed blue, draft
   gray, void muted), `Timeline` on the linked contact page, `EmptyState` / `GatedState`,
@@ -251,8 +251,8 @@ enqueue a fake `SarahAction` where natural (send, remind, mark paid).
 
 ## 7. States
 
-- **`preview`** (today's default for demo accounts): full UI on the Apex fixtures + the slim
-  amber banner per 00 §4 — *"Preview — we're building this with you. Ask Sarah about it."*
+- **`preview`** (today's default for demo accounts): full UI on the Apex fixtures, no banner
+  or badge (00 §4).
 - **`coming_soon`** (real partners until this ships): `GatedState` teaser with the REBRAND §3.4
   promise verbatim — **"Invoicing — Send and track invoices by text."** — plus "Ask Sarah about
   it" (opens the widget). Never a broken or empty screen.
