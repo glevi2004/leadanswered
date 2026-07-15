@@ -287,6 +287,11 @@ enum AgentStatus {
   working
 }
 
+enum DepartmentStatus {
+  active // has a real, working agent (v0: Engineering only)
+  in_development // visible on the canvas as a locked "In development" tile, no agent yet
+}
+
 enum TaskStatus {
   agent_can_do
   needs_input
@@ -362,7 +367,7 @@ model Department {
   id        String   @id @default(cuid())
   orgId     String
   key       String // sales | operations | finance | legal | engineering | design | marketing | support
-  active    Boolean  @default(true)
+  status    DepartmentStatus @default(in_development)
   context   String   @default("") @db.Text
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
