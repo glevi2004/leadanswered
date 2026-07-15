@@ -136,6 +136,290 @@ export interface EscalationRecord {
   status: string;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Lu Computer — agent-backend entities (ADDITIVE). Records mirror the Prisma
+// models in packages/db/prisma/schema.prisma (AGENTS-BACKEND.md §2). Every model
+// is org-scoped via a scalar `orgId`. Enum-typed columns are surfaced as plain
+// strings here (matching how LeadRecord.status / AppointmentRecord.status are
+// modeled); JSON columns are typed as `unknown` / `Record<string, unknown>`.
+// Timestamps are optional ISO strings (like MessageRecord.createdAt).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** A department (one of the 8) instantiated for an org. */
+export interface DepartmentRecord {
+  id: string;
+  orgId: string;
+  key: string;
+  active: boolean;
+  context: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+export type DepartmentPatch = Partial<{ active: boolean; context: string }>;
+
+/** A hired agent. `contract` = its CONTRACT.md identity file; `models` = model ids. */
+export interface AgentRecord {
+  id: string;
+  orgId: string;
+  departmentKey: string;
+  name: string;
+  role: string;
+  contract: string;
+  models: Record<string, unknown>;
+  status: string; // idle | working
+  createdAt?: string;
+  updatedAt?: string;
+}
+export interface CreateAgentInput {
+  orgId: string;
+  departmentKey: string;
+  name: string;
+  role: string;
+  contract?: string;
+  models?: Record<string, unknown>;
+  status?: string;
+}
+export type AgentPatch = Partial<{
+  departmentKey: string;
+  name: string;
+  role: string;
+  contract: string;
+  models: Record<string, unknown>;
+  status: string;
+}>;
+
+/** A unit of work. Roadmap steps ARE tasks (ordering + needs_earlier). */
+export interface TaskRecord {
+  id: string;
+  orgId: string;
+  departmentKey: string;
+  agentId: string | null;
+  title: string;
+  body: string;
+  status: string;
+  parentTaskId: string | null;
+  input: unknown | null;
+  result: unknown | null;
+  model: string | null;
+  assignedBy: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+export interface CreateTaskInput {
+  orgId: string;
+  departmentKey: string;
+  agentId?: string | null;
+  title: string;
+  body?: string;
+  status?: string;
+  parentTaskId?: string | null;
+  input?: unknown;
+  result?: unknown;
+  model?: string | null;
+  assignedBy: string;
+}
+export type TaskPatch = Partial<{
+  departmentKey: string;
+  agentId: string | null;
+  title: string;
+  body: string;
+  status: string;
+  parentTaskId: string | null;
+  input: unknown;
+  result: unknown;
+  model: string | null;
+  assignedBy: string;
+}>;
+export interface TaskFilter {
+  departmentKey?: string;
+  status?: string;
+}
+
+/** An output produced by a task/agent — powers the ArtifactsNav. */
+export interface ArtifactRecord {
+  id: string;
+  orgId: string;
+  taskId: string | null;
+  agentId: string | null;
+  kind: string;
+  title: string;
+  payload: unknown;
+  createdAt?: string;
+}
+export interface AddArtifactInput {
+  orgId: string;
+  taskId?: string | null;
+  agentId?: string | null;
+  kind: string;
+  title: string;
+  payload?: unknown;
+}
+/** List artifacts by task (`taskId`) or by org (`orgId`); both may be combined. */
+export interface ArtifactFilter {
+  taskId?: string;
+  orgId?: string;
+}
+
+/** A customer / dogfood website. Domain default = {slug}.lu.computer. */
+export interface SiteRecord {
+  id: string;
+  orgId: string;
+  departmentKey: string | null;
+  repoFullName: string | null;
+  vercelProjectId: string | null;
+  domain: string | null;
+  status: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+export interface CreateSiteInput {
+  orgId: string;
+  departmentKey?: string | null;
+  repoFullName?: string | null;
+  vercelProjectId?: string | null;
+  domain?: string | null;
+  status?: string;
+}
+export type SitePatch = Partial<{
+  departmentKey: string | null;
+  repoFullName: string | null;
+  vercelProjectId: string | null;
+  domain: string | null;
+  status: string;
+}>;
+
+/** A preview / production deploy of a Site. */
+export interface DeploymentRecord {
+  id: string;
+  siteId: string;
+  env: string;
+  url: string;
+  sha: string | null;
+  prNumber: number | null;
+  status: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+export interface AddDeploymentInput {
+  siteId: string;
+  env: string;
+  url: string;
+  sha?: string | null;
+  prNumber?: number | null;
+  status?: string;
+}
+
+/** A sandbox / terminal coding session (CANVAS-TOOLS §4). */
+export interface SessionRecord {
+  id: string;
+  orgId: string;
+  sandboxId: string | null;
+  agentKind: string;
+  repo: string | null;
+  status: string;
+  transcript: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+export interface CreateSessionInput {
+  orgId: string;
+  agentKind: string;
+  sandboxId?: string | null;
+  repo?: string | null;
+  status?: string;
+  transcript?: string | null;
+}
+export type SessionPatch = Partial<{
+  sandboxId: string | null;
+  repo: string | null;
+  status: string;
+  transcript: string | null;
+}>;
+
+/** Generalized human-in-the-loop gate (extends the SMS hard-gate). Feeds "Needs you". */
+export interface ApprovalRecord {
+  id: string;
+  orgId: string;
+  taskId: string | null;
+  action: string;
+  status: string;
+  decidedBy: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+export interface CreateApprovalInput {
+  orgId: string;
+  taskId?: string | null;
+  action: string;
+}
+
+/** A user-created element on the canvas plane (CANVAS-TOOLS §1). */
+export interface CanvasNodeRecord {
+  id: string;
+  orgId: string;
+  type: string;
+  x: number;
+  y: number;
+  w: number | null;
+  h: number | null;
+  refId: string | null;
+  z: number | null;
+  createdBy: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+export interface CreateCanvasNodeInput {
+  orgId: string;
+  type: string;
+  x: number;
+  y: number;
+  w?: number | null;
+  h?: number | null;
+  refId?: string | null;
+  z?: number | null;
+  createdBy?: string | null;
+}
+export type CanvasNodePatch = Partial<{
+  type: string;
+  x: number;
+  y: number;
+  w: number | null;
+  h: number | null;
+  refId: string | null;
+  z: number | null;
+}>;
+
+/** A directed connection between canvas nodes / agents — owns | reads | produces. */
+export interface EdgeRecord {
+  id: string;
+  orgId: string;
+  fromId: string;
+  toId: string;
+  kind: string;
+  createdAt?: string;
+}
+export interface CreateEdgeInput {
+  orgId: string;
+  fromId: string;
+  toId: string;
+  kind: string;
+}
+
+/** A folder / library — an agent's knowledge + asset store (CANVAS-TOOLS §6). */
+export interface CollectionRecord {
+  id: string;
+  orgId: string;
+  agentId: string | null;
+  name: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+export interface CreateCollectionInput {
+  orgId: string;
+  agentId?: string | null;
+  name: string;
+}
+
 /** Persistence port. Implemented by MemoryStore (demo/tests) and PrismaStore (production). */
 export interface Store {
   getOrganization(id: string): Promise<OrganizationConfig | null>;
@@ -224,4 +508,57 @@ export interface Store {
   getEscalation(id: string): Promise<EscalationRecord | null>;
   /** Conditional expire — true only if it flipped open→expired (idempotent). */
   expireEscalation(id: string): Promise<boolean>;
+
+  // ─── Lu Computer agent backend (AGENTS-BACKEND.md §2/§3) ───────────────────
+
+  // --- Agents & Departments ---
+  createAgent(input: CreateAgentInput): Promise<AgentRecord>;
+  getAgent(id: string): Promise<AgentRecord | null>;
+  listAgents(orgId: string): Promise<AgentRecord[]>;
+  updateAgent(id: string, patch: AgentPatch): Promise<AgentRecord>;
+  /** Replace an agent's contract AND append a ContractRevision (diff/revert history, §5a). */
+  updateAgentContract(id: string, content: string): Promise<AgentRecord>;
+  listDepartments(orgId: string): Promise<DepartmentRecord[]>;
+  /** Create-or-update the (orgId, key) department — its `active` flag + `context`. */
+  upsertDepartment(orgId: string, key: string, patch: DepartmentPatch): Promise<DepartmentRecord>;
+
+  // --- Tasks ---
+  createTask(input: CreateTaskInput): Promise<TaskRecord>;
+  getTask(id: string): Promise<TaskRecord | null>;
+  listTasks(orgId: string, filter?: TaskFilter): Promise<TaskRecord[]>;
+  updateTaskStatus(id: string, status: string): Promise<TaskRecord>;
+  updateTask(id: string, patch: TaskPatch): Promise<TaskRecord>;
+
+  // --- Artifacts ---
+  addArtifact(input: AddArtifactInput): Promise<ArtifactRecord>;
+  listArtifacts(filter: ArtifactFilter): Promise<ArtifactRecord[]>;
+
+  // --- Sites & Deployments ---
+  createSite(input: CreateSiteInput): Promise<SiteRecord>;
+  getSite(id: string): Promise<SiteRecord | null>;
+  updateSite(id: string, patch: SitePatch): Promise<SiteRecord>;
+  addDeployment(input: AddDeploymentInput): Promise<DeploymentRecord>;
+  listDeployments(siteId: string): Promise<DeploymentRecord[]>;
+
+  // --- Sessions ---
+  createSession(input: CreateSessionInput): Promise<SessionRecord>;
+  getSession(id: string): Promise<SessionRecord | null>;
+  updateSession(id: string, patch: SessionPatch): Promise<SessionRecord>;
+
+  // --- Approvals ---
+  createApproval(input: CreateApprovalInput): Promise<ApprovalRecord>;
+  /** Resolve a pending approval → approved | rejected (records `decidedBy`). */
+  resolveApproval(id: string, decision: string, decidedBy?: string | null): Promise<ApprovalRecord>;
+  listPendingApprovals(orgId: string): Promise<ApprovalRecord[]>;
+
+  // --- Canvas (nodes / edges / collections) ---
+  createCanvasNode(input: CreateCanvasNodeInput): Promise<CanvasNodeRecord>;
+  listCanvasNodes(orgId: string): Promise<CanvasNodeRecord[]>;
+  updateCanvasNode(id: string, patch: CanvasNodePatch): Promise<CanvasNodeRecord>;
+  deleteCanvasNode(id: string): Promise<void>;
+  createEdge(input: CreateEdgeInput): Promise<EdgeRecord>;
+  listEdges(orgId: string): Promise<EdgeRecord[]>;
+  deleteEdge(id: string): Promise<void>;
+  createCollection(input: CreateCollectionInput): Promise<CollectionRecord>;
+  listCollections(orgId: string): Promise<CollectionRecord[]>;
 }
