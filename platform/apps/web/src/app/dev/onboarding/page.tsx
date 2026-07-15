@@ -1,6 +1,6 @@
 "use client";
 
-/** DEV-ONLY sketch of the self-onboarding first-run (VISION-LU §3). Public in development. */
+/** DEV-ONLY harness for the flagship "boot up your company" onboarding (ONBOARDING.md). Public in development. */
 import { OnboardingSketch } from "@/components/onboarding/OnboardingSketch";
 
 export default function DevOnboarding() {

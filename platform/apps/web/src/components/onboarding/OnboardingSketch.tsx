@@ -5,58 +5,71 @@ import { AnimatePresence, motion } from "motion/react";
 import {
   ArrowLeft,
   ArrowRight,
-  Calendar,
+  Boxes,
   Check,
-  Clock,
+  Code2,
   Globe,
-  Import,
-  Link2,
-  Loader2,
-  Mail,
-  MessageSquare,
-  Phone,
+  Headphones,
+  Lock,
+  Megaphone,
+  PenTool,
+  Scale,
   Sparkles,
-  Star,
+  TrendingUp,
+  Volume2,
+  VolumeX,
+  Wallet,
 } from "lucide-react";
 import { SarahIcon } from "@/components/icons/sarah";
 import { FacebookMark } from "@/components/content/FacebookMark";
-import { ScheduleClient } from "@/components/schedule/ScheduleClient";
-import type { AvailabilityWindow } from "@/lib/onboarding-state";
-import type { ScheduleItem } from "@/lib/data/schedule/types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { writeOnboardedProfile } from "@/lib/org-cookie";
 import type { OrgProfile } from "@/lib/data/org-profile";
 import { TeamSetup } from "@/components/team/TeamSetup";
 import type { Member } from "@/lib/data/team/types";
+import { agentById, type DeptId } from "@/lib/canvas/graph";
+import { PixelThinking } from "./PixelThinking";
 
 /**
- * SKETCH — self-onboarding, first run (VISION-LU §3). The owner talks to Lu on
- * the left; on the right, ONE thing fills the space on its turn. The opening
- * asks for their existing web + socials, Lu "studies" them (Tavily-style
- * scrape), and shows a rich "what I know about you" profile — which also seeds
- * her running their socials later. Not wired; a clickable sketch.
+ * ONBOARDING — the flagship, video-game / Wii-like first run (ONBOARDING.md).
+ *
+ * You don't "set up a receptionist" — you **boot up your company**. Lu walks you
+ * through a short spine, then the heart of it: your 8 departments ASSEMBLE onto a
+ * canvas (springy nodes + pixel poofs), Engineering lights up ACTIVE and the
+ * other 7 land as locked "In development" tiles. Personality is in the MOTION,
+ * not a mascot (LOCKED). Steps hand off through a mosaic/pixel wipe; before every
+ * Lu line, a <PixelThinking/> charging orb shows she's about to talk.
+ *
+ * Data is still the MOCK cookie finish, isolated behind the single `provision()`
+ * seam near the bottom — swap that one function for a real API later.
  */
 
-type Phase = "welcome" | "chat" | "building" | "ready";
-type GcalStatus = "idle" | "loading" | "connected";
-type StepKey = "trade" | "links" | "learning" | "handle" | "assistant" | "site" | "email" | "phone" | "sms" | "hours" | "gcal" | "team";
+/* ------------------------------------------------------------------ model --- */
+
+type Screen =
+  | "welcome"
+  | "business"
+  | "links"
+  | "learning"
+  | "handle"
+  | "assemble"
+  | "engineer"
+  | "team"
+  | "finish";
+
+/** The screens where Lu chats on the left and one thing fills the stage on the right. */
+const CHAT_SCREENS: Screen[] = ["business", "links", "learning", "handle"];
+const isChat = (s: Screen) => CHAT_SCREENS.includes(s);
 
 interface Workspace {
-  trade?: string;
+  business?: string;
   website?: string;
   facebook?: string;
   instagram?: string;
   gaveLinks?: boolean;
   name?: string;
   handle?: string;
-  assistantName?: string;
-  emailSent?: boolean;
-  line?: string;
-  ownerCell?: string;
-  textSent?: boolean;
-  hours?: string;
-  gcal?: boolean;
 }
 
 interface Msg {
@@ -65,20 +78,10 @@ interface Msg {
   body: string;
 }
 
-interface Snapshot {
-  step: StepKey;
-  ws: Workspace;
-  msgs: Msg[];
-  avail: Set<string>;
-  gcalStatus: GcalStatus;
-}
-
-// Neutral quick-fill examples for "what do you do?" — free text is the primary path.
-const WORK_EXAMPLES = ["Law firm", "Design agency", "Consulting", "Home services"];
-const LINE = "(844) 415-7642";
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "");
+const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
 
-/** Best-guess business name from whatever links they gave (domain / handle → titlecased label). */
+/** Best-guess business name from whatever links they gave (domain / handle → label). */
 function nameFromLinks(data: { website?: string; facebook?: string; instagram?: string }): string {
   const raw = (data.website || data.facebook || data.instagram || "").trim();
   if (!raw) return "";
@@ -89,521 +92,630 @@ function nameFromLinks(data: { website?: string; facebook?: string; instagram?: 
       .replace(/^@/, "")
       .replace(/^(facebook|instagram)\.com\//i, "")
       .split(/[/.]/)[0] ?? "";
-  return label ? label.charAt(0).toUpperCase() + label.slice(1) : "";
+  return label ? titleCase(label.replace(/[-_]+/g, " ")) : "";
 }
+
+const BUSINESS_EXAMPLES = ["Law firm", "Design agency", "Consulting", "Home services"];
 
 let mid = 0;
 const nextId = () => ++mid;
 
-/* --------------------- availability grid model (shared) -------------------- */
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const HOURS = Array.from({ length: 12 }, (_, i) => 7 + i); // 7a … 6p start-blocks
-const fmtHour = (h: number) => `${h % 12 || 12}${h < 12 ? "a" : "p"}`;
-const HATCH: React.CSSProperties = { backgroundImage: "repeating-linear-gradient(135deg, color-mix(in oklab, var(--foreground) 34%, transparent) 0 2px, transparent 2px 4.5px)" };
-const PRESETS: Record<string, [number[], number, number]> = {
-  "Weekdays 8–5": [[0, 1, 2, 3, 4], 8, 17],
-  "Weekdays 9–7": [[0, 1, 2, 3, 4], 9, 19],
-  "Mon–Sat 9–7": [[0, 1, 2, 3, 4, 5], 9, 19],
+/* --------------------------------------------------------------- dept meta --- */
+// Reuse the exact 8 departments (label + accent) from the canvas graph, with the
+// same lucide glyphs the canvas uses. Engineering is the ONE real agent; the rest
+// land as locked "In development" tiles (ONBOARDING.md §3 — not graph.ts's `active`).
+
+const DEPT_ICON: Record<DeptId, React.ComponentType<{ className?: string }>> = {
+  support: Headphones,
+  operations: Boxes,
+  finance: Wallet,
+  legal: Scale,
+  engineering: Code2,
+  design: PenTool,
+  marketing: Megaphone,
+  sales: TrendingUp,
 };
-const presetSet = (label: string) => {
-  const s = new Set<string>();
-  const [days, h0, h1] = PRESETS[label] ?? [[], 0, 0];
-  days.forEach((d) => { for (let h = h0; h < h1; h++) s.add(`${d}-${h}`); });
-  return s;
-};
-// fake Google events, all sitting INSIDE the open hours — the "busy" overlay
-const BUSY = [
-  { day: 1, start: 14, end: 16, label: "Dentist" },
-  { day: 3, start: 9, end: 12, label: "Client meeting" },
-  { day: 4, start: 15, end: 17, label: "Errand" },
+
+/** Assembly order: Engineering is the hero (lands first + active), then the 7 orbit in. */
+const ASSEMBLE_ORDER: DeptId[] = [
+  "engineering",
+  "finance",
+  "operations",
+  "sales",
+  "support",
+  "marketing",
+  "design",
+  "legal",
 ];
 
-/** onboarding day/hour Set → the schedule component's AvailabilityWindow[] (Mon=1 … Sun=0). */
-function windowsFromAvail(avail: Set<string>): AvailabilityWindow[] {
-  const out: AvailabilityWindow[] = [];
-  for (let d = 0; d < 7; d++) {
-    const hrs = HOURS.filter((h) => avail.has(`${d}-${h}`)).sort((a, b) => a - b);
-    let start: number | null = null;
-    for (let i = 0; i < hrs.length; i++) {
-      if (start === null) start = hrs[i];
-      if (hrs[i + 1] !== hrs[i] + 1) {
-        out.push({ dayOfWeek: (d + 1) % 7, start: `${String(start).padStart(2, "0")}:00`, end: `${String(hrs[i] + 1).padStart(2, "0")}:00` });
-        start = null;
-      }
-    }
-  }
-  return out;
-}
+const DEPT_CAPTION: Record<DeptId, string> = {
+  engineering: "Engineering — your first hire. It builds your sites, tools, and integrations.",
+  finance: "Finance — quotes, invoices, collections. Coming online soon.",
+  operations: "Operations — jobs, scheduling, dispatch. Coming online soon.",
+  sales: "Sales — pipeline, follow-ups, closing. Coming online soon.",
+  support: "Support — answers customers and books the work. Coming online soon.",
+  marketing: "Marketing — brand, content, SEO. Coming online soon.",
+  design: "Design — brand assets and prototypes. Coming online soon.",
+  legal: "Legal — contracts and e-sign. Coming online soon.",
+};
 
-/** the fake Google events as real ScheduleItems, placed in the current week (blocks read as "busy"). */
-function busyItemsThisWeek(): ScheduleItem[] {
-  const monday = new Date();
-  monday.setHours(0, 0, 0, 0);
-  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
-  return BUSY.map((b, i) => {
-    const s = new Date(monday); s.setDate(s.getDate() + b.day); s.setHours(b.start, 0, 0, 0);
-    const e = new Date(monday); e.setDate(e.getDate() + b.day); e.setHours(b.end, 0, 0, 0);
-    return { id: `busy_${i}`, kind: "block" as const, contactName: b.label, startAt: s.toISOString(), endAt: e.toISOString(), status: "confirmed" as const, bookedBy: "owner" as const };
-  });
-}
+/* --------------------------------------------------------------- Lu's lines --- */
 
-/** Instagram gradient camera (lucide dropped brand icons). */
-function InstagramMark({ className = "size-3" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden>
-      <defs>
-        <linearGradient id="ig-grad" x1="0" y1="1" x2="1" y2="0">
-          <stop offset="0" stopColor="#FEDA75" />
-          <stop offset="0.35" stopColor="#FA7E1E" />
-          <stop offset="0.6" stopColor="#D62976" />
-          <stop offset="1" stopColor="#962FBF" />
-        </linearGradient>
-      </defs>
-      <rect x="1" y="1" width="22" height="22" rx="6" fill="url(#ig-grad)" />
-      <rect x="5.5" y="5.5" width="13" height="13" rx="4" fill="none" stroke="#fff" strokeWidth="1.8" />
-      <circle cx="12" cy="12" r="3.2" fill="none" stroke="#fff" strokeWidth="1.8" />
-      <circle cx="16.6" cy="7.4" r="1" fill="#fff" />
-    </svg>
-  );
-}
+const CHAT_LINES: Partial<Record<Screen, (ws: Workspace) => string>> = {
+  business: () => "I'm Lu. Let's boot up your company. First — what do you do? In your own words.",
+  links: () =>
+    "Nice. Got a site or socials? Drop whatever you've got and I'll study up — it's how your agents learn to build in your voice.",
+  learning: (ws) =>
+    ws.gaveLinks
+      ? "Reading through those now — your voice, your services, all of it. One sec…"
+      : "No links yet — no problem. We'll build it together and I'll learn as we go.",
+  handle: (ws) =>
+    `Your handle is reserved: ${ws.handle || "you"}.lu.computer — it's where your Engineer ships your sites. Keep it, or change it?`,
+};
 
-/** DEV-only: fill every field so you can jump straight to any step and it renders. */
+/* --------------------------------------------------------------- dev harness --- */
+
 const DEV_DEFAULTS: Workspace = {
-  trade: "Design agency",
+  business: "Design agency",
   website: "northstardesign.com",
   facebook: "facebook.com/northstardesign",
   instagram: "@northstardesign",
   gaveLinks: true,
   name: "Northstar Design",
   handle: "northstardesign",
-  assistantName: "Lu",
-  emailSent: true,
-  line: LINE,
-  ownerCell: "(617) 555-0142",
-  textSent: true,
-  hours: "Mon–Sat 9–7",
-  gcal: true,
 };
-const DEV_STEPS: StepKey[] = ["trade", "links", "learning", "handle", "assistant", "site", "email", "phone", "sms", "hours", "gcal", "team"];
 
-/** DEV-only skip bar (this is a dev harness) — jump to any step or phase. */
-function DevBar({ phase, step, onStep, onPhase }: { phase: Phase; step: StepKey; onStep: (s: StepKey) => void; onPhase: (p: Phase) => void }) {
-  const pill = "shrink-0 rounded-full px-2 py-0.5 capitalize text-muted-foreground transition-colors hover:bg-muted hover:text-foreground";
+const SEQUENCE: Screen[] = [
+  "welcome",
+  "business",
+  "links",
+  "learning",
+  "handle",
+  "assemble",
+  "engineer",
+  "team",
+  "finish",
+];
+
+function DevBar({ screen, onJump }: { screen: Screen; onJump: (s: Screen) => void }) {
+  const pill =
+    "shrink-0 rounded-full px-2 py-0.5 capitalize text-muted-foreground transition-colors hover:bg-muted hover:text-foreground";
   const on = "bg-foreground text-background";
   return (
-    <div className="fixed left-1/2 top-2 z-50 flex max-w-[96vw] -translate-x-1/2 items-center gap-0.5 overflow-x-auto rounded-full border bg-card/95 px-2 py-1 text-[10px] shadow-md backdrop-blur">
-      <span className="shrink-0 pr-1 font-semibold uppercase tracking-wide text-muted-foreground/70">dev · skip to</span>
-      <button type="button" onClick={() => onPhase("welcome")} className={cn(pill, phase === "welcome" && on)}>welcome</button>
-      {DEV_STEPS.map((s) => (
-        <button key={s} type="button" onClick={() => onStep(s)} className={cn(pill, phase === "chat" && step === s && on)}>
+    <div className="fixed left-1/2 top-2 z-[70] flex max-w-[96vw] -translate-x-1/2 items-center gap-0.5 overflow-x-auto rounded-full border bg-card/95 px-2 py-1 text-[10px] shadow-md backdrop-blur">
+      <span className="shrink-0 pr-1 font-semibold uppercase tracking-wide text-muted-foreground/70">
+        dev · jump to
+      </span>
+      {SEQUENCE.map((s) => (
+        <button key={s} type="button" onClick={() => onJump(s)} className={cn(pill, screen === s && on)}>
           {s}
         </button>
       ))}
-      <button type="button" onClick={() => onPhase("building")} className={cn(pill, phase === "building" && on)}>building</button>
-      <button type="button" onClick={() => onPhase("ready")} className={cn(pill, phase === "ready" && on)}>ready</button>
     </div>
   );
 }
 
+/* --------------------------------------------------------------- soft blips --- */
+// Quiet menu ticks (advance) + pops (node-land) — MUTED by default, toggle to enable.
+
+function useBlips() {
+  const [enabled, setEnabled] = React.useState(false);
+  const ctxRef = React.useRef<AudioContext | null>(null);
+  const ensure = React.useCallback(() => {
+    if (typeof window === "undefined") return null;
+    if (!ctxRef.current) {
+      const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (AC) ctxRef.current = new AC();
+    }
+    return ctxRef.current;
+  }, []);
+  const blip = React.useCallback(
+    (freq: number, dur = 0.08, type: OscillatorType = "square") => {
+      if (!enabled) return;
+      const ctx = ensure();
+      if (!ctx) return;
+      if (ctx.state === "suspended") void ctx.resume();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = type;
+      o.frequency.value = freq;
+      const t0 = ctx.currentTime;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.05, t0 + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g);
+      g.connect(ctx.destination);
+      o.start(t0);
+      o.stop(t0 + dur);
+    },
+    [enabled, ensure],
+  );
+  const tick = React.useCallback(() => blip(660, 0.06, "square"), [blip]);
+  const pop = React.useCallback(() => blip(430, 0.09, "triangle"), [blip]);
+  return { enabled, setEnabled, tick, pop };
+}
+
+function SoundToggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-label={enabled ? "Mute sounds" : "Enable sounds"}
+      title={enabled ? "Sounds on" : "Sounds off (muted)"}
+      className="card-lift fixed right-3 top-3 z-[65] grid size-9 place-items-center rounded-xl border bg-card text-muted-foreground hover:text-foreground"
+    >
+      {enabled ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
+    </button>
+  );
+}
+
+/* --------------------------------------------------------------- mosaic wipe --- */
+// The classic Wii channel feel: the screen pixelates OUT into chunky tiles (cover),
+// we swap the step underneath at the peak, then it resolves IN (reveal). One pass.
+
+function MosaicWipe({ onCover, onDone }: { onCover: () => void; onDone: () => void }) {
+  const [dims, setDims] = React.useState<{ cols: number; rows: number }>({ cols: 0, rows: 0 });
+  const [phase, setPhase] = React.useState<"cover" | "reveal">("cover");
+
+  React.useEffect(() => {
+    const TILE = 46;
+    setDims({ cols: Math.ceil(window.innerWidth / TILE), rows: Math.ceil(window.innerHeight / TILE) });
+  }, []);
+
+  const STEP = 12; // ms per diagonal band
+  const maxDiag = dims.cols + dims.rows;
+  const sweepMs = maxDiag * STEP + 200;
+
+  React.useEffect(() => {
+    if (!dims.cols) return;
+    const t = setTimeout(() => {
+      onCover();
+      setPhase("reveal");
+    }, sweepMs);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dims.cols]);
+
+  React.useEffect(() => {
+    if (phase !== "reveal") return;
+    const t = setTimeout(onDone, sweepMs);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
+  if (!dims.cols) return null;
+  const covering = phase === "cover";
+  return (
+    // pointer-events AUTO: the overlay locks input for the whole cover→reveal pass, so the
+    // (still-interactive) step underneath can't be clicked mid-transition — the Wii "channel
+    // switch" feel, and it stops a click during the reveal from dropping the next step.
+    <div
+      className="fixed inset-0 z-[60] grid"
+      style={{ gridTemplateColumns: `repeat(${dims.cols}, 1fr)`, gridTemplateRows: `repeat(${dims.rows}, 1fr)` }}
+      aria-hidden
+    >
+      {Array.from({ length: dims.cols * dims.rows }).map((_, idx) => {
+        const col = idx % dims.cols;
+        const row = Math.floor(idx / dims.cols);
+        const diag = col + row;
+        const delay = (covering ? diag : maxDiag - diag) * STEP;
+        return (
+          <motion.div
+            key={idx}
+            initial={false}
+            animate={covering ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.25 }}
+            transition={{ duration: 0.16, delay: delay / 1000, ease: "easeOut" }}
+            style={{
+              background: (col + row) % 2 === 0 ? "var(--card)" : "var(--muted)",
+              outline: "1px solid color-mix(in oklab, var(--foreground) 6%, transparent)",
+              outlineOffset: -1,
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+/* --------------------------------------------------------------- pixel poof --- */
+// A small burst of chunky pixel bits that flies outward when a department node lands.
+
+function PixelPoof({ n = 10 }: { n?: number }) {
+  const bits = React.useMemo(
+    () =>
+      Array.from({ length: n }, (_, i) => {
+        const ang = (i / n) * Math.PI * 2 + (i % 2 ? 0.3 : 0);
+        const dist = 24 + (i % 3) * 9;
+        return { x: Math.cos(ang) * dist, y: Math.sin(ang) * dist, s: 3 + (i % 2) * 2 };
+      }),
+    [n],
+  );
+  return (
+    <div className="pointer-events-none absolute inset-0 grid place-items-center" aria-hidden>
+      {bits.map((b, i) => (
+        <motion.span
+          key={i}
+          className="absolute"
+          style={{ width: b.s, height: b.s, background: "currentColor", borderRadius: 1 }}
+          initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+          animate={{ x: b.x, y: b.y, opacity: 0, scale: 0.4 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ================================================================= ROOT ===== */
+
 export function OnboardingSketch() {
-  const [phase, setPhase] = React.useState<Phase>("welcome");
-  const [step, setStep] = React.useState<StepKey>("trade");
+  const [screen, setScreen] = React.useState<Screen>("welcome");
   const [ws, setWs] = React.useState<Workspace>({});
   const [msgs, setMsgs] = React.useState<Msg[]>([]);
-  const [typingId, setTypingId] = React.useState<number | null>(null);
-  const [avail, setAvail] = React.useState<Set<string>>(new Set());
-  const [gcalStatus, setGcalStatus] = React.useState<GcalStatus>("idle");
-  const [history, setHistory] = React.useState<Snapshot[]>([]);
-  const [teamMembers, setTeamMembers] = React.useState<Member[]>([]);
-  const pushHistory = () => setHistory((h) => [...h, { step, ws, msgs, avail, gcalStatus }]);
-  const goBack = () =>
-    setHistory((h) => {
-      if (!h.length) return h;
-      const prev = h[h.length - 1];
-      setStep(prev.step);
-      setWs(prev.ws);
-      setMsgs(prev.msgs);
-      setAvail(prev.avail);
-      setGcalStatus(prev.gcalStatus);
-      setTypingId(null);
-      return h.slice(0, -1);
-    });
+  const [thinking, setThinking] = React.useState(false);
+  const [team, setTeam] = React.useState<Member[]>([]);
+  const [history, setHistory] = React.useState<Screen[]>([]);
+
+  const [wipe, setWipe] = React.useState(false);
+  const pendingRef = React.useRef<Screen | null>(null);
+  const skipHistoryRef = React.useRef(false); // set when the pending nav is a back() → don't re-push
+  const spokeRef = React.useRef<Set<Screen>>(new Set());
+  const timers = React.useRef<ReturnType<typeof setTimeout>[]>([]);
   const threadRef = React.useRef<HTMLDivElement>(null);
+  const blips = useBlips();
 
-  const say = (role: Msg["role"], body: string) => {
-    const id = nextId();
-    setMsgs((m) => [...m, { id, role, body }]);
-    if (role === "lu") setTypingId(id);
-    return id;
-  };
-  const scrollThread = React.useCallback(() => threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight }), []);
-  React.useEffect(() => { threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: "smooth" }); }, [msgs, step, typingId]);
+  React.useEffect(() => () => timers.current.forEach(clearTimeout), []);
+  React.useEffect(() => {
+    threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: "smooth" });
+  }, [msgs, thinking, screen]);
 
-  const start = () => {
-    setPhase("chat");
-    say("lu", "Welcome — I'm Lu. Let's set up your workspace. First, what's your business — what do you do?");
-  };
+  /* ---- Lu's turn: a PixelThinking beat, then the line renders in the normal font ---- */
+  const luSay = React.useCallback(
+    (text: string) => {
+      setThinking(true);
+      const t = setTimeout(() => {
+        setMsgs((m) => [...m, { id: nextId(), role: "lu", body: text }]);
+        setThinking(false);
+      }, 850);
+      timers.current.push(t);
+    },
+    [],
+  );
+  const ownerSay = React.useCallback((text: string) => {
+    setMsgs((m) => [...m, { id: nextId(), role: "owner", body: text }]);
+  }, []);
 
-  /* ------------------------------ the steps ------------------------------ */
-  const answerTrade = (t: string) => {
-    pushHistory();
-    say("owner", t);
-    setWs((w) => ({ ...w, trade: t }));
-    say("lu", `${t} — got it. Do you already have a website or socials? Drop whatever you've got and I'll study up — it's how I learn your voice, your services, all of it.`);
-    setStep("links");
-  };
-  const answerLinks = (data: { website?: string; facebook?: string; instagram?: string; skipped?: boolean }) => {
-    pushHistory();
-    if (data.skipped) {
-      say("owner", "Starting fresh");
-      setWs((w) => ({ ...w, gaveLinks: false }));
-      say("lu", `No problem — we'll build it together and I'll learn as we go. Give me one sec…`);
-    } else {
-      const name = nameFromLinks(data);
-      say("owner", [data.website, data.facebook, data.instagram].filter(Boolean).join(" · "));
-      setWs((w) => ({ ...w, ...data, gaveLinks: true, name, handle: slugify(name) }));
-      say("lu", `Great — reading through those now. Give me a few seconds 👉`);
+  /* ---- step handoff through the mosaic wipe (swap the screen at the covered peak) ---- */
+  const go = React.useCallback(
+    (next: Screen) => {
+      if (wipe) return;
+      blips.tick();
+      pendingRef.current = next;
+      skipHistoryRef.current = false;
+      setWipe(true);
+    },
+    [blips, wipe],
+  );
+  const back = React.useCallback(() => {
+    if (!history.length || wipe) return;
+    const prev = history[history.length - 1];
+    setHistory((h) => h.slice(0, -1));
+    blips.tick();
+    pendingRef.current = prev;
+    skipHistoryRef.current = true; // a back() — don't push the current screen onto history
+    setWipe(true);
+  }, [history, wipe, blips]);
+  // MosaicWipe calls this at the covered peak — swap the screen while it's hidden.
+  const onCover = React.useCallback(() => {
+    const next = pendingRef.current;
+    if (!next) return;
+    if (!skipHistoryRef.current) setHistory((h) => [...h, screen]);
+    skipHistoryRef.current = false;
+    setScreen(next);
+    pendingRef.current = null;
+  }, [screen]);
+
+  /* ---- on entering a chat screen, Lu says its line once ---- */
+  React.useEffect(() => {
+    if (wipe) return; // wait until the wipe has fully revealed
+    const line = CHAT_LINES[screen]?.(ws);
+    if (line && !spokeRef.current.has(screen)) {
+      spokeRef.current.add(screen);
+      luSay(line);
     }
-    setStep("learning");
-  };
-  const continueLearning = () => {
-    pushHistory();
-    const name = ws.name?.trim();
-    say(
-      "lu",
-      ws.gaveLinks && name
-        ? `That's you 👍 I've got you as ${name} — your Lu handle will be “${ws.handle}”. Keep it, or change it?`
-        : `Let's start with the basics — what's your business called?`,
-    );
-    setStep("handle");
-  };
-  const answerHandle = (name: string) => {
-    pushHistory();
-    const handle = slugify(name);
-    say("owner", name);
-    setWs((w) => ({ ...w, name, handle }));
-    say("lu", `${name} — love it, and your handle is reserved at ${handle}.lu.computer. One more thing before we go on — what do you want to call me? Most keep it Lu, but I'll answer to anything.`);
-    setStep("assistant");
-  };
-  const answerAssistant = (assistantName: string) => {
-    pushHistory();
-    const named = assistantName.trim() || "Lu";
-    say("owner", named);
-    setWs((w) => ({ ...w, assistantName: named }));
-    say("lu", `${named} it is — that's what your customers will hear too. Your Lu Space is live at ${ws.handle}.lu.computer 👉 build it with me anytime, or connect the site you already have.`);
-    setStep("site");
-  };
-  const continueSite = () => {
-    pushHistory();
-    say("lu", `You've also got an inbox at ${ws.handle}@lu.computer. Want to see an email from me? Tap it on the right 👉`);
-    setStep("email");
-  };
-  const getEmail = () => {
-    pushHistory();
-    setWs((w) => ({ ...w, emailSent: true, line: LINE }));
-    say("lu", `Sent — that's your inbox 👉 it's where I forward leads and anything that needs you.`);
-  };
-  const continueEmail = () => {
-    pushHistory();
-    say("lu", `I also answer your customers on ${LINE}. What's your cell, so I can reach you?`);
-    setStep("phone");
-  };
-  const answerPhone = (cell: string) => {
-    pushHistory();
-    say("owner", cell);
-    setWs((w) => ({ ...w, ownerCell: cell }));
-    say("lu", `Perfect. Want to feel it? Text yourself from me 👉`);
-    setStep("sms");
-  };
-  const getText = () => {
-    pushHistory();
-    setWs((w) => ({ ...w, textSent: true }));
-    say("lu", `There it is 👉 that's me, live on your line. I'll text you there whenever something needs your OK.`);
-  };
-  const continueSms = () => {
-    pushHistory();
-    say("lu", `Last couple things — when can I book you for jobs?`);
-    setAvail(presetSet("Mon–Sat 9–7"));
-    setWs((w) => ({ ...w, hours: "Mon–Sat 9–7" }));
-    setStep("hours");
-  };
-  const applyPreset = (label: string) => {
-    setAvail(presetSet(label));
-    setWs((w) => ({ ...w, hours: label }));
-  };
-  const editAvail = (next: Set<string>) => {
-    setAvail(next);
-    setWs((w) => ({ ...w, hours: "Custom hours" }));
-  };
-  const continueHours = () => {
-    pushHistory();
-    say("lu", `Perfect — those are your open hours. One more: connect Google Calendar so I also see when you're already busy. I'll never book over a real appointment.`);
-    setStep("gcal");
-  };
-  const connectGcal = () => {
-    pushHistory();
-    say("owner", "Connect Google Calendar");
-    setGcalStatus("loading");
-    say("lu", `One sec — reading your Google Calendar…`);
-    setTimeout(() => {
-      setGcalStatus("connected");
-      setWs((w) => ({ ...w, gcal: true }));
-      say("lu", `Got it — here's your week with everything already on it. I'll book around these.`);
-    }, 1600);
-  };
-  const skipGcal = () => {
-    pushHistory();
-    setWs((w) => ({ ...w, gcal: false }));
-    setStep("team");
-  };
-  const continueGcal = () => {
-    pushHistory();
-    setStep("team");
-  };
-  // team step is the last one → go straight to building the workspace.
-  const finishTeam = () => setPhase("building");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen, wipe]);
 
-  const openWorkspace = () => {
-    const teammates = teamMembers.filter((m) => m.roleKey !== "owner");
+  /* --------------------------------------------------------- answer handlers --- */
+
+  const start = () => go("business");
+
+  const submitBusiness = (t: string) => {
+    ownerSay(t);
+    setWs((w) => ({ ...w, business: t }));
+    go("links");
+  };
+  const submitLinks = (data: { website?: string; facebook?: string; instagram?: string; skipped?: boolean }) => {
+    if (data.skipped) {
+      ownerSay("Starting fresh");
+      setWs((w) => ({ ...w, gaveLinks: false, handle: w.handle || slugify(w.business || "you") }));
+    } else {
+      ownerSay([data.website, data.facebook, data.instagram].filter(Boolean).join(" · ") || "Here you go");
+      const name = nameFromLinks(data);
+      setWs((w) => ({ ...w, ...data, gaveLinks: true, name: name || w.name, handle: slugify(name) || w.handle }));
+    }
+    go("learning");
+  };
+  const continueLearning = () => go("handle");
+  const submitHandle = (h: string) => {
+    const handle = slugify(h) || "you";
+    ownerSay(`${handle}.lu.computer`);
+    setWs((w) => ({ ...w, handle, name: w.name || titleCase(handle) }));
+    go("assemble");
+  };
+  const finishAssemble = () => go("engineer");
+  const finishEngineer = () => go("team");
+  const finishTeam = () => go("finish");
+
+  /* -------------------------------------------------------------- THE SEAM --- */
+  /**
+   * ───────────────────────────────────────────────────────────────────────────
+   * provision() — THE ONE FINISH SEAM. Everything the flow collects funnels here.
+   *
+   * TODAY: writes the MOCK cookie profile and lands on /home, unchanged from the
+   * old flow, so this ships independently of any backend.
+   *
+   * LATER: replace ONLY this function body with a real API call — create the org
+   * + 8 Department rows (Engineering `active` + its Agent, the other 7
+   * `in_development`) per ONBOARDING.md §3/§4 — then navigate. The (ws, team)
+   * inputs and the "navigate into the app" contract stay the same, so no caller
+   * changes are needed.
+   * ───────────────────────────────────────────────────────────────────────────
+   */
+  const provision = React.useCallback((wsIn: Workspace, teamIn: Member[]) => {
+    const teammates = teamIn.filter((m) => m.roleKey !== "owner");
+    const name = wsIn.name || titleCase(wsIn.handle || "") || "Your Company";
     const profile: OrgProfile = {
       id: "org_new",
-      companyName: ws.name || "Your Company",
-      sarahName: ws.assistantName || "Lu",
-      projectTypes: ws.trade ? [ws.trade] : [],
-      standingAvailability: { timezone: "America/New_York", windows: windowsFromAvail(avail) },
-      twilioNumber: ws.line || "(844) 415-7642",
-      ownerCell: ws.ownerCell,
-      siteHandle: ws.handle ? `${ws.handle}.lu.computer` : undefined,
-      assistantEmail: ws.handle ? `${ws.handle}@lu.computer` : undefined,
-      gcalConnected: !!ws.gcal,
-      // Fixed nav — every new org gets the same surfaces, honest-empty.
+      companyName: name,
+      sarahName: "Lu",
+      projectTypes: wsIn.business ? [wsIn.business] : [],
+      siteHandle: wsIn.handle ? `${wsIn.handle}.lu.computer` : undefined,
+      assistantEmail: wsIn.handle ? `${wsIn.handle}@lu.computer` : undefined,
+      // Fixed nav — every new org gets the same honest-empty surfaces.
       modules: { crm: "live", schedule: "live", money: "live", team: "live", agents: "live", sites: "live" },
-      setupSteps: { assistant: true, hours: avail.size > 0, google: !!ws.gcal, ...(teammates.length ? { team: true } : {}) },
+      setupSteps: teammates.length ? { team: true } : {},
       seedMembers: teammates,
     };
     writeOnboardedProfile(profile);
     window.location.href = "/home";
-  };
+  }, []);
 
-  const jumpToStep = (s: StepKey) => {
-    setPhase("chat");
+  const finish = () => provision(ws, team);
+
+  /* --------------------------------------------------------------- dev jump --- */
+  const jump = (s: Screen) => {
     setWs((w) => ({ ...DEV_DEFAULTS, ...w }));
-    setMsgs([]);
-    setTypingId(null);
     setHistory([]);
-    setAvail((a) => (["hours", "gcal", "team"].includes(s) && a.size === 0 ? presetSet("Mon–Sat 9–7") : a));
-    setGcalStatus(["gcal", "team"].includes(s) ? "connected" : "idle");
-    setStep(s);
+    pendingRef.current = null;
+    setWipe(false);
+    if (isChat(s)) {
+      // reset the thread so the jumped-to line re-says cleanly
+      spokeRef.current = new Set();
+      setMsgs([]);
+      setThinking(false);
+    }
+    setScreen(s);
   };
-  const jumpToPhase = (p: Phase) => {
-    setWs((w) => ({ ...DEV_DEFAULTS, ...w }));
-    setPhase(p);
-  };
-  const devBar = <DevBar phase={phase} step={step} onStep={jumpToStep} onPhase={jumpToPhase} />;
 
-  if (phase === "welcome") return (<>{devBar}<Welcome onStart={start} /></>);
-  if (phase === "building") return (<>{devBar}<Building name={ws.name ?? "your business"} onDone={() => setPhase("ready")} /></>);
-  if (phase === "ready") return (<>{devBar}<Ready ws={ws} onOpenWorkspace={openWorkspace} /></>);
+  /* ----------------------------------------------------------------- render --- */
+  const dev = <DevBar screen={screen} onJump={jump} />;
+  const sound = <SoundToggle enabled={blips.enabled} onToggle={() => blips.setEnabled((v) => !v)} />;
+  const wipeEl = wipe ? <MosaicWipe onCover={onCover} onDone={() => setWipe(false)} /> : null;
+  const canBack = history.length > 0 && !wipe;
 
-  // last step — Lu builds your team graph with you (same experience as the Team page)
-  if (step === "team")
+  // full-screen takeovers
+  if (screen === "welcome")
     return (
-      <>
-        {devBar}
+      <Frame>
+        {dev}
+        {sound}
+        <Welcome onStart={start} />
+        {wipeEl}
+      </Frame>
+    );
+
+  if (screen === "assemble")
+    return (
+      <Frame>
+        {dev}
+        {sound}
+        <AssembleStage name={ws.name} onDone={finishAssemble} onLand={blips.pop} />
+        {wipeEl}
+      </Frame>
+    );
+
+  if (screen === "engineer")
+    return (
+      <Frame>
+        {dev}
+        {sound}
+        <EngineerStage onContinue={finishEngineer} />
+        {wipeEl}
+      </Frame>
+    );
+
+  if (screen === "team")
+    return (
+      <Frame>
+        {dev}
+        {sound}
         <div className="mx-auto h-svh w-full max-w-6xl p-4 sm:p-6">
           <TeamSetup
             ownerName="You"
-            onMembersChange={setTeamMembers}
+            onMembersChange={setTeam}
             onDone={finishTeam}
             onSkip={finishTeam}
-            doneLabel="Build my workspace"
+            doneLabel="Finish setup"
             skipLabel="Skip — add my team later"
             className="h-full"
           />
         </div>
-      </>
+        {wipeEl}
+      </Frame>
     );
 
-  const hint =
-    step === "learning"
-      ? "Getting to know you… →"
-      : step === "site"
-        ? "Take a look, then continue →"
-        : step === "email"
-          ? "Tap “Get an email from Lu” →"
-          : step === "sms"
-            ? "Tap “Text me from Lu” →"
-            : step === "gcal"
-              ? gcalStatus === "loading"
-                ? "Reading your calendar…"
-                : gcalStatus === "connected"
-                  ? "Looks good? Continue →"
-                  : "Connect on the right →"
-              : null;
+  if (screen === "finish")
+    return (
+      <Frame>
+        {dev}
+        {sound}
+        <Finish ws={ws} teamCount={team.filter((m) => m.roleKey !== "owner").length} onEnter={finish} />
+        {wipeEl}
+      </Frame>
+    );
 
-  const backBtn =
-    history.length > 0 ? (
-      <button
-        type="button"
-        onClick={goBack}
-        aria-label="Back"
-        className="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" />
-      </button>
-    ) : null;
-
+  /* -------- chat screens: Lu on the left, one thing on the stage to the right -------- */
   return (
-    <div className="mx-auto flex h-svh w-full max-w-6xl gap-4 p-4 sm:p-6">
-      {devBar}
-      {/* LEFT — Lu's conversation */}
-      <div className="flex w-full max-w-md shrink-0 flex-col overflow-hidden rounded-3xl border bg-card">
-        <header className="flex items-center gap-2 border-b px-4 py-3">
-          <SarahIcon className="size-5" />
-          <span className="text-sm font-semibold">Lu</span>
-          <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-            <span className="size-1.5 rounded-full bg-emerald-500" /> setting you up
-          </span>
-        </header>
-        <div ref={threadRef} className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
-          {msgs.map((m) =>
-            m.role === "lu" ? (
-              <motion.p key={m.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="text-sm leading-relaxed text-foreground">
-                <Typewriter text={m.body} stream={m.id === typingId} onTick={scrollThread} onDone={() => setTypingId((t) => (t === m.id ? null : t))} />
-              </motion.p>
-            ) : (
-              <motion.div key={m.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex justify-end">
-                <span className="max-w-[85%] rounded-2xl bg-muted px-3 py-2 text-sm leading-relaxed text-foreground">{m.body}</span>
+    <Frame>
+      {dev}
+      {sound}
+      <div className="mx-auto flex h-svh w-full max-w-6xl gap-4 p-4 sm:p-6">
+        {/* LEFT — Lu's conversation */}
+        <div className="flex w-full max-w-md shrink-0 flex-col overflow-hidden rounded-3xl border bg-card elev-2">
+          <header className="flex items-center gap-2 border-b px-4 py-3">
+            <SarahIcon className="size-5" />
+            <span className="text-sm font-semibold">Lu</span>
+            <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+              <span className="size-1.5 rounded-full bg-emerald-500" /> booting up your company
+            </span>
+          </header>
+          <div ref={threadRef} className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+            {msgs.map((m) =>
+              m.role === "lu" ? (
+                <motion.p
+                  key={m.id}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-sm leading-relaxed text-foreground"
+                >
+                  {m.body}
+                </motion.p>
+              ) : (
+                <motion.div key={m.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex justify-end">
+                  <span className="max-w-[85%] rounded-2xl bg-muted px-3 py-2 text-sm leading-relaxed text-foreground">
+                    {m.body}
+                  </span>
+                </motion.div>
+              ),
+            )}
+            {thinking && (
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-center gap-2 text-foreground/80"
+              >
+                <PixelThinking size={26} />
+                <span className="text-xs text-muted-foreground">Lu is thinking</span>
               </motion.div>
-            ),
-          )}
-        </div>
-        <div className="border-t px-4 py-3">
-          {typingId === null ? (
-            hint ? (
-              <div className="flex items-center gap-2">
-                {backBtn}
-                <p className="flex-1 text-center text-xs text-muted-foreground">{hint}</p>
-                {/* mirror the back button's width so the hint centers on the card, not the leftover space */}
-                {backBtn && <div className="size-9 shrink-0" aria-hidden />}
-              </div>
-            ) : (
-              <AnswerArea step={step} ws={ws} back={backBtn} onTrade={answerTrade} onLinks={answerLinks} onHandle={answerHandle} onAssistant={answerAssistant} onPhone={answerPhone} onPreset={applyPreset} onContinueHours={continueHours} />
-            )
-          ) : (
-            <div className="flex h-9 items-center">{backBtn}</div>
-          )}
-        </div>
-      </div>
-
-      {/* RIGHT — one thing, full space, on its turn */}
-      <div className="hidden flex-1 overflow-hidden rounded-3xl border bg-sidebar/40 md:block">
-        <AnimatePresence mode="wait">
-          <motion.div key={step} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }} className="h-full">
-            <Stage
-              step={step}
+            )}
+          </div>
+          <div className="border-t px-4 py-3">
+            <AnswerBar
+              screen={screen}
               ws={ws}
-              avail={avail}
-              onEditAvail={editAvail}
-              gcalStatus={gcalStatus}
-              onConnectGcal={connectGcal}
-              onSkipGcal={skipGcal}
-              onContinueGcal={continueGcal}
-              onContinueLearning={continueLearning}
-              onContinueSite={continueSite}
-              onGetEmail={getEmail}
-              onContinueEmail={continueEmail}
-              onGetText={getText}
-              onContinueSms={continueSms}
+              busy={thinking}
+              canBack={canBack}
+              onBack={back}
+              onBusiness={submitBusiness}
+              onLinks={submitLinks}
+              onHandle={submitHandle}
             />
-          </motion.div>
-        </AnimatePresence>
+          </div>
+        </div>
+
+        {/* RIGHT — one thing, full space, on its turn */}
+        <div className="hidden flex-1 overflow-hidden rounded-3xl border bg-sidebar/40 md:block">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={screen}
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.25 }}
+              className="h-full"
+            >
+              <Stage screen={screen} ws={ws} onContinueLearning={continueLearning} />
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </div>
-    </div>
+      {wipeEl}
+    </Frame>
   );
 }
 
-/* ------------------------------ the right stage ---------------------------- */
+/* ------------------------------------------------------------------- frame --- */
+
+function Frame({ children }: { children: React.ReactNode }) {
+  return <div className="canvas-grid relative min-h-svh bg-sidebar">{children}</div>;
+}
+
+/* ------------------------------------------------------------------ stages --- */
 
 function Stage({
-  step,
+  screen,
   ws,
-  avail,
-  onEditAvail,
-  gcalStatus,
-  onConnectGcal,
-  onSkipGcal,
-  onContinueGcal,
   onContinueLearning,
-  onContinueSite,
-  onGetEmail,
-  onContinueEmail,
-  onGetText,
-  onContinueSms,
 }: {
-  step: StepKey;
+  screen: Screen;
   ws: Workspace;
-  avail: Set<string>;
-  onEditAvail: (n: Set<string>) => void;
-  gcalStatus: GcalStatus;
-  onConnectGcal: () => void;
-  onSkipGcal: () => void;
-  onContinueGcal: () => void;
   onContinueLearning: () => void;
-  onContinueSite: () => void;
-  onGetEmail: () => void;
-  onContinueEmail: () => void;
-  onGetText: () => void;
-  onContinueSms: () => void;
 }) {
-  if (step === "trade") return <IntroStage />;
-  if (step === "links") return <LinksPromptStage />;
-  if (step === "learning") return <ProfileStage ws={ws} scanning onContinue={onContinueLearning} />;
-  if (step === "handle") return <ProfileStage ws={ws} />;
-  if (step === "assistant") return <AssistantStage ws={ws} />;
-  if (step === "site") return <WebsiteStage ws={ws} onContinue={onContinueSite} />;
-  if (step === "email") return <EmailStage ws={ws} onGet={onGetEmail} onContinue={onContinueEmail} />;
-  if (step === "phone") return <LineStage ws={ws} />;
-  if (step === "sms") return <MessagesStage ws={ws} onGet={onGetText} onContinue={onContinueSms} />;
-  if (step === "hours") return <AvailabilityStage value={avail} onChange={onEditAvail} />;
-  return <CalendarStage value={avail} status={gcalStatus} onConnect={onConnectGcal} onSkip={onSkipGcal} onContinue={onContinueGcal} />;
+  if (screen === "business") return <BusinessStage />;
+  if (screen === "links") return <LinksStage />;
+  if (screen === "learning") return <LearningStage ws={ws} onContinue={onContinueLearning} />;
+  return <HandleStage ws={ws} />;
 }
 
-function IntroStage() {
+function StageShell({
+  title,
+  subtitle,
+  children,
+  footer,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+}) {
   return (
-    <div className="flex h-full items-center justify-center p-8 text-center">
-      <div className="max-w-xs">
-        <div className="mx-auto flex size-14 items-center justify-center rounded-2xl border bg-card">
-          <SarahIcon className="size-7" />
-        </div>
-        <h2 className="mt-4 text-lg font-semibold">Let's get to know your business</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Tell Lu what you do and share your links — she learns your voice, services, and reviews, then runs with it.</p>
+    <div className="flex h-full flex-col p-6">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{title}</p>
+        {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
       </div>
+      <div className="mt-4 flex min-h-0 flex-1 flex-col">{children}</div>
+      {footer && <div className="mt-4">{footer}</div>}
     </div>
   );
 }
 
-function AssistantStage({ ws }: { ws: Workspace }) {
-  const name = ws.assistantName ?? "Lu";
+function BusinessStage() {
   return (
-    <div className="flex h-full items-center justify-center p-8 text-center">
+    <div className="flex h-full flex-col items-center justify-center gap-5 p-8 text-center">
+      <PixelThinking size={64} className="text-foreground" />
       <div className="max-w-xs">
-        <div className="relative mx-auto flex size-16 items-center justify-center rounded-2xl border bg-card">
-          <SarahIcon className="size-8" />
-          <span className="absolute -bottom-1.5 -right-1.5 flex size-6 items-center justify-center rounded-full border bg-background">
-            <Sparkles className="size-3.5 text-muted-foreground" />
-          </span>
-        </div>
-        <h2 className="mt-4 text-lg font-semibold">Meet {name}</h2>
+        <h2 className="text-lg font-semibold">Let&apos;s meet your company</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          It's the name your customers hear when {name} answers your line, replies to texts, and emails on your behalf. Keep it Lu, or make it yours — you can rename anytime.
+          Tell Lu what you do — in your own words. Everything after this builds on it.
         </p>
       </div>
     </div>
   );
 }
 
-function LinksPromptStage() {
+function LinksStage() {
   const rows = [
     { icon: Globe, label: "Website", note: "your services & pricing" },
     { icon: FacebookMark, label: "Facebook", note: "your posts & reviews" },
@@ -613,80 +725,102 @@ function LinksPromptStage() {
     <StageShell title="Your online presence" subtitle="Share what you've got — Lu reads all of it">
       <div className="flex flex-1 flex-col items-center justify-center gap-3">
         {rows.map((r) => (
-          <div key={r.label} className="flex w-full max-w-xs items-center gap-3 rounded-2xl border bg-card p-3.5">
+          <div key={r.label} className="card-lift flex w-full max-w-xs items-center gap-3 rounded-2xl border bg-card p-3.5">
             <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted">
               <r.icon className="size-4 text-muted-foreground" />
             </span>
             <div>
               <p className="text-sm font-medium">{r.label}</p>
-              <p className="text-xs text-muted-foreground">She'll learn {r.note}</p>
+              <p className="text-xs text-muted-foreground">Lu learns {r.note}</p>
             </div>
           </div>
         ))}
-        <p className="mt-1 max-w-xs text-center text-xs text-muted-foreground">The more I read, the more I sound like you — not a robot.</p>
+        <p className="mt-1 max-w-xs text-center text-xs text-muted-foreground">
+          The more Lu reads, the more your agents sound like you — not a robot.
+        </p>
       </div>
     </StageShell>
   );
 }
 
-/** The payoff of the scrape — scans, then reveals what Lu learned. */
-function ProfileStage({ ws, scanning, onContinue }: { ws: Workspace; scanning?: boolean; onContinue?: () => void }) {
-  const sources = [ws.website ? `Reading ${ws.website}` : "Reading your website", "Scanning your socials", "Reading your reviews", "Learning your voice"];
+/** The brand scan — pixel charge while Lu studies, then the reveal of what she learned. */
+function LearningStage({ ws, onContinue }: { ws: Workspace; onContinue: () => void }) {
+  const sources = React.useMemo(
+    () => [ws.website ? `Reading ${ws.website}` : "Reading your website", "Scanning your socials", "Reading your reviews", "Learning your voice"],
+    [ws.website],
+  );
+  const scanning = !!ws.gaveLinks;
   const [done, setDone] = React.useState(scanning ? 0 : sources.length);
   const revealed = done >= sources.length;
   React.useEffect(() => {
     if (!scanning || revealed) return;
-    const t = setTimeout(() => setDone((d) => d + 1), 650);
+    const t = setTimeout(() => setDone((d) => d + 1), 620);
     return () => clearTimeout(t);
-  }, [done, scanning, revealed]);
+  }, [done, scanning, revealed, sources.length]);
 
   if (!ws.gaveLinks) {
-    // starting fresh — nothing to scrape; keep it light and let it fill in as we go
     return (
-      <div className="flex h-full items-center justify-center p-8 text-center">
-        <div className="max-w-xs">
-          <Sparkles className="mx-auto size-8 text-muted-foreground" />
-          <p className="mt-3 text-sm text-muted-foreground">No links yet — we'll build your profile together as we go, and I'll learn more the more we work.</p>
-          {scanning && onContinue && <Button className="btn-glow mt-4 gap-2" onClick={onContinue}>Continue <ArrowRight className="size-4" /></Button>}
-        </div>
+      <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
+        <Sparkles className="size-8 text-muted-foreground" />
+        <p className="max-w-xs text-sm text-muted-foreground">
+          No links yet — we&apos;ll build your brand together as we go, and your agents will learn more the more we work.
+        </p>
+        <Button className="btn-glow gap-2" onClick={onContinue}>
+          Continue <ArrowRight className="size-4" />
+        </Button>
       </div>
     );
   }
 
   return (
     <StageShell
-      title="What Lu knows about you"
+      title="What Lu learned about you"
       subtitle={revealed ? "Tuned from your site, socials, and reviews" : "Studying your business…"}
-      footer={revealed && onContinue ? <Button className="btn-glow w-full gap-2" onClick={onContinue}>Continue <ArrowRight className="size-4" /></Button> : undefined}
+      footer={
+        revealed ? (
+          <Button className="btn-glow w-full gap-2" onClick={onContinue}>
+            Continue <ArrowRight className="size-4" />
+          </Button>
+        ) : undefined
+      }
     >
       {!revealed ? (
-        <div className="flex flex-1 flex-col justify-center gap-3">
-          {sources.map((s, i) => (
-            <div key={s} className="flex items-center gap-2.5 text-sm">
-              <span className={cn("flex size-5 items-center justify-center rounded-full", i < done ? "text-emerald-500" : "text-muted-foreground")}>
-                {i < done ? <Check className="size-4" /> : i === done ? <Loader2 className="size-4 animate-spin" /> : <span className="size-1.5 rounded-full bg-muted-foreground/40" />}
-              </span>
-              <span className={i < done ? "text-foreground" : "text-muted-foreground"}>{s}</span>
-            </div>
-          ))}
+        <div className="flex flex-1 flex-col items-center justify-center gap-6">
+          <PixelThinking size={72} className="text-foreground" />
+          <div className="w-full max-w-xs space-y-3">
+            {sources.map((s, i) => (
+              <div key={s} className="flex items-center gap-2.5 text-sm">
+                <span className={cn("flex size-5 items-center justify-center rounded-full", i < done ? "text-emerald-500" : "text-muted-foreground")}>
+                  {i < done ? <Check className="size-4" /> : <span className={cn("size-1.5 rounded-full", i === done ? "animate-pulse bg-foreground" : "bg-muted-foreground/40")} />}
+                </span>
+                <span className={i < done ? "text-foreground" : "text-muted-foreground"}>{s}</span>
+              </div>
+            ))}
+          </div>
         </div>
       ) : (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex-1 space-y-4 overflow-y-auto">
           <ProfileRow label="You are" value={ws.name?.trim() || "Your business"} />
-          {ws.trade?.trim() && <ProfileRow label="What you do" value={ws.trade} />}
-          <ProfileRow label="Your voice" value="Clear and friendly — I'll keep tuning it to sound like you" />
-          <ProfileRow label="Reviews" value="I'll gather and showcase these as they come in" />
+          {ws.business?.trim() && <ProfileRow label="What you do" value={ws.business} />}
+          <ProfileRow label="Your voice" value="Clear and friendly — your agents will keep tuning it to sound like you" />
           {(ws.facebook || ws.instagram) && (
             <div>
               <p className="text-xs text-muted-foreground">Socials</p>
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                {ws.facebook && <span className="flex items-center gap-1.5 rounded-full border bg-card px-2.5 py-1 text-xs"><FacebookMark className="size-3.5" /> Facebook</span>}
-                {ws.instagram && <span className="flex items-center gap-1.5 rounded-full border bg-card px-2.5 py-1 text-xs"><InstagramMark className="size-3.5" /> Instagram</span>}
-                <span className="text-xs text-muted-foreground">— I can post for you</span>
+                {ws.facebook && (
+                  <span className="flex items-center gap-1.5 rounded-full border bg-card px-2.5 py-1 text-xs">
+                    <FacebookMark className="size-3.5" /> Facebook
+                  </span>
+                )}
+                {ws.instagram && (
+                  <span className="flex items-center gap-1.5 rounded-full border bg-card px-2.5 py-1 text-xs">
+                    <InstagramMark className="size-3.5" /> Instagram
+                  </span>
+                )}
               </div>
             </div>
           )}
-          <p className="text-xs text-muted-foreground">I'll keep learning as we work together.</p>
+          <p className="text-xs text-muted-foreground">Your Engineer will build on this.</p>
         </motion.div>
       )}
     </StageShell>
@@ -702,609 +836,508 @@ function ProfileRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function StageShell({ title, subtitle, children, footer }: { title: string; subtitle?: string; children: React.ReactNode; footer?: React.ReactNode }) {
+function HandleStage({ ws }: { ws: Workspace }) {
+  const handle = ws.handle || "you";
   return (
-    <div className="flex h-full flex-col p-6">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{title}</p>
-        {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
-      </div>
-      <div className="mt-4 flex min-h-0 flex-1 flex-col">{children}</div>
-      {footer && <div className="mt-4">{footer}</div>}
-    </div>
-  );
-}
-
-function WebsiteStage({ ws, onContinue }: { ws: Workspace; onContinue: () => void }) {
-  const options = [
-    { icon: Sparkles, label: "Build it with Lu", note: "just tell her what you want" },
-    { icon: Globe, label: ws.website ? `Connect ${ws.website}` : "Connect your site", note: "use the one you already have" },
-    { icon: Link2, label: "Add your domain", note: `${ws.handle}.com, anytime` },
-  ];
-  return (
-    <StageShell
-      title="Your Lu Space"
-      subtitle={`Reserved at ${ws.handle}.lu.computer`}
-      footer={
-        <Button className="btn-glow w-full gap-2" onClick={onContinue}>
-          Continue <ArrowRight className="size-4" />
-        </Button>
-      }
-    >
-      <div className="flex min-h-0 flex-1 flex-col gap-3">
-        {/* the reserved space — a clean branded holding page, not a template */}
-        <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border bg-card">
+    <StageShell title="Your handle" subtitle={`Reserved at ${handle}.lu.computer`}>
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
+        {/* the reserved space — a clean branded holding page */}
+        <div className="flex w-full max-w-sm flex-col overflow-hidden rounded-2xl border bg-card elev-2">
           <div className="flex items-center gap-1.5 border-b bg-muted/40 px-3 py-1.5">
             <span className="size-2 rounded-full bg-muted-foreground/25" />
             <span className="size-2 rounded-full bg-muted-foreground/25" />
             <span className="size-2 rounded-full bg-muted-foreground/25" />
             <span className="ml-2 flex items-center gap-1 rounded-full bg-background px-2 py-0.5 text-[11px] text-muted-foreground">
-              <Globe className="size-3" /> {ws.handle}.lu.computer
+              <Globe className="size-3" /> {handle}.lu.computer
             </span>
           </div>
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 bg-gradient-to-b from-muted/40 to-transparent p-8 text-center">
+          <div className="flex flex-col items-center justify-center gap-3 bg-gradient-to-b from-muted/40 to-transparent p-8 text-center">
             <div className="flex size-14 items-center justify-center rounded-2xl bg-foreground text-lg font-bold text-background">
-              {ws.name?.slice(0, 1).toUpperCase()}
+              {(ws.name || handle).slice(0, 1).toUpperCase()}
             </div>
             <div>
-              <p className="text-lg font-semibold">{ws.name}</p>
-              <p className="text-xs text-muted-foreground">{ws.handle}.lu.computer</p>
+              <p className="text-lg font-semibold">{ws.name || titleCase(handle)}</p>
+              <p className="text-xs text-muted-foreground">{handle}.lu.computer</p>
             </div>
             <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
-              <span className="size-1.5 rounded-full bg-emerald-500" /> Your space is live — ready when you are
+              <span className="size-1.5 rounded-full bg-emerald-500" /> Reserved — your Engineer ships here
             </span>
           </div>
         </div>
-        {/* how you fill it */}
-        <div className="grid grid-cols-3 gap-2">
-          {options.map((o) => (
-            <div key={o.label} className="rounded-2xl border bg-card p-3">
-              <o.icon className="size-4 text-muted-foreground" />
-              <p className="mt-2 truncate text-xs font-medium">{o.label}</p>
-              <p className="truncate text-[11px] text-muted-foreground">{o.note}</p>
-            </div>
-          ))}
-        </div>
       </div>
     </StageShell>
   );
 }
 
-function EmailStage({ ws, onGet, onContinue }: { ws: Workspace; onGet: () => void; onContinue: () => void }) {
-  return (
-    <StageShell
-      title="Your inbox"
-      subtitle={`${ws.handle}@lu.computer`}
-      footer={ws.emailSent ? <Button className="btn-glow w-full gap-2" onClick={onContinue}>Continue <ArrowRight className="size-4" /></Button> : undefined}
-    >
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-card">
-        <div className="flex items-center gap-2 border-b px-4 py-2.5 text-xs text-muted-foreground">
-          <Mail className="size-4" /> Inbox {ws.emailSent && <span className="ml-auto rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400">1 new</span>}
-        </div>
-        {ws.emailSent ? (
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex-1 overflow-y-auto p-5">
-            <div className="flex items-center gap-3">
-              <span className="flex size-9 items-center justify-center rounded-full bg-muted"><SarahIcon className="size-4.5" /></span>
-              <div>
-                <p className="text-sm font-semibold">Lu</p>
-                <p className="text-xs text-muted-foreground">{ws.handle}@lu.computer · just now</p>
-              </div>
-            </div>
-            <h3 className="mt-4 text-base font-semibold">Welcome to your workspace</h3>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              This is your inbox — I'll forward every lead, quote, and anything that needs you right here. Reply to any of it
-              and I'll take it from there. Talk soon,
-            </p>
-            <p className="mt-2 text-sm text-muted-foreground">— Lu</p>
-          </motion.div>
-        ) : (
-          <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
-            <span className="flex size-14 items-center justify-center rounded-2xl bg-muted"><Mail className="size-7 text-muted-foreground" /></span>
-            <div>
-              <p className="text-sm font-medium">Your inbox is ready.</p>
-              <p className="mt-1 text-sm text-muted-foreground">See how it feels — I'll send you a note right now.</p>
-            </div>
-            <Button className="btn-glow gap-2" onClick={onGet}>
-              <Mail className="size-4" /> Get an email from Lu
-            </Button>
-          </div>
-        )}
-      </div>
-    </StageShell>
-  );
-}
+/* --------------------------------------------------------------- ★ assemble --- */
 
-function PhoneFrame({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="mx-auto flex h-full w-full max-w-[280px] flex-col overflow-hidden rounded-[2rem] border-4 border-foreground/10 bg-card shadow-sm">
-      <div className="flex items-center justify-center gap-1.5 border-b bg-muted/40 py-2 text-[11px] font-medium text-muted-foreground">{label}</div>
-      <div className="flex min-h-0 flex-1 flex-col">{children}</div>
-    </div>
-  );
-}
+function AssembleStage({ name, onDone, onLand }: { name?: string; onDone: () => void; onLand: () => void }) {
+  const [landed, setLanded] = React.useState(0);
+  const [booting, setBooting] = React.useState(true); // a brief PixelThinking beat before the first node
 
-function LineStage({ ws }: { ws: Workspace }) {
-  return (
-    <StageShell title="Your line" subtitle="Lu answers every call and text, 24/7">
-      <div className="flex flex-1 items-center justify-center">
-        <PhoneFrame label={ws.line ?? LINE}>
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-            <span className="relative flex size-14 items-center justify-center rounded-full bg-emerald-500/10">
-              <span className="absolute inline-flex size-14 animate-ping rounded-full bg-emerald-500/20" />
-              <Phone className="size-6 text-emerald-600 dark:text-emerald-400" />
-            </span>
-            <p className="text-sm font-semibold">Lu is answering</p>
-            <p className="text-xs text-muted-foreground">{ws.line ?? LINE}</p>
-            <p className="mt-1 text-xs text-muted-foreground">Missed calls get a text back in seconds — never a lost lead again.</p>
-          </div>
-        </PhoneFrame>
-      </div>
-    </StageShell>
-  );
-}
-
-function MessagesStage({ ws, onGet, onContinue }: { ws: Workspace; onGet: () => void; onContinue: () => void }) {
-  return (
-    <StageShell
-      title="A text from Lu"
-      subtitle="This is how she reaches you"
-      footer={ws.textSent ? <Button className="btn-glow w-full gap-2" onClick={onContinue}>Continue <ArrowRight className="size-4" /></Button> : undefined}
-    >
-      <div className="flex flex-1 items-center justify-center">
-        <PhoneFrame label={`Lu · ${ws.line ?? LINE}`}>
-          {ws.textSent ? (
-            <div className="flex flex-1 flex-col justify-end gap-1.5 p-3">
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-[85%] self-start rounded-2xl rounded-bl-md bg-muted px-3 py-2 text-sm">
-                Hey, it's Lu 👋 I'm live on your line now — I'll text you here whenever something needs your OK.
-              </motion.div>
-              <p className="pl-1 text-[10px] text-muted-foreground">delivered · now</p>
-            </div>
-          ) : (
-            <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-              <span className="flex size-12 items-center justify-center rounded-2xl bg-muted"><MessageSquare className="size-6 text-muted-foreground" /></span>
-              <p className="text-sm text-muted-foreground">Tap below and I'll text your phone right now.</p>
-              <Button size="sm" className="btn-glow gap-1.5" onClick={onGet}>
-                <MessageSquare className="size-3.5" /> Text me from Lu
-              </Button>
-            </div>
-          )}
-        </PhoneFrame>
-      </div>
-    </StageShell>
-  );
-}
-
-/** Shared week grid — availability (paint) and calendar (busy overlay) draw the SAME scaffold. */
-function AvailabilityGrid({ value, onChange, busy }: { value: Set<string>; onChange?: (n: Set<string>) => void; busy?: { day: number; start: number; end: number; label: string }[] }) {
-  const paint = React.useRef<"add" | "remove" | null>(null);
   React.useEffect(() => {
-    const up = () => (paint.current = null);
-    window.addEventListener("pointerup", up);
-    return () => window.removeEventListener("pointerup", up);
+    const t = setTimeout(() => setBooting(false), 900);
+    return () => clearTimeout(t);
   }, []);
-  const key = (d: number, h: number) => `${d}-${h}`;
-  const apply = (d: number, h: number) => {
-    if (!onChange) return;
-    const n = new Set(value);
-    if (paint.current === "add") n.add(key(d, h));
-    else n.delete(key(d, h));
-    onChange(n);
-  };
-  const down = (d: number, h: number) => {
-    if (!onChange) return;
-    paint.current = value.has(key(d, h)) ? "remove" : "add";
-    apply(d, h);
-  };
-  const busyAt = (d: number, h: number) => !!busy?.some((b) => b.day === d && h >= b.start && h < b.end);
-  const cols = "2.25rem repeat(7, minmax(0, 1fr))";
+
+  React.useEffect(() => {
+    if (booting || landed >= ASSEMBLE_ORDER.length) return;
+    const delay = landed === 0 ? 400 : landed === 1 ? 850 : 560; // hero lands, a beat, then the ring
+    const t = setTimeout(() => {
+      setLanded((n) => n + 1);
+      onLand();
+    }, delay);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [landed, booting]);
+
+  const done = landed >= ASSEMBLE_ORDER.length;
+  const caption = booting
+    ? "Booting up your company…"
+    : done
+      ? "Engineering is ready. The rest of your company comes online next."
+      : DEPT_CAPTION[ASSEMBLE_ORDER[Math.max(0, landed - 1)]];
+
   return (
-    <div className="w-full max-w-2xl select-none">
-      <div className="mb-1 grid gap-px" style={{ gridTemplateColumns: cols }}>
-        <div />
-        {DAYS.map((d) => (
-          <div key={d} className="text-center text-[11px] font-medium text-muted-foreground">{d}</div>
-        ))}
+    <div className="mx-auto flex h-svh w-full max-w-5xl flex-col items-center justify-center gap-6 px-6 py-16">
+      {/* Lu's caption up top */}
+      <div className="flex min-h-[3.5rem] items-center gap-3 text-center">
+        {booting && <PixelThinking size={30} className="text-foreground" />}
+        <motion.p
+          key={caption}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-md text-base font-medium text-foreground sm:text-lg"
+        >
+          {caption}
+        </motion.p>
       </div>
-      <div className="grid gap-px" style={{ gridTemplateColumns: cols }}>
-        {HOURS.map((h) => (
-          <React.Fragment key={h}>
-            <div className="pr-1.5 text-right text-[10px] leading-6 text-muted-foreground">{(h - 7) % 2 === 0 ? fmtHour(h) : ""}</div>
-            {DAYS.map((_, d) => {
-              const open = value.has(key(d, h));
-              const b = busyAt(d, h);
-              return (
-                <div
-                  key={d}
-                  onPointerDown={() => down(d, h)}
-                  onPointerEnter={() => paint.current && apply(d, h)}
-                  className={cn("h-6 rounded-[3px]", onChange && "cursor-pointer", open ? "bg-emerald-500/25 hover:bg-emerald-500/35" : "bg-muted/50 hover:bg-muted", b && "bg-foreground/10 hover:bg-foreground/10")}
-                  style={b ? HATCH : undefined}
-                />
-              );
-            })}
-          </React.Fragment>
-        ))}
-      </div>
-    </div>
-  );
-}
 
-function AvailabilityStage({ value, onChange }: { value: Set<string>; onChange: (n: Set<string>) => void }) {
-  return (
-    <StageShell title="When Lu can book you" subtitle="Your open hours — the windows she offers customers. Tap a preset, then paint to adjust.">
-      <div className="flex flex-1 flex-col items-center justify-center">
-        <AvailabilityGrid value={value} onChange={onChange} />
-        <div className="mt-4 flex items-center gap-4 text-[11px] text-muted-foreground">
-          <span className="flex items-center gap-1.5"><span className="size-2.5 rounded bg-emerald-500/25" /> Open — can be booked</span>
-          <span className="flex items-center gap-1.5"><span className="size-2.5 rounded bg-muted/50" /> Closed</span>
-        </div>
-      </div>
-    </StageShell>
-  );
-}
+      {/* the canvas — Lu at center, departments assemble onto the ring */}
+      <div className="canvas-grid relative aspect-square w-full max-w-[540px] rounded-3xl border bg-card/60">
+        {/* edges */}
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" aria-hidden>
+          {ASSEMBLE_ORDER.slice(0, landed).map((id) => {
+            const a = agentById(id)!;
+            const p = deptPct(a.angle);
+            const active = id === "engineering";
+            return (
+              <motion.line
+                key={id}
+                x1={50}
+                y1={50}
+                x2={p.x}
+                y2={p.y}
+                stroke={active ? `rgb(${a.accent})` : "currentColor"}
+                strokeOpacity={active ? 0.55 : 0.22}
+                strokeWidth={active ? 0.5 : 0.35}
+                strokeDasharray="2 2"
+                initial={{ pathLength: 0, opacity: 0 }}
+                animate={{ pathLength: 1, opacity: 1 }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+              />
+            );
+          })}
+        </svg>
 
-/** Scales fixed-width content (the schedule calendar) down to fit the panel — fits in the normal view. */
-// Measure before the browser paints so the calendar never flashes at full size
-// and then snap-shrinks. SSR falls back to useEffect (no window to measure against).
-const useIsoLayoutEffect = typeof window !== "undefined" ? React.useLayoutEffect : React.useEffect;
+        {/* department nodes */}
+        {ASSEMBLE_ORDER.map((id, i) => {
+          if (i >= landed) return null;
+          const a = agentById(id)!;
+          const p = deptPct(a.angle);
+          return (
+            <div key={id} className="absolute" style={{ left: `${p.x}%`, top: `${p.y}%`, transform: "translate(-50%, -50%)" }}>
+              <DeptNode id={id} />
+            </div>
+          );
+        })}
 
-function FitToWidth({ contentWidth, children }: { contentWidth: number; children: React.ReactNode }) {
-  const ref = React.useRef<HTMLDivElement>(null);
-  const innerRef = React.useRef<HTMLDivElement>(null);
-  const [scale, setScale] = React.useState(0); // 0 = not yet measured → keep hidden
-  const [h, setH] = React.useState<number | undefined>();
-  useIsoLayoutEffect(() => {
-    const el = ref.current;
-    const inner = innerRef.current;
-    if (!el || !inner) return;
-    const measure = () => {
-      const w = el.clientWidth;
-      if (!w) return;
-      const sc = Math.min(1, w / contentWidth);
-      setScale(sc);
-      setH(inner.scrollHeight * sc);
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    ro.observe(inner);
-    return () => ro.disconnect();
-  }, [contentWidth]);
-  return (
-    <div ref={ref} className="w-full" style={{ height: h }}>
-      <div
-        ref={innerRef}
-        style={{
-          width: contentWidth,
-          transform: `scale(${scale})`,
-          transformOrigin: "top left",
-          visibility: scale ? "visible" : "hidden",
-        }}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function CalendarStage({ value, status, onConnect, onSkip, onContinue }: { value: Set<string>; status: GcalStatus; onConnect: () => void; onSkip: () => void; onContinue: () => void }) {
-  const items = React.useMemo(() => busyItemsThisWeek(), []);
-  const windows = React.useMemo(() => windowsFromAvail(value), [value]);
-  if (status === "idle")
-    return (
-      <StageShell title="Your calendar" subtitle="Connect Google so I see what's already on your plate">
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-          <span className="flex size-14 items-center justify-center rounded-2xl bg-muted"><Calendar className="size-7 text-muted-foreground" /></span>
-          <div className="max-w-xs">
-            <p className="text-sm font-medium">Connect your Google Calendar</p>
-            <p className="mt-1 text-sm text-muted-foreground">I'll pull in your real events and book around them — so you're never double-booked.</p>
+        {/* Lu — center */}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+          <div className="neu-socket rounded-[2rem] p-1.5">
+            <motion.div
+              initial={{ scale: 0.6, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 300, damping: 16 }}
+              className="neu-raise flex items-center gap-2 rounded-[1.6rem] px-5 py-3"
+            >
+              <SarahIcon className="size-6 text-foreground" />
+              <span className="text-xl font-semibold tracking-tight text-foreground">Lu</span>
+            </motion.div>
           </div>
-          <Button className="btn-glow gap-2" onClick={onConnect}><Calendar className="size-4" /> Connect Google Calendar</Button>
-          <button type="button" onClick={onSkip} className="text-xs text-muted-foreground hover:text-foreground">Skip for now</button>
         </div>
-      </StageShell>
-    );
-  if (status === "loading")
-    return (
-      <StageShell title="Your calendar" subtitle="Reading your Google Calendar…">
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
-          <Loader2 className="size-8 animate-spin text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Pulling in your events…</p>
-        </div>
-      </StageShell>
-    );
-  return (
-    <StageShell
-      title="Your calendar, on top of your hours"
-      subtitle="Green is your open hours; hatched blocks are what's already on your Google calendar. I book around both."
-      footer={<Button className="btn-glow w-full gap-2" onClick={onContinue}>Continue <ArrowRight className="size-4" /></Button>}
-    >
-      <div className="min-h-0 flex-1 overflow-auto">
-        <FitToWidth contentWidth={760}>
-          <ScheduleClient items={items} demo timezone="America/New_York" windows={windows} sync={{ state: "connected" }} routeFixture={null} base={null} embedded />
-        </FitToWidth>
       </div>
-    </StageShell>
+
+      <div className="h-10">
+        <AnimatePresence>
+          {done && (
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+              <Button size="lg" className="btn-glow gap-2" onClick={onDone}>
+                Meet your Engineer <ArrowRight className="size-4" />
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
   );
 }
 
-/* --------------------------------- phases ---------------------------------- */
+/** Node placement on the ring — percentage coords in the square canvas (angle from graph.ts). */
+function deptPct(angleDeg: number): { x: number; y: number } {
+  const r = 37; // % radius
+  const a = (angleDeg * Math.PI) / 180;
+  return { x: 50 + Math.cos(a) * r, y: 50 + Math.sin(a) * r };
+}
+
+/** One department tile — springy overshoot + a pixel poof on land. Engineering is ACTIVE;
+ *  the rest are dimmed, locked "In development" tiles. */
+function DeptNode({ id }: { id: DeptId }) {
+  const a = agentById(id)!;
+  const Icon = DEPT_ICON[id];
+  const active = id === "engineering";
+  return (
+    <motion.div
+      initial={{ scale: 0, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ type: "spring", stiffness: 420, damping: 12 }}
+      className="relative"
+      style={{ color: active ? `rgb(${a.accent})` : undefined }}
+    >
+      <PixelPoof />
+      <div className="neu-socket rounded-3xl p-1">
+        <div
+          className={cn(
+            "neu-raise relative flex w-[104px] flex-col items-center gap-1 rounded-[1.35rem] px-2 py-3",
+            active ? "" : "opacity-60",
+          )}
+        >
+          {active && (
+            <motion.span
+              aria-hidden
+              className="absolute inset-0 rounded-[1.35rem]"
+              style={{ boxShadow: `0 0 0 2px rgba(${a.accent}, 0.55), 0 0 22px 2px rgba(${a.accent}, 0.35)` }}
+              animate={{ opacity: [0.5, 1, 0.5] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            />
+          )}
+          <span className="relative grid size-8 place-items-center" style={{ color: active ? `rgb(${a.accent})` : "var(--muted-foreground)" }}>
+            <Icon className="size-6" />
+            {!active && (
+              <span className="absolute -bottom-1 -right-1 grid size-4 place-items-center rounded-full border bg-background text-muted-foreground">
+                <Lock className="size-2.5" />
+              </span>
+            )}
+          </span>
+          <span className={cn("relative text-xs font-semibold", active ? "text-foreground" : "text-muted-foreground")}>{a.label}</span>
+          <span
+            className={cn(
+              "relative rounded-full px-1.5 py-0.5 text-[9px] font-medium",
+              active
+                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+                : "bg-muted text-muted-foreground",
+            )}
+          >
+            {active ? "Active" : "In development"}
+          </span>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+/* -------------------------------------------------------------- ★ engineer --- */
+
+function EngineerStage({ onContinue }: { onContinue: () => void }) {
+  const eng = agentById("engineering")!;
+  const [beat, setBeat] = React.useState(true);
+  React.useEffect(() => {
+    const t = setTimeout(() => setBeat(false), 900);
+    return () => clearTimeout(t);
+  }, []);
+  const accent = `rgb(${eng.accent})`;
+  return (
+    <div className="mx-auto flex h-svh w-full max-w-lg flex-col items-center justify-center gap-6 px-6 text-center">
+      <div className="flex min-h-[2rem] items-center gap-2">
+        {beat && <PixelThinking size={26} className="text-foreground" />}
+        <motion.p key={String(beat)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-muted-foreground">
+          {beat ? "Bringing your Engineer online…" : "Say hello to your first hire."}
+        </motion.p>
+      </div>
+
+      <motion.div
+        initial={{ scale: 0.7, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 300, damping: 16, delay: 0.15 }}
+        className="neu-socket rounded-[2.4rem] p-2"
+      >
+        <div className="neu-raise flex flex-col items-center gap-3 rounded-[2rem] px-10 py-8">
+          <span className="grid size-14 place-items-center rounded-2xl" style={{ color: accent, background: `rgba(${eng.accent}, 0.12)` }}>
+            <Code2 className="size-9" />
+          </span>
+          <div>
+            <p className="text-lg font-semibold">Your Engineer</p>
+            <span className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+              <span className="size-1.5 rounded-full bg-emerald-500" /> Active
+            </span>
+          </div>
+        </div>
+      </motion.div>
+
+      <p className="max-w-sm text-sm text-muted-foreground">
+        {eng.blurb} It&apos;s the one agent live today — the other departments are in development. In a moment you&apos;ll tell it
+        what to build first.
+      </p>
+
+      <Button size="lg" className="btn-glow gap-2" onClick={onContinue}>
+        Add your team <ArrowRight className="size-4" />
+      </Button>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- ★ welcome --- */
 
 function Welcome({ onStart }: { onStart: () => void }) {
   return (
-    <div className="flex h-svh flex-col items-center justify-center gap-5 px-6 text-center">
-      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex size-16 items-center justify-center rounded-2xl border bg-card">
-        <SarahIcon className="size-8" />
+    <div className="flex h-svh flex-col items-center justify-center gap-6 px-6 text-center">
+      <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 260, damping: 18 }}>
+        <PixelThinking size={104} className="text-foreground" />
       </motion.div>
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight">You're in.</h1>
-        <p className="mt-2 max-w-md text-muted-foreground">You're off the waitlist. Let's set up your workspace — I'll walk you through it, step by step.</p>
+        <h1 className="text-3xl font-semibold tracking-tight">Meet Lu.</h1>
+        <p className="mt-2 max-w-md text-muted-foreground">
+          Let&apos;s set up your company. No forms — just tell Lu what you do, and watch it take shape.
+        </p>
       </div>
       <Button size="lg" className="btn-glow gap-2" onClick={onStart}>
-        Set up with Lu <ArrowRight className="size-4" />
+        Boot up my company <ArrowRight className="size-4" />
       </Button>
-      <p className="text-xs text-muted-foreground">No forms. You just tell Lu about your business.</p>
+      <p className="text-xs text-muted-foreground">Your Engineer is ready. Seven more departments are coming online.</p>
     </div>
   );
 }
 
-function Building({ name, onDone }: { name: string; onDone: () => void }) {
-  const steps = ["Tuning Lu for your business", "Publishing your website", "Wiring Lu's email", "Claiming your line", "Setting your hours"];
-  const [done, setDone] = React.useState(0);
-  React.useEffect(() => {
-    if (done >= steps.length) {
-      const t = setTimeout(onDone, 600);
-      return () => clearTimeout(t);
-    }
-    const t = setTimeout(() => setDone((d) => d + 1), 520);
-    return () => clearTimeout(t);
-  }, [done]); // eslint-disable-line react-hooks/exhaustive-deps
-  return (
-    <div className="flex h-svh flex-col items-center justify-center gap-6 px-6">
-      <div className="flex items-center gap-2 text-lg font-semibold">
-        <motion.span
-          animate={{ rotate: 360 }}
-          transition={{ repeat: Infinity, duration: 1.8, ease: "linear" }}
-          className="flex"
-        >
-          <SarahIcon className="size-5" />
-        </motion.span>
-        Building {name}…
-      </div>
-      <div className="flex w-fit flex-col gap-2.5">
-        {steps.map((s, i) => (
-          <div key={s} className="flex items-center gap-2.5 text-sm">
-            <span className={cn("flex size-5 items-center justify-center rounded-full border", i < done ? "border-emerald-500 bg-emerald-500 text-white" : "text-muted-foreground")}>
-              {i < done ? <Check className="size-3" /> : <span className="size-1.5 rounded-full bg-current" />}
-            </span>
-            <span className={i < done ? "text-foreground" : "text-muted-foreground"}>{s}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+/* ----------------------------------------------------------------- ★ finish --- */
 
-function Ready({ ws, onOpenWorkspace }: { ws: Workspace; onOpenWorkspace: () => void }) {
-  const setup = [
-    { icon: Globe, label: "Website", value: `${ws.handle}.lu.computer`, live: true },
-    { icon: Mail, label: "Email", value: `${ws.handle}@lu.computer` },
-    { icon: MessageSquare, label: "Your line", value: ws.line ?? LINE, live: true },
-    { icon: Phone, label: "Reaches you", value: ws.ownerCell ?? "—" },
-    { icon: Clock, label: "Availability", value: ws.hours ?? "—" },
-    { icon: Calendar, label: "Calendar", value: ws.gcal ? "Google — synced" : "Not connected", live: ws.gcal },
-  ];
-  const ladder = [
-    { icon: Import, title: "Bring your customer history", metric: "usually 200+ contacts — your first review pool", href: "/customers/import" },
-    { icon: Star, title: "Launch your first review wave", metric: "owners see +20 Google reviews in week one", href: "/reviews/new" },
-    { icon: Globe, title: "Connect your own domain", metric: `${ws.handle}.com → live in minutes`, href: "/website" },
+function Finish({ ws, teamCount, onEnter }: { ws: Workspace; teamCount: number; onEnter: () => void }) {
+  const handle = ws.handle || "you";
+  const tiles = [
+    { icon: Globe, label: "Your space", value: `${handle}.lu.computer` },
+    { icon: Code2, label: "Engineering", value: "Active — ready to build", live: true },
+    { icon: Lock, label: "7 departments", value: "In development" },
+    { icon: Sparkles, label: "Team", value: teamCount > 0 ? `${teamCount} invited` : "Add anytime" },
   ];
   return (
-    <div className="mx-auto flex w-full max-w-xl flex-col gap-6 px-6 pb-10 pt-8">
-      <div className="text-center">
-        <h1 className="flex items-center justify-center gap-2.5 text-3xl font-semibold tracking-tight">
-          <motion.span initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex size-8 items-center justify-center rounded-full bg-emerald-500/10">
-            <Check className="size-5 text-emerald-500" />
-          </motion.span>
-          {ws.name} is live.
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">Lu is answering your line right now. Here's what she set up.</p>
-      </div>
-
-      <div className="overflow-hidden rounded-2xl border bg-card">
-        {setup.map((s, i) => (
-          <div key={s.label} className={cn("flex items-center gap-3 px-4 py-3", i > 0 && "border-t border-border/60")}>
-            <s.icon className="size-4 shrink-0 text-muted-foreground" />
-            <span className="w-28 shrink-0 text-sm text-muted-foreground">{s.label}</span>
-            <span className="min-w-0 flex-1 truncate text-sm font-medium">{s.value}</span>
-            {s.live && (
-              <span className="flex shrink-0 items-center gap-1 text-xs text-emerald-700 dark:text-emerald-400">
-                <span className="size-1.5 rounded-full bg-emerald-500" /> live
-              </span>
-            )}
-          </div>
-        ))}
-      </div>
-
+    <div className="mx-auto flex min-h-svh w-full max-w-xl flex-col items-center justify-center gap-7 px-6 py-12 text-center">
+      <motion.div initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 300, damping: 15 }} className="flex size-14 items-center justify-center rounded-2xl bg-emerald-500/10">
+        <Check className="size-7 text-emerald-500" />
+      </motion.div>
       <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Where the next wins are</p>
-        <div className="mt-3 flex flex-col gap-2">
-          {ladder.map((s) => (
-            <button key={s.title} type="button" onClick={() => { window.location.href = s.href; }} className="card-lift flex items-center gap-3 rounded-2xl border bg-card px-4 py-3 text-left">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted">
-                <s.icon className="size-4 text-muted-foreground" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">{s.title}</p>
-                <p className="truncate text-xs text-muted-foreground">{s.metric}</p>
-              </div>
-              <ArrowRight className="size-4 shrink-0 text-muted-foreground/50" />
-            </button>
-          ))}
-        </div>
+        <h1 className="text-3xl font-semibold tracking-tight">{ws.name || titleCase(handle)} is booted.</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Your company is live. Engineering is ready to build.</p>
       </div>
 
-      <Button size="lg" className="btn-glow mx-auto gap-2" onClick={onOpenWorkspace}>
-        Open my workspace <ArrowRight className="size-4" />
+      <div className="grid w-full grid-cols-2 gap-3">
+        {tiles.map((t) => (
+          <div key={t.label} className="card-lift flex items-center gap-3 rounded-2xl border bg-card p-3.5 text-left">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+              <t.icon className="size-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-xs text-muted-foreground">{t.label}</p>
+              <p className="flex items-center gap-1.5 truncate text-sm font-medium">
+                {t.value}
+                {t.live && <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <Button size="lg" className="btn-glow gap-2" onClick={onEnter}>
+        Enter your company <ArrowRight className="size-4" />
       </Button>
     </div>
   );
 }
 
-/* --------------------------------- answers --------------------------------- */
+/* ------------------------------------------------------------- answer inputs --- */
 
-function AnswerArea({
-  step,
+function AnswerBar({
+  screen,
   ws,
-  back,
-  onTrade,
+  busy,
+  canBack,
+  onBack,
+  onBusiness,
   onLinks,
   onHandle,
-  onAssistant,
-  onPhone,
-  onPreset,
-  onContinueHours,
 }: {
-  step: StepKey;
+  screen: Screen;
   ws: Workspace;
-  back?: React.ReactNode;
-  onTrade: (t: string) => void;
+  busy: boolean;
+  canBack: boolean;
+  onBack: () => void;
+  onBusiness: (t: string) => void;
   onLinks: (d: { website?: string; facebook?: string; instagram?: string; skipped?: boolean }) => void;
-  onHandle: (n: string) => void;
-  onAssistant: (n: string) => void;
-  onPhone: (p: string) => void;
-  onPreset: (label: string) => void;
-  onContinueHours: () => void;
+  onHandle: (h: string) => void;
 }) {
-  const [trade, setTrade] = React.useState(ws.trade ?? "");
-  const [name, setName] = React.useState(ws.name ?? "");
-  const [assistantName, setAssistantName] = React.useState(ws.assistantName ?? "Lu");
-  const [cell, setCell] = React.useState("");
+  const [business, setBusiness] = React.useState(ws.business ?? "");
+  const [handle, setHandle] = React.useState(ws.handle ?? "");
   const [links, setLinks] = React.useState({ website: "", facebook: "", instagram: "" });
 
-  if (step === "trade")
+  const backBtn = canBack ? (
+    <button
+      type="button"
+      onClick={onBack}
+      aria-label="Back"
+      className="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+    >
+      <ArrowLeft className="size-4" />
+    </button>
+  ) : null;
+
+  // While Lu is "thinking", the input is quiet — just the back affordance.
+  if (busy) return <div className="flex h-9 items-center">{backBtn}</div>;
+
+  if (screen === "learning")
     return (
-      <div className="flex flex-col gap-2">
-        <form onSubmit={(e) => { e.preventDefault(); if (trade.trim()) onTrade(trade.trim()); }} className="flex gap-2">
-          {back}
-          <input value={trade} onChange={(e) => setTrade(e.target.value)} autoFocus className="h-9 flex-1 rounded-lg border bg-background px-3 text-sm outline-none focus:border-ring" placeholder="What do you do? In your own words…" />
-          <Button type="submit" size="sm" className="h-9" disabled={!trade.trim()}>Continue</Button>
-        </form>
-        <div className="flex flex-wrap gap-1.5">
-          {WORK_EXAMPLES.map((t) => (
-            <button key={t} type="button" onClick={() => setTrade(t)} className="rounded-full border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-foreground">
-              {t}
-            </button>
-          ))}
-        </div>
+      <div className="flex items-center gap-2">
+        {backBtn}
+        <p className="flex-1 text-center text-xs text-muted-foreground">Studying your business… continue on the right →</p>
+        {backBtn && <div className="size-9 shrink-0" aria-hidden />}
       </div>
     );
 
-  if (step === "links")
-    return (
-      <form onSubmit={(e) => { e.preventDefault(); onLinks(links); }} className="flex flex-col gap-2">
-        <LinkInput icon={Globe} value={links.website} onChange={(v) => setLinks((l) => ({ ...l, website: v }))} placeholder="yoursite.com" />
-        <LinkInput icon={FacebookMark} value={links.facebook} onChange={(v) => setLinks((l) => ({ ...l, facebook: v }))} placeholder="facebook.com/you" />
-        <LinkInput icon={InstagramMark} value={links.instagram} onChange={(v) => setLinks((l) => ({ ...l, instagram: v }))} placeholder="@you" />
-        <div className="mt-1 flex items-center gap-2">
-          {back}
-          <button type="button" onClick={() => onLinks({ skipped: true })} className="text-xs text-muted-foreground hover:text-foreground">
-            Skip — I'm starting fresh
-          </button>
-          <Button type="submit" size="sm" className="ml-auto h-9">Continue</Button>
-        </div>
-      </form>
-    );
-
-  if (step === "handle")
-    return (
-      <form onSubmit={(e) => { e.preventDefault(); if (name.trim()) onHandle(name.trim()); }} className="flex flex-col gap-1.5">
-        <div className="flex gap-2">
-          {back}
-          <input value={name} onChange={(e) => setName(e.target.value)} autoFocus className="h-9 flex-1 rounded-lg border bg-background px-3 text-sm outline-none focus:border-ring" placeholder="Your business name" />
-          <Button type="submit" size="sm" className="h-9">Continue</Button>
-        </div>
-        {name.trim() && <p className="pl-1 text-xs text-muted-foreground">your handle: {slugify(name) || "…"}.lu.computer</p>}
-      </form>
-    );
-
-  if (step === "assistant")
-    return (
-      <form onSubmit={(e) => { e.preventDefault(); onAssistant(assistantName.trim() || "Lu"); }} className="flex flex-col gap-1.5">
-        <div className="flex gap-2">
-          {back}
-          <input value={assistantName} onChange={(e) => setAssistantName(e.target.value)} autoFocus className="h-9 flex-1 rounded-lg border bg-background px-3 text-sm outline-none focus:border-ring" placeholder="Lu" />
-          <Button type="submit" size="sm" className="h-9">Continue</Button>
-        </div>
-        <p className="pl-1 text-xs text-muted-foreground">Most keep it Lu — you can rename anytime.</p>
-      </form>
-    );
-
-  if (step === "phone")
-    return (
-      <form onSubmit={(e) => { e.preventDefault(); if (cell.trim()) onPhone(cell.trim()); }} className="flex gap-2">
-        {back}
-        <input value={cell} onChange={(e) => setCell(e.target.value)} autoFocus inputMode="tel" className="h-9 flex-1 rounded-lg border bg-background px-3 text-sm outline-none focus:border-ring" placeholder="Your cell, e.g. (617) 555-0142" />
-        <Button type="submit" size="sm" className="h-9" disabled={!cell.trim()}>Continue</Button>
-      </form>
-    );
-
-  if (step === "hours")
+  if (screen === "business")
     return (
       <div className="flex flex-col gap-2">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (business.trim()) onBusiness(business.trim());
+          }}
+          className="flex gap-2"
+        >
+          {backBtn}
+          <input
+            value={business}
+            onChange={(e) => setBusiness(e.target.value)}
+            autoFocus
+            className="h-9 flex-1 rounded-lg border bg-background px-3 text-sm outline-none focus:border-ring"
+            placeholder="What do you do? In your own words…"
+          />
+          <Button type="submit" size="sm" className="h-9" disabled={!business.trim()}>
+            Continue
+          </Button>
+        </form>
         <div className="flex flex-wrap gap-1.5">
-          {["Weekdays 8–5", "Weekdays 9–7", "Mon–Sat 9–7"].map((t) => (
+          {BUSINESS_EXAMPLES.map((t) => (
             <button
               key={t}
               type="button"
-              onClick={() => onPreset(t)}
-              className={cn(
-                "rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
-                ws.hours === t ? "border-foreground/30 bg-muted text-foreground" : "text-muted-foreground hover:text-foreground",
-              )}
+              onClick={() => setBusiness(t)}
+              className="rounded-full border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
             >
               {t}
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-2">
-          {back}
-          <span className="text-xs text-muted-foreground">Fine-tune on the grid →</span>
-          <Button size="sm" className="ml-auto h-9" onClick={onContinueHours}>Continue</Button>
-        </div>
       </div>
     );
 
-  return null;
+  if (screen === "links")
+    return (
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          onLinks(links);
+        }}
+        className="flex flex-col gap-2"
+      >
+        <LinkInput icon={Globe} value={links.website} onChange={(v) => setLinks((l) => ({ ...l, website: v }))} placeholder="yoursite.com" />
+        <LinkInput icon={FacebookMark} value={links.facebook} onChange={(v) => setLinks((l) => ({ ...l, facebook: v }))} placeholder="facebook.com/you" />
+        <LinkInput icon={InstagramMark} value={links.instagram} onChange={(v) => setLinks((l) => ({ ...l, instagram: v }))} placeholder="@you" />
+        <div className="mt-1 flex items-center gap-2">
+          {backBtn}
+          <button type="button" onClick={() => onLinks({ skipped: true })} className="text-xs text-muted-foreground hover:text-foreground">
+            Skip — I&apos;m starting fresh
+          </button>
+          <Button type="submit" size="sm" className="ml-auto h-9">
+            Continue
+          </Button>
+        </div>
+      </form>
+    );
+
+  // handle
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        onHandle((handle || ws.handle || "you").trim());
+      }}
+      className="flex flex-col gap-1.5"
+    >
+      <div className="flex gap-2">
+        {backBtn}
+        <input
+          value={handle}
+          onChange={(e) => setHandle(e.target.value)}
+          autoFocus
+          className="h-9 flex-1 rounded-lg border bg-background px-3 text-sm outline-none focus:border-ring"
+          placeholder={ws.handle || "your-handle"}
+        />
+        <Button type="submit" size="sm" className="h-9">
+          Continue
+        </Button>
+      </div>
+      <p className="pl-1 text-xs text-muted-foreground">{slugify(handle) || ws.handle || "you"}.lu.computer</p>
+    </form>
+  );
 }
 
-function LinkInput({ icon: Icon, value, onChange, placeholder }: { icon: React.ComponentType<{ className?: string }>; value: string; onChange: (v: string) => void; placeholder: string }) {
+function LinkInput({
+  icon: Icon,
+  value,
+  onChange,
+  placeholder,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
   return (
     <div className="flex items-center gap-2 rounded-lg border bg-background px-3 focus-within:border-ring">
       <Icon className="size-4 shrink-0 text-muted-foreground" />
-      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="h-9 w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="h-9 w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+      />
     </div>
   );
 }
 
-/** Streams Lu's text in irregular token-ish bursts — feels like real LLM streaming. */
-function Typewriter({ text, stream, onDone, onTick }: { text: string; stream: boolean; onDone: () => void; onTick: () => void }) {
-  const [n, setN] = React.useState(stream ? 0 : text.length);
-  const doneRef = React.useRef(false);
-  React.useEffect(() => {
-    if (!stream) return;
-    if (n >= text.length) {
-      if (!doneRef.current) {
-        doneRef.current = true;
-        onDone();
-      }
-      return;
-    }
-    const chunk = 2 + Math.floor(Math.random() * 4);
-    const delay = 24 + Math.random() * 46 + (Math.random() < 0.1 ? 140 : 0);
-    const t = setTimeout(() => setN((c) => Math.min(text.length, c + chunk)), delay);
-    return () => clearTimeout(t);
-  }, [n, stream, text]); // eslint-disable-line react-hooks/exhaustive-deps
-  React.useEffect(() => onTick(), [n]); // eslint-disable-line react-hooks/exhaustive-deps
-  return <>{text.slice(0, n)}</>;
+/** Instagram gradient camera (lucide dropped brand icons). */
+function InstagramMark({ className = "size-3" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden>
+      <defs>
+        <linearGradient id="ig-grad-ob" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0" stopColor="#FEDA75" />
+          <stop offset="0.35" stopColor="#FA7E1E" />
+          <stop offset="0.6" stopColor="#D62976" />
+          <stop offset="1" stopColor="#962FBF" />
+        </linearGradient>
+      </defs>
+      <rect x="1" y="1" width="22" height="22" rx="6" fill="url(#ig-grad-ob)" />
+      <rect x="5.5" y="5.5" width="13" height="13" rx="4" fill="none" stroke="#fff" strokeWidth="1.8" />
+      <circle cx="12" cy="12" r="3.2" fill="none" stroke="#fff" strokeWidth="1.8" />
+      <circle cx="16.6" cy="7.4" r="1" fill="#fff" />
+    </svg>
+  );
 }
