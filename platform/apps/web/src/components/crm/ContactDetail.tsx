@@ -8,7 +8,7 @@ import type { TimelineEvent } from "@/lib/data/shared";
 import type { ContactDetail as Detail } from "@/lib/data/crm";
 import { LEAD_STAGES, type PipelineStage } from "@/lib/data/crm/types";
 import { statusChip, formatWhen } from "@/lib/dashboard-ui";
-import { updateLeadStageAction } from "@/app/(app)/crm/actions";
+import { updateLeadStageAction } from "@/app/(app)/customers/actions";
 import { useSarah } from "@/components/sarah/sarah-context";
 import { SarahIcon } from "@/components/icons/sarah";
 import { Timeline } from "@/components/app/Timeline";
@@ -69,8 +69,8 @@ export function ContactDetail({ detail, demo, timezone }: { detail: Detail; demo
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <Link href="/crm" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="size-3.5" /> CRM
+        <Link href="/customers" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="size-3.5" /> Customers
         </Link>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>

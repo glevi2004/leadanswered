@@ -43,8 +43,10 @@ import {
 const KIWI_ICONS: Record<SurfaceKey, React.ComponentType<{ state?: IconState; className?: string }>> = {
   home: DashboardIcon,
   sarah: SarahIcon,
+  canvas: TeamIcon, // network/org-graph glyph — reads as the radial company canvas
   crm: CrmIcon,
   schedule: ScheduleIcon,
+  money: InvoicesIcon, // wallet/dollar — Money rolls up quotes + invoices
   quotes: QuotesIcon,
   invoices: InvoicesIcon,
   followups: FollowupsIcon,
@@ -53,6 +55,8 @@ const KIWI_ICONS: Record<SurfaceKey, React.ComponentType<{ state?: IconState; cl
   reviews: ReviewsIcon,
   analytics: AnalyticsIcon,
   team: TeamIcon,
+  agents: SarahIcon, // bot/sparkles — the AI coworkers surface
+  sites: WebsiteIcon, // globe — the website/landing-pages surface
   settings: SettingsIcon,
 };
 

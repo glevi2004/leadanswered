@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { currentUser, isAdminEmail } from "@/lib/auth";
 import { getOrganizationByOwnerEmail } from "@/lib/organizations";
 import { DEFAULT_TIMEZONE } from "@/lib/config";
+import { resolveInjectedOrg } from "./data/org-profile";
 
 /**
  * Resolve the signed-in owner's organization for the dashboard, or redirect:
@@ -11,6 +12,9 @@ import { DEFAULT_TIMEZONE } from "@/lib/config";
  * Returns the full organization row (loosely typed — it's a supabase-js result).
  */
 export async function requireOrganization(): Promise<Record<string, any>> {
+  const injected = await resolveInjectedOrg();
+  if (injected) return injected;
+
   const user = await currentUser();
   if (!user) redirect("/sign-in");
   if (isAdminEmail(user.email)) redirect("/admin");

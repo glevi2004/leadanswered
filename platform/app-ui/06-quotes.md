@@ -28,6 +28,30 @@ a price ever reach a customer.
 
 ## 2. Layout
 
+> **Competitive pass (Levi, 2026-07-13 — baselined against Jobber / Housecall Pro / QuoteIQ /
+> Workiz).** Additions, all mock-seam:
+> - **The compose model (Levi, 2026-07-13 — replaces create-empty-then-edit):** a quote is a
+>   DOCUMENT you compose, not a record you create then mutate. *"Write it yourself"* goes
+>   straight to a full compose page (`/quotes/new`) — contact, title, line items (first row
+>   focused), discount, deposit, notes, all live, running total in a sticky footer with
+>   **[Send by text]** primary and a quiet *Save draft*. **Drafts are a byproduct** (leave
+>   mid-compose, it's saved), and a draft's natural state IS the editor: opening a draft
+>   reopens the composer — there is NO Edit toggle anywhere. Only SENT documents render the
+>   read-only detail. Sarah's path lands on the same composer pre-filled (review → Send =
+>   the approval); the empty composer is the fallback, not the norm.
+> - **Row ⋯ menus on the index** (Send/Resend · Mark accepted/declined · Duplicate · Invoice it)
+>   so the table is operable without opening details.
+> - **Structured totals:** subtotal → discount → total (tax still out, §8 Q3); **deposit** is a
+>   structured field (`depositCents`, Jobber-style) shown on the accept page and carried into
+>   the invoice as a recorded payment.
+> - **Optional add-ons** (`QuoteLineItem.optional`) — the customer toggles them ON the public
+>   accept page; the total updates live before they approve.
+> - **Typed-signature accept** — name + "Accept" on `/q/[token]` (lightweight e-sign; resolves
+>   §8 Q1). Stored as `acceptedBy`.
+> - **Photos on the quote** (`Quote.photos`, PhotoStrip) — detail + public page.
+> - **Sarah's chase, visible on the detail:** the linked `ChaseItem`'s next-nudge time (or hold
+>   reason) renders on the quote — Jobber's follow-up automation, with a named agent.
+
 ### Index — `/quotes`
 
 ```
@@ -80,10 +104,10 @@ a price ever reach a customer.
 └───────────────────────────────────────────────┴─────────────────────────┘
 ```
 
-- `draft` status swaps the actions row for **[Send by text] [Edit] [Delete draft]** and the line
-  items render in the inline editor (see §6 `LineItemsEditor`). A Sarah-drafted quote still
-  pending approval shows its `Approval` card at the top of the page (approve/edit/decline here
-  = same card as the widget).
+- `draft` status renders **the composer itself** (compose model, above) — everything editable
+  in place, [Send by text] + Save draft + Delete in the footer; no read view, no Edit toggle.
+  A Sarah-drafted quote still pending approval is that same composer pre-filled, with its
+  `Approval` card at the top (approve here = Send).
 - `[⋯ ▾]` menu: Mark accepted · Mark declined (for "they said yes on the phone") · Delete draft.
 
 ### Customer accept page — `/q/[token]` (PUBLIC, no auth — 00 §7; mobile-first, opened from a text)
@@ -185,6 +209,8 @@ interface QuoteLineItem {
   quantity: number                 // decimals allowed (28 squares, 1.5 hrs)
   unitPriceCents: number
   totalCents: number               // quantity × unitPriceCents, denormalized
+  optional?: boolean               // customer-selectable add-on (2026-07-13); excluded from
+                                   //   totals until selected on /q/[token]
 }
 
 interface Quote {
@@ -193,8 +219,14 @@ interface Quote {
   contactId: string                // → Contact (00 §6)
   title: string                    // "Roof replacement — 14 Maple St"
   lineItems: QuoteLineItem[]
-  totalCents: number               // 1_420_000 → "$14,200"
-  notes?: string                   // terms, deposit, exclusions — free text in v1
+  subtotalCents: number            // Σ non-optional line items (2026-07-13)
+  discountCents?: number           // structured discount line (2026-07-13)
+  totalCents: number               // subtotal − discount; 1_420_000 → "$14,200"
+  depositCents?: number            // due on acceptance (2026-07-13); carried into the invoice
+                                   //   as a recorded payment
+  photos?: Array<{ id: string; url: string; alt: string }>   // job photos (2026-07-13)
+  acceptedBy?: string              // typed-signature name from /q accept (2026-07-13)
+  notes?: string                   // terms, exclusions — free text in v1
   status: QuoteStatus
   source: 'sarah' | 'manual'
   approvalId?: string              // the Approval (kind 'quote') that gated the send
@@ -310,17 +342,16 @@ Mock providers per 00 §5: mutations mutate nothing — success + sonner toast, 
 
 ## 8. Open questions
 
-1. **Accept semantics:** is Accept a soft go-ahead (status flip + owner notified + "Marcus will
-   text you") or do we need signature/initial capture (lightweight e-sign) for v1? Changes the
-   public page and the data model.
+1. ~~**Accept semantics**~~ — *resolved (2026-07-13): lightweight typed-name e-sign — the
+   customer types their name to accept (`acceptedBy`); no signature-pad build.*
 2. **Decline on the public page:** Accept-only (declines arrive by text, owner marks manually)
    vs. an explicit Decline button + reason. Affects `PublicQuote`, Follow-ups' stop conditions,
    and the decline analytics in 11.
 3. **Tax:** free-text in `notes` for v1 (flat-quoting trades), or a structured
    `taxCents`/org tax-rate now? Retrofitting tax onto sent-quote history is ugly — decide before
    the Prisma model.
-4. **Deposit / payment schedule:** plain notes text v1, or a structured field that
-   convert-to-invoice (08) can turn into a deposit invoice automatically?
+4. ~~**Deposit / payment schedule**~~ — *resolved (2026-07-13): structured `depositCents`;
+   convert-to-invoice records it as a payment on the new invoice (balance due = total − deposit).*
 5. **Quote numbering:** per-org sequential (`Q-1042`) needs a counter and collision care —
    worth it v1, or are ids enough until invoicing demands clean numbering?
 6. **Public-page branding:** "Sent via Lead Answered" footer on every quote, or white-label per

@@ -24,6 +24,21 @@ every mutation returns success + a toast per the 00 §5 seam. Module status defa
 
 ## 2. Layout
 
+> **Competitive pass (Levi, 2026-07-13 — baselined against Jobber / Housecall Pro / QuoteIQ /
+> Workiz).** Additions, all mock-seam:
+> - **Real creation, visible — on the compose model (Levi 2026-07-13, mirrors 06):** *+ New
+>   invoice ▾* → "From an accepted quote" (picker over accepted, un-invoiced quotes) opens the
+>   **composer pre-filled** — line items copied, deposit already applied, due date defaulted —
+>   you're *confirming*, not composing; "From scratch" opens the same composer empty
+>   (`/invoices/new`). Drafts open AS the composer (no Edit toggle, ever); only sent invoices
+>   render the read-only detail with Mark-paid/Remind/Void.
+> - **Row ⋯ menus** (Open · Resend · Remind · Mark paid · Void) so the index is operable.
+> - **Payments, not just paid:** `Invoice.payments[]` (Workiz-style partials — resolves §8 Q5
+>   for the UI): a quote's deposit arrives as the first recorded payment; Mark paid records an
+>   amount (default = balance) + method; **balance due** renders everywhere, and `paid` derives
+>   from balance 0 — not from a single flip.
+> - **Structured totals** mirror 06 (subtotal → discount → total; tax still out).
+
 ### Index — `/invoices`
 
 ```
@@ -156,7 +171,15 @@ interface Invoice {
   number: string                   // 'INV-2031' — human-facing, per-org sequence (§8 Q5)
   status: InvoiceStatus
   lineItems: QuoteLineItem[]       // shape owned by 06-quotes §4 — conversion copies them 1:1
-  total: number                    // integer cents (14200_00); sum of line items (tax: §8 Q4)
+  subtotalCents: number            // Σ line items (2026-07-13)
+  discountCents?: number           // carried from the quote (2026-07-13)
+  total: number                    // integer cents (14200_00); subtotal − discount (tax: §8 Q4)
+  payments: Array<{                // recorded money (2026-07-13; resolves §8 Q5 for the UI):
+    at: string                     //   deposit-on-acceptance arrives as the first entry;
+    amountCents: number            //   balance due = total − Σ payments; 'paid' derives from
+    method: 'deposit' | 'check' | 'cash' | 'zelle' | 'card' | 'other'
+    note?: string                  //   balance 0, never a bare status flip
+  }>
   quoteId?: string                 // set when converted from an accepted Quote (06)
   token: string                    // public pay-page token → /i/[token]
   payInstructions?: string         // v1 rail: "check or Zelle" copy shown on the pay page
@@ -277,5 +300,5 @@ enqueue a fake `SarahAction` where natural (send, remind, mark paid).
    10-followups' rules — decide there together.
 4. **Tax:** none in v1 (labor is commonly untaxed for these trades, varies by state) vs. an
    invoice-level tax line. Affects `Invoice.total` composition and the pay page.
-5. **Deposits / partial payments:** roofing jobs routinely take a deposit. v1 mark-paid is
-   all-or-nothing — is a `payments[]` array worth modeling now, or is that post-rail?
+5. ~~**Deposits / partial payments**~~ — *resolved for the UI (2026-07-13): `payments[]` is
+   modeled now (deposit + partials + balance due); the payments RAIL stays post-decision (Q2).*

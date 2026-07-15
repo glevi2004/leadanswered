@@ -11,13 +11,25 @@ export interface InvoiceEvent {
   note?: string; // 'check — recorded by Sarah'
 }
 
+/** Recorded money (08 competitive pass): a quote's deposit arrives as the first
+ *  entry; balance due = total − Σ payments; 'paid' derives from balance 0. */
+export interface InvoicePayment {
+  at: string;
+  amountCents: number;
+  method: "deposit" | "check" | "cash" | "zelle" | "card" | "other";
+  note?: string;
+}
+
 export interface Invoice {
   id: string; // 'inv_2031'
   contactId: string; // → Contact (00 §6)
   number: string; // 'INV-2031'
-  status: InvoiceStatus; // stored; provider derives 'overdue' at read time
+  status: InvoiceStatus; // stored; provider derives 'overdue'/'paid' at read time
   lineItems: QuoteLineItem[]; // conversion copies them 1:1 from the Quote
-  totalCents: number; // integer cents
+  subtotalCents: number; // Σ line items
+  discountCents?: number; // carried from the quote
+  totalCents: number; // subtotal − discount
+  payments: InvoicePayment[];
   quoteId?: string; // set when converted from an accepted Quote (06)
   token: string; // public pay-page token → /i/[token]
   payInstructions?: string; // v1 rail: check/Zelle copy shown on the pay page
@@ -43,6 +55,8 @@ export interface PublicInvoice {
   contactFirstName: string;
   lineItems: QuoteLineItem[];
   totalCents: number;
+  paidCents: number; // Σ payments (deposit shows as "already paid")
+  balanceCents: number;
   dueAt?: string;
   state: "open" | "paid" | "void";
   payInstructions?: string;

@@ -50,8 +50,8 @@ export function ImportWizard({ demo }: { demo: boolean }) {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
       <div>
-        <Link href="/crm" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="size-3.5" /> CRM
+        <Link href="/customers" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="size-3.5" /> Customers
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">Bring your history in</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -206,8 +206,8 @@ export function ImportWizard({ demo }: { demo: boolean }) {
                 <p className="mt-1 text-sm text-muted-foreground">214 customers imported · 3 merged · 0 skipped</p>
               </div>
               <div className="flex flex-wrap justify-center gap-2">
-                <Button variant="outline" render={<Link href="/crm" />}>See them in your CRM</Button>
-                <Button className="btn-glow gap-1.5" render={<Link href="/reviews" />}>
+                <Button variant="outline" nativeButton={false} render={<Link href="/customers" />}>See them in your customers</Button>
+                <Button className="btn-glow gap-1.5" nativeButton={false} render={<Link href="/reviews" />}>
                   Start your review campaign <ArrowRight className="size-4" />
                 </Button>
               </div>

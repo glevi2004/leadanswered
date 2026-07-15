@@ -38,9 +38,23 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
           </div>
         ))}
       </div>
-      <div className="flex items-center justify-between border-t border-zinc-200 pt-3">
-        <span className="text-sm font-bold">Total due</span>
-        <span className="text-base font-bold tabular-nums">{formatCents(invoice.totalCents)}</span>
+      <div className="border-t border-zinc-200 pt-3">
+        <div className="flex items-center justify-between py-0.5">
+          <span className="text-sm font-semibold">Total</span>
+          <span className="text-sm font-semibold tabular-nums">{formatCents(invoice.totalCents)}</span>
+        </div>
+        {invoice.paidCents > 0 && (
+          <>
+            <div className="flex items-center justify-between py-0.5 text-sm text-zinc-500">
+              <span>Already paid</span>
+              <span className="tabular-nums">−{formatCents(invoice.paidCents)}</span>
+            </div>
+            <div className="flex items-center justify-between py-0.5">
+              <span className="text-sm font-bold">Balance due</span>
+              <span className="text-base font-bold tabular-nums">{formatCents(invoice.balanceCents)}</span>
+            </div>
+          </>
+        )}
       </div>
       {invoice.dueAt && invoice.state === "open" && (
         <p className="mt-1 text-xs text-zinc-500">

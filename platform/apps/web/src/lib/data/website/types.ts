@@ -1,7 +1,12 @@
+import type { SarahMessage } from "../shared";
+
 /** Website-owned types (03-website §4). All `map from: none (new)` — no tables exist yet. */
 
+/** Which starter an org's site was stamped from (drives the browse card + starter content). */
+export type SitePresetId = "marketing" | "booking" | "blog" | "portal";
+
 export interface Site {
-  id: string;
+  id: string; // siteId — stable across the browse grid and the builder route
   organizationId: string;
   domain: string; // "apexroofingma.com"
   status: "building" | "live";
@@ -12,6 +17,21 @@ export interface Site {
   visitsSeries: number[]; // daily, last 30 days
   leadsFromSite30d: number; // derived: count Lead.source='website' in window
   leadsSeries: number[]; // daily new site leads; the card charts the cumulative climb
+
+  // ---- multi-site fields (many sites per org; mock seam models publish/domain) ----
+  name?: string; // human label shown on the browse card ("Apex Roofing")
+  preset?: SitePresetId; // the starter it was created from
+  published?: boolean; // has a live version been published? (mock — no real hosting)
+  customDomain?: string; // a domain the owner pointed at the site (mock — no real DNS)
+}
+
+/** Everything the builder needs to open ONE site — what getSiteMock/createSiteMock return. */
+export interface SiteBundle {
+  site: Site;
+  pages: SitePage[];
+  versions: SiteVersion[];
+  seo: SeoSnapshot;
+  chat: SarahMessage[];
 }
 
 export interface SitePage {

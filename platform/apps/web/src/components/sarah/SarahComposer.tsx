@@ -25,7 +25,7 @@ export function SarahComposer({
   chips?: string[];
   placeholder?: string;
 }) {
-  const { sendMessage, chipsForCurrentPage, currentPageLabel, contextEntity, messages, composerPrefill, consumePrefill } = useSarah();
+  const { sendMessage, chipsForCurrentPage, currentPageLabel, contextEntity, messages, composerPrefill, consumePrefill, assistantName } = useSarah();
   const [text, setText] = React.useState("");
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
 
@@ -89,7 +89,7 @@ export function SarahComposer({
           e.preventDefault();
           submit();
         }}
-        className="rounded-2xl border bg-background shadow-xs transition-shadow focus-within:border-ring/60 focus-within:ring-2 focus-within:ring-ring/15"
+        className="rounded-2xl border bg-background shadow-[inset_0_1px_2px_rgb(0_0_0_/_0.04)] transition-shadow focus-within:border-ring/60 focus-within:ring-2 focus-within:ring-ring/15 dark:shadow-[inset_0_1px_2px_rgb(0_0_0_/_0.28)]"
       >
         <textarea
           ref={inputRef}
@@ -105,7 +105,7 @@ export function SarahComposer({
               submit();
             }
           }}
-          placeholder={placeholder ?? "What can Sarah do for you?"}
+          placeholder={placeholder ?? `What can ${assistantName} do for you?`}
           className="block max-h-30 w-full resize-none bg-transparent px-3.5 pb-1 pt-3 text-sm outline-none placeholder:text-muted-foreground"
         />
         <div className="flex items-center justify-between gap-2 px-2 pb-2">

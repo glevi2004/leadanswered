@@ -31,6 +31,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ) as Record<ModuleKey, ModuleStatus>;
 
   const ownerName = demo ? APEX.ownerName : ((organization.name as string)?.split(" ")[0] ?? "there");
+  const assistantName = (organization.sarahName as string) || "Lu";
   const escalations = demo ? APEX_ESCALATIONS : await listOpenEscalations(organization.id).catch(() => []);
 
   const welcome = [
@@ -38,7 +39,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       id: "welcome",
       at: new Date().toISOString(),
       role: "sarah" as const,
-      body: `Hi ${ownerName} — I'm Sarah. I'm already answering your line; ask me anything about your leads, schedule, or jobs. For now I answer by text — in-app replies are coming.`,
+      body: `Hi ${ownerName} — I'm ${assistantName}. I'm already answering your line; ask me anything about your leads, schedule, or jobs. For now I answer by text — in-app replies are coming.`,
       via: "app" as const,
     },
   ];
@@ -47,7 +48,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <SarahProvider
       key={demo ? "demo" : "real"} // remount the client state when the demo toggle flips
       demo={demo}
+      isNewOrg={organization.demoProfile === "new"}
       ownerName={ownerName}
+      assistantName={assistantName}
       initialMessages={demo ? APEX_THREAD : welcome}
       initialApprovals={demo ? APEX_APPROVALS : []}
       initialActions={demo ? APEX_ACTIONS : []}
@@ -58,7 +61,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         defaultOpen={sidebarOpen}
         style={sidebarWidth ? ({ "--sidebar-width": sidebarWidth } as React.CSSProperties) : undefined}
       >
-        <AppSidebar companyName={demo ? APEX.companyName : organization.companyName} statuses={statuses} demo={demo} />
+        <AppSidebar
+          companyName={demo ? APEX.companyName : organization.companyName}
+          statuses={statuses}
+          demo={demo}
+        />
         <SidebarResizer />
         {/* The rounded frame: fixed to the viewport on desktop, content scrolls inside it. */}
         <SidebarInset className="md:peer-data-[variant=inset]:rounded-2xl md:peer-data-[variant=inset]:border md:h-[calc(100svh-1rem)] md:overflow-hidden">

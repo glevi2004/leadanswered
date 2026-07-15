@@ -1,11 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { Approval, SarahAction, SarahMessage } from "@/lib/data/shared";
 import { MODULES, surfaceForPath } from "@/lib/data/registry";
 import { scriptedReply } from "@/lib/data/fixtures/apex";
+import { patchOnboardedProfile } from "@/lib/org-cookie";
+import { CAPABILITIES } from "@/lib/workspace/capabilities";
+import type { CapabilityKey } from "@/lib/workspace/capabilities";
 
 /**
  * The one owner conversation, shared by the widget and /sarah (00 §3: three
@@ -35,6 +38,8 @@ export interface OpenEscalation {
 interface SarahState {
   demo: boolean;
   ownerName: string;
+  /** the org's chosen name for the assistant (default "Lu") — for conversational copy */
+  assistantName: string;
   /** the ACTIVE chat's messages — consumers don't care about the history model */
   messages: SarahMessage[];
   /** conversation history for the "New chat ▾" dropdown */
@@ -55,6 +60,9 @@ interface SarahState {
   openWidget: (ctx?: { entity?: string }) => void;
   /** the record the owner was looking at when they asked ("Ask Sarah about Dana") */
   contextEntity: string | null;
+  /** the department/agent selected on the company canvas — drives the dock's agent view */
+  selectedAgent: string | null;
+  setSelectedAgent: (id: string | null) => void;
   sendMessage: (body: string) => void;
   /** Apollo-style "New chat": a fresh conversation; approvals/escalations untouched */
   startNewChat: () => void;
@@ -82,7 +90,9 @@ const nextId = () => `local_${++idCounter}`;
 
 export function SarahProvider({
   demo,
+  isNewOrg = false,
   ownerName,
+  assistantName = "Lu",
   initialMessages,
   initialApprovals,
   initialActions,
@@ -91,7 +101,10 @@ export function SarahProvider({
   children,
 }: {
   demo: boolean;
+  /** the freshly-onboarded "New" org — its ONE assistant is a real Lu (talks + installs) */
+  isNewOrg?: boolean;
   ownerName: string;
+  assistantName?: string;
   initialMessages: SarahMessage[];
   initialApprovals: Approval[];
   initialActions: SarahAction[];
@@ -100,6 +113,7 @@ export function SarahProvider({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [chats, setChats] = React.useState<SarahChat[]>(() => [
     {
       id: "chat_main",
@@ -111,6 +125,10 @@ export function SarahProvider({
   const [activeChatId, setActiveChatId] = React.useState("chat_main");
   const activeChatIdRef = React.useRef(activeChatId);
   activeChatIdRef.current = activeChatId;
+  // always-current view of the threads, so sendMessage can build the transcript
+  // to POST without re-creating the callback on every keystroke-driven render.
+  const chatsRef = React.useRef(chats);
+  chatsRef.current = chats;
   const messages = (chats.find((c) => c.id === activeChatId) ?? chats[0]).messages;
 
   /** append into a specific chat (timers may land after a switch); first owner message titles a "New chat" */
@@ -134,6 +152,7 @@ export function SarahProvider({
   const [widgetOpen, setWidgetOpen] = React.useState(false);
   const [widgetMode, setWidgetMode] = React.useState<"docked" | "floating">("docked");
   const [contextEntity, setContextEntity] = React.useState<string | null>(null);
+  const [selectedAgent, setSelectedAgent] = React.useState<string | null>(null);
   const [composerPrefill, setComposerPrefill] = React.useState<string | null>(null);
   const answeringEscalation = React.useRef<OpenEscalation | null>(null);
 
@@ -162,14 +181,19 @@ export function SarahProvider({
   }, [widgetOpen, persistOpen]);
 
   // the entity context is about the page you were on — leaving it clears it
-  React.useEffect(() => setContextEntity(null), [pathname]);
+  // (and the canvas selection, which is likewise page-scoped)
+  React.useEffect(() => {
+    setContextEntity(null);
+    setSelectedAgent(null);
+  }, [pathname]);
 
   const sendMessage = React.useCallback(
     (body: string) => {
       const text = body.trim();
       if (!text) return;
       const chatId = activeChatIdRef.current;
-      appendTo(chatId, { id: nextId(), at: new Date().toISOString(), role: "owner", body: text, via: "app" });
+      const ownerMsg: SarahMessage = { id: nextId(), at: new Date().toISOString(), role: "owner", body: text, via: "app" };
+      appendTo(chatId, ownerMsg);
 
       // answering an escalation? resolve it: Sarah relays in her own words.
       const esc = answeringEscalation.current;
@@ -190,10 +214,51 @@ export function SarahProvider({
         return;
       }
 
+      // The New (onboarded) org has ONE real assistant: this same widget talks to
+      // /api/lu/chat (real Claude Haiku) — a plain conversation over the fixed
+      // workspace. Demo (Mature) and off keep their scripted/honest-toast behavior below.
+      if (isNewOrg) {
+        const prior = chatsRef.current.find((c) => c.id === chatId)?.messages ?? [];
+        const thread = [...prior, ownerMsg].map((m) => ({
+          role: m.role === "owner" ? ("user" as const) : ("assistant" as const),
+          content: m.body,
+        }));
+        // the model needs a user-first transcript — drop the seeded welcome/greeting.
+        while (thread.length && thread[0].role === "assistant") thread.shift();
+
+        setTyping(true);
+        fetch("/api/lu/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: thread }),
+        })
+          .then(async (res) => {
+            if (!res.ok) throw new Error(String(res.status));
+            return (await res.json()) as { reply?: string };
+          })
+          .then(({ reply }) => {
+            setTyping(false);
+            if (reply?.trim()) {
+              appendTo(chatId, { id: nextId(), at: new Date().toISOString(), role: "sarah", body: reply.trim(), via: "app" });
+            }
+          })
+          .catch(() => {
+            setTyping(false);
+            appendTo(chatId, {
+              id: nextId(),
+              at: new Date().toISOString(),
+              role: "sarah",
+              body: "One sec — I couldn't reach my tools just then. Give me a moment and try that again.",
+              via: "app",
+            });
+          });
+        return;
+      }
+
       if (!demo) {
-        // Honest until POST /sarah/turn exists: never fake a Sarah reply on real accounts.
+        // Honest until POST /sarah/turn exists: never fake a reply on real accounts.
         toast("In-app chat is almost ready", {
-          description: "Sarah answers by text today — text her line and she's on it.",
+          description: `${assistantName} answers by text today — text her line and she's on it.`,
         });
         return;
       }
@@ -204,7 +269,7 @@ export function SarahProvider({
         appendTo(chatId, { id: nextId(), at: new Date().toISOString(), role: "sarah", body: reply, via: "app" });
       }, 900 + Math.random() * 600);
     },
-    [demo, appendTo],
+    [demo, isNewOrg, router, appendTo, assistantName],
   );
 
   const resolveApproval = React.useCallback(
@@ -266,6 +331,7 @@ export function SarahProvider({
   const value: SarahState = {
     demo,
     ownerName,
+    assistantName,
     messages,
     chats: chats.map((c) => ({ id: c.id, title: c.title })),
     activeChatId,
@@ -284,6 +350,8 @@ export function SarahProvider({
       persistOpen(true);
     },
     contextEntity,
+    selectedAgent,
+    setSelectedAgent,
     sendMessage,
     startNewChat,
     approve: (id, editedPreview) => resolveApproval(id, "approved", editedPreview),

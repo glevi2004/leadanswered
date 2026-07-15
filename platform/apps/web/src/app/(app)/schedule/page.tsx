@@ -16,6 +16,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
   const organization = await requireOrganization();
   const { tab } = await searchParams;
   const demo = await isDemoMode();
+  const isNew = organization.demoProfile === "new";
   const tz = demo ? APEX.timezone : organizationTz(organization);
   const items = demo ? listItemsMock() : await listItemsReal(organization.id);
   const windows: AvailabilityWindow[] = demo
@@ -26,9 +27,10 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
   const routeFixture = demo ? (items.map((i) => getRouteMock(i.startAt.slice(0, 10))).find(Boolean) ?? null) : null;
 
   // The Posts layer (07 §2): content projected onto the calendar, gated with its module.
+  // A freshly-onboarded org has no content yet, so nothing projects onto the calendar.
   const contentStatus = resolveModuleStatus(organization, "content", demo);
   const posts: SchedulePost[] =
-    contentStatus === "coming_soon" || contentStatus === "hidden"
+    isNew || contentStatus === "coming_soon" || contentStatus === "hidden"
       ? []
       : [
           ...APEX_POSTS.filter((p) => p.publishedAt || p.scheduledFor).map((p) => ({

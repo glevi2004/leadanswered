@@ -1,5 +1,6 @@
-import { ModuleStub } from "@/components/app/ModuleStub";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return <ModuleStub moduleKey="analytics" />;
+/** Analytics folds into the Dashboard (fixed-nav consolidation). */
+export default function AnalyticsIndexRedirect() {
+  redirect("/home");
 }

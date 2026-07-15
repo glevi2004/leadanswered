@@ -16,6 +16,7 @@ export const metadata: Metadata = {
 
 /** Fixture tokens (mock seam): demo_vN → version N's snapshot. v14 = the open draft. */
 const TOKEN_VERSION: Record<string, number> = {
+  demo_v0: 0, // the blank starter canvas (freshly-onboarded org, no site yet)
   demo_v11: 11,
   demo_v12: 12,
   demo_v13: 13,
@@ -47,7 +48,7 @@ export default async function PublicSitePreviewPage({
   const { token } = await params;
   const sp = await searchParams;
   const version = TOKEN_VERSION[token];
-  if (!version) return <ExpiredPreview />;
+  if (version === undefined) return <ExpiredPreview />;
 
   const path = sp.page && sp.page.startsWith("/") ? sp.page : "/";
   const embed = sp.embed === "1";

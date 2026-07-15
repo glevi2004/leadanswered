@@ -27,7 +27,7 @@ export function PerformanceTab({ site, seo }: { site: Site; seo: SeoSnapshot }) 
           label="Leads from your site"
           value={site.leadsFromSite30d}
           hint={
-            <Link href="/crm?source=website" className="underline-offset-2 hover:text-foreground hover:underline">
+            <Link href="/customers?source=website" className="underline-offset-2 hover:text-foreground hover:underline">
               last 30 days, and climbing · see them in CRM →
             </Link>
           }

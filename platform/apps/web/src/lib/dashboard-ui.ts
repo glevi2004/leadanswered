@@ -75,6 +75,7 @@ const STATUS_META: Record<string, { label: string; family: StatusFamily }> = {
   running: { label: "Running", family: "blue" },
   pending: { label: "Verifying", family: "blue" },
   scheduled: { label: "Scheduled", family: "blue" },
+  invited: { label: "Invited", family: "blue" },
   // being worked
   qualifying: { label: "Qualifying", family: "violet" },
   replied: { label: "Replied", family: "violet" },
@@ -103,6 +104,7 @@ const STATUS_META: Record<string, { label: string; family: StatusFamily }> = {
   paused: { label: "Paused", family: "amber" },
   opted_out: { label: "Opted out", family: "amber" },
   needs_reconnect: { label: "Reconnect", family: "amber" },
+  pending_hello: { label: "Hello sent", family: "amber" },
   // lost / failed
   overdue: { label: "Overdue", family: "red" },
   disqualified: { label: "Disqualified", family: "red" },

@@ -3,11 +3,12 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Flag } from "lucide-react";
+import { ChevronDown, Flag, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
-import type { Quote, QuoteStatus } from "@/lib/data/quotes/types";
-import { listQuotesMock, quoteSummaryMock } from "@/lib/data/quotes";
+import type { Quote, QuoteStatus, QuoteSummary } from "@/lib/data/quotes/types";
+import { duplicateQuote, listQuotesMock, quoteSummaryMock, quotesStore } from "@/lib/data/quotes";
+import { createInvoiceFromQuote } from "@/lib/data/invoices";
 import { APEX_CHASES } from "@/lib/data/fixtures/apex";
 import { formatCents, statusChip } from "@/lib/dashboard-ui";
 import { DataTable } from "@/components/app/DataTable";
@@ -17,12 +18,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useSarah } from "@/components/sarah/sarah-context";
 import { cn } from "@/lib/utils";
 
-/** 06 §2 index: the pipeline strip + the table. Sarah is the headline compose path. */
+/** 06 §2 index: the pipeline strip + an OPERABLE table (row ⋯ menus); "New
+ *  quote" lands straight in the composer (the compose model). */
 
 type Row = Quote & { contactName: string };
 
@@ -35,13 +38,22 @@ function age(iso: string): string {
   return `${Math.round(days / 7)}w`;
 }
 
-export function QuotesIndex() {
+export function QuotesIndex({
+  quotes: quotesProp,
+  summary: summaryProp,
+}: {
+  /** Empty collections feed the honest-empty state for a freshly-onboarded org;
+   *  omitted (mature/demo) falls back to the Apex fixtures via the mock seam. */
+  quotes?: Row[];
+  summary?: QuoteSummary;
+} = {}) {
   const router = useRouter();
   const { openWidget } = useSarah();
   const [filter, setFilter] = React.useState<QuoteStatus | "open" | "all">("all");
+  const [, bump] = React.useReducer((n: number) => n + 1, 0);
 
-  const quotes = listQuotesMock();
-  const summary = quoteSummaryMock();
+  const quotes = quotesProp ?? listQuotesMock();
+  const summary = summaryProp ?? quoteSummaryMock();
   const chasedIds = React.useMemo(
     () => new Set(APEX_CHASES.filter((c) => c.status !== "resolved" && c.targetId).map((c) => c.targetId)),
     [],
@@ -50,6 +62,32 @@ export function QuotesIndex() {
   const rows = quotes.filter((q) =>
     filter === "all" ? true : filter === "open" ? q.status === "sent" || q.status === "viewed" : q.status === filter,
   );
+
+  /* -------- row actions (in place — the index is operable, 06 §2) -------- */
+
+  const patchWithEvent = (q: Row, patch: Partial<Quote>, event: Quote["history"][number]["event"], actor: Quote["history"][number]["actor"]) => {
+    quotesStore.patch(q.id, {
+      ...patch,
+      history: [...q.history, { at: new Date().toISOString(), event, actor }],
+      updatedAt: new Date().toISOString(),
+    });
+    bump();
+  };
+  const markRow = (q: Row, status: "accepted" | "declined") => {
+    patchWithEvent(q, { status, respondedAt: new Date().toISOString() }, status, "owner");
+    toast.success(status === "accepted" ? `${q.number} marked accepted.` : `${q.number} marked declined.`);
+  };
+  const duplicateRow = (q: Row) => {
+    const draft = duplicateQuote(q);
+    toast.success(`Duplicated as ${draft.number}.`);
+    router.push(`/quotes/${draft.id}`);
+  };
+  const invoiceRow = (q: Row) => {
+    const inv = createInvoiceFromQuote(q);
+    quotesStore.patch(q.id, { invoiceId: inv.id });
+    toast.success(`Invoice ${inv.number} drafted from ${q.number}.`);
+    router.push(`/invoices/${inv.id}`);
+  };
 
   const columns: ColumnDef<Row, unknown>[] = [
     {
@@ -67,7 +105,7 @@ export function QuotesIndex() {
       accessorKey: "contactName",
       cell: ({ row }) => (
         <Link
-          href={`/crm/${row.original.contactId}`}
+          href={`/customers/${row.original.contactId}`}
           onClick={(e) => e.stopPropagation()}
           className="text-sm underline-offset-2 hover:underline"
         >
@@ -106,6 +144,42 @@ export function QuotesIndex() {
       header: "Age",
       accessorKey: "updatedAt",
       cell: ({ row }) => <span className="text-xs text-muted-foreground">{age(row.original.updatedAt)}</span>,
+    },
+    {
+      id: "actions",
+      header: "",
+      cell: ({ row }) => {
+        const q = row.original;
+        return (
+          <span onClick={(e) => e.stopPropagation()}>
+            <DropdownMenu>
+              <DropdownMenuTrigger render={<Button variant="ghost" size="sm" aria-label="Quote actions" className="px-1.5" />}>
+                <MoreHorizontal className="size-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => router.push(`/quotes/${q.id}`)}>
+                  {q.status === "draft" ? "Open in composer" : "Open"}
+                </DropdownMenuItem>
+                {(q.status === "sent" || q.status === "viewed") && (
+                  <>
+                    <DropdownMenuItem onClick={() => toast.success(`Resent to ${q.contactName}.`)}>Resend</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => markRow(q, "accepted")}>Mark accepted</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => markRow(q, "declined")}>Mark declined</DropdownMenuItem>
+                  </>
+                )}
+                {q.status === "accepted" && !q.invoiceId && (
+                  <DropdownMenuItem onClick={() => invoiceRow(q)}>Invoice it</DropdownMenuItem>
+                )}
+                {q.status === "accepted" && q.invoiceId && (
+                  <DropdownMenuItem onClick={() => router.push(`/invoices/${q.invoiceId}`)}>View invoice</DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => duplicateRow(q)}>Duplicate</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </span>
+        );
+      },
     },
   ];
 
@@ -167,15 +241,7 @@ export function QuotesIndex() {
               >
                 Ask Sarah to draft
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  const draft = quotes.find((q) => q.status === "draft");
-                  if (draft) router.push(`/quotes/${draft.id}`);
-                  else toast("Fresh drafts come with the backend — the demo keeps one open draft.");
-                }}
-              >
-                Write it yourself
-              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push("/quotes/new")}>Write it yourself</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         }
@@ -187,6 +253,7 @@ export function QuotesIndex() {
           />
         }
       />
+
     </div>
   );
 }

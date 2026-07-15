@@ -228,7 +228,7 @@ export function ContentPreview({ item: initial }: { item: PreviewItem }) {
               {contactId && CONTACT_NAMES[contactId] && (
                 <>
                   {" · "}
-                  <Link href={`/crm/${contactId}`} className="underline-offset-2 hover:text-foreground hover:underline">
+                  <Link href={`/customers/${contactId}`} className="underline-offset-2 hover:text-foreground hover:underline">
                     {CONTACT_NAMES[contactId]}
                   </Link>
                 </>

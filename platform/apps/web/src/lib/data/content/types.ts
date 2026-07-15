@@ -20,7 +20,7 @@ export interface Post {
   seo: { metaTitle: string; metaDescription: string };
   status: PostStatus;
   approvalId?: string; // pending Approval (kind 'post'); the drafts-list join
-  contactId?: string; // the job's customer (e.g. ct_dana) — links to /crm/[id]
+  contactId?: string; // the job's customer (e.g. ct_dana) — links to /customers/[id]
   sourceSummary?: string; // "From 4 photos Marcus texted after the Miller job"
   socialPostId?: string; // paired Facebook variant, if Sarah drafted one
   scheduledFor?: string; // ISO; set by Schedule…

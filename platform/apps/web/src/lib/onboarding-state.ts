@@ -130,7 +130,7 @@ export function initialFromOrganization(c: Record<string, any>): OnboardingIniti
 export function stateFromInitial(initial: OnboardingInitial): OnboardingState {
   return {
     company: initial.companyName,
-    sarahName: initial.sarahName || "Sarah",
+    sarahName: initial.sarahName || "Lu",
     persona: initial.personaNotes ?? "",
     projectTypes: initial.projectTypes?.length ? initial.projectTypes : ["Roof repair", "Roof replacement"],
     baseZip: initial.baseLocations?.[0]?.zip ?? "",

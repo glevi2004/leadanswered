@@ -8,6 +8,15 @@ export interface QuoteLineItem {
   quantity: number; // decimals allowed (28 squares, 1.5 hrs)
   unitPriceCents: number;
   totalCents: number; // quantity × unitPriceCents, denormalized
+  /** Customer-selectable add-on (06 §2 competitive pass): excluded from totals
+   *  until the customer toggles it on /q/[token]. */
+  optional?: boolean;
+}
+
+export interface QuotePhoto {
+  id: string;
+  url: string; // mock: "placeholder:" scheme (PhotoStrip renders gradient tiles)
+  alt: string;
 }
 
 export type QuoteEvent = {
@@ -22,8 +31,13 @@ export interface Quote {
   contactId: string; // → Contact (00 §6)
   title: string; // "Roof replacement — 14 Maple St"
   lineItems: QuoteLineItem[];
-  totalCents: number; // 1_420_000 → "$14,200"
-  notes?: string; // terms, deposit, exclusions — free text in v1
+  subtotalCents: number; // Σ non-optional line items
+  discountCents?: number; // structured discount line
+  totalCents: number; // subtotal − discount; 1_420_000 → "$14,200"
+  depositCents?: number; // due on acceptance; becomes the invoice's first payment
+  photos?: QuotePhoto[]; // job photos (detail + public page)
+  acceptedBy?: string; // typed-signature name from /q accept
+  notes?: string; // terms, exclusions — free text in v1
   status: QuoteStatus;
   source: "sarah" | "manual";
   approvalId?: string; // the Approval (kind 'quote') that gated the send
@@ -48,9 +62,14 @@ export interface PublicQuote {
   businessPhone: string; // the org's Sarah number
   contactFirstName: string;
   title: string;
-  lineItems: Array<Pick<QuoteLineItem, "description" | "quantity" | "totalCents">>;
-  totalCents: number;
+  lineItems: Array<Pick<QuoteLineItem, "id" | "description" | "quantity" | "totalCents" | "optional">>;
+  subtotalCents: number;
+  discountCents?: number;
+  totalCents: number; // before any optional add-ons the customer toggles on
+  depositCents?: number;
+  photos?: QuotePhoto[];
   notes?: string;
   status: Extract<QuoteStatus, "sent" | "viewed" | "accepted" | "expired">;
+  acceptedBy?: string;
   expiresAt?: string;
 }

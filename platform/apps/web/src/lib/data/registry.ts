@@ -24,13 +24,18 @@ export const MODULES: Record<SurfaceKey, SurfaceEntry> = {
     sarahChips: ["Anything waiting on me?", "What's today look like?", "How are we doing this week?"],
   },
   sarah: {
-    label: "Sarah",
+    label: "AI Assistant",
     route: "/sarah",
     sarahChips: ["Anything waiting on me?", "What's Thursday look like?", "Who's gone quiet?"],
   },
+  canvas: {
+    label: "Workspace",
+    route: "/canvas",
+    sarahChips: ["What's each department working on?", "Show me what needs approval", "What's Lu doing right now?"],
+  },
   crm: {
-    label: "CRM",
-    route: "/crm",
+    label: "Customers",
+    route: "/customers",
     group: "pipeline",
     defaultStatus: "live",
     sarahChips: ["Who needs a follow-up?", "What do you know about this lead?"],
@@ -43,6 +48,21 @@ export const MODULES: Record<SurfaceKey, SurfaceEntry> = {
     defaultStatus: "live",
     sarahChips: ["What does Thursday look like?", "Move my 2pm", "Any gaps this week?"],
     promise: "Jobs and estimates on one calendar, routed to cut your drive time.",
+  },
+  money: {
+    label: "Money",
+    route: "/money",
+    sarahChips: ["Who owes me money?", "What's still unpaid?", "Send an invoice"],
+  },
+  agents: {
+    label: "Agents",
+    route: "/agents",
+    sarahChips: ["What are my agents doing?", "Turn on review requests", "Draft a post"],
+  },
+  sites: {
+    label: "Sites",
+    route: "/sites",
+    sarahChips: ["How's my site doing?", "Add a page", "Connect my domain"],
   },
   quotes: {
     label: "Quotes",
@@ -97,7 +117,7 @@ export const MODULES: Record<SurfaceKey, SurfaceEntry> = {
     route: "/analytics",
     group: "business",
     defaultStatus: "coming_soon",
-    sarahChips: ["How's this month vs. last?", "Where do my leads come from?"],
+    sarahChips: ["How's this month vs. last?", "What's my best lead source?", "Am I still answering in under 60 seconds?"],
     promise: "Every visit, call, and lead in one place.",
   },
   team: {
@@ -105,7 +125,7 @@ export const MODULES: Record<SurfaceKey, SurfaceEntry> = {
     route: "/team",
     group: "business",
     defaultStatus: "coming_soon",
-    sarahChips: ["Add Danny to the team", "What can my crew see?"],
+    sarahChips: ["Add someone to the team", "What can Danny ask you?", "Who gets booking texts?"],
     promise: "Your crew can text Sarah too, with the permissions you set.",
   },
   settings: {
@@ -118,6 +138,7 @@ export const MODULES: Record<SurfaceKey, SurfaceEntry> = {
 export const MODULE_KEYS = [
   "crm",
   "schedule",
+  "money",
   "quotes",
   "invoices",
   "followups",
@@ -126,13 +147,22 @@ export const MODULE_KEYS = [
   "reviews",
   "analytics",
   "team",
+  "agents",
+  "sites",
 ] as const;
 
+/**
+ * The FIXED sidebar clusters — UNLABELED, separated by spacing. The app collapsed to
+ * five surfaces: Dashboard · AI Assistant · Workspace, then Schedule · Team. Everything
+ * else (Customers/crm, Money, Agents, Sites, quotes/invoices/followups/content/reviews/
+ * analytics/website) is still a ModuleKey with a live route, but it no longer appears in
+ * the sidebar — it folds INTO a department on the Workspace canvas (Customers→Sales,
+ * Money→Finance, Agents→the canvas itself, Sites→each dept's Space). Settings stays
+ * pinned in the sidebar footer.
+ */
 export const NAV_CLUSTERS: ReadonlyArray<ReadonlyArray<SurfaceKey>> = [
-  ["home", "sarah"],
-  ["crm", "schedule", "quotes", "invoices", "followups"],
-  ["website", "content", "reviews"],
-  ["analytics", "team"],
+  ["home", "sarah", "canvas"],
+  ["schedule", "team"],
 ];
 
 /** Longest-prefix match of a pathname to a registry surface (widget page context). */

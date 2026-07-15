@@ -10,6 +10,7 @@ export function StatCard({
   label,
   value,
   hint,
+  badge,
   soon,
   href,
   className,
@@ -17,6 +18,8 @@ export function StatCard({
   label: string;
   value?: React.ReactNode;
   hint?: React.ReactNode;
+  /** Target/state chip beside the value (11-analytics: "✓ under 60 seconds"). */
+  badge?: React.ReactNode;
   soon?: boolean;
   href?: string;
   className?: string;
@@ -35,7 +38,10 @@ export function StatCard({
         </p>
       ) : (
         <>
-          <p className="mt-1 text-3xl font-semibold tracking-tight">{value}</p>
+          <p className="mt-1 flex items-center gap-2 text-3xl font-semibold tracking-tight">
+            {value}
+            {badge}
+          </p>
           {hint && <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>}
         </>
       )}

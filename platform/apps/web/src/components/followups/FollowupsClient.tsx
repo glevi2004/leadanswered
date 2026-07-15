@@ -308,7 +308,7 @@ function ChaseCard({
         <span className="text-sm font-semibold">{c.contactName}</span>
         <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", chip.chip)}>{chip.label}</span>
         <Link
-          href={`/crm/${c.contactId}`}
+          href={`/customers/${c.contactId}`}
           className="ml-auto flex items-center gap-1 text-xs font-medium text-primary hover:underline"
         >
           View thread <ArrowRight className="size-3" />

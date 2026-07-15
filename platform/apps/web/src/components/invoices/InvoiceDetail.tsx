@@ -5,10 +5,10 @@ import Link from "next/link";
 import { ArrowLeft, Copy } from "lucide-react";
 import { toast } from "sonner";
 import type { Invoice, InvoiceEvent } from "@/lib/data/invoices/types";
-import { getInvoiceMock, invoicesStore } from "@/lib/data/invoices";
+import { balanceOf, getInvoiceMock, invoicesStore, paidCentsOf } from "@/lib/data/invoices";
 import { getQuoteMock } from "@/lib/data/quotes";
 import { formatCents, formatWhen, statusChip, statusDot } from "@/lib/dashboard-ui";
-import { LineItemsEditor, LineItemsTable } from "@/components/app/LineItems";
+import { LineItemsTable, MoneyInput, TotalsBlock } from "@/components/app/LineItems";
 import { EmptyState } from "@/components/app/EmptyState";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { InvoiceComposer } from "./InvoiceComposer";
 import { cn } from "@/lib/utils";
 
 /** 08 §2 detail: line items · Linked card · status rail · per-status actions. */
@@ -53,18 +54,21 @@ const METHODS: NonNullable<Invoice["paidMethod"]>[] = ["check", "cash", "zelle",
 
 export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
   const [, bump] = React.useReducer((n: number) => n + 1, 0);
-  const [editing, setEditing] = React.useState(false);
-  const [confirm, setConfirm] = React.useState<null | "send" | "paid" | "void">(null);
+  const [confirm, setConfirm] = React.useState<null | "paid" | "void">(null);
   const [method, setMethod] = React.useState<NonNullable<Invoice["paidMethod"]>>("check");
+  const [payAmountCents, setPayAmountCents] = React.useState(0);
 
   const invoice = getInvoiceMock(invoiceId);
   if (!invoice) {
     return <EmptyState title="This invoice isn't here." body="Head back to Invoices." />;
   }
+  // The compose model: a draft's natural state IS the editor.
+  if (invoice.derived === "draft") return <InvoiceComposer invoiceId={invoiceId} />;
   const quote = invoice.quoteId ? getQuoteMock(invoice.quoteId) : null;
   const chip = statusChip(invoice.derived);
-  const isDraft = invoice.derived === "draft";
   const unpaid = ["sent", "viewed", "overdue"].includes(invoice.derived);
+  const paidCents = paidCentsOf(invoice);
+  const balance = balanceOf(invoice);
   // Path only for display (SSR-stable); the copy handler resolves the origin on click.
   const publicPath = `/i/${invoice.token}`;
 
@@ -74,27 +78,23 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
     bump();
   };
 
-  const send = () => {
-    const now = new Date();
-    const due = new Date(now.getTime() + 14 * 86_400_000);
+  /** Records a payment; 'paid' derives from balance 0 — partials welcome (08 pass). */
+  const recordPayment = () => {
+    const amount = Math.min(payAmountCents || balance, balance);
+    if (amount <= 0) return;
+    const now = new Date().toISOString();
+    const payments = [...invoice.payments, { at: now, amountCents: amount, method, note: "recorded by you" }];
+    const settled = invoice.totalCents - payments.reduce((s, p) => s + p.amountCents, 0) <= 0;
     record(
-      { status: "sent", issuedAt: now.toISOString(), dueAt: due.toISOString() },
-      { at: now.toISOString(), type: "sent", via: "sms" },
+      settled ? { payments, status: "paid", paidAt: now, paidMethod: method } : { payments },
+      { at: now, type: "paid", note: `${formatCents(amount)} ${method} — recorded by you` },
     );
     setConfirm(null);
-    setEditing(false);
-    toast.success(`Texted the pay link to ${invoice.contactName}.`, {
-      description: `${invoice.number} · ${formatCents(invoice.totalCents)} · due in 14 days`,
-    });
-  };
-
-  const markPaid = () => {
-    record(
-      { status: "paid", paidAt: new Date().toISOString(), paidMethod: method },
-      { at: new Date().toISOString(), type: "paid", note: `${method} — recorded by you` },
+    toast.success(
+      settled
+        ? `${invoice.number} paid in full — ${formatCents(amount)} recorded.`
+        : `${formatCents(amount)} recorded — ${formatCents(invoice.totalCents - (paidCents + amount))} still due.`,
     );
-    setConfirm(null);
-    toast.success(`${invoice.number} paid — ${formatCents(invoice.totalCents)}.`);
   };
 
   return (
@@ -109,26 +109,23 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
         <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
           <h1 className="text-2xl font-semibold tracking-tight">{invoice.number}</h1>
           <span className="text-sm text-muted-foreground">
-            <Link href={`/crm/${invoice.contactId}`} className="underline-offset-2 hover:underline">
+            <Link href={`/customers/${invoice.contactId}`} className="underline-offset-2 hover:underline">
               {invoice.contactName}
             </Link>
           </span>
           <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", chip.chip)}>{chip.label}</span>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          {isDraft && (
-            <>
-              <Button size="sm" className="text-xs" onClick={() => setConfirm("send")}>
-                Send by text
-              </Button>
-              <Button size="sm" variant="outline" className="text-xs" onClick={() => setEditing((v) => !v)}>
-                {editing ? "Done editing" : "Edit"}
-              </Button>
-            </>
-          )}
           {unpaid && (
             <>
-              <Button size="sm" className="text-xs" onClick={() => setConfirm("paid")}>
+              <Button
+                size="sm"
+                className="text-xs"
+                onClick={() => {
+                  setPayAmountCents(balance);
+                  setConfirm("paid");
+                }}
+              >
                 Mark paid
               </Button>
               <Button
@@ -172,16 +169,34 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
         <div className="flex flex-col gap-4">
           <div className="rounded-2xl border bg-card p-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Line items</p>
-            {editing && isDraft ? (
-              <LineItemsEditor
-                items={invoice.lineItems}
-                onChange={(items) => record({ lineItems: items, totalCents: items.reduce((s, l) => s + l.totalCents, 0) })}
-                className="mt-3"
-              />
-            ) : (
-              <LineItemsTable items={invoice.lineItems} totalCents={invoice.totalCents} className="mt-2" />
-            )}
+            <LineItemsTable items={invoice.lineItems} className="mt-2" />
+            <TotalsBlock
+              subtotalCents={invoice.subtotalCents}
+              discountCents={invoice.discountCents}
+              totalCents={invoice.totalCents}
+              paidCents={paidCents}
+              className="mt-2"
+            />
           </div>
+          {invoice.payments.length > 0 && (
+            <div className="rounded-2xl border bg-card p-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Payments</p>
+              <div className="mt-2 divide-y divide-border/60">
+                {invoice.payments.map((p, i) => (
+                  <div key={i} className="flex items-center justify-between gap-3 py-2">
+                    <span className="text-sm capitalize">
+                      {p.method === "deposit" ? "Deposit" : p.method}
+                      {p.note ? <span className="ml-1.5 text-xs text-muted-foreground">· {p.note}</span> : null}
+                    </span>
+                    <span className="shrink-0 text-right text-sm tabular-nums">
+                      {formatCents(p.amountCents)}
+                      <span className="block text-[11px] font-normal text-muted-foreground">{formatWhen(p.at)}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="rounded-2xl border bg-card p-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Linked</p>
             <div className="mt-2 flex flex-col gap-1.5 text-sm">
@@ -190,12 +205,11 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
                   Quote {quote.number} ({quote.status}) →
                 </Link>
               )}
-              <Link href={`/crm/${invoice.contactId}`} className="underline-offset-2 hover:underline">
+              <Link href={`/customers/${invoice.contactId}`} className="underline-offset-2 hover:underline">
                 Contact: {invoice.contactName} →
               </Link>
-              {!isDraft && (
-                <span className="flex items-center gap-2 text-muted-foreground">
-                  <span className="truncate text-xs">{publicPath}</span>
+              <span className="flex items-center gap-2 text-muted-foreground">
+                <span className="truncate text-xs">{publicPath}</span>
                   <button
                     type="button"
                     aria-label="Copy pay link"
@@ -207,15 +221,14 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
                   >
                     <Copy className="size-3" />
                   </button>
-                  <button
-                    type="button"
-                    className="text-xs underline-offset-2 hover:text-foreground hover:underline"
-                    onClick={() => window.open(`/i/${invoice.token}`, "_blank", "noopener")}
-                  >
-                    Open ↗
-                  </button>
-                </span>
-              )}
+                <button
+                  type="button"
+                  className="text-xs underline-offset-2 hover:text-foreground hover:underline"
+                  onClick={() => window.open(`/i/${invoice.token}`, "_blank", "noopener")}
+                >
+                  Open ↗
+                </button>
+              </span>
             </div>
           </div>
         </div>
@@ -259,42 +272,39 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {confirm === "send" && `Text ${invoice.contactName} the pay link?`}
-              {confirm === "paid" && `Mark ${invoice.number} paid?`}
+              {confirm === "paid" && `Record a payment on ${invoice.number}`}
               {confirm === "void" && "Void this invoice?"}
             </DialogTitle>
             <DialogDescription>
-              {confirm === "send" && `${formatCents(invoice.totalCents)} · due 14 days from now. Goes out from your line.`}
-              {confirm === "paid" && "Record how the money arrived — Sarah stops any chase."}
+              {confirm === "paid" &&
+                `${formatCents(balance)} outstanding. Record less for a partial — the balance keeps tracking.`}
               {confirm === "void" && "The pay link goes dead and the amount leaves your outstanding total."}
             </DialogDescription>
           </DialogHeader>
           {confirm === "paid" && (
-            <Select value={method} onValueChange={(v) => setMethod(v as typeof method)}>
-              <SelectTrigger className="w-40" aria-label="Payment method">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {METHODS.map((m) => (
-                  <SelectItem key={m} value={m}>
-                    {m[0].toUpperCase() + m.slice(1)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex flex-wrap items-center gap-3">
+              <MoneyInput cents={payAmountCents} onChange={setPayAmountCents} className="w-32" aria-label="Payment amount" />
+              <Select value={method} onValueChange={(v) => setMethod(v as typeof method)}>
+                <SelectTrigger className="w-36" aria-label="Payment method">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {METHODS.map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {m[0].toUpperCase() + m.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           )}
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setConfirm(null)}>
               Cancel
             </Button>
-            {confirm === "send" && (
-              <Button size="sm" onClick={send}>
-                Send it
-              </Button>
-            )}
             {confirm === "paid" && (
-              <Button size="sm" onClick={markPaid}>
-                Mark paid
+              <Button size="sm" onClick={recordPayment}>
+                Record payment
               </Button>
             )}
             {confirm === "void" && (

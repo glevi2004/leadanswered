@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { publicQuoteMock } from "@/lib/data/quotes";
 import { formatCents } from "@/lib/dashboard-ui";
 import { PublicDocLayout } from "@/components/app/PublicDocLayout";
+import { PhotoStrip } from "@/components/app/PhotoStrip";
 import { AcceptQuote } from "./AcceptQuote";
 
 /**
@@ -32,40 +33,46 @@ export default async function PublicQuotePage({ params }: { params: Promise<{ to
       <p className="text-sm font-semibold">Quote for {quote.contactFirstName}</p>
       <p className="text-sm text-zinc-500">{quote.title}</p>
 
+      {(quote.photos?.length ?? 0) > 0 && !expired && (
+        <PhotoStrip photos={quote.photos!} size="sm" className="mt-3" />
+      )}
+
       {expired ? (
-        <div className="mt-4 rounded-xl bg-zinc-50 p-4 text-center">
-          <p className="text-sm text-zinc-600">This quote has expired — text us for an updated price.</p>
-        </div>
-      ) : (
+        <>
+          <div className="mt-4 rounded-xl bg-zinc-50 p-4 text-center">
+            <p className="text-sm text-zinc-600">This quote has expired — text us for an updated price.</p>
+          </div>
+          <a
+            href={`sms:${quote.businessPhone.replace(/[^+\d]/g, "")}`}
+            className="mt-3 block w-full rounded-xl border border-zinc-300 py-3 text-center text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+          >
+            💬 Text us for an updated price
+          </a>
+        </>
+      ) : quote.status === "accepted" ? (
         <>
           <div className="mt-4 divide-y divide-zinc-100">
-            {quote.lineItems.map((item, i) => (
-              <div key={i} className="flex items-start justify-between gap-3 py-2">
-                <span className="text-sm text-zinc-700">{item.description}</span>
-                <span className="shrink-0 text-sm tabular-nums text-zinc-900">{formatCents(item.totalCents)}</span>
-              </div>
-            ))}
+            {quote.lineItems
+              .filter((l) => !l.optional)
+              .map((item) => (
+                <div key={item.id} className="flex items-start justify-between gap-3 py-2">
+                  <span className="text-sm text-zinc-700">{item.description}</span>
+                  <span className="shrink-0 text-sm tabular-nums text-zinc-900">{formatCents(item.totalCents)}</span>
+                </div>
+              ))}
           </div>
           <div className="flex items-center justify-between border-t border-zinc-200 pt-3">
             <span className="text-sm font-bold">Total</span>
             <span className="text-base font-bold tabular-nums">{formatCents(quote.totalCents)}</span>
           </div>
-          {quote.notes && <p className="mt-3 text-xs leading-relaxed text-zinc-500">{quote.notes}</p>}
+          <div className="mt-4">
+            <AcceptQuote quote={quote} />
+          </div>
         </>
-      )}
-
-      {!expired && (
-        <div className="mt-5">
-          <AcceptQuote businessPhone={quote.businessPhone} alreadyAccepted={quote.status === "accepted"} />
+      ) : (
+        <div className="mt-4">
+          <AcceptQuote quote={quote} />
         </div>
-      )}
-      {expired && (
-        <a
-          href={`sms:${quote.businessPhone.replace(/[^+\d]/g, "")}`}
-          className="mt-2 block w-full rounded-xl border border-zinc-300 py-3 text-center text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-        >
-          💬 Text us for an updated price
-        </a>
       )}
     </PublicDocLayout>
   );

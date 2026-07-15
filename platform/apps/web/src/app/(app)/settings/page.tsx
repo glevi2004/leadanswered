@@ -12,8 +12,9 @@ export default async function SettingsPage() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Change how Sarah qualifies and books your leads.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Change how Lu qualifies and books your leads.</p>
       </div>
+
       {/* the availability editor moved to Schedule (07-schedule §2) — this is the promised cross-link */}
       <p className="text-sm text-muted-foreground">
         Looking for your hours?{" "}

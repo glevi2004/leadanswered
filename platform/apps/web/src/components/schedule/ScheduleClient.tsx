@@ -218,6 +218,7 @@ export function ScheduleClient({
   routeFixture,
   base,
   posts,
+  embedded,
 }: {
   items: ScheduleItem[];
   demo: boolean;
@@ -228,6 +229,8 @@ export function ScheduleClient({
   base: RouteBase | null;
   /** The Posts layer (07 §2): content items overlaid on the calendar. */
   posts?: SchedulePost[];
+  /** Read-only preview (onboarding): drops create chrome, keeps the toolbar on one line. */
+  embedded?: boolean;
 }) {
   const router = useRouter();
   const [view, setView] = React.useState<ViewKey>("week");
@@ -239,6 +242,17 @@ export function ScheduleClient({
   const togglePosts = () => {
     setShowPosts((v) => {
       window.localStorage.setItem("schedule_show_posts", v ? "0" : "1");
+      return !v;
+    });
+  };
+  // Availability layer toggle — the bookable hours tinted on the grid; ON by default, persisted.
+  const [showAvail, setShowAvail] = React.useState(true);
+  React.useEffect(() => {
+    if (window.localStorage.getItem("schedule_show_availability") === "0") setShowAvail(false);
+  }, []);
+  const toggleAvail = () => {
+    setShowAvail((v) => {
+      window.localStorage.setItem("schedule_show_availability", v ? "0" : "1");
       return !v;
     });
   };
@@ -472,7 +486,7 @@ export function ScheduleClient({
   return (
     <div className="flex flex-col gap-4">
       {/* toolbar */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className={cn("flex items-center gap-2", embedded ? "flex-nowrap" : "flex-wrap")}>
         <div className="flex items-center gap-1">
           <Button variant="outline" size="sm" className="h-8 px-2" onClick={() => shiftAnchor(-1)} aria-label="Previous">
             <ChevronLeft className="size-4" />
@@ -502,9 +516,11 @@ export function ScheduleClient({
           </PopoverContent>
         </Popover>
         <div className="ml-auto flex items-center gap-2">
-          <Button size="sm" className="h-8 gap-1" onClick={() => setDraft({ dateKey: dateKeyOf(new Date(), timezone), startMin: 9 * 60, endMin: 10 * 60 })}>
-            <Plus className="size-3.5" /> New
-          </Button>
+          {!embedded && (
+            <Button size="sm" className="h-8 gap-1" onClick={() => setDraft({ dateKey: dateKeyOf(new Date(), timezone), startMin: 9 * 60, endMin: 10 * 60 })}>
+              <Plus className="size-3.5" /> New
+            </Button>
+          )}
           <div className="flex rounded-lg border p-0.5">
             {(["week", "day", "month", "list"] as const).map((v) => (
               <button
@@ -517,6 +533,20 @@ export function ScheduleClient({
               </button>
             ))}
           </div>
+          {windows.length > 0 && (
+            <button
+              type="button"
+              onClick={toggleAvail}
+              title="Show your bookable hours"
+              className={cn(
+                "flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs transition-colors",
+                showAvail ? "bg-muted font-medium" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <span className="size-2 rounded-full bg-emerald-500/60" aria-hidden />
+              Hours
+            </button>
+          )}
           {(posts?.length ?? 0) > 0 && (
             <button
               type="button"
@@ -615,13 +645,22 @@ export function ScheduleClient({
                     style={{ height: (HOUR_END - HOUR_START) * HOUR_PX }}
                     onPointerDown={(e) => beginCreate(e, di)}
                   >
-                    {/* dim off-availability */}
-                    <div className="absolute inset-0 bg-muted/50" />
-                    {dayWindows.map((w, i) => {
-                      const top = ((hm(w.start) - HOUR_START * 60) / 60) * HOUR_PX;
-                      const h = ((hm(w.end) - hm(w.start)) / 60) * HOUR_PX;
-                      return <div key={i} className="absolute inset-x-0 bg-card" style={{ top: Math.max(0, top), height: h }} />;
-                    })}
+                    {/* availability layer: dim off-hours, un-dim + green-tint the bookable windows */}
+                    {showAvail && (
+                      <>
+                        <div className="absolute inset-0 bg-muted/50" />
+                        {dayWindows.map((w, i) => {
+                          const top = ((hm(w.start) - HOUR_START * 60) / 60) * HOUR_PX;
+                          const h = ((hm(w.end) - hm(w.start)) / 60) * HOUR_PX;
+                          return (
+                            <React.Fragment key={i}>
+                              <div className="absolute inset-x-0 bg-card" style={{ top: Math.max(0, top), height: h }} />
+                              <div className="absolute inset-x-0 border-l-2 border-emerald-500/40 bg-emerald-500/[0.06]" style={{ top: Math.max(0, top), height: h }} />
+                            </React.Fragment>
+                          );
+                        })}
+                      </>
+                    )}
                     {/* hour lines */}
                     {Array.from({ length: HOUR_END - HOUR_START }, (_, i) => (
                       <div key={i} className="absolute inset-x-0 border-t border-border/50" style={{ top: i * HOUR_PX }} />
@@ -754,7 +793,7 @@ export function ScheduleClient({
         timezone={timezone}
         windows={windows}
         allItems={localItems}
-        onGoToContact={(id) => router.push(`/crm/${id}`)}
+        onGoToContact={(id) => router.push(`/customers/${id}`)}
         onLocalUpdate={updateItem}
         onLocalRemove={removeItem}
       />

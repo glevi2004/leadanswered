@@ -88,7 +88,7 @@ export function ReviewsWizard() {
             Sarah builds the campaign from your past customers — import them once and she reads the history, removes
             anyone she shouldn't text, and sets the whole thing up for you.
           </p>
-          <Button size="sm" nativeButton={false} render={<Link href="/crm" />}>Import your customers</Button>
+          <Button size="sm" nativeButton={false} render={<Link href="/customers" />}>Import your customers</Button>
         </div>
       </div>
     );

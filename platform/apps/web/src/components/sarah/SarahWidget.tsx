@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Check, ChevronDown, Maximize2, PanelRight, PictureInPicture2, Plus, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, Maximize2, PanelRight, PictureInPicture2, Plus, X } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +14,7 @@ import { useSarah } from "./sarah-context";
 import { SarahThread } from "./SarahThread";
 import { SarahComposer } from "./SarahComposer";
 import { ApprovalCard } from "@/components/app/ApprovalCard";
+import { AgentDockPanel } from "@/components/canvas/AgentDockPanel";
 import { SarahIcon } from "@/components/icons/sarah";
 import { cn } from "@/lib/utils";
 
@@ -45,7 +46,7 @@ export function SarahTrigger() {
       )}
     >
       <SarahIcon className="size-4" />
-      Sarah
+      AI Assistant
       {pendingCount > 0 && !widgetOpen && (
         <span className="flex size-4 items-center justify-center rounded-full bg-foreground text-[10px] font-bold text-background">
           {pendingCount}
@@ -115,7 +116,66 @@ function PanelHeader() {
   );
 }
 
+type DockTab = "home" | "lu" | "company" | "tasks" | "library";
+const DOCK_TABS: DockTab[] = ["home", "lu", "company", "tasks", "library"];
+const STUB_COPY: Record<string, string> = {
+  company: "Your company profile, connections, and the knowledge Lu shares across every department.",
+  tasks: "Every task across all departments, and what needs your approval.",
+  library: "Reusable agents, spaces, and artifact templates to install into a department.",
+};
+
+/**
+ * The dock body. When an agent is selected on the canvas it shows that agent's
+ * panel (with a Back); otherwise a tab row (Home · Lu · Company · Tasks · Library)
+ * switches the view — default "lu" so today's chat is the out-of-the-box behavior.
+ */
 function PanelBody() {
+  const { selectedAgent, setSelectedAgent } = useSarah();
+  const [dockTab, setDockTab] = React.useState<DockTab>("lu");
+
+  return (
+    <>
+      <div className="flex shrink-0 items-center gap-1 border-b px-2 py-1.5">
+        {selectedAgent ? (
+          <button
+            type="button"
+            onClick={() => setSelectedAgent(null)}
+            className="flex items-center gap-0.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <ChevronLeft className="size-3.5" /> Back
+          </button>
+        ) : (
+          DOCK_TABS.map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setDockTab(t)}
+              className={cn(
+                "rounded-md px-2.5 py-1 text-xs font-medium capitalize transition-colors",
+                dockTab === t ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {t}
+            </button>
+          ))
+        )}
+      </div>
+
+      {selectedAgent ? (
+        <AgentDockPanel dept={selectedAgent} />
+      ) : dockTab === "lu" ? (
+        <ChatTab />
+      ) : dockTab === "home" ? (
+        <HomeTab />
+      ) : (
+        <StubTab tab={dockTab} />
+      )}
+    </>
+  );
+}
+
+/** The Lu chat — the existing thread (escalations + approvals + thread + composer). */
+function ChatTab() {
   const { approvals, escalations, beginEscalationAnswer, messages, typing } = useSarah();
   return (
     <>
@@ -152,6 +212,62 @@ function PanelBody() {
         <SarahComposer showContext />
       </div>
     </>
+  );
+}
+
+/** Home glance — a greeting, the "needs you" count, and suggested next moves. */
+function HomeTab() {
+  const { ownerName, pendingCount, approvals, escalations } = useSarah();
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4">
+      <h2 className="text-lg font-semibold text-foreground">Good day, {ownerName}</h2>
+      <p className="mt-1 text-sm text-muted-foreground">Here&rsquo;s what&rsquo;s on your plate.</p>
+
+      <div className="mt-4 rounded-xl border bg-card p-4">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium text-foreground">Needs you</p>
+          <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{pendingCount}</span>
+        </div>
+        {pendingCount === 0 ? (
+          <p className="mt-2 text-sm text-muted-foreground">All clear — nothing waiting on you.</p>
+        ) : (
+          <div className="mt-3 space-y-2">
+            {escalations.map((e) => (
+              <div key={e.id} className="flex items-center gap-2 text-sm">
+                <span className="size-1.5 shrink-0 rounded-full bg-orange-500" />
+                <span className="min-w-0 flex-1 truncate text-foreground">{e.contactName} asked a question</span>
+              </div>
+            ))}
+            {approvals.map((a) => (
+              <div key={a.id} className="flex items-center gap-2 text-sm">
+                <span className="size-1.5 shrink-0 rounded-full bg-amber-500" />
+                <span className="min-w-0 flex-1 truncate text-foreground">{a.summary}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">approve</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <p className="mt-6 text-sm font-medium text-foreground">Suggested next</p>
+      <div className="mt-2.5 space-y-2.5 text-sm text-muted-foreground">
+        {["Connect your payment rail", "Launch the review wave", "Put your booking page live"].map((s) => (
+          <div key={s} className="flex items-center gap-2.5">
+            <span className="size-4 rounded-full border" /> {s}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** One-line stub for the Company / Tasks / Library tabs. */
+function StubTab({ tab }: { tab: DockTab }) {
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+      <h2 className="text-base font-semibold capitalize text-foreground">{tab}</h2>
+      <p className="mt-2 text-sm text-muted-foreground">{STUB_COPY[tab] ?? ""}</p>
+    </div>
   );
 }
 
@@ -241,7 +357,7 @@ export function SarahWidget() {
   return (
     <div
       className={cn(
-        "widget-in fixed inset-x-3 bottom-4 z-50 flex-col overflow-hidden rounded-3xl border bg-card text-card-foreground shadow-[0_12px_48px_rgba(16,24,40,0.22)] [--bubble-surface:var(--card)] sm:inset-x-auto sm:right-5 sm:w-[380px]",
+        "widget-in elev-4 fixed inset-x-3 bottom-4 z-50 flex-col overflow-hidden rounded-3xl border bg-card text-card-foreground [--bubble-surface:var(--card)] sm:inset-x-auto sm:right-5 sm:w-[380px]",
         // docked mode renders the dock on md+; this card covers small screens only
         widgetMode === "docked" ? "flex md:hidden" : "flex",
       )}

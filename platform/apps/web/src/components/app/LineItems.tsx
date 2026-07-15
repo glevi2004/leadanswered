@@ -16,37 +16,90 @@ import { cn } from "@/lib/utils";
 
 export function LineItemsTable({
   items,
-  totalCents,
   compact,
   className,
 }: {
-  items: Array<Pick<QuoteLineItem, "description" | "quantity" | "totalCents"> & { unitPriceCents?: number }>;
-  totalCents: number;
+  items: Array<Pick<QuoteLineItem, "description" | "quantity" | "totalCents" | "optional"> & { unitPriceCents?: number }>;
   /** compact = public pages: description + total only. */
   compact?: boolean;
   className?: string;
 }) {
   return (
-    <div className={className}>
-      <div className="divide-y divide-border/60">
-        {items.map((item, i) => (
-          <div key={i} className="flex items-start justify-between gap-3 py-2.5">
-            <div className="min-w-0">
-              <p className="text-sm">{item.description}</p>
-              {!compact && (
-                <p className="text-xs text-muted-foreground">
-                  {item.quantity} × {item.unitPriceCents !== undefined ? formatCents(item.unitPriceCents) : "—"}
-                </p>
+    <div className={cn("divide-y divide-border/60", className)}>
+      {items.map((item, i) => (
+        <div key={i} className="flex items-start justify-between gap-3 py-2.5">
+          <div className="min-w-0">
+            <p className="text-sm">
+              {item.description}
+              {item.optional && (
+                <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 align-middle text-[10px] font-medium text-muted-foreground">
+                  optional add-on
+                </span>
               )}
-            </div>
-            <span className="shrink-0 text-sm tabular-nums">{formatCents(item.totalCents)}</span>
+            </p>
+            {!compact && (
+              <p className="text-xs text-muted-foreground">
+                {item.quantity} × {item.unitPriceCents !== undefined ? formatCents(item.unitPriceCents) : "—"}
+              </p>
+            )}
           </div>
-        ))}
-      </div>
-      <div className="flex items-center justify-between border-t pt-2.5">
-        <span className="text-sm font-semibold">Total</span>
-        <span className="text-sm font-semibold tabular-nums">{formatCents(totalCents)}</span>
-      </div>
+          <span className={cn("shrink-0 text-sm tabular-nums", item.optional && "text-muted-foreground")}>
+            {item.optional ? "+" : ""}
+            {formatCents(item.totalCents)}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Structured money footer (06/08 competitive pass): subtotal → discount →
+ *  total, plus deposit / paid / balance rows when they apply. */
+export function TotalsBlock({
+  subtotalCents,
+  discountCents,
+  totalCents,
+  depositCents,
+  paidCents,
+  className,
+}: {
+  subtotalCents: number;
+  discountCents?: number;
+  totalCents: number;
+  /** Quote-side: "due on acceptance". */
+  depositCents?: number;
+  /** Invoice-side: Σ payments → renders Paid + Balance due. */
+  paidCents?: number;
+  className?: string;
+}) {
+  const row = (label: string, cents: number, opts?: { strong?: boolean; negative?: boolean; muted?: boolean }) => (
+    <div className="flex items-center justify-between py-1">
+      <span className={cn("text-sm", opts?.strong ? "font-semibold" : "text-muted-foreground", opts?.muted && "text-xs")}>
+        {label}
+      </span>
+      <span className={cn("text-sm tabular-nums", opts?.strong && "font-semibold")}>
+        {opts?.negative ? "−" : ""}
+        {formatCents(cents)}
+      </span>
+    </div>
+  );
+  const balance = paidCents !== undefined ? Math.max(0, totalCents - paidCents) : undefined;
+  return (
+    <div className={cn("border-t pt-1.5", className)}>
+      {(discountCents ?? 0) > 0 && (
+        <>
+          {row("Subtotal", subtotalCents)}
+          {row("Discount", discountCents!, { negative: true })}
+        </>
+      )}
+      {row("Total", totalCents, { strong: true })}
+      {(depositCents ?? 0) > 0 && row(`Deposit due on acceptance`, depositCents!)}
+      {paidCents !== undefined && paidCents > 0 && (
+        <>
+          {row("Paid", paidCents, { negative: true })}
+          {row("Balance due", balance!, { strong: true })}
+        </>
+      )}
     </div>
   );
 }
@@ -93,10 +146,13 @@ let liSeq = 0;
 export function LineItemsEditor({
   items,
   onChange,
+  autoFocusFirst,
   className,
 }: {
   items: QuoteLineItem[];
   onChange: (items: QuoteLineItem[]) => void;
+  /** Compose model: land with the cursor in the first description field. */
+  autoFocusFirst?: boolean;
   className?: string;
 }) {
   const update = (id: string, patch: Partial<QuoteLineItem>) =>
@@ -111,13 +167,14 @@ export function LineItemsEditor({
 
   return (
     <div className={cn("flex flex-col gap-2", className)}>
-      {items.map((item) => (
+      {items.map((item, idx) => (
         <div key={item.id} className="flex items-center gap-2">
           <Input
             value={item.description}
             onChange={(e) => update(item.id, { description: e.target.value })}
-            placeholder="Description"
+            placeholder={idx === 0 ? "What's the work? e.g. “Tear-off & disposal (28 sq)”" : "Description"}
             aria-label="Line item description"
+            autoFocus={autoFocusFirst && idx === 0}
             className="h-8 min-w-0 flex-1 text-sm"
           />
           <Input
@@ -133,6 +190,18 @@ export function LineItemsEditor({
           />
           <MoneyInput cents={item.unitPriceCents} onChange={(c) => update(item.id, { unitPriceCents: c })} className="w-28" aria-label="Unit price" />
           <span className="w-20 shrink-0 text-right text-sm tabular-nums text-muted-foreground">{formatCents(item.totalCents)}</span>
+          <button
+            type="button"
+            title={item.optional ? "Optional add-on — click to make it standard" : "Standard — click to make it a customer add-on"}
+            aria-label="Toggle optional add-on"
+            onClick={() => update(item.id, { optional: !item.optional })}
+            className={cn(
+              "shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-medium transition-colors",
+              item.optional ? "border-transparent bg-muted text-foreground" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            opt
+          </button>
           <button
             type="button"
             aria-label="Remove line item"
@@ -152,8 +221,9 @@ export function LineItemsEditor({
         >
           <Plus className="size-3.5" /> Add line item
         </Button>
+        {/* optional add-ons stay out of the total until the customer picks them */}
         <span className="text-sm font-semibold tabular-nums">
-          {formatCents(items.reduce((s, l) => s + l.totalCents, 0))}
+          {formatCents(items.filter((l) => !l.optional).reduce((s, l) => s + l.totalCents, 0))}
         </span>
       </div>
     </div>

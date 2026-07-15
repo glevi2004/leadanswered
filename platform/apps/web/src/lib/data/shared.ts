@@ -4,19 +4,22 @@
  */
 
 export type ModuleKey =
-  | "crm"
+  | "crm" // labeled "Customers" in the fixed nav
   | "schedule"
+  | "money" // fixed nav
   | "quotes"
   | "invoices"
-  | "followups" // nav cluster: pipeline
+  | "followups"
   | "website"
   | "content"
-  | "reviews" // nav cluster: marketing
+  | "reviews"
   | "analytics"
-  | "team"; // nav cluster: business
+  | "team"
+  | "agents" // fixed nav
+  | "sites"; // fixed nav
 
 /** Core surfaces are never gated but still need registry entries (chips, routes). */
-export type SurfaceKey = ModuleKey | "home" | "sarah" | "settings";
+export type SurfaceKey = ModuleKey | "home" | "sarah" | "canvas" | "settings";
 
 export type ModuleStatus = "live" | "preview" | "coming_soon" | "hidden";
 

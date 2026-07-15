@@ -2,13 +2,16 @@
 
 import * as React from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { MessageCircleQuestion } from "lucide-react";
+import { MessageCircleQuestion, Sparkles } from "lucide-react";
 import { useSarah } from "@/components/sarah/sarah-context";
 import { KIND_META } from "@/components/app/ApprovalCard";
 import { SarahIcon } from "@/components/icons/sarah";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { OpenEscalation } from "@/components/sarah/sarah-context";
+import type { OrgProfile } from "@/lib/data/org-profile";
+import { SETUP_RUNGS, runSetupRung, skippedAppKeys } from "@/components/app/setup-steps";
+import { CAPABILITIES } from "@/lib/workspace/capabilities";
 
 function waited(iso: string): string {
   const mins = Math.max(1, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
@@ -41,9 +44,12 @@ function RowBody({ children }: { children: React.ReactNode }) {
  */
 export function ApprovalRows({
   onAnswerEscalation,
+  setupProfile,
 }: {
   /** Where "Answer via Sarah" lands — defaults to the widget; /sarah jumps to its Chat tab. */
   onAnswerEscalation?: (e: OpenEscalation) => void;
+  /** When set (Home, freshly-onboarded org), the remaining setup steps render as rows too. */
+  setupProfile?: OrgProfile;
 }) {
   const { approvals, escalations, approve, decline, openWidget, beginEscalationAnswer } = useSarah();
   const answer =
@@ -56,6 +62,10 @@ export function ApprovalRows({
   const [pinnedId, setPinnedId] = React.useState<string | null>(null);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [drafts, setDrafts] = React.useState<Record<string, string>>({});
+
+  const setupRungs = setupProfile ? SETUP_RUNGS.filter((r) => !setupProfile.setupSteps[r.key]) : [];
+  const skippedApps = setupProfile ? skippedAppKeys(setupProfile) : [];
+  const assistantName = setupProfile?.sarahName || "Lu";
 
   // editing keeps a row open even if the mouse wanders off
   const isOpen = (id: string) => hoverId === id || pinnedId === id || editingId === id;
@@ -150,6 +160,68 @@ export function ApprovalRows({
           </AnimatePresence>
         </div>
       ))}
+      {setupRungs.map((rung) => {
+        const Icon = rung.icon;
+        return (
+          <div key={rung.key} {...rowProps(rung.key)} className="-mx-2 cursor-pointer rounded-lg px-2 py-2.5 transition-colors hover:bg-muted/40">
+            <div className="flex items-center gap-3">
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+                <Sparkles className="size-3" />
+                Set up
+              </span>
+              <p className="min-w-0 flex-1 truncate text-sm font-medium">{rung.label}</p>
+              <Icon className="size-4 shrink-0 text-muted-foreground" />
+            </div>
+            <AnimatePresence initial={false}>
+              {isOpen(rung.key) && (
+                <RowBody>
+                  <p className="mt-2 pl-1 text-sm leading-relaxed text-muted-foreground">{rung.detail}</p>
+                  <div className="mt-2.5 flex items-center gap-2 pb-1 pl-1" onClick={(ev) => ev.stopPropagation()}>
+                    <Button
+                      size="sm"
+                      className="btn-glow h-7 gap-1.5 px-3 text-xs"
+                      onClick={() => setupProfile && runSetupRung(rung, setupProfile)}
+                    >
+                      <SarahIcon className="size-3.5" /> Set up with {assistantName}
+                    </Button>
+                  </div>
+                </RowBody>
+              )}
+            </AnimatePresence>
+          </div>
+        );
+      })}
+      {skippedApps.map((key) => {
+        const cap = CAPABILITIES[key];
+        const rowId = `app-${key}`;
+        return (
+          <div key={rowId} {...rowProps(rowId)} className="-mx-2 cursor-pointer rounded-lg px-2 py-2.5 transition-colors hover:bg-muted/40">
+            <div className="flex items-center gap-3">
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+                <Sparkles className="size-3" />
+                Set up
+              </span>
+              <p className="min-w-0 flex-1 truncate text-sm font-medium">Finish setting up {cap.label}</p>
+            </div>
+            <AnimatePresence initial={false}>
+              {isOpen(rowId) && (
+                <RowBody>
+                  <p className="mt-2 pl-1 text-sm leading-relaxed text-muted-foreground">{cap.blurb}</p>
+                  <div className="mt-2.5 flex items-center gap-2 pb-1 pl-1" onClick={(ev) => ev.stopPropagation()}>
+                    <Button
+                      size="sm"
+                      className="btn-glow h-7 gap-1.5 px-3 text-xs"
+                      onClick={() => { window.location.href = `/setup/${key}`; }}
+                    >
+                      <SarahIcon className="size-3.5" /> Set up with {assistantName}
+                    </Button>
+                  </div>
+                </RowBody>
+              )}
+            </AnimatePresence>
+          </div>
+        );
+      })}
     </div>
   );
 }

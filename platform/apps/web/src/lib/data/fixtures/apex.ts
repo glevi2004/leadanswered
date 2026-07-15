@@ -1040,6 +1040,7 @@ export const APEX_QUOTES: Quote[] = [
       li("qli_44a", "Ridge cap replacement (32 lf)", 32, 4_500),
       li("qli_44b", "Chimney flashing reseal", 1, 71_000),
     ],
+    subtotalCents: 32 * 4_500 + 71_000,
     totalCents: 32 * 4_500 + 71_000, // $2,150
     notes: "Price valid 30 days. Includes debris haul-away.",
     status: "draft",
@@ -1057,8 +1058,11 @@ export const APEX_QUOTES: Quote[] = [
     lineItems: [
       li("qli_43a", "Locate & repair porch roof leak", 1, 125_000),
       li("qli_43b", "Replace damaged decking & shingles (porch)", 1, 60_000),
+      { ...li("qli_43c", "Seamless gutter run over the porch", 1, 45_000), optional: true },
     ],
-    totalCents: 185_000, // $1,850
+    subtotalCents: 185_000,
+    totalCents: 185_000, // $1,850 — the optional add-on joins only if Jorge picks it
+    photos: [{ id: "qph_43a", url: "placeholder:alvarez-leak", alt: "The porch leak, from the estimate visit" }],
     notes: "Price valid 30 days.",
     status: "sent",
     source: "sarah",
@@ -1084,8 +1088,16 @@ export const APEX_QUOTES: Quote[] = [
       li("qli_42c", "Ice & water shield + synthetic underlayment", 1, 94_000),
       li("qli_42d", "Flashing, drip edge, ridge vent", 1, 150_000),
     ],
+    subtotalCents: 1_420_000,
     totalCents: 1_420_000, // $14,200
-    notes: "30% deposit on acceptance. Price valid 30 days. Includes permit + cleanup.",
+    depositCents: 426_000, // 30% on acceptance → inv_2031's first payment
+    photos: [
+      { id: "qph_42a", url: "placeholder:miller-before", alt: "The Millers' 20-year-old roof before tear-off" },
+      { id: "qph_42b", url: "placeholder:miller-decking", alt: "Soft decking over the kitchen" },
+      { id: "qph_42c", url: "placeholder:miller-chimney", alt: "Failing chimney flashing" },
+    ],
+    acceptedBy: "Dana Miller",
+    notes: "Price valid 30 days. Includes permit + cleanup.",
     status: "accepted",
     source: "sarah",
     token: "demo_q_1042",
@@ -1109,6 +1121,7 @@ export const APEX_QUOTES: Quote[] = [
     contactId: "ct_imp_2",
     title: "Seamless gutters — full wrap",
     lineItems: [li("qli_39a", "Seamless aluminum gutters + downspouts (170 lf)", 170, 2_000)],
+    subtotalCents: 340_000,
     totalCents: 340_000, // $3,400
     status: "declined",
     source: "manual",
@@ -1131,6 +1144,7 @@ export const APEX_QUOTES: Quote[] = [
     contactId: "ct_imp_10",
     title: "Cedar shake repair — north slope",
     lineItems: [li("qli_35a", "Cedar shake repair & match (north slope)", 1, 690_000)],
+    subtotalCents: 690_000,
     totalCents: 690_000, // $6,900
     status: "expired",
     source: "manual",
@@ -1159,7 +1173,9 @@ export const APEX_INVOICES: Invoice[] = [
       li("ili_32a", "Gutter repair — rear elevation (48 lf)", 48, 3_500),
       li("ili_32b", "Downspout replacement ×3", 3, 24_000),
     ],
+    subtotalCents: 240_000,
     totalCents: 240_000, // $2,400
+    payments: [],
     token: "demo_inv_2032",
     payInstructions: "Check payable to Apex Roofing, or Zelle to (844) 415-7642.",
     issuedAt: d(28, 9),
@@ -1178,7 +1194,9 @@ export const APEX_INVOICES: Invoice[] = [
     number: "INV-2033",
     status: "viewed",
     lineItems: [li("ili_33a", "Chimney flashing repair", 1, 98_000)],
+    subtotalCents: 98_000,
     totalCents: 98_000, // $980
+    payments: [],
     token: "demo_inv_2033",
     payInstructions: "Check payable to Apex Roofing, or Zelle to (844) 415-7642.",
     issuedAt: d(5, 10),
@@ -1201,7 +1219,12 @@ export const APEX_INVOICES: Invoice[] = [
       li("ili_31c", "Ice & water shield + synthetic underlayment", 1, 94_000),
       li("ili_31d", "Flashing, drip edge, ridge vent", 1, 150_000),
     ],
+    subtotalCents: 1_420_000,
     totalCents: 1_420_000, // $14,200
+    payments: [
+      { at: d(54, 9), amountCents: 426_000, method: "deposit", note: "30% on acceptance — Q-1042" },
+      { at: d(2, 12), amountCents: 994_000, method: "check", note: "recorded by Sarah" },
+    ],
     quoteId: "q_1042",
     token: "demo_inv_2031",
     payInstructions: "Check payable to Apex Roofing, or Zelle to (844) 415-7642.",

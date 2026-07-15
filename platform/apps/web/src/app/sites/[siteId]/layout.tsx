@@ -5,11 +5,12 @@ import { Toaster } from "@/components/ui/sonner";
 import { APEX, APEX_ACTIONS, APEX_APPROVALS, APEX_THREAD } from "@/lib/data/fixtures/apex";
 
 /**
- * The builder takeover layout (03 §2): /website lives OUTSIDE the (app) shell
- * group — no sidebar, no widget, no rounded frame. Auth still required; the
- * Sarah context mounts here because the site chat and gated teaser consume it.
+ * The per-site builder takeover layout (03 §2, multi-site): /sites/[siteId] lives
+ * OUTSIDE the (app) shell group — no sidebar, no rounded frame — mirroring the old
+ * single-site /website layout. Auth still required; the Sarah context mounts here
+ * because the site chat consumes it.
  */
-export default async function WebsiteBuilderLayout({ children }: { children: React.ReactNode }) {
+export default async function SiteBuilderLayout({ children }: { children: React.ReactNode }) {
   const organization = await requireOrganization();
   const demo = await isDemoMode();
 

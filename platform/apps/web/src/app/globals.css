@@ -7,6 +7,7 @@
 @theme inline {
     --font-heading: var(--font-sans);
     --font-sans: var(--font-sans);
+    --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, monospace;
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -128,48 +129,169 @@
     }
 }
 
-/* App palette: MONOCHROME (Levi, 2026-07-11 — Claude/Notion feel; tried the
-   brown-green ink, reverted — plain neutral ink won). The landing page keeps
-   its green. Color only for semantics: status dots (emerald), rating stars
-   (amber), destructive red, and Sarah's iMessage bubbles (#34c759 — the
-   texting metaphor, kept on purpose). Primary/ring inherit the shadcn neutral
-   defaults above. */
+/* EDITORIAL palette — EXACT colors pixel-sampled from the Cofounder reference
+   (Levi, 2026-07-15). Surfaces LAYER: base bg → cards/dock/nodes RAISED (a step
+   lighter) → hairline borders. Light = soft gray bg + white cards. Dark = a mid
+   COOL-charcoal (NOT near-black). Color only for semantics (emerald status, amber
+   stars, orange approval, destructive red, #34c759 bubbles). */
 :root {
   --radius: 0.75rem;
   --bubble-them: #e9e9eb;
   --bubble-them-fg: #1b1b1f;
-  /* Quo-style shell: rail color + its hover MUST move together (accent = menu hover/active). */
-  --sidebar: oklch(0.967 0 0);
-  --sidebar-accent: oklch(0.91 0 0);
+  --background: #f0f0f0;
+  --foreground: #2b2b2b;
+  --card: #ffffff;
+  --card-foreground: #2b2b2b;
+  --popover: #ffffff;
+  --popover-foreground: #2b2b2b;
+  --secondary: #ebebeb;
+  --secondary-foreground: #2b2b2b;
+  --muted: #ebebeb;
+  --muted-foreground: #8a8a8a;
+  --accent: #ebebeb;
+  --accent-foreground: #2b2b2b;
+  --border: #e4e4e4;
+  --input: #e4e4e4;
+  --ring: #c4c4c4;
+  --sidebar: #fafafa;
+  --sidebar-foreground: #2b2b2b;
+  --sidebar-accent: #ebebeb;
+  --sidebar-accent-foreground: #2b2b2b;
+  --sidebar-border: #e4e4e4;
+
+  /* Depth system (DESIGN-DEPTH.md) — elevation ladder + neumorphism knob.
+     Light: soft grey drops, bright top bevel (light source = top). */
+  --elev-1: 0 1px 2px rgb(0 0 0 / 0.05), 0 2px 6px -2px rgb(0 0 0 / 0.08);
+  --elev-2: 0 2px 4px rgb(0 0 0 / 0.06), 0 8px 18px -6px rgb(0 0 0 / 0.12);
+  --elev-3: 0 4px 8px rgb(0 0 0 / 0.07), 0 18px 36px -10px rgb(0 0 0 / 0.16);
+  --elev-4: 0 8px 16px rgb(0 0 0 / 0.10), 0 30px 60px -14px rgb(0 0 0 / 0.22);
+  --bevel-top: inset 0 1px 0 rgb(255 255 255 / 0.75);
+  --neu-strength: 1;
 }
 .dark {
   --bubble-them: #3a3a3c;
   --bubble-them-fg: #f2f2f7;
-  /* Lifted dark ramp (Levi: default was too dark) — everything a few steps lighter. */
-  --background: oklch(0.19 0 0);
-  --card: oklch(0.245 0 0);
-  --popover: oklch(0.245 0 0);
-  --secondary: oklch(0.3 0 0);
-  --muted: oklch(0.3 0 0);
-  --accent: oklch(0.3 0 0);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 16%);
-  --sidebar: oklch(0.155 0 0);
-  --sidebar-accent: oklch(0.27 0 0);
+  --background: #1e1e23;
+  --foreground: #f0f0f0;
+  --card: #28282d;
+  --card-foreground: #f0f0f0;
+  --popover: #28282d;
+  --popover-foreground: #f0f0f0;
+  --secondary: #28282d;
+  --secondary-foreground: #f0f0f0;
+  --muted: #28282d;
+  --muted-foreground: #8c8c94;
+  --accent: #2f2f35;
+  --accent-foreground: #f0f0f0;
+  --border: #323237;
+  --input: #323237;
+  --ring: #55555c;
+  --sidebar: #19191e;
+  --sidebar-foreground: #f0f0f0;
+  --sidebar-primary: #e8e8e8;
+  --sidebar-primary-foreground: #1e1e23;
+  --sidebar-accent: #28282d;
+  --sidebar-accent-foreground: #f0f0f0;
+  --sidebar-border: #323237;
+
+  /* Depth system — dark: deep drops, faint top bevel so edges catch light. */
+  --elev-1: 0 1px 2px rgb(0 0 0 / 0.5), 0 6px 16px -6px rgb(0 0 0 / 0.5);
+  --elev-2: 0 2px 4px rgb(0 0 0 / 0.5), 0 10px 24px -8px rgb(0 0 0 / 0.55);
+  --elev-3: 0 4px 10px rgb(0 0 0 / 0.55), 0 22px 44px -12px rgb(0 0 0 / 0.6);
+  --elev-4: 0 10px 24px rgb(0 0 0 / 0.6), 0 36px 72px -16px rgb(0 0 0 / 0.65);
+  --bevel-top: inset 0 1px 0 rgb(255 255 255 / 0.06);
 }
 
 /* ===== Shared patterns, monochrome edition ===== */
 
+/* ===== DEPTH SYSTEM (DESIGN-DEPTH.md) — physical, tactile, Wii-console feel.
+   Elevation ladder (tokens in :root/.dark), true neumorphism for nodes, gloss for
+   tactile controls. Legacy names (.elev-btn/.elev-card/.card-lift/.btn-glow) re-point
+   to the ladder so the whole app inherits the upgrade; drops + bevel flip per theme. */
+
+/* Elevation ladder */
+.elev-1 { box-shadow: var(--elev-1), var(--bevel-top); }
+.elev-2 { box-shadow: var(--elev-2), var(--bevel-top); }
+.elev-3 { box-shadow: var(--elev-3), var(--bevel-top); }
+.elev-4 { box-shadow: var(--elev-4), var(--bevel-top); }
+
+/* Legacy names, re-pointed to the ladder */
+.elev-btn { box-shadow: var(--elev-1), var(--bevel-top); }
+.elev-card { box-shadow: var(--elev-1), var(--bevel-top); }
+.elev-tile { box-shadow: var(--bevel-top), var(--elev-1); }
+
+/* Neumorphism — the signature node look: a raised pillow in a recessed socket, dual
+   light source (top-left light, bottom-right shade). --neu-strength scales intensity. */
+.neu-raise {
+  background: linear-gradient(145deg,
+    color-mix(in oklab, var(--card), #fff 6%),
+    color-mix(in oklab, var(--card), #000 5%));
+  box-shadow:
+    10px 12px 28px rgb(0 0 0 / calc(0.10 * var(--neu-strength))),
+    -8px -8px 20px rgb(255 255 255 / calc(0.85 * var(--neu-strength))),
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    inset 0 -3px 6px rgb(0 0 0 / 0.04);
+}
+.dark .neu-raise {
+  background: linear-gradient(145deg,
+    color-mix(in oklab, var(--card), #fff 4%),
+    color-mix(in oklab, var(--card), #000 10%));
+  box-shadow:
+    10px 12px 28px rgb(0 0 0 / calc(0.55 * var(--neu-strength))),
+    -6px -6px 16px rgb(255 255 255 / calc(0.05 * var(--neu-strength))),
+    inset 0 1px 0 rgb(255 255 255 / 0.07),
+    inset 0 -3px 6px rgb(0 0 0 / 0.3);
+}
+.neu-socket {
+  box-shadow: inset 3px 3px 7px rgb(0 0 0 / 0.06), inset -3px -3px 7px rgb(255 255 255 / 0.7);
+}
+.dark .neu-socket {
+  box-shadow: inset 3px 3px 7px rgb(0 0 0 / 0.4), inset -3px -3px 7px rgb(255 255 255 / 0.04);
+}
+
+/* Gloss — tactile controls (chevrons, segmented actions, header chips). Pressable. */
+.gloss {
+  background: linear-gradient(180deg, #fff, color-mix(in oklab, var(--card), #000 5%));
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08), 0 3px 6px -2px rgb(0 0 0 / 0.10), inset 0 1px 0 rgb(255 255 255 / 0.9);
+}
+.dark .gloss {
+  background: linear-gradient(180deg, color-mix(in oklab, var(--card), #fff 7%), color-mix(in oklab, var(--card), #000 6%));
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.5), 0 3px 8px -2px rgb(0 0 0 / 0.5), inset 0 1px 0 rgb(255 255 255 / 0.07);
+}
+.gloss:active { box-shadow: inset 0 2px 5px rgb(0 0 0 / 0.14); transform: translateY(1px); }
+.dark .gloss:active { box-shadow: inset 0 2px 6px rgb(0 0 0 / 0.5); transform: translateY(1px); }
+
+/* Gloss INK — the charcoal/ink tactile chip (FAB, task pill); flips via --primary. */
+.gloss-ink {
+  background: linear-gradient(180deg, color-mix(in oklab, var(--primary), #fff 12%), var(--primary));
+  color: var(--primary-foreground);
+  box-shadow: var(--elev-2), inset 0 1px 0 rgb(255 255 255 / 0.18);
+}
+.gloss-ink:active { transform: translateY(1px); box-shadow: var(--elev-1), inset 0 2px 4px rgb(0 0 0 / 0.3); }
+
+/* Canvas grid — square graph-paper lines for spatial reference (pans/zooms via JS). */
+.canvas-grid {
+  background-image:
+    linear-gradient(to right, rgb(0 0 0 / 0.11) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(0 0 0 / 0.11) 1px, transparent 1px);
+}
+.dark .canvas-grid {
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / 0.09) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.09) 1px, transparent 1px);
+}
+
 /* Primary CTA (class name kept from the glow era to avoid churn): ink slab,
-   paper text — flips automatically in dark via the primary tokens. */
+   paper text — flips automatically in dark via the primary tokens. Now with depth. */
 .btn-glow {
-  background: var(--primary);
+  background: linear-gradient(180deg, color-mix(in oklab, var(--primary), #fff 12%), var(--primary));
   border: 1px solid transparent;
   color: var(--primary-foreground);
   transition: all 0.18s ease;
+  box-shadow: var(--elev-2), inset 0 1px 0 rgb(255 255 255 / 0.18);
 }
 .btn-glow:hover {
-  opacity: 0.88;
+  filter: brightness(1.06);
 }
 
 .text-gradient-green {
@@ -177,14 +299,13 @@
   color: inherit;
 }
 
-/* Soft card hover lift. */
+/* Soft card lift — now with resting depth (raised), stronger on hover. */
 .card-lift {
-  transition: all 0.2s ease;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  box-shadow: var(--elev-1), var(--bevel-top);
 }
 .card-lift:hover {
-  box-shadow:
-    0 1px 2px rgba(16, 24, 40, 0.04),
-    0 10px 28px rgba(16, 24, 40, 0.09);
+  box-shadow: var(--elev-3), var(--bevel-top);
   transform: translateY(-2px);
 }
 

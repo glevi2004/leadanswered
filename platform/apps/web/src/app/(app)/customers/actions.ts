@@ -22,6 +22,6 @@ export async function updateLeadStageAction(leadId: string, stage: PipelineStage
     .eq("organizationId", organization.id); // tenant guard
   if (error) throw error;
 
-  revalidatePath("/crm");
-  revalidatePath(`/crm/${leadId}`);
+  revalidatePath("/customers");
+  revalidatePath(`/customers/${leadId}`);
 }

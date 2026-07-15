@@ -61,7 +61,50 @@ function ServiceCard({ title, blurb, isNew }: { title: string; blurb: string; is
   );
 }
 
+/** version 0 — a blank starter canvas for a freshly-onboarded org (no site built yet). */
+function StarterSite() {
+  return (
+    <div className="min-h-full bg-zinc-50 font-sans text-zinc-900">
+      <header className="border-b border-zinc-200 bg-white">
+        <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-5 py-4">
+          <div className="flex items-center gap-2">
+            <span aria-hidden className="flex size-5 items-center justify-center rounded bg-zinc-200 text-[10px] text-zinc-500">◇</span>
+            <span className="h-3 w-24 rounded bg-zinc-200" aria-hidden />
+          </div>
+          <nav className="hidden gap-4 sm:flex">
+            {["Home", "Services", "Contact"].map((t) => (
+              <span key={t} className="text-sm text-zinc-400">{t}</span>
+            ))}
+          </nav>
+        </div>
+      </header>
+      <main className="mx-auto max-w-4xl px-5">
+        <section className="flex flex-col items-center py-20 text-center">
+          <span className="rounded-full border border-dashed border-zinc-300 px-3 py-1 text-xs text-zinc-400">your site — a blank canvas</span>
+          <h1 className="mt-5 max-w-lg text-3xl font-bold tracking-tight text-zinc-800">Tell Lu what you want here</h1>
+          <p className="mt-3 max-w-md text-sm text-zinc-500">
+            A hero, your services, photos, hours — describe it in the chat and it builds right here, live.
+          </p>
+          <span className="mt-6 inline-block rounded-md border border-dashed border-zinc-300 px-5 py-2.5 text-sm font-medium text-zinc-400">
+            Your call-to-action
+          </span>
+        </section>
+        <section className="grid gap-4 pb-16 sm:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex flex-col gap-2 rounded-xl border border-dashed border-zinc-300 bg-white/60 p-5">
+              <span className="h-3 w-20 rounded bg-zinc-200" />
+              <span className="h-2.5 w-full rounded bg-zinc-100" />
+              <span className="h-2.5 w-4/5 rounded bg-zinc-100" />
+            </div>
+          ))}
+        </section>
+      </main>
+    </div>
+  );
+}
+
 export function SitePreview({ version, path, hrefFor }: { version: number; path: string; hrefFor: (path: string) => string }) {
+  if (version === 0) return <StarterSite />;
   const hours = version >= 12 ? "Mon–Sat · 7am–6pm" : "Mon–Fri · 8am–5pm";
   const page = NAV.find((p) => p.path === path) ?? NAV[0];
 

@@ -49,9 +49,10 @@ export function ReviewsHome({
   // the results wall — aggregated across everything Sarah has collected
   const ongoingReviews = ongoing.filter((r) => r.status === "reviewed").length;
   const totalNew = all.reduce((n, c) => n + c.results.newReviews, 0) + ongoingReviews;
-  const googleStart = Math.min(...all.map((c) => c.results.googleBefore));
-  const googleNow = Math.max(...all.map((c) => c.results.googleAfter)) + ongoingReviews;
+  const googleStart = all.length ? Math.min(...all.map((c) => c.results.googleBefore)) : 0;
+  const googleNow = (all.length ? Math.max(...all.map((c) => c.results.googleAfter)) : 0) + ongoingReviews;
   const avg = all.find((c) => c.status === "running")?.results.averageRating ?? all[0]?.results.averageRating;
+  const hasResults = all.length > 0 || ongoingReviews > 0;
 
   const togglePause = (c: Campaign) => {
     const isPaused = paused[c.id] ?? c.status === "paused";
@@ -78,12 +79,14 @@ export function ReviewsHome({
         </Button>
       </div>
 
-      {/* the results wall */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="New reviews" value={`+${totalNew}`} hint="everything Sarah has collected" />
-        <StatCard label="Average rating" value={avg} hint="across the new reviews" />
-        <StatCard label="Google reviews" value={googleNow} hint={`up from ${googleStart} when Sarah started asking`} />
-      </div>
+      {/* the results wall — only once there's something to count */}
+      {hasResults && (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <StatCard label="New reviews" value={`+${totalNew}`} hint="everything Sarah has collected" />
+          <StatCard label="Average rating" value={avg} hint="across the new reviews" />
+          <StatCard label="Google reviews" value={googleNow} hint={`up from ${googleStart} when Sarah started asking`} />
+        </div>
+      )}
 
       {/* campaigns */}
       <div className="card-lift rounded-2xl border bg-card p-5">

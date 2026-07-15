@@ -1,14 +1,16 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { TriangleAlert } from "lucide-react";
+import { TriangleAlert, Upload } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { Contact } from "@/lib/data/shared";
 import type { CrmView, PipelineStage } from "@/lib/data/crm/types";
 import { statusChip, formatWhen } from "@/lib/dashboard-ui";
 import { DataTable } from "@/components/app/DataTable";
 import { EmptyState } from "@/components/app/EmptyState";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -172,9 +174,12 @@ export function CrmIndex({
           <>
             {filterSelect(stage, setStage, Array.from(stageCounts.keys()).map((s) => ({ value: s, label: statusChip(s).label })), "Stage")}
             {filterSelect(source, setSource, sources.map((s) => ({ value: s, label: s.replace("_", " ") })), "Source")}
+            <Button variant="outline" size="sm" className="h-9 gap-1.5" nativeButton={false} render={<Link href="/customers/import" />}>
+              <Upload className="size-3.5" /> Import
+            </Button>
           </>
         }
-        onRowClick={(c) => router.push(`/crm/${c.id}`)}
+        onRowClick={(c) => router.push(`/customers/${c.id}`)}
         emptyState={
           view === "customers" ? (
             <EmptyState

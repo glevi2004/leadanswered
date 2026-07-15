@@ -6,13 +6,14 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Copy, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import type { Quote, QuoteEvent } from "@/lib/data/quotes/types";
-import { deletedQuoteIds, getQuoteMock, quotesStore } from "@/lib/data/quotes";
+import { duplicateQuote, getQuoteMock, quotesStore } from "@/lib/data/quotes";
 import { createInvoiceFromQuote } from "@/lib/data/invoices";
+import { APEX_CHASES } from "@/lib/data/fixtures/apex";
 import { formatCents, formatWhen, statusChip, statusDot } from "@/lib/dashboard-ui";
-import { LineItemsEditor, LineItemsTable } from "@/components/app/LineItems";
+import { LineItemsTable, TotalsBlock } from "@/components/app/LineItems";
+import { PhotoStrip } from "@/components/app/PhotoStrip";
 import { EmptyState } from "@/components/app/EmptyState";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -28,9 +29,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { QuoteComposer } from "./QuoteComposer";
 import { cn } from "@/lib/utils";
 
-/** 06 §2 detail: line items + status rail + customer link; actions per status. */
+/**
+ * 06 §2 detail — SENT documents only (the compose model): drafts open as the
+ * composer; ink never gets a pencil. Read view + per-status actions.
+ */
 
 const EVENT_LABEL: Record<QuoteEvent["event"], string> = {
   drafted: "Drafted",
@@ -59,32 +64,27 @@ const EVENT_STATUS: Record<QuoteEvent["event"], string> = {
 export function QuoteDetail({ quoteId }: { quoteId: string }) {
   const router = useRouter();
   const [, bump] = React.useReducer((n: number) => n + 1, 0);
-  const [editing, setEditing] = React.useState(false);
-  const [confirm, setConfirm] = React.useState<null | "send" | "accept" | "decline" | "delete">(null);
+  const [confirm, setConfirm] = React.useState<null | "accept" | "decline">(null);
 
   const quote = getQuoteMock(quoteId);
   if (!quote) {
     return <EmptyState title="This quote isn't here." body="It may have been deleted — head back to Quotes." />;
   }
+  // The compose model: a draft's natural state IS the editor.
+  if (quote.status === "draft") return <QuoteComposer quoteId={quoteId} />;
+
   const chip = statusChip(quote.status);
-  // Path only for display (SSR-stable — origin differs per environment and
-  // would hydration-mismatch); the copy handler resolves the full URL on click.
   const publicPath = `/q/${quote.token}`;
+  const chase = APEX_CHASES.find((c) => c.targetId === quote.id && c.status !== "resolved");
 
-  const record = (patch: Partial<Quote>, event?: QuoteEvent["event"], actor: QuoteEvent["actor"] = "owner") => {
-    const history = event ? [...quote.history, { at: new Date().toISOString(), event, actor }] : quote.history;
-    quotesStore.patch(quote.id, { ...patch, history, updatedAt: new Date().toISOString() });
-    bump();
-  };
-
-  const send = () => {
-    record({ status: "sent", sentAt: new Date().toISOString() }, "sent", "system");
-    setConfirm(null);
-    setEditing(false);
-    toast.success(`Texted the quote link to ${quote.contactName}.`, { description: `${quote.number} · ${formatCents(quote.totalCents)}` });
-  };
   const markStatus = (status: "accepted" | "declined") => {
-    record({ status, respondedAt: new Date().toISOString() }, status, "owner");
+    quotesStore.patch(quote.id, {
+      status,
+      respondedAt: new Date().toISOString(),
+      history: [...quote.history, { at: new Date().toISOString(), event: status, actor: "owner" as const }],
+      updatedAt: new Date().toISOString(),
+    });
+    bump();
     setConfirm(null);
     toast.success(status === "accepted" ? "Marked accepted — nice one." : "Marked declined.");
   };
@@ -95,13 +95,10 @@ export function QuoteDetail({ quoteId }: { quoteId: string }) {
     router.push(`/invoices/${inv.id}`);
   };
   const duplicate = () => {
-    toast("Duplicated as a new draft.", { description: "The demo keeps one open draft — edits land there." });
-    const draft = { ...quote };
-    void draft;
-    router.push(`/quotes/q_1044`);
+    const draft = duplicateQuote(quote);
+    toast.success(`Duplicated as ${draft.number}.`);
+    router.push(`/quotes/${draft.id}`);
   };
-
-  const isDraft = quote.status === "draft";
 
   return (
     <div className="flex flex-col gap-4 pb-16 lg:pb-4">
@@ -116,24 +113,13 @@ export function QuoteDetail({ quoteId }: { quoteId: string }) {
           <h1 className="text-2xl font-semibold tracking-tight">{quote.number}</h1>
           <span className="text-sm text-muted-foreground">
             {quote.title} —{" "}
-            <Link href={`/crm/${quote.contactId}`} className="underline-offset-2 hover:underline">
+            <Link href={`/customers/${quote.contactId}`} className="underline-offset-2 hover:underline">
               {quote.contactName}
             </Link>
           </span>
           <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", chip.chip)}>{chip.label}</span>
         </div>
-        {/* actions per status (06 §2) */}
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          {isDraft && (
-            <>
-              <Button size="sm" className="text-xs" onClick={() => setConfirm("send")}>
-                Send by text
-              </Button>
-              <Button size="sm" variant="outline" className="text-xs" onClick={() => setEditing((v) => !v)}>
-                {editing ? "Done editing" : "Edit"}
-              </Button>
-            </>
-          )}
           {(quote.status === "sent" || quote.status === "viewed") && (
             <Button
               size="sm"
@@ -167,11 +153,6 @@ export function QuoteDetail({ quoteId }: { quoteId: string }) {
                 </>
               )}
               <DropdownMenuItem onClick={duplicate}>Duplicate</DropdownMenuItem>
-              {isDraft && (
-                <DropdownMenuItem variant="destructive" onClick={() => setConfirm("delete")}>
-                  Delete draft
-                </DropdownMenuItem>
-              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -181,36 +162,50 @@ export function QuoteDetail({ quoteId }: { quoteId: string }) {
         <div className="flex flex-col gap-4">
           <div className="rounded-2xl border bg-card p-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Line items</p>
-            {editing && isDraft ? (
-              <LineItemsEditor
-                items={quote.lineItems}
-                onChange={(items) =>
-                  record({ lineItems: items, totalCents: items.reduce((s, l) => s + l.totalCents, 0) })
-                }
-                className="mt-3"
-              />
-            ) : (
-              <LineItemsTable items={quote.lineItems} totalCents={quote.totalCents} className="mt-2" />
-            )}
+            <LineItemsTable items={quote.lineItems} className="mt-2" />
+            <TotalsBlock
+              subtotalCents={quote.subtotalCents}
+              discountCents={quote.discountCents}
+              totalCents={quote.totalCents}
+              depositCents={quote.depositCents}
+              className="mt-2"
+            />
           </div>
+          {(quote.photos?.length ?? 0) > 0 && (
+            <div className="rounded-2xl border bg-card p-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Job photos</p>
+              <PhotoStrip photos={quote.photos!} size="sm" className="mt-3" />
+            </div>
+          )}
           <div className="rounded-2xl border bg-card p-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notes &amp; terms</p>
-            {editing && isDraft ? (
-              <Textarea
-                defaultValue={quote.notes}
-                onBlur={(e) => record({ notes: e.target.value })}
-                className="mt-2 text-sm"
-                aria-label="Notes and terms"
-              />
-            ) : (
-              <p className="mt-2 text-sm text-muted-foreground">{quote.notes ?? "—"}</p>
-            )}
+            <p className="mt-2 text-sm text-muted-foreground">{quote.notes ?? "—"}</p>
           </div>
         </div>
 
         <div className="flex h-fit flex-col gap-4">
+          {chase && (quote.status === "sent" || quote.status === "viewed") && (
+            <div className="rounded-2xl border bg-card p-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sarah's on it</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {chase.status === "held" && chase.holdReason
+                  ? `Holding the nudge — ${chase.holdReason}`
+                  : chase.nextNudgeAt
+                    ? `Next nudge ${formatWhen(chase.nextNudgeAt)}${chase.deferredForHours ? " — she waits for business hours" : ""}`
+                    : "Watching for a reply."}
+              </p>
+              <Link href="/followups" className="mt-1.5 inline-block text-xs font-medium underline-offset-2 hover:underline">
+                See the chase →
+              </Link>
+            </div>
+          )}
           <div className="rounded-2xl border bg-card p-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status history</p>
+            {quote.acceptedBy && (
+              <p className="mt-2 rounded-lg bg-emerald-500/10 px-2.5 py-1.5 text-xs text-emerald-700 dark:text-emerald-300">
+                Accepted by “{quote.acceptedBy}” (typed signature)
+              </p>
+            )}
             <ol className="mt-3 flex flex-col gap-2.5">
               {quote.history.map((h, i) => (
                 <li key={i} className="flex items-start gap-2">
@@ -225,80 +220,49 @@ export function QuoteDetail({ quoteId }: { quoteId: string }) {
               ))}
             </ol>
           </div>
-          {!isDraft && (
-            <div className="rounded-2xl border bg-card p-5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Customer link</p>
-              <p className="mt-1.5 truncate text-xs text-muted-foreground">{publicPath}</p>
-              <div className="mt-2 flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1 text-xs"
-                  onClick={() => {
-                    void navigator.clipboard.writeText(`${window.location.origin}${publicPath}`);
-                    toast.success("Link copied.");
-                  }}
-                >
-                  <Copy className="size-3" /> Copy link
-                </Button>
-                <Button size="sm" variant="ghost" className="text-xs" onClick={() => window.open(`/q/${quote.token}`, "_blank", "noopener")}>
-                  Preview ↗
-                </Button>
-              </div>
+          <div className="rounded-2xl border bg-card p-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Customer link</p>
+            <p className="mt-1.5 truncate text-xs text-muted-foreground">{publicPath}</p>
+            <div className="mt-2 flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1 text-xs"
+                onClick={() => {
+                  void navigator.clipboard.writeText(`${window.location.origin}${publicPath}`);
+                  toast.success("Link copied.");
+                }}
+              >
+                <Copy className="size-3" /> Copy link
+              </Button>
+              <Button size="sm" variant="ghost" className="text-xs" onClick={() => window.open(publicPath, "_blank", "noopener")}>
+                Preview ↗
+              </Button>
             </div>
-          )}
+          </div>
+          <div className="rounded-2xl border bg-card p-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Contact</p>
+            <p className="mt-2 text-sm font-medium">{quote.contactName}</p>
+            <Link href={`/customers/${quote.contactId}`} className="mt-0.5 inline-block text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
+              View in CRM →
+            </Link>
+          </div>
         </div>
       </div>
 
-      {/* confirms */}
       <Dialog open={confirm !== null} onOpenChange={(o) => !o && setConfirm(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {confirm === "send" && `Text ${quote.contactName} the quote link?`}
-              {confirm === "accept" && "Mark this quote accepted?"}
-              {confirm === "decline" && "Mark this quote declined?"}
-              {confirm === "delete" && "Delete this draft?"}
-            </DialogTitle>
-            <DialogDescription>
-              {confirm === "send" &&
-                `${quote.number} · ${formatCents(quote.totalCents)} — the text goes out from your line with the accept link.`}
-              {(confirm === "accept" || confirm === "decline") && "For when they answered by phone — this just records it."}
-              {confirm === "delete" && "Drafts delete for good; sent quotes are history and can't be."}
-            </DialogDescription>
+            <DialogTitle>{confirm === "accept" ? "Mark this quote accepted?" : "Mark this quote declined?"}</DialogTitle>
+            <DialogDescription>For when they answered by phone — this just records it.</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setConfirm(null)}>
               Cancel
             </Button>
-            {confirm === "send" && (
-              <Button size="sm" onClick={send}>
-                Send it
-              </Button>
-            )}
-            {confirm === "accept" && (
-              <Button size="sm" onClick={() => markStatus("accepted")}>
-                Mark accepted
-              </Button>
-            )}
-            {confirm === "decline" && (
-              <Button size="sm" onClick={() => markStatus("declined")}>
-                Mark declined
-              </Button>
-            )}
-            {confirm === "delete" && (
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => {
-                  deletedQuoteIds.add(quote.id);
-                  toast("Draft deleted.");
-                  router.push("/quotes");
-                }}
-              >
-                Delete
-              </Button>
-            )}
+            <Button size="sm" onClick={() => markStatus(confirm === "accept" ? "accepted" : "declined")}>
+              {confirm === "accept" ? "Mark accepted" : "Mark declined"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
