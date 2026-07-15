@@ -20,6 +20,7 @@ import {
 import { createGoogleNotifyRoute } from "./calendar/google/notifyRoute.js";
 import { createAppointmentChangeRoute } from "./routes/appointments.js";
 import { createProvisionRoute, createListDepartmentsRoute } from "./routes/onboarding.js";
+import { createLuRoute, createEngineeringRoute } from "./routes/agents.js";
 import { testOrganization, testRecipients } from "./seed.js";
 
 export interface BuildDeps {
@@ -82,6 +83,10 @@ export async function createApp(overrides: BuildDeps = {}): Promise<Express> {
   // Lu Computer — onboarding provisioning + department reads (ONBOARDING.md §3/§4).
   app.post("/api/onboarding/provision", createProvisionRoute(deps));
   app.get("/api/departments", createListDepartmentsRoute(deps));
+
+  // Lu Computer — agents over HTTP: the Lu orchestrator + the Engineering agent.
+  app.post("/api/lu", createLuRoute(deps));
+  app.post("/api/engineering", createEngineeringRoute(deps));
 
   // Google Calendar OAuth + inbound push webhook (inert unless GOOGLE creds + token key are set).
   if (useGoogleCalendar()) {
