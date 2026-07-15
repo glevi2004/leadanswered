@@ -4,6 +4,7 @@ export * from "./geo.js";
 export * from "./qualification.js";
 export * from "./availability.js";
 export * from "./prompt.js";
+export * from "./models.js";
 export * from "./conversation.js";
 export * from "./notifications.js";
 export * from "./text.js";

@@ -86,8 +86,8 @@ model Organization {
   escalationTopics     String[] @default([])
 
   // Onboarding (Phase 3): owner login link + whether they've finished self-serve setup.
-  ownerEmail         String?  @unique
-  onboardingComplete Boolean  @default(false)
+  ownerEmail         String? @unique
+  onboardingComplete Boolean @default(false)
 
   // Structured service area (SCOPE §5.1) — never free-text.
   baseLocations    Json     @default("[]") // [{ zip, radiusMiles }]
@@ -134,21 +134,21 @@ model NotificationSubscription {
 }
 
 model Lead {
-  id             String     @id @default(cuid())
-  organizationId String
-  contactName    String
-  contactPhone   String
-  projectHint    String?
-  serviceTown    String?
-  serviceZip     String?
-  fullAddress    String?
-  source         String     @default("manual")
+  id              String     @id @default(cuid())
+  organizationId  String
+  contactName     String
+  contactPhone    String
+  projectHint     String?
+  serviceTown     String?
+  serviceZip      String?
+  fullAddress     String?
+  source          String     @default("manual")
   // Idempotency key for email intake (Postmark MessageID) — a retried inbound
   // with the same id is skipped, never a duplicate lead + duplicate opening text.
-  sourceMessageId String?  @unique
-  status       LeadStatus @default(new)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  sourceMessageId String?    @unique
+  status          LeadStatus @default(new)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
   organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   conversation Conversation?
@@ -216,10 +216,10 @@ model Appointment {
   leadId         String
   organizationId String
   // Calendar-grade interval. UTC instants stored as timestamp; 60-min default for v1.
-  startAt      DateTime
-  endAt        DateTime
-  timezone     String            @default("UTC")
-  status       AppointmentStatus @default(confirmed)
+  startAt        DateTime
+  endAt          DateTime
+  timezone       String            @default("UTC")
+  status         AppointmentStatus @default(confirmed)
 
   // Calendar-sync seam — unused until a one-way CalendarSync adapter ships. Our DB is
   // ALWAYS the source of truth; a provider (Google, etc.) is a push target + free/busy
@@ -238,13 +238,13 @@ model Appointment {
 
   lead         Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  @@index([leadId, status])
-  @@index([organizationId, startAt])
   // NOTE: Booking integrity is enforced by RAW-SQL constraints in the migration that
   // Prisma can't express: a btree_gist EXCLUDE that forbids two overlapping ACTIVE
   // appointments per organization, plus partial unique indexes (active start-per-org;
   // one active per lead). Do NOT `prisma migrate dev` against prod — it would try to drop them.
+
+  @@index([leadId, status])
+  @@index([organizationId, startAt])
 }
 
 /// Per-organization calendar provider connection. Empty/unused until calendar sync ships.
@@ -271,4 +271,303 @@ model CalendarConnection {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, provider])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Lu Computer — agent backend (ADDITIVE ONLY). Specs: AGENTS-BACKEND.md §2/§5a,
+// CANVAS-TOOLS.md §1. Every model is org-scoped via a scalar `orgId` (no relation
+// field onto the existing Organization model — keeps this block self-contained and
+// RLS-safe). Cross-model references (agentId/taskId/refId/…) are indexed scalars;
+// only the strong parent-child pairs (Agent→ContractRevision, Site→Deployment, and
+// Task self-decomposition) carry Prisma relations.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum AgentStatus {
+  idle
+  working
+}
+
+enum TaskStatus {
+  agent_can_do
+  needs_input
+  needs_earlier
+  in_progress
+  needs_approval
+  done
+  failed
+}
+
+enum ArtifactKind {
+  agent_session
+  pr_diff
+  site_preview
+  image
+  file
+  doc
+}
+
+enum SiteStatus {
+  draft
+  building
+  preview
+  live
+  failed
+}
+
+enum DeploymentEnv {
+  preview
+  production
+}
+
+enum DeploymentStatus {
+  queued
+  building
+  ready
+  error
+  canceled
+}
+
+enum SessionStatus {
+  starting
+  running
+  hibernated
+  killed
+  failed
+}
+
+enum ApprovalStatus {
+  pending
+  approved
+  rejected
+}
+
+enum CanvasNodeType {
+  terminal
+  markdown
+  folder
+  site
+  text
+  drawing
+}
+
+enum EdgeKind {
+  owns
+  reads
+  produces
+}
+
+/// A department (one of the 8) instantiated for an org. `active` replaces graph.ts's
+/// hardcoded flag; `context` is the dept's facts + code-of-conduct slice (§2).
+model Department {
+  id        String   @id @default(cuid())
+  orgId     String
+  key       String // sales | operations | finance | legal | engineering | design | marketing | support
+  active    Boolean  @default(true)
+  context   String   @default("") @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orgId, key])
+  @@index([orgId])
+}
+
+/// A hired agent. `contract` = its CONTRACT.md identity file (§5a); `models` holds its
+/// reasoning + generation model ids (§5b). Default one per active dept + custom.
+model Agent {
+  id            String      @id @default(cuid())
+  orgId         String
+  departmentKey String
+  name          String
+  role          String
+  contract      String      @default("") @db.Text
+  models        Json        @default("{}")
+  status        AgentStatus @default(idle)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  contractRevisions ContractRevision[]
+
+  @@index([orgId])
+  @@index([orgId, departmentKey])
+}
+
+/// Versioned history of an Agent.contract — diff / revert how its identity evolved (§5a).
+model ContractRevision {
+  id        String   @id @default(cuid())
+  agentId   String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([agentId])
+}
+
+/// A unit of work. Roadmap steps ARE tasks (ordering + needs_earlier). `parentTaskId`
+/// = Lu's decomposition; `model` = per-task model override (§5b); `assignedBy` = lu|user.
+model Task {
+  id            String     @id @default(cuid())
+  orgId         String
+  departmentKey String
+  agentId       String?
+  title         String
+  body          String     @db.Text
+  status        TaskStatus @default(agent_can_do)
+  parentTaskId  String?
+  input         Json?
+  result        Json?
+  model         String?
+  assignedBy    String
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  parent   Task?  @relation("TaskSubtasks", fields: [parentTaskId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children Task[] @relation("TaskSubtasks")
+
+  @@index([orgId])
+  @@index([orgId, departmentKey])
+  @@index([agentId])
+  @@index([parentTaskId])
+}
+
+/// An output produced by a task/agent. Powers the ArtifactsNav (browser = site_preview,
+/// images, PR diff, agent_session = the interactive transcript) (§2).
+model Artifact {
+  id        String       @id @default(cuid())
+  orgId     String
+  taskId    String?
+  agentId   String?
+  kind      ArtifactKind
+  title     String
+  payload   Json         @default("{}")
+  createdAt DateTime     @default(now())
+
+  @@index([orgId])
+  @@index([taskId])
+  @@index([agentId])
+}
+
+/// A customer / dogfood website. Domain default = {slug}.lu.computer (§2/§7).
+model Site {
+  id              String     @id @default(cuid())
+  orgId           String
+  departmentKey   String?
+  repoFullName    String?
+  vercelProjectId String?
+  domain          String?
+  status          SiteStatus @default(draft)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  deployments Deployment[]
+
+  @@index([orgId])
+}
+
+/// A preview / production deploy of a Site (§2/§6).
+model Deployment {
+  id        String           @id @default(cuid())
+  siteId    String
+  env       DeploymentEnv
+  url       String
+  sha       String?
+  prNumber  Int?
+  status    DeploymentStatus @default(queued)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([siteId])
+}
+
+/// A sandbox / terminal coding session (CANVAS-TOOLS §4). `agentKind` = claude_code |
+/// codex | shell; `transcript` streams into an agent_session Artifact.
+model Session {
+  id         String        @id @default(cuid())
+  orgId      String
+  sandboxId  String?
+  agentKind  String
+  repo       String?
+  status     SessionStatus @default(starting)
+  transcript String?       @db.Text
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@index([orgId])
+}
+
+/// GitHub App installation for an org — scoped clone/branch/PR tokens (§2/§6).
+model GithubConnection {
+  id             String   @id @default(cuid())
+  orgId          String
+  installationId String
+  login          String
+  repos          Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([orgId])
+}
+
+/// Generalized human-in-the-loop gate (extends the SMS hard-gate). Feeds "Needs you" (§4).
+model Approval {
+  id        String         @id @default(cuid())
+  orgId     String
+  taskId    String?
+  action    String
+  status    ApprovalStatus @default(pending)
+  decidedBy String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([orgId])
+  @@index([taskId])
+}
+
+/// A user-created element on the canvas plane (CANVAS-TOOLS §1). `refId` is a soft FK
+/// to the backing entity (Session / Artifact / Collection / Site / Note / Drawing).
+model CanvasNode {
+  id        String         @id @default(cuid())
+  orgId     String
+  type      CanvasNodeType
+  x         Float
+  y         Float
+  w         Float?
+  h         Float?
+  refId     String?
+  z         Int?
+  createdBy String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([orgId])
+}
+
+/// A directed connection between canvas nodes / agents — owns | reads | produces
+/// (CANVAS-TOOLS §1/§10). `fromId`/`toId` are soft FKs (Agent or CanvasNode).
+model Edge {
+  id        String   @id @default(cuid())
+  orgId     String
+  fromId    String
+  toId      String
+  kind      EdgeKind
+  createdAt DateTime @default(now())
+
+  @@index([orgId])
+  @@index([fromId])
+  @@index([toId])
+}
+
+/// A folder / library — an agent's knowledge + asset store (CANVAS-TOOLS §6).
+model Collection {
+  id        String   @id @default(cuid())
+  orgId     String
+  agentId   String?
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId])
+  @@index([agentId])
 }

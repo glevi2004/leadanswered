@@ -59,6 +59,25 @@ const DRAG_CLASS = "lu-node";   // marks a node: excluded from canvas panning + 
 
 const FRAME_IDS: string[] = [...PAGES.map((p) => p.id), ...SHEETS.map((s) => s.id)];
 
+// every selectable node id (for marquee hit-testing)
+const ALL_NODE_IDS: string[] = ["lu", ...AGENTS.map((a) => a.id), ...TEAMMATES.map((t) => t.id), ...FRAME_IDS];
+
+// pages/sheets carry a real w/h; the pill/avatar nodes don't, so we approximate their world
+// half-extents for marquee intersection (generous enough to feel right, not pixel-exact).
+const NODE_HALF = { lu: { hw: 130, hh: 74 }, agent: { hw: 150, hh: 62 }, teammate: { hw: 96, hh: 92 } };
+/** a node's world-space AABB {x0,y0,x1,y1}, or null if it has no position */
+function worldBox(id: string, positions: Positions): { x0: number; y0: number; x1: number; y1: number } | null {
+  const p = positions[id];
+  if (!p) return null;
+  let hw: number, hh: number;
+  if (PAGES.some((pg) => pg.id === id)) { hw = CARD_W / 2; hh = CARD_H / 2; }
+  else if (SHEETS.some((s) => s.id === id)) { hw = SHEET_W / 2; hh = SHEET_H / 2; }
+  else if (id === "lu") { hw = NODE_HALF.lu.hw; hh = NODE_HALF.lu.hh; }
+  else if (TEAMMATES.some((t) => t.id === id)) { hw = NODE_HALF.teammate.hw; hh = NODE_HALF.teammate.hh; }
+  else { hw = NODE_HALF.agent.hw; hh = NODE_HALF.agent.hh; }
+  return { x0: p.x - hw, y0: p.y - hh, x1: p.x + hw, y1: p.y + hh };
+}
+
 type TF = { scale: number; positionX: number; positionY: number };
 
 /** Off-screen stand-in for a live frame (so we don't keep 16 iframes mounted). */
@@ -82,16 +101,26 @@ export function CompanyCanvas() {
 
   const [ready, setReady] = React.useState(false);
   const [pos, setPos] = React.useState<Positions>(defaultPositions);
-  const [sel, setSel] = React.useState<string>("lu"); // "lu" | DeptId | teammateId | site-id
+  // multi-select: the full set of selected node ids. A single-element set behaves EXACTLY like
+  // the old `sel` — it drives the dock/fly/focused-overlay; `sel` is now derived from it.
+  const [selection, setSelection] = React.useState<Set<string>>(() => new Set<string>(["lu"]));
+  const sel = selection.size === 1 ? ([...selection][0] as string) : ""; // focused single id ("" when 0 or many)
   const [tool, setTool] = React.useState<CanvasTool>("select");
   const [visible, setVisible] = React.useState<Set<string>>(() => new Set(FRAME_IDS));
   const posRef = React.useRef<Positions>(pos);
   posRef.current = pos;
+  const selectionRef = React.useRef(selection);
+  selectionRef.current = selection;
   const selRef = React.useRef(sel);
   selRef.current = sel;
+  const toolRef = React.useRef(tool);
+  toolRef.current = tool;
+  const panModeRef = React.useRef(false);           // SPACE held → pan instead of marquee (middle-mouse pans too)
   const overlayRef = React.useRef<HTMLDivElement>(null);
+  const marqueeRef = React.useRef<HTMLDivElement>(null);  // screen-space selection rectangle (drawn imperatively)
+  const marq = React.useRef<{ sx: number; sy: number; moved: boolean } | null>(null);
 
-  const drag = React.useRef<{ id: string; sx: number; sy: number; ox: number; oy: number } | null>(null);
+  const drag = React.useRef<{ id: string; sx: number; sy: number; origins: Record<string, { x: number; y: number }> } | null>(null);
   const moved = React.useRef(false);
   const saveT = React.useRef<number | null>(null);
   const cullRaf = React.useRef<number | null>(null);
@@ -207,6 +236,97 @@ export function CompanyCanvas() {
     return () => el.removeEventListener("wheel", onWheel);
   }, [syncGrid, scheduleCull, positionOverlay]);
 
+  /* ---- SPACE (hold) = pan mode: while held, an empty-canvas drag pans (RZPP) instead of
+        marqueeing — the standard canvas convention (middle-mouse pans regardless). ---- */
+  React.useEffect(() => {
+    const skip = (n: Element | null) =>
+      !!n && (["INPUT", "TEXTAREA", "BUTTON", "SELECT", "A"].includes(n.tagName) || (n as HTMLElement).isContentEditable);
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code !== "Space" || e.repeat) return;
+      if (skip(document.activeElement)) return;   // typing / focused control → space stays a space
+      panModeRef.current = true;
+      e.preventDefault();                          // no page scroll while space-panning
+    };
+    const onKeyUp = (e: KeyboardEvent) => { if (e.code === "Space") panModeRef.current = false; };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+    };
+  }, []);
+
+  /* ---- marquee multi-select. We intercept the native mousedown in the CAPTURE phase on the
+        wrap — BEFORE RZPP's window-level pan handler — and on an empty-canvas left-press with the
+        select tool we start a screen-space selection rect and stopPropagation, so RZPP never pans.
+        SPACE (panModeRef) or middle-mouse fall through untouched → RZPP pans as before. On up we
+        convert the screen rect to world via the live transform and select every intersecting node. ---- */
+  React.useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const onMove = (e: MouseEvent) => {
+      const m = marq.current;
+      if (!m) return;
+      const rect = el.getBoundingClientRect();
+      const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
+      if (Math.abs(cx - m.sx) + Math.abs(cy - m.sy) > 4) m.moved = true;
+      if (!m.moved) return;
+      const box = marqueeRef.current;
+      if (box) {
+        box.style.display = "block";
+        box.style.left = `${Math.min(m.sx, cx)}px`;
+        box.style.top = `${Math.min(m.sy, cy)}px`;
+        box.style.width = `${Math.abs(cx - m.sx)}px`;
+        box.style.height = `${Math.abs(cy - m.sy)}px`;
+      }
+    };
+    const onUp = (e: MouseEvent) => {
+      const m = marq.current;
+      marq.current = null;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      const box = marqueeRef.current;
+      if (box) box.style.display = "none";
+      if (!m) return;
+      if (!m.moved) {
+        // a plain empty-canvas click → clear the selection back to Lu (the old onPanningStop deselect)
+        setSelection(new Set<string>(["lu"]));
+        setSelectedAgent(null);
+        return;
+      }
+      const rect = el.getBoundingClientRect();
+      const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
+      const { scale, positionX, positionY } = tf.current;
+      const wx0 = (Math.min(m.sx, cx) - positionX) / scale, wy0 = (Math.min(m.sy, cy) - positionY) / scale;
+      const wx1 = (Math.max(m.sx, cx) - positionX) / scale, wy1 = (Math.max(m.sy, cy) - positionY) / scale;
+      const hits = new Set<string>();
+      for (const id of ALL_NODE_IDS) {
+        const b = worldBox(id, posRef.current);
+        if (b && b.x1 >= wx0 && b.x0 <= wx1 && b.y1 >= wy0 && b.y0 <= wy1) hits.add(id);
+      }
+      setSelection(hits);
+    };
+    const onDown = (e: MouseEvent) => {
+      if (e.button !== 0) return;                          // middle/right → let RZPP handle (middle pans)
+      if (panModeRef.current) return;                      // SPACE held → let RZPP pan with the left button
+      if (toolRef.current !== "select") return;            // only the select tool marquees
+      const t = e.target as Element | null;
+      if (!t || !t.closest(".react-transform-wrapper")) return; // outside the plane (toolbar/overlay/chrome)
+      if (t.closest(`.${DRAG_CLASS}`)) return;             // on a node → node drag/click owns it
+      e.stopPropagation();                                 // keep RZPP's window mousedown from panning
+      const rect = el.getBoundingClientRect();
+      marq.current = { sx: e.clientX - rect.left, sy: e.clientY - rect.top, moved: false };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    };
+    el.addEventListener("mousedown", onDown, true);        // capture: runs before RZPP's window listener
+    return () => {
+      el.removeEventListener("mousedown", onDown, true);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [setSelectedAgent]);
+
   /** center Lu once the engine is live */
   const onInit = React.useCallback((ref: ReactZoomPanPinchRef) => {
     apiRef.current = ref;
@@ -238,22 +358,31 @@ export function CompanyCanvas() {
 
   /* ------------ click behavior (unchanged from before) ------------ */
 
+  /** shift/⌘/ctrl-click: add or remove a node from the selection — no fly, no dock change */
+  const toggleSelect = (id: string) => {
+    setSelection((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
   const goToSite = (nodeId: string, w: number, h: number) => {
     const el = wrapRef.current;
     if (!el) return;
-    setSel(nodeId);
+    setSelection(new Set<string>([nodeId]));
     // frame nearly fills the view (0.8), leaving room for the screen-space pill/nav/action-bar
     flyToNode(nodeId, Math.min(CLICK_Z, (el.clientWidth * 0.8) / w, (el.clientHeight * 0.8) / h));
   };
   const goToAgent = (nodeId: string, selId: string, dept: DeptId, targetZ: number) => {
-    setSel(selId);
+    setSelection(new Set<string>([selId]));
     setSelectedAgent(dept);
     setWidgetMode("docked");
     openWidget();
     flyToNode(nodeId, targetZ);
   };
   const selectLu = () => {
-    setSel("lu");
+    setSelection(new Set<string>(["lu"]));
     setSelectedAgent(null);
     setWidgetMode("docked");
     openWidget();
@@ -273,9 +402,14 @@ export function CompanyCanvas() {
   const nodeDrag = (id: string) => ({
     onPointerDown: (e: React.PointerEvent) => {
       e.stopPropagation();
-      const p = posRef.current[id];
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-      drag.current = { id, sx: e.clientX, sy: e.clientY, ox: p?.x ?? 0, oy: p?.y ?? 0 };
+      // grabbing a node that's part of a multi-selection drags the WHOLE set together;
+      // otherwise just this node. Snapshot each mover's origin so the delta is applied once.
+      const selNow = selectionRef.current;
+      const group = selNow.has(id) && selNow.size > 1 ? [...selNow] : [id];
+      const origins: Record<string, { x: number; y: number }> = {};
+      for (const gid of group) { const gp = posRef.current[gid]; if (gp) origins[gid] = { x: gp.x, y: gp.y }; }
+      drag.current = { id, sx: e.clientX, sy: e.clientY, origins };
       moved.current = false;
     },
     onPointerMove: (e: React.PointerEvent) => {
@@ -285,8 +419,10 @@ export function CompanyCanvas() {
       if (Math.abs(dx) + Math.abs(dy) > 4) moved.current = true;
       if (!moved.current) return;
       const z = tf.current.scale;
+      const wdx = dx / z, wdy = dy / z;                 // one world delta, applied to every mover
       setPos((prev) => {
-        const next = { ...prev, [d.id]: { x: d.ox + dx / z, y: d.oy + dy / z } };
+        const next = { ...prev };
+        for (const gid in d.origins) next[gid] = { x: d.origins[gid].x + wdx, y: d.origins[gid].y + wdy };
         persist(next);
         return next;
       });
@@ -295,7 +431,10 @@ export function CompanyCanvas() {
       const d = drag.current;
       drag.current = null;
       try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch { /* noop */ }
-      if (d && !moved.current) nodeClick(d.id); // a click, not a drag
+      if (d && !moved.current) {
+        if (e.shiftKey || e.metaKey || e.ctrlKey) toggleSelect(d.id); // add/remove from the set
+        else nodeClick(d.id);                                          // single-select + fly + dock
+      }
     },
   });
 
@@ -335,7 +474,7 @@ export function CompanyCanvas() {
         panning={{ excluded: [DRAG_CLASS] }}
         onPanningStart={() => { panMoved.current = false; }}
         onPanning={() => { panMoved.current = true; }}
-        onPanningStop={() => { if (!panMoved.current) { setSel("lu"); setSelectedAgent(null); } }}
+        onPanningStop={() => { if (!panMoved.current) { setSelection(new Set<string>(["lu"])); setSelectedAgent(null); } }}
       >
         <TransformComponent
           wrapperStyle={{ width: "100%", height: "100%" }}
@@ -347,7 +486,7 @@ export function CompanyCanvas() {
               <circle cx={0} cy={0} r={ORBIT_R} fill="none" stroke="currentColor" strokeOpacity={0.12} strokeWidth={1} vectorEffect="non-scaling-stroke" />
               {AGENTS.map((a) => {
                 const ap = pos[a.id]; if (!ap) return null;
-                const on = a.id === sel;
+                const on = selection.has(a.id);
                 const isWorking = working.includes(a.id);
                 const stroke = on ? SELECT_RING : isWorking ? `rgb(${a.accent})` : "currentColor";
                 const op = on ? 0.9 : isWorking ? 0.55 : 0.34;
@@ -372,24 +511,25 @@ export function CompanyCanvas() {
                 );
               })}
 
-              {/* selected SITE — blue dashed box, offset by the frame padding; non-scaling
-                  stroke keeps it a constant thin dashed line at every zoom */}
-              {(() => {
-                const isPage = PAGES.some((pg) => pg.id === sel);
-                const isSheet = SHEETS.some((s) => s.id === sel);
-                const sp = (isPage || isSheet) ? pos[sel] : null;
+              {/* selected SITES — blue dashed box per selected page/sheet, offset by the frame
+                  padding; non-scaling stroke keeps it a constant thin dashed line at every zoom */}
+              {[...selection].map((sid) => {
+                const isPage = PAGES.some((pg) => pg.id === sid);
+                const isSheet = SHEETS.some((s) => s.id === sid);
+                const sp = (isPage || isSheet) ? pos[sid] : null;
                 if (!sp) return null;
                 const w = isPage ? CARD_W : SHEET_W;
                 const h = isPage ? CARD_H : SHEET_H;
                 return (
                   <rect
+                    key={`selbox-${sid}`}
                     x={sp.x - w / 2 - SEL_PAD} y={sp.y - h / 2 - SEL_PAD}
                     width={w + 2 * SEL_PAD} height={h + 2 * SEL_PAD} rx={10}
                     fill="none" stroke={SELECT_RING} strokeWidth={1.75} strokeDasharray="7 6"
                     vectorEffect="non-scaling-stroke"
                   />
                 );
-              })()}
+              })}
             </svg>
 
             {/* page frames — REAL /embed miniatures; iframe only when near the viewport */}
@@ -442,7 +582,7 @@ export function CompanyCanvas() {
             {/* agent nodes */}
             {AGENTS.map((a) => {
               const p = pos[a.id]; if (!p) return null;
-              const on = a.id === sel;
+              const on = selection.has(a.id);
               const Icon = DEPT_ICON[a.id];
               const badge = agentBadge(a.id);
               return (
@@ -476,7 +616,7 @@ export function CompanyCanvas() {
             {TEAMMATES.map((t) => {
               const p = pos[t.id]; if (!p) return null;
               const a = agentById(t.dept)!;
-              const on = t.id === sel;
+              const on = selection.has(t.id);
               return (
                 <div key={t.id} data-node={t.id} className={`${DRAG_CLASS} absolute cursor-pointer`} style={{ left: p.x, top: p.y }} {...nodeDrag(t.id)}>
                   <div className="flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2">
@@ -499,7 +639,7 @@ export function CompanyCanvas() {
             <div data-node="lu" className={`${DRAG_CLASS} absolute cursor-pointer`} style={{ left: 0, top: 0 }} {...nodeDrag("lu")}>
               <div
                 className="neu-socket -translate-x-1/2 -translate-y-1/2 rounded-[3rem] p-2.5 transition-shadow"
-                style={{ boxShadow: sel === "lu" ? `0 0 0 5px var(--card), 0 0 0 10px ${SELECT_RING}, 0 0 0 26px ${SELECT_HALO}` : undefined }}
+                style={{ boxShadow: selection.has("lu") ? `0 0 0 5px var(--card), 0 0 0 10px ${SELECT_RING}, 0 0 0 26px ${SELECT_HALO}` : undefined }}
               >
                 <div className="neu-raise flex items-center gap-4 rounded-[2.4rem] px-12 py-8">
                   <SarahIcon className="size-11 text-foreground" />
@@ -511,6 +651,13 @@ export function CompanyCanvas() {
           </div>
         </TransformComponent>
       </TransformWrapper>
+
+      {/* marquee — screen-space selection rectangle, drawn imperatively during a drag */}
+      <div
+        ref={marqueeRef}
+        className="pointer-events-none absolute z-30 rounded-[2px]"
+        style={{ display: "none", border: `1px solid ${SELECT_RING}`, background: SELECT_HALO }}
+      />
 
       {/* focused-site controls (DESIGN-DEPTH-2 ref-83/85) — SCREEN-SPACE + FIXED SIZE, so they stay
           small no matter the zoom. The wrapper is positioned imperatively (positionOverlay) to the
