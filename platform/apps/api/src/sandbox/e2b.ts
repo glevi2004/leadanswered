@@ -1,5 +1,5 @@
 import { Sandbox as E2bClient, CommandExitError } from "e2b";
-import type { ExecResult, FileWrite, PtyHandle, Sandbox, SpawnOpts } from "./types.js";
+import type { ExecOpts, ExecResult, FileWrite, PtyHandle, Sandbox, SpawnOpts } from "./types.js";
 
 /**
  * e2b adapter for the `Sandbox` port (AGENTS-BACKEND §11 — e2b is the LOCKED provider).
@@ -57,10 +57,12 @@ export class E2bSandbox implements Sandbox {
     return { id: sandbox.sandboxId };
   }
 
-  async exec(id: string, cmd: string): Promise<ExecResult> {
+  async exec(id: string, cmd: string, opts: ExecOpts = {}): Promise<ExecResult> {
     const sandbox = await this.client(id);
+    // Provider default (~60s) times out real work; default to 5min, honour an explicit override (0 = none).
+    const timeoutMs = opts.timeoutMs ?? 300_000;
     try {
-      const res = await sandbox.commands.run(cmd);
+      const res = await sandbox.commands.run(cmd, { timeoutMs });
       return { stdout: res.stdout, stderr: res.stderr, exitCode: res.exitCode };
     } catch (err) {
       // `commands.run` throws on a non-zero exit; surface it as a value, not an exception.

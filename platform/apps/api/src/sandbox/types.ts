@@ -24,6 +24,15 @@ export interface ExecResult {
   exitCode: number;
 }
 
+/** Per-command options. */
+export interface ExecOpts {
+  /**
+   * Max wall-clock for the command, ms. Provider default (~60s) is too short for real work — a
+   * `claude -p` build or a `vercel deploy` runs for minutes — so callers bump it. `0` = no limit.
+   */
+  timeoutMs?: number;
+}
+
 /** A single file to materialise in the sandbox filesystem. */
 export interface FileWrite {
   path: string;
@@ -51,7 +60,7 @@ export interface Sandbox {
   /** Boot a sandbox (optionally from a template, optionally cloning a repo). Returns its id. */
   spawn(opts?: SpawnOpts): Promise<{ id: string }>;
   /** Run a command to completion. Returns stdout/stderr/exitCode (never throws on non-zero exit). */
-  exec(id: string, cmd: string): Promise<ExecResult>;
+  exec(id: string, cmd: string, opts?: ExecOpts): Promise<ExecResult>;
   /** Open an interactive PTY in the sandbox (for the terminal tool). */
   pty(id: string): Promise<PtyHandle>;
   /** Write files into the sandbox filesystem (create/overwrite). */
