@@ -24,12 +24,14 @@ import type {
   CreateCanvasNodeInput,
   CreateCollectionInput,
   CreateEdgeInput,
+  CreateDepartmentInput,
   CreateLeadInput,
   CreateSessionInput,
   CreateSiteInput,
   CreateTaskInput,
   DepartmentPatch,
   DepartmentRecord,
+  DepartmentWithAgent,
   DeploymentRecord,
   EdgeRecord,
   LeadContext,
@@ -567,6 +569,12 @@ export class MemoryStore implements Store {
     return [...this.agents.values()].filter((a) => a.orgId === orgId);
   }
 
+  async getAgentByDepartment(orgId: string, departmentKey: string): Promise<AgentRecord | null> {
+    return (
+      [...this.agents.values()].find((a) => a.orgId === orgId && a.departmentKey === departmentKey) ?? null
+    );
+  }
+
   async updateAgent(id: string, patch: AgentPatch): Promise<AgentRecord> {
     const a = this.mustGet(this.agents, id, "agent");
     for (const [k, v] of Object.entries(patch)) if (v !== undefined) (a as any)[k] = v;
@@ -582,14 +590,35 @@ export class MemoryStore implements Store {
     return a;
   }
 
-  async listDepartments(orgId: string): Promise<DepartmentRecord[]> {
-    return [...this.departments.values()].filter((d) => d.orgId === orgId);
+  async createDepartment(input: CreateDepartmentInput): Promise<DepartmentRecord> {
+    const ts = this.now().toISOString();
+    const rec: DepartmentRecord = {
+      id: randomUUID(),
+      orgId: input.orgId,
+      key: input.key,
+      status: input.status,
+      context: input.context ?? "",
+      createdAt: ts,
+      updatedAt: ts,
+    };
+    this.departments.set(rec.id, rec);
+    return rec;
+  }
+
+  async listDepartments(orgId: string): Promise<DepartmentWithAgent[]> {
+    return [...this.departments.values()]
+      .filter((d) => d.orgId === orgId)
+      .map((d) => ({
+        ...d,
+        agent:
+          [...this.agents.values()].find((a) => a.orgId === orgId && a.departmentKey === d.key) ?? null,
+      }));
   }
 
   async upsertDepartment(orgId: string, key: string, patch: DepartmentPatch): Promise<DepartmentRecord> {
     const existing = [...this.departments.values()].find((d) => d.orgId === orgId && d.key === key);
     if (existing) {
-      if (patch.active !== undefined) existing.active = patch.active;
+      if (patch.status !== undefined) existing.status = patch.status;
       if (patch.context !== undefined) existing.context = patch.context;
       existing.updatedAt = this.now().toISOString();
       return existing;
@@ -599,7 +628,7 @@ export class MemoryStore implements Store {
       id: randomUUID(),
       orgId,
       key,
-      active: patch.active ?? true,
+      status: patch.status ?? "in_development",
       context: patch.context ?? "",
       createdAt: ts,
       updatedAt: ts,

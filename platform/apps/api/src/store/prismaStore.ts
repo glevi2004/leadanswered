@@ -32,11 +32,13 @@ import type {
   CreateCollectionInput,
   CreateEdgeInput,
   CreateLeadInput,
+  CreateDepartmentInput,
   CreateSessionInput,
   CreateSiteInput,
   CreateTaskInput,
   DepartmentPatch,
   DepartmentRecord,
+  DepartmentWithAgent,
   DeploymentRecord,
   EdgeRecord,
   LeadContext,
@@ -166,7 +168,7 @@ function mapDepartment(r: any): DepartmentRecord {
     id: r.id,
     orgId: r.orgId,
     key: r.key,
-    active: r.active,
+    status: r.status,
     context: r.context,
     createdAt: iso(r.createdAt),
     updatedAt: iso(r.updatedAt),
@@ -767,6 +769,14 @@ export class PrismaStore implements Store {
     return rows.map(mapAgent);
   }
 
+  async getAgentByDepartment(orgId: string, departmentKey: string): Promise<AgentRecord | null> {
+    const a = await this.db.agent.findFirst({
+      where: { orgId, departmentKey },
+      orderBy: { createdAt: "asc" },
+    });
+    return a ? mapAgent(a) : null;
+  }
+
   async updateAgent(id: string, patch: AgentPatch): Promise<AgentRecord> {
     const a = await this.db.agent.update({
       where: { id },
@@ -790,16 +800,33 @@ export class PrismaStore implements Store {
     return mapAgent(a);
   }
 
-  async listDepartments(orgId: string): Promise<DepartmentRecord[]> {
-    const rows = await this.db.department.findMany({ where: { orgId }, orderBy: { createdAt: "asc" } });
-    return rows.map(mapDepartment);
+  async createDepartment(input: CreateDepartmentInput): Promise<DepartmentRecord> {
+    const d = await this.db.department.create({
+      data: {
+        orgId: input.orgId,
+        key: input.key,
+        status: input.status as any,
+        context: input.context ?? undefined,
+      },
+    });
+    return mapDepartment(d);
+  }
+
+  async listDepartments(orgId: string): Promise<DepartmentWithAgent[]> {
+    const [rows, agentRows] = await Promise.all([
+      this.db.department.findMany({ where: { orgId }, orderBy: { createdAt: "asc" } }),
+      this.db.agent.findMany({ where: { orgId }, orderBy: { createdAt: "asc" } }),
+    ]);
+    const byKey = new Map<string, AgentRecord>();
+    for (const a of agentRows.map(mapAgent)) if (!byKey.has(a.departmentKey)) byKey.set(a.departmentKey, a);
+    return rows.map(mapDepartment).map((d) => ({ ...d, agent: byKey.get(d.key) ?? null }));
   }
 
   async upsertDepartment(orgId: string, key: string, patch: DepartmentPatch): Promise<DepartmentRecord> {
     const d = await this.db.department.upsert({
       where: { orgId_key: { orgId, key } },
-      create: { orgId, key, active: patch.active ?? undefined, context: patch.context ?? undefined },
-      update: { active: patch.active, context: patch.context },
+      create: { orgId, key, status: (patch.status ?? undefined) as any, context: patch.context ?? undefined },
+      update: { status: patch.status as any, context: patch.context },
     });
     return mapDepartment(d);
   }

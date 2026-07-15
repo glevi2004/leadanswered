@@ -19,6 +19,7 @@ import {
 } from "./calendar/google/oauthRoutes.js";
 import { createGoogleNotifyRoute } from "./calendar/google/notifyRoute.js";
 import { createAppointmentChangeRoute } from "./routes/appointments.js";
+import { createProvisionRoute, createListDepartmentsRoute } from "./routes/onboarding.js";
 import { testOrganization, testRecipients } from "./seed.js";
 
 export interface BuildDeps {
@@ -77,6 +78,10 @@ export async function createApp(overrides: BuildDeps = {}): Promise<Express> {
   app.post("/webhooks/twilio/sms", createWebhookRoute(deps));
   app.post("/webhooks/twilio/voice", createVoiceRoute(deps));
   app.post("/webhooks/email/postmark/:secret", createEmailWebhookRoute(deps));
+
+  // Lu Computer — onboarding provisioning + department reads (ONBOARDING.md §3/§4).
+  app.post("/api/onboarding/provision", createProvisionRoute(deps));
+  app.get("/api/departments", createListDepartmentsRoute(deps));
 
   // Google Calendar OAuth + inbound push webhook (inert unless GOOGLE creds + token key are set).
   if (useGoogleCalendar()) {

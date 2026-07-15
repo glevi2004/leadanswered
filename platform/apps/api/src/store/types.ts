@@ -145,17 +145,28 @@ export interface EscalationRecord {
 // Timestamps are optional ISO strings (like MessageRecord.createdAt).
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** A department (one of the 8) instantiated for an org. */
+/** A department (one of the 8) instantiated for an org. `status` mirrors the
+ * DepartmentStatus enum (`active` | `in_development`), surfaced as a string. */
 export interface DepartmentRecord {
   id: string;
   orgId: string;
   key: string;
-  active: boolean;
+  status: string; // active | in_development
   context: string;
   createdAt?: string;
   updatedAt?: string;
 }
-export type DepartmentPatch = Partial<{ active: boolean; context: string }>;
+/** A department joined with its (single, default) agent — what the canvas reads. */
+export interface DepartmentWithAgent extends DepartmentRecord {
+  agent: AgentRecord | null;
+}
+export interface CreateDepartmentInput {
+  orgId: string;
+  key: string;
+  status: string; // active | in_development
+  context?: string;
+}
+export type DepartmentPatch = Partial<{ status: string; context: string }>;
 
 /** A hired agent. `contract` = its CONTRACT.md identity file; `models` = model ids. */
 export interface AgentRecord {
@@ -515,11 +526,16 @@ export interface Store {
   createAgent(input: CreateAgentInput): Promise<AgentRecord>;
   getAgent(id: string): Promise<AgentRecord | null>;
   listAgents(orgId: string): Promise<AgentRecord[]>;
+  /** The (single, default) agent for a department, if one has been hired. */
+  getAgentByDepartment(orgId: string, departmentKey: string): Promise<AgentRecord | null>;
   updateAgent(id: string, patch: AgentPatch): Promise<AgentRecord>;
   /** Replace an agent's contract AND append a ContractRevision (diff/revert history, §5a). */
   updateAgentContract(id: string, content: string): Promise<AgentRecord>;
-  listDepartments(orgId: string): Promise<DepartmentRecord[]>;
-  /** Create-or-update the (orgId, key) department — its `active` flag + `context`. */
+  /** Create a department row for (orgId, key) — used by onboarding provisioning. */
+  createDepartment(input: CreateDepartmentInput): Promise<DepartmentRecord>;
+  /** The org's departments, each joined with its agent (if one exists) — the canvas read. */
+  listDepartments(orgId: string): Promise<DepartmentWithAgent[]>;
+  /** Create-or-update the (orgId, key) department — its `status` + `context`. */
   upsertDepartment(orgId: string, key: string, patch: DepartmentPatch): Promise<DepartmentRecord>;
 
   // --- Tasks ---
