@@ -1,8 +1,10 @@
 import { createServer } from "node:http";
 import { buildStore, createApp } from "./app.js";
-import { assertEnv, env, useE2b, usePostgres, useTwilio, useVercel } from "./env.js";
+import { assertEnv, env, useE2b, usePostgres, useVercel } from "./env.js";
 import { startTelemetry } from "./telemetry.js";
 import { attachTerminalWs } from "./routes/terminal.js";
+import { startEngineeringWorker } from "./worker.js";
+import { useRedis } from "./queue.js";
 
 async function main(): Promise<void> {
   assertEnv();
@@ -19,15 +21,17 @@ async function main(): Promise<void> {
   const server = createServer(app);
   attachTerminalWs(server, { store });
 
+  // The durable Engineering worker rides in-process (no-op without REDIS_URL); it can be
+  // split to a dedicated process later via `node dist/worker.js`.
+  startEngineeringWorker(store);
+
   server.listen(env.PORT, () => {
     console.log(`[api] listening on http://localhost:${env.PORT}`);
-    console.log(`[api] POST /lead                — create a lead + fire Sarah's opening SMS`);
-    console.log(`[api] POST /webhooks/twilio/sms — inbound SMS → Sarah`);
-    console.log(`[api] POST /webhooks/email/postmark/:secret — inbound lead email → Sarah`);
-    console.log(`[api] POST /api/engineering     — dispatch the Engineer (async → 202 { taskId })`);
-    console.log(`[api] WS   /api/terminal        — cloud terminal (sandbox PTY bridge)`);
+    console.log(`[api] POST /api/lu           — Lu orchestrator turn`);
+    console.log(`[api] POST /api/engineering  — dispatch the Engineer (async → 202 { taskId })`);
+    console.log(`[api] WS   /api/terminal     — cloud terminal (sandbox PTY bridge)`);
     console.log(
-      `[api] model: ${env.AI_PROVIDER}/${env.AI_MODEL} | store: ${usePostgres() ? "postgres" : "in-memory"} | sms: ${useTwilio() ? "twilio" : "console"} | e2b: ${useE2b() ? "on" : "off"} | vercel: ${useVercel() ? "on" : "off"}`,
+      `[api] model: ${env.AI_PROVIDER}/${env.AI_MODEL} | store: ${usePostgres() ? "postgres" : "in-memory"} | worker: ${useRedis() ? "bullmq" : "in-process"} | e2b: ${useE2b() ? "on" : "off"} | vercel: ${useVercel() ? "on" : "off"}`,
     );
   });
 }

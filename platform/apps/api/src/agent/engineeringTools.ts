@@ -235,8 +235,23 @@ export function engineeringTools(deps: EngineeringToolDeps, ctx: EngineeringCont
           .describe("Optional brand notes (colors, tone, style) to carry into the build prompt later"),
       }),
       execute: async ({ name, preset, brand }) => {
+        const slug = slugify(name);
+        // Idempotency (durable re-delivery): if a Site with this slug already exists for
+        // the org, reuse it instead of creating a duplicate repo — so re-running the build
+        // after a worker crash/redeploy is safe (DEVELOPMENT Phase 0 / docs/durable-worker.md).
+        const existing = (await d.store.listSites(ctx.orgId)).find(
+          (s) => s.repoFullName && slugFromRepo(s.repoFullName) === slug,
+        );
+        if (existing?.repoFullName) {
+          actions.push({ type: "site_created", siteId: existing.id, repoFullName: existing.repoFullName });
+          return {
+            siteId: existing.id,
+            repoFullName: existing.repoFullName,
+            repoUrl: `https://github.com/${existing.repoFullName}`,
+          };
+        }
         const repo = await d.git.createRepoFromTemplate({
-          name: slugify(name),
+          name: slug,
           template: preset ?? DEFAULT_SITE_TEMPLATE,
           private: true,
         });

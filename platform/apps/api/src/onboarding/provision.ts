@@ -27,8 +27,8 @@ export const ENGINEERING_KEY: DepartmentKey = "engineering";
 
 /** Default reasoning + generation models for the Engineering agent (AGENTS-BACKEND §5b). */
 const ENGINEERING_MODELS = {
-  reasoning: "claude-sonnet-4-5",
-  generation: { image: "higgsfield" },
+  reasoning: "claude-sonnet-5",
+  generation: { image: "gpt-image-1" },
 } as const;
 
 /** The Engineering agent's CONTRACT.md — its identity file (AGENTS-BACKEND §5a). */

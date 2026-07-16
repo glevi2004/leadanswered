@@ -5,6 +5,7 @@ import {
   type OrchestratorMessage,
 } from "../agent/orchestrator.js";
 import { runEngineering, type EngineeringDeps } from "../agent/engineering.js";
+import { enqueueEngineering, useRedis } from "../queue.js";
 
 /** True for a present, non-blank string field (missing/blank → 400, like the other routes). */
 function isFilled(value: unknown): value is string {
@@ -66,15 +67,19 @@ export function createLuRoute(deps: OrchestratorDeps) {
  *      tools flip the task status (→ needs_approval) and land artifacts on it. On a
  *      thrown error, mark the task `failed`.
  *
- * An in-process registry (taskId → running promise) prevents double-dispatch of the
- * same task if the route is hit twice. → 202 { taskId }. 400 if orgId/message blank.
+ * DURABLE dispatch: when Redis is configured the build is ENQUEUED to the BullMQ
+ * worker (worker.ts), so it survives a redeploy/crash — the run is re-delivered and
+ * resumes (idempotent tools make that safe). Without Redis (local dev) it falls back to
+ * an in-process fire-and-forget run. Either way the same task is never double-dispatched
+ * (queue: jobId = taskId; fallback: an in-process registry). → 202 { taskId }.
+ * 400 if orgId/message blank.
  */
 export function createEngineeringRoute(deps: EngineeringDeps) {
-  // Persists across requests (the factory is called once in app.ts): one live run per task.
+  // Fallback registry (no Redis): one live in-process run per task across requests.
   const inflight = new Map<string, Promise<unknown>>();
 
-  /** Fire-and-forget the Engineer for a task; owns the failure → `failed` transition + registry cleanup. */
-  function dispatch(orgId: string, taskId: string, message: string): void {
+  /** In-process fallback: run the Engineer now; owns the failure → `failed` transition + cleanup. */
+  function dispatchInProcess(orgId: string, taskId: string, message: string): void {
     if (inflight.has(taskId)) return; // already running — do not double-dispatch
     const run = runEngineering(deps, { orgId, taskId, message })
       .catch(async (err) => {
@@ -87,6 +92,15 @@ export function createEngineeringRoute(deps: EngineeringDeps) {
         inflight.delete(taskId);
       });
     inflight.set(taskId, run);
+  }
+
+  /** Durable when Redis is set (enqueue → worker), else an in-process run. */
+  async function dispatch(orgId: string, taskId: string, message: string): Promise<void> {
+    if (useRedis()) {
+      await enqueueEngineering({ orgId, taskId, message });
+    } else {
+      dispatchInProcess(orgId, taskId, message);
+    }
   }
 
   return async function postEngineering(req: Request, res: Response): Promise<void> {
@@ -126,8 +140,8 @@ export function createEngineeringRoute(deps: EngineeringDeps) {
         taskId = task.id;
       }
 
-      // Kick off the build in the background, then answer immediately.
-      dispatch(orgId, taskId, message);
+      // Enqueue (or fall back to in-process), then answer immediately.
+      await dispatch(orgId, taskId, message);
       res.status(202).json({ taskId });
     } catch (err) {
       console.error("[/api/engineering] error:", err);
