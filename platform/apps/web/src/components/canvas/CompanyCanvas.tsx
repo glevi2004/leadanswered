@@ -22,6 +22,7 @@ import { SitePreviewNode } from "@/components/canvas/SitePreviewNode";
 import { ArtifactsNav } from "@/components/canvas/ArtifactsNav";
 import { TextNote, type TextNoteData } from "@/components/canvas/TextNote";
 import { ResourceNode, nodeCenter, nodeDims, DEFAULT_NODE_DIMS } from "@/components/canvas/ResourceNode";
+import { DepartmentCanvasNode, DEPT_NODE_W, DEPT_NODE_H } from "@/components/canvas/DepartmentCanvasNode";
 import { DrawLayer, type Stroke } from "@/components/canvas/DrawLayer";
 import { useSites } from "@/lib/dock/live";
 import { useSarah } from "@/components/sarah/sarah-context";
@@ -66,7 +67,7 @@ const CLICK_Z = 3.2;  // zoom cap when you click a site — frame nearly fills t
 const SITE_W = 380;
 const SITE_H = 260;
 const SITE_VGAP = 90;     // vertical gap between stacked site frames
-const SITE_OUT = 640;     // how far to the side of the Engineering agent the column sits
+const SITE_OUT = 140;     // clearance gap between the department node's right edge and the column
 
 const MIN_Z = 0.18;   // floor: the whole board still fits, but you can't shrink it to a dot
 const MAX_Z = 3.2;
@@ -81,6 +82,12 @@ const DRAW_WIDTH = 3;           // stroke width in WORLD units (scales with zoom
 
 const FRAME_IDS: string[] = [...PAGES.map((p) => p.id), ...SHEETS.map((s) => s.id)];
 
+/** Departments that have a REAL built app (v0 = Engineering only, matching DepartmentApp's
+ *  REAL_DEPT). These render INLINE on the plane as their two department depth-cards (the hub)
+ *  instead of a pill — there is no click-to-open-a-separate-page for them. */
+const APP_DEPTS = new Set<DeptId>(["engineering"]);
+const isAppDept = (id: string): id is DeptId => APP_DEPTS.has(id as DeptId);
+
 // pages/sheets carry a real w/h; the pill/avatar nodes don't, so we approximate their world
 // half-extents for marquee intersection (generous enough to feel right, not pixel-exact).
 const NODE_HALF = { lu: { hw: 130, hh: 74 }, agent: { hw: 150, hh: 62 }, teammate: { hw: 96, hh: 92 } };
@@ -89,7 +96,8 @@ function worldBox(id: string, positions: Positions): { x0: number; y0: number; x
   const p = positions[id];
   if (!p) return null;
   let hw: number, hh: number;
-  if (PAGES.some((pg) => pg.id === id)) { hw = CARD_W / 2; hh = CARD_H / 2; }
+  if (isAppDept(id)) { hw = DEPT_NODE_W / 2; hh = DEPT_NODE_H / 2; }   // the inline department node
+  else if (PAGES.some((pg) => pg.id === id)) { hw = CARD_W / 2; hh = CARD_H / 2; }
   else if (SHEETS.some((s) => s.id === id)) { hw = SHEET_W / 2; hh = SHEET_H / 2; }
   else if (id === "lu") { hw = NODE_HALF.lu.hw; hh = NODE_HALF.lu.hh; }
   else if (TEAMMATES.some((t) => t.id === id)) { hw = NODE_HALF.teammate.hw; hh = NODE_HALF.teammate.hh; }
@@ -121,8 +129,9 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
   const { setSelectedAgent, openWidget, setWidgetMode } = useSarah();
   const router = useRouter();
 
-  /* Open a department AS ITS APP — the department-as-app route (built by another agent). Selecting
-     an agent focuses it in-canvas + drives Lu's dock; OPENING navigates into its full page. */
+  /* Deep-link fallback ONLY for a *pill* (non-app) department — one with no inline app yet.
+     The REAL provisioned department (Engineering) renders its two depth-cards INLINE on the
+     plane (see APP_DEPTS / DepartmentCanvasNode) and is NEVER opened as a separate page. */
   const openDepartment = React.useCallback((key: string) => {
     setSelectedAgent(key);
     router.push(`/department/${key}`);
@@ -152,7 +161,12 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
     });
   }, [departments]);
   const allowed = React.useMemo(() => new Set(agents.map((a) => a.id)), [agents]);
-  const pages = React.useMemo(() => PAGES.filter((p) => allowed.has(p.dept)), [allowed]);
+  // agents that render INLINE as the department node (their app is on the plane) vs. the rest,
+  // which stay as ring PILLS. An app dept has no pill and no route-open — it IS on the canvas.
+  const appAgents = React.useMemo(() => agents.filter((a) => APP_DEPTS.has(a.id)), [agents]);
+  const pillAgents = React.useMemo(() => agents.filter((a) => !APP_DEPTS.has(a.id)), [agents]);
+  // an app dept's Home/Workplace cards REPLACE its two /embed page miniatures → drop those pages.
+  const pages = React.useMemo(() => PAGES.filter((p) => allowed.has(p.dept) && !APP_DEPTS.has(p.dept)), [allowed]);
   const sheets = React.useMemo(() => SHEETS.filter((s) => allowed.has(s.dept)), [allowed]);
   const teammates = React.useMemo(
     () => (demoMode ? TEAMMATES.filter((t) => allowed.has(t.dept)) : []),
@@ -253,8 +267,9 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
     if (sites.length === 0) return [];
     const eng = pos["engineering"] ?? defaultPositions()["engineering"];
     const n = sites.length;
-    // stack to the RIGHT of the agent (its page row drops straight down, so this stays clear)
-    const cx = eng.x + SITE_OUT;
+    // Engineering now renders as its wide inline department node; stack the live site windows
+    // to the RIGHT of that node's edge (SITE_OUT clear of the card), vertically centered on it.
+    const cx = eng.x + DEPT_NODE_W / 2 + SITE_OUT + SITE_W / 2;
     return sites.map((site, i) => ({
       site,
       x: cx,
@@ -714,12 +729,15 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
     setTool(t);
   };
 
-  // which agent (if any) sits under a world point — the connect drop target
+  // which agent (if any) sits under a world point — the connect drop target. An app dept is a
+  // wide inline node, so its whole card area is the target (drop a grant anywhere on it).
   const agentAt = (wx: number, wy: number): string | null => {
-    const hw = NODE_HALF.agent.hw, hh = NODE_HALF.agent.hh;
     for (const a of agents) {
       const c = pos[a.id];
-      if (c && Math.abs(wx - c.x) <= hw && Math.abs(wy - c.y) <= hh) return a.id;
+      if (!c) continue;
+      const hw = isAppDept(a.id) ? DEPT_NODE_W / 2 : NODE_HALF.agent.hw;
+      const hh = isAppDept(a.id) ? DEPT_NODE_H / 2 : NODE_HALF.agent.hh;
+      if (Math.abs(wx - c.x) <= hw && Math.abs(wy - c.y) <= hh) return a.id;
     }
     return null;
   };
@@ -839,9 +857,11 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                       style={isWorking && !on ? { animation: "lu-dash 1s linear infinite" } : undefined}
                     />
                     <circle cx={ap.x} cy={ap.y} r={5} fill="currentColor" opacity={0.32} />
-                    {PAGES.filter((pg) => pg.dept === a.id).map((pg) => { const pp = pos[pg.id]; return pp ? childEdge(pp.x, pp.y, pg.id) : null; })}
-                    {SHEETS.filter((s) => s.dept === a.id).map((s) => { const sp = pos[s.id]; return sp ? childEdge(sp.x, sp.y, s.id) : null; })}
-                    {TEAMMATES.filter((t) => t.dept === a.id).map((t) => { const tp = pos[t.id]; return tp ? childEdge(tp.x, tp.y, t.id, 6) : null; })}
+                    {/* child spokes only for RENDERED frames — an app dept's pages are dropped
+                        (its Home/Workplace cards replace them), so use the filtered id sets */}
+                    {pages.filter((pg) => pg.dept === a.id).map((pg) => { const pp = pos[pg.id]; return pp ? childEdge(pp.x, pp.y, pg.id) : null; })}
+                    {sheets.filter((s) => s.dept === a.id).map((s) => { const sp = pos[s.id]; return sp ? childEdge(sp.x, sp.y, s.id) : null; })}
+                    {teammates.filter((t) => t.dept === a.id).map((t) => { const tp = pos[t.id]; return tp ? childEdge(tp.x, tp.y, t.id, 6) : null; })}
                   </g>
                 );
               })}
@@ -871,9 +891,11 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
               {sitePlacements.map(({ site, x, y }) => {
                 const eng = pos["engineering"];
                 if (!eng) return null;
+                // start the link at the department node's right edge (not its hidden center)
+                const originX = eng.x + DEPT_NODE_W / 2;
                 return (
                   <g key={`site-edge-${site.id}`}>
-                    <line x1={eng.x} y1={eng.y} x2={x - SITE_W / 2} y2={y} stroke="currentColor" strokeOpacity={0.32} strokeWidth={1.25} strokeDasharray="5 7" vectorEffect="non-scaling-stroke" />
+                    <line x1={originX} y1={eng.y} x2={x - SITE_W / 2} y2={y} stroke="currentColor" strokeOpacity={0.32} strokeWidth={1.25} strokeDasharray="5 7" vectorEffect="non-scaling-stroke" />
                     <circle cx={x - SITE_W / 2} cy={y} r={4} fill="currentColor" opacity={0.3} />
                   </g>
                 );
@@ -999,8 +1021,31 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
               <SitePreviewNode key={site.id} site={site} x={x} y={y} w={SITE_W} h={SITE_H} />
             ))}
 
-            {/* agent nodes */}
-            {agents.map((a) => {
+            {/* INLINE DEPARTMENT NODES — a provisioned app dept (v0: Engineering) IS its app on
+                the plane: the two department depth-cards (Home ⇄ Database + Workplace), a large
+                positioned node that pans/zooms/drags with the canvas. NOT a pill, NOT a route. */}
+            {appAgents.map((a) => {
+              const p = pos[a.id]; if (!p) return null;
+              const ringColor = selection.has(a.id)
+                ? SELECT_RING
+                : connectTarget === a.id
+                  ? connectColor
+                  : null;
+              return (
+                <div
+                  key={a.id}
+                  data-node={a.id}
+                  className={`${DRAG_CLASS} absolute`}
+                  style={{ left: p.x - DEPT_NODE_W / 2, top: p.y - DEPT_NODE_H / 2, width: DEPT_NODE_W, height: DEPT_NODE_H }}
+                >
+                  <DepartmentCanvasNode department={a.id} ringColor={ringColor} gripHandlers={nodeDrag(a.id)} />
+                </div>
+              );
+            })}
+
+            {/* agent PILLS — the ring of provisioned departments that DON'T yet have an inline app
+                (app depts render as the department node above). A pill's open is a deep-link fallback. */}
+            {pillAgents.map((a) => {
               const p = pos[a.id]; if (!p) return null;
               const on = selection.has(a.id);
               const Icon = DEPT_ICON[a.id];
