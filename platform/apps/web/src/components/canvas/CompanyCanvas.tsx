@@ -18,6 +18,9 @@ import { TerminalNode, type AgentKind } from "@/components/canvas/TerminalNode";
 import { BrowserChrome } from "@/components/canvas/BrowserChrome";
 import { SitePreviewNode } from "@/components/canvas/SitePreviewNode";
 import { ArtifactsNav } from "@/components/canvas/ArtifactsNav";
+import { TextNote, type TextNoteData } from "@/components/canvas/TextNote";
+import { MarkdownNote, type MarkdownNoteData } from "@/components/canvas/MarkdownNote";
+import { DrawLayer, type Stroke } from "@/components/canvas/DrawLayer";
 import { useSites } from "@/lib/dock/live";
 import { useSarah } from "@/components/sarah/sarah-context";
 
@@ -65,6 +68,8 @@ const ZOOM_SENS = 0.0015; // multiplicative wheel zoom (gentle — the proven fe
 const SELECT_RING = "#5b9bff";
 const SELECT_HALO = "rgba(91,155,255,0.12)";
 const DRAG_CLASS = "lu-node";   // marks a node: excluded from canvas panning + carries drag handlers
+const DRAW_COLORS = ["#ef4444", "#f59e0b", "#22c55e", "#3b82f6", "#111827"]; // draw-tool palette
+const DRAW_WIDTH = 3;           // stroke width in WORLD units (scales with zoom, like real ink)
 
 const FRAME_IDS: string[] = [...PAGES.map((p) => p.id), ...SHEETS.map((s) => s.id)];
 
@@ -167,6 +172,8 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
   const cullRaf = React.useRef<number | null>(null);
   const goT = React.useRef<number | null>(null);
   const panMoved = React.useRef(false);
+  const drawing = React.useRef<{ color: string; width: number; points: { x: number; y: number }[] } | null>(null);
+  const drawRaf = React.useRef<number | null>(null);
 
   /* ---- cloud terminals (CANVAS-TOOLS.md §4): floating xterm.js panels wired to the backend
         websocket PTY. Live in a screen-space overlay (NOT on the RZPP plane) so they don't
@@ -189,6 +196,35 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
     if (t === "terminal") { openTerminal("claude_code"); setTool("hand"); return; }
     setTool(t);
   }, [openTerminal]);
+
+  /* ---- PURE-CANVAS elements (CANVAS-TOOLS.md §8 text, §9 draw, §5 md). v0 = LOCAL React state
+        only (no backend/persistence yet — a CanvasNode store wires later). All three live in the
+        RZPP transformed layer at WORLD coords, so they pan/zoom with the plane. Placement snaps
+        the tool back to `hand`; draw stays active. ---- */
+  const [textNotes, setTextNotes] = React.useState<TextNoteData[]>([]);
+  const [mdNotes, setMdNotes] = React.useState<MarkdownNoteData[]>([]);
+  const [strokes, setStrokes] = React.useState<Stroke[]>([]);
+  const [liveStroke, setLiveStroke] = React.useState<Stroke | null>(null);
+  const [drawColor, setDrawColor] = React.useState<string>(DRAW_COLORS[0]);
+  const [newNoteId, setNewNoteId] = React.useState<string>("");   // the note to auto-focus on mount
+  const noteSeq = React.useRef(0);
+  const drawColorRef = React.useRef(drawColor);
+  drawColorRef.current = drawColor;
+  const getScale = React.useCallback(() => tf.current.scale, []);
+
+  const moveTextNote = React.useCallback((id: string, x: number, y: number) =>
+    setTextNotes((prev) => prev.map((n) => (n.id === id ? { ...n, x, y } : n))), []);
+  const changeTextNote = React.useCallback((id: string, text: string) =>
+    setTextNotes((prev) => prev.map((n) => (n.id === id ? { ...n, text } : n))), []);
+  const removeTextNote = React.useCallback((id: string) =>
+    setTextNotes((prev) => prev.filter((n) => n.id !== id)), []);
+
+  const moveMdNote = React.useCallback((id: string, x: number, y: number) =>
+    setMdNotes((prev) => prev.map((n) => (n.id === id ? { ...n, x, y } : n))), []);
+  const changeMdNote = React.useCallback((id: string, text: string) =>
+    setMdNotes((prev) => prev.map((n) => (n.id === id ? { ...n, text } : n))), []);
+  const removeMdNote = React.useCallback((id: string) =>
+    setMdNotes((prev) => prev.filter((n) => n.id !== id)), []);
 
   /* ---- live SITE-PREVIEW frames (CANVAS-TOOLS.md §7): the real Site rows the Engineer builds,
         polled from the backend while the canvas is mounted. Each becomes a browser-frame node
@@ -408,6 +444,82 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
     };
   }, [setSelectedAgent]);
 
+  /* ---- TOOL interactions on the plane (§8 text · §5 md · §9 draw). Same capture-phase
+        mousedown trick as the marquee: a left-press on the EMPTY plane with one of these tools
+        is intercepted (stopPropagation) so RZPP never pans. SPACE (panModeRef) or middle-mouse
+        fall through → RZPP pans as always (so draw respects pan). text/md drop a node at the
+        world click point then snap to hand; draw paints a world-space stroke and stays active. ---- */
+  React.useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    // screen point → world point via the live transform
+    const toWorld = (clientX: number, clientY: number) => {
+      const rect = el.getBoundingClientRect();
+      const { scale, positionX, positionY } = tf.current;
+      return { x: (clientX - rect.left - positionX) / scale, y: (clientY - rect.top - positionY) / scale };
+    };
+    // draw: batch live-stroke updates to one per frame (the tree is heavy — iframes etc.)
+    const flushLive = () => {
+      drawRaf.current = null;
+      const d = drawing.current;
+      if (d) setLiveStroke({ id: "__live__", color: d.color, width: d.width, points: d.points.slice() });
+    };
+    const onDrawMove = (e: MouseEvent) => {
+      const d = drawing.current;
+      if (!d) return;
+      d.points.push(toWorld(e.clientX, e.clientY));
+      if (!drawRaf.current) drawRaf.current = requestAnimationFrame(flushLive);
+    };
+    const onDrawUp = () => {
+      window.removeEventListener("mousemove", onDrawMove);
+      window.removeEventListener("mouseup", onDrawUp);
+      if (drawRaf.current) { cancelAnimationFrame(drawRaf.current); drawRaf.current = null; }
+      const d = drawing.current;
+      drawing.current = null;
+      setLiveStroke(null);
+      if (d && d.points.length >= 2) {                       // ignore a stray click (a dot)
+        setStrokes((prev) => [...prev, { id: `stroke-${noteSeq.current++}`, color: d.color, width: d.width, points: d.points }]);
+      }
+    };
+    const onDown = (e: MouseEvent) => {
+      if (e.button !== 0) return;                            // middle/right → RZPP (middle pans)
+      if (panModeRef.current) return;                        // SPACE held → RZPP pans
+      const tool = toolRef.current;
+      if (tool !== "text" && tool !== "md" && tool !== "draw") return;
+      const t = e.target as Element | null;
+      if (!t || !t.closest(".react-transform-wrapper")) return; // outside the plane
+      if (t.closest(`.${DRAG_CLASS}`)) return;               // on a node → it owns the press
+      e.stopPropagation();                                   // keep RZPP from panning
+      e.preventDefault();                                    // no text-selection / focus steal
+      const w = toWorld(e.clientX, e.clientY);
+      if (tool === "text") {
+        const id = `text-${noteSeq.current++}`;
+        setTextNotes((prev) => [...prev, { id, x: w.x, y: w.y, text: "" }]);
+        setNewNoteId(id);
+        setTool("hand");
+        return;
+      }
+      if (tool === "md") {
+        const id = `md-${noteSeq.current++}`;
+        setMdNotes((prev) => [...prev, { id, x: w.x, y: w.y, text: "" }]);
+        setNewNoteId(id);
+        setTool("hand");
+        return;
+      }
+      // draw — start a stroke; extend/commit on the window listeners
+      drawing.current = { color: drawColorRef.current, width: DRAW_WIDTH, points: [w] };
+      window.addEventListener("mousemove", onDrawMove);
+      window.addEventListener("mouseup", onDrawUp);
+    };
+    el.addEventListener("mousedown", onDown, true);          // capture: before RZPP's window listener
+    return () => {
+      el.removeEventListener("mousedown", onDown, true);
+      window.removeEventListener("mousemove", onDrawMove);
+      window.removeEventListener("mouseup", onDrawUp);
+      if (drawRaf.current) { cancelAnimationFrame(drawRaf.current); drawRaf.current = null; }
+    };
+  }, []);
+
   /** center Lu once the engine is live */
   const onInit = React.useCallback((ref: ReactZoomPanPinchRef) => {
     apiRef.current = ref;
@@ -531,7 +643,15 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
   return (
     <div
       ref={wrapRef}
-      className={`relative h-full w-full select-none overflow-hidden bg-background font-sans text-foreground ${tool === "hand" ? "cursor-grab active:cursor-grabbing" : "cursor-default"}`}
+      className={`relative h-full w-full select-none overflow-hidden bg-background font-sans text-foreground ${
+        tool === "hand"
+          ? "cursor-grab active:cursor-grabbing"
+          : tool === "draw"
+            ? "cursor-crosshair"
+            : tool === "text" || tool === "md"
+              ? "cursor-copy"
+              : "cursor-default"
+      }`}
     >
       <style>{`@keyframes lu-dash{to{stroke-dashoffset:-8}}.lu-frame{pointer-events:none}`}</style>
 
@@ -749,6 +869,35 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
               </div>
             </div>
 
+            {/* pure-canvas TEXT notes (§8) — world-positioned sticky notes, draggable + editable */}
+            {textNotes.map((n) => (
+              <TextNote
+                key={n.id}
+                note={n}
+                getScale={getScale}
+                onMove={moveTextNote}
+                onChange={changeTextNote}
+                onRemove={removeTextNote}
+                autoFocus={n.id === newNoteId}
+              />
+            ))}
+
+            {/* pure-canvas MARKDOWN notes (§5) — paper cards with a view/edit toggle */}
+            {mdNotes.map((n) => (
+              <MarkdownNote
+                key={n.id}
+                note={n}
+                getScale={getScale}
+                onMove={moveMdNote}
+                onChange={changeMdNote}
+                onRemove={removeMdNote}
+                autoFocus={n.id === newNoteId}
+              />
+            ))}
+
+            {/* pure-canvas DRAW layer (§9) — freehand strokes in world coords, on top, non-interactive */}
+            <DrawLayer strokes={strokes} live={liveStroke} />
+
           </div>
         </TransformComponent>
       </TransformWrapper>
@@ -809,6 +958,22 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
           onClose={() => closeTerminal(t.id)}
         />
       ))}
+
+      {/* draw palette (§9, optional) — a tiny color pick, only while the draw tool is active */}
+      {tool === "draw" && (
+        <div className="gloss-ink absolute bottom-[68px] left-1/2 z-30 flex -translate-x-1/2 items-center gap-1.5 rounded-full px-2.5 py-1.5">
+          {DRAW_COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              aria-label={`Draw color ${c}`}
+              onClick={() => setDrawColor(c)}
+              className={`size-5 rounded-full transition-transform hover:scale-110 ${drawColor === c ? "ring-2 ring-white ring-offset-1 ring-offset-black/40" : ""}`}
+              style={{ background: c }}
+            />
+          ))}
+        </div>
+      )}
 
       {/* canvas toolbar (bottom-center) */}
       <CanvasToolbar active={tool} onPick={onPickTool} />
