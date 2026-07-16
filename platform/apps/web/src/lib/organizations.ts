@@ -35,7 +35,7 @@ export async function getOrganizationByOwnerEmail(email: string) {
   const sb = createSupabaseAdmin();
   const { data, error } = await sb
     .from("Organization")
-    .select("*, recipients:NotificationRecipient(*, subscriptions:NotificationSubscription(*))")
+    .select("*")
     .eq("ownerEmail", email.toLowerCase())
     .maybeSingle();
   if (error) throw error;
@@ -47,7 +47,7 @@ export async function getOrganizationConfigById(id: string) {
   const sb = createSupabaseAdmin();
   const { data, error } = await sb
     .from("Organization")
-    .select("*, recipients:NotificationRecipient(*, subscriptions:NotificationSubscription(*))")
+    .select("*")
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
@@ -214,31 +214,6 @@ export async function setOrganizationConfig(id: string, config: OrganizationConf
     })
     .eq("id", id);
   if (e1) throw e1;
-
-  // Replace recipients (sequential — onboarding is low-concurrency).
-  const { error: e2 } = await sb.from("NotificationRecipient").delete().eq("organizationId", id);
-  if (e2) throw e2;
-
-  for (const r of config.recipients) {
-    const recipientId = newId();
-    const { error: e3 } = await sb.from("NotificationRecipient").insert({
-      id: recipientId,
-      organizationId: id,
-      name: r.name,
-      phone: r.phone ?? null,
-      email: r.email ?? null,
-    });
-    if (e3) throw e3;
-    if (r.subscriptions.length) {
-      const { error: e4 } = await sb.from("NotificationSubscription").insert(
-        r.subscriptions.map((s) => ({
-          id: newId(),
-          recipientId,
-          eventType: s.eventType,
-          channels: s.channels,
-        })),
-      );
-      if (e4) throw e4;
-    }
-  }
+  // NotificationRecipient/Subscription were dropped with the old lead-response product;
+  // config.recipients stays in the type but is no longer persisted here.
 }
