@@ -2,9 +2,11 @@
 
 import * as React from "react";
 import {
-  ExternalLink, File as FileIcon, FolderOpen, GripVertical, Link2, SquareTerminal, X,
+  Check, ExternalLink, Eye, File as FileIcon, FolderOpen, GripVertical, Link2,
+  Pencil, SquareTerminal, Upload, X,
 } from "lucide-react";
 import { BrowserChrome } from "@/components/canvas/BrowserChrome";
+import { renderMarkdown } from "@/components/canvas/MarkdownNote";
 import type { CanvasNode, CanvasNodeType } from "@/lib/canvas/api";
 
 /**
@@ -15,9 +17,9 @@ import type { CanvasNode, CanvasNodeType } from "@/lib/canvas/api";
  * grant). Carries `lu-node` so react-zoom-pan-pinch never pans from it and the marquee/tool
  * handlers ignore presses on it.
  *
- * MVP by design: create → position → connect is the point. Node internals stay light (a note
- * is a textarea, a file is a labeled clip, a site is a read-only preview) — the real work is
- * that they PERSIST and MEAN something once wired to an agent.
+ * The spoke lifecycle (canvas.md step 4): create → position → CONNECT to an agent → shows as
+ * connected. `connected` flips the plug to a solid "linked" state on every type, so a wired
+ * spoke reads as part of an agent's working set at a glance.
  */
 
 /** Default world dimensions per type (also the edge-anchor box until a node is resized). */
@@ -43,11 +45,17 @@ export function nodeCenter(node: CanvasNode): { x: number; y: number } {
 
 const DRAG_CLASS = "lu-node";
 const SITE_IFRAME_W = 1280;
+// the capability-grant color a node's edge takes (matches EDGE_COLOR in CompanyCanvas): a
+// terminal is a tool the agent USES (amber); everything else is context it READS (blue).
+const READS = "#5b9bff";
+const USES = "#f59e0b";
 
 export function ResourceNode({
   node,
   getScale,
   selected,
+  connected = false,
+  memberCount = 0,
   onMove,
   onSelect,
   onDelete,
@@ -58,6 +66,10 @@ export function ResourceNode({
   node: CanvasNode;
   getScale: () => number;
   selected: boolean;
+  /** has at least one edge to an agent — flips the plug to a solid "linked" state */
+  connected?: boolean;
+  /** (folders) how many resource nodes sit inside the boundary — shown in the tab */
+  memberCount?: number;
   onMove: (id: string, x: number, y: number) => void;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
@@ -68,6 +80,7 @@ export function ResourceNode({
   const drag = React.useRef<{ sx: number; sy: number; ox: number; oy: number; moved: boolean } | null>(null);
   const { w, h } = nodeDims(node);
   const ring = selected ? "ring-2 ring-[#5b9bff]" : "";
+  const grant = node.type === "terminal" ? USES : READS; // the plug's grant color
 
   const onGripDown = (e: React.PointerEvent) => {
     e.stopPropagation();
@@ -90,21 +103,27 @@ export function ResourceNode({
     if (d && !d.moved) onSelect(node.id);
   };
 
-  // the connect handle — a small plug on the right edge; drag it to an agent to grant it this node
+  // the connect handle — a small plug on the right edge; drag it to an agent to grant it this
+  // node. Solid + a check once connected, so a wired spoke reads as "part of the working set".
   const connectHandle = (
     <button
       type="button"
-      aria-label="Connect to an agent"
-      title="Drag to an agent to connect"
+      aria-label={connected ? "Connected — drag to connect to another agent" : "Connect to an agent"}
+      title={connected ? "Connected to an agent — drag to add another" : "Drag to an agent to connect"}
       onPointerDown={(e) => { e.stopPropagation(); onConnectStart(node.id, e); }}
-      className="absolute -right-3 top-1/2 z-10 grid size-6 -translate-y-1/2 cursor-crosshair place-items-center rounded-full border border-[#5b9bff] bg-card text-[#5b9bff] elev-2 hover:bg-[#5b9bff] hover:text-white"
+      className="absolute -right-3 top-1/2 z-10 grid size-6 -translate-y-1/2 cursor-crosshair place-items-center rounded-full border-2 elev-2 transition-colors"
+      style={
+        connected
+          ? { background: grant, borderColor: grant, color: "#fff" }
+          : { background: "var(--card)", borderColor: grant, color: grant }
+      }
     >
-      <Link2 className="size-3.5" />
+      {connected ? <Check className="size-3.5" /> : <Link2 className="size-3.5" />}
     </button>
   );
 
-  // shared grip header (drag + delete)
-  const header = (title: React.ReactNode) => (
+  // shared grip header (drag + optional extra action + delete)
+  const header = (title: React.ReactNode, extra?: React.ReactNode) => (
     <div
       className="flex h-6 shrink-0 cursor-grab items-center gap-1 border-b border-black/5 bg-black/[0.03] px-1.5 active:cursor-grabbing dark:border-white/10"
       onPointerDown={onGripDown}
@@ -113,6 +132,7 @@ export function ResourceNode({
     >
       <GripVertical className="size-3.5 shrink-0 opacity-40" />
       <span className="min-w-0 flex-1 truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{title}</span>
+      {extra}
       <button
         type="button"
         aria-label="Delete"
@@ -148,6 +168,8 @@ export function ResourceNode({
             className="w-24 bg-transparent text-foreground outline-none"
             spellCheck={false}
           />
+          {/* member count — the boundary's contents; connecting the folder grants all of them */}
+          <span className="rounded-full bg-[#5b9bff]/15 px-1.5 text-[10px] font-semibold text-[#5b9bff]">{memberCount}</span>
           <button
             type="button"
             aria-label="Delete folder"
@@ -158,6 +180,11 @@ export function ResourceNode({
             <X className="size-3" />
           </button>
         </div>
+        {connected && (
+          <span className="absolute -top-3 right-8 flex items-center gap-1 rounded-full bg-[#5b9bff] px-2 py-0.5 text-[10px] font-medium text-white elev-2">
+            <Check className="size-3" /> Library shared
+          </span>
+        )}
         {connectHandle}
       </div>
     );
@@ -210,36 +237,11 @@ export function ResourceNode({
       </div>
     );
   } else if (node.type === "note") {
-    title = "Note";
-    body = (
-      <textarea
-        value={node.content ?? ""}
-        placeholder={"# Title\nWrite **markdown**…"}
-        spellCheck={false}
-        onChange={(e) => onContent(node.id, e.target.value)}
-        onPointerDown={(e) => e.stopPropagation()}
-        className="min-h-0 flex-1 resize-none bg-transparent px-3 py-2 font-[var(--font-mono,monospace)] text-[12px] leading-relaxed outline-none placeholder:text-muted-foreground/50"
-      />
-    );
+    return <NoteCard node={node} ring={ring} header={header} connectHandle={connectHandle} onContent={onContent} />;
   } else if (node.type === "file") {
-    title = "File";
-    body = (
-      <div className="flex min-h-0 flex-1 items-center gap-2.5 px-3">
-        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
-          <FileIcon className="size-5" />
-        </span>
-        <input
-          value={node.content ?? ""}
-          placeholder="file name…"
-          onChange={(e) => onContent(node.id, e.target.value)}
-          onPointerDown={(e) => e.stopPropagation()}
-          className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/50"
-          spellCheck={false}
-        />
-      </div>
-    );
+    return <FileCard node={node} ring={ring} header={header} connectHandle={connectHandle} onContent={onContent} />;
   } else {
-    // terminal
+    // terminal — "hand the agent a machine": open a live session; connect = the agent drives it
     title = "Terminal";
     body = (
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 bg-[#0b0c0e] text-neutral-300">
@@ -252,6 +254,9 @@ export function ResourceNode({
         >
           Open session
         </button>
+        {connected && (
+          <span className="text-[10px] text-amber-400/90">Agent can drive this</span>
+        )}
       </div>
     );
   }
@@ -265,6 +270,134 @@ export function ResourceNode({
       <div className={`flex h-full w-full flex-col overflow-hidden rounded-[10px] border border-black/10 bg-card text-foreground elev-3 dark:border-white/10 ${ring}`}>
         {header(title)}
         {body}
+      </div>
+      {connectHandle}
+    </div>
+  );
+}
+
+/* ================================ NOTE ================================
+   A markdown note edited inline: a textarea in EDIT mode, rendered markdown in
+   VIEW mode (reuses the dependency-free renderer from MarkdownNote). A fresh,
+   empty note opens in edit mode so you can type immediately. */
+function NoteCard({
+  node, ring, header, connectHandle, onContent,
+}: {
+  node: CanvasNode;
+  ring: string;
+  header: (title: React.ReactNode, extra?: React.ReactNode) => React.ReactNode;
+  connectHandle: React.ReactNode;
+  onContent: (id: string, content: string) => void;
+}) {
+  const { w, h } = nodeDims(node);
+  const [editing, setEditing] = React.useState(() => !(node.content ?? "").trim());
+  const html = React.useMemo(() => renderMarkdown((node.content ?? "").trim() || "*Empty note — click edit*"), [node.content]);
+  const toggle = (
+    <button
+      type="button"
+      aria-label={editing ? "Preview" : "Edit"}
+      title={editing ? "Preview" : "Edit"}
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={() => setEditing((v) => !v)}
+      className="grid size-4 shrink-0 place-items-center rounded text-muted-foreground hover:bg-black/10 hover:text-foreground dark:hover:bg-white/10"
+    >
+      {editing ? <Eye className="size-3" /> : <Pencil className="size-3" />}
+    </button>
+  );
+  return (
+    <div data-node={node.id} className="lu-node group absolute" style={{ left: node.x, top: node.y, width: w, height: h }}>
+      <style>{`.lu-note-md{font-size:12px;line-height:1.5}.lu-note-md h1{font-size:15px;font-weight:600;margin:1px 0 5px}.lu-note-md h2{font-size:13px;font-weight:600;margin:1px 0 4px}.lu-note-md h3{font-size:12px;font-weight:600;margin:1px 0 3px}.lu-note-md p{margin:0 0 5px}.lu-note-md ul,.lu-note-md ol{margin:0 0 5px;padding-left:16px}.lu-note-md li{margin:1px 0}.lu-note-md a{color:#2563eb;text-decoration:underline}.lu-note-md code{background:rgba(0,0,0,0.06);border-radius:4px;padding:0 4px;font-family:var(--font-mono,monospace);font-size:11px}.lu-note-md strong{font-weight:600}`}</style>
+      <div className={`flex h-full w-full flex-col overflow-hidden rounded-[10px] border border-black/10 bg-card text-foreground elev-3 dark:border-white/10 ${ring}`}>
+        {header("Note", toggle)}
+        {editing ? (
+          <textarea
+            value={node.content ?? ""}
+            placeholder={"# Title\nWrite **markdown**…"}
+            spellCheck={false}
+            autoFocus
+            onChange={(e) => onContent(node.id, e.target.value)}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="min-h-0 flex-1 resize-none bg-transparent px-3 py-2 font-[var(--font-mono,monospace)] text-[12px] leading-relaxed outline-none placeholder:text-muted-foreground/50"
+          />
+        ) : (
+          <div
+            className="lu-note-md min-h-0 flex-1 overflow-auto px-3 py-2"
+            onDoubleClick={() => setEditing(true)}
+            onPointerDown={(e) => e.stopPropagation()}
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
+        )}
+      </div>
+      {connectHandle}
+    </div>
+  );
+}
+
+/* ================================ FILE ================================
+   Upload or name an asset (the clip). Picking a file names it and, for images,
+   shows a live thumbnail (an object URL for the session — the name persists as
+   the node's content; a real Artifact upload lands later). */
+function FileCard({
+  node, ring, header, connectHandle, onContent,
+}: {
+  node: CanvasNode;
+  ring: string;
+  header: (title: React.ReactNode, extra?: React.ReactNode) => React.ReactNode;
+  connectHandle: React.ReactNode;
+  onContent: (id: string, content: string) => void;
+}) {
+  const { w, h } = nodeDims(node);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = React.useState<string | null>(null);
+  React.useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+  const pick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    onContent(node.id, f.name);
+    if (preview) URL.revokeObjectURL(preview);
+    setPreview(f.type.startsWith("image/") ? URL.createObjectURL(f) : null);
+  };
+  const upload = (
+    <button
+      type="button"
+      aria-label="Upload a file"
+      title="Upload a file"
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={() => inputRef.current?.click()}
+      className="grid size-4 shrink-0 place-items-center rounded text-muted-foreground hover:bg-black/10 hover:text-foreground dark:hover:bg-white/10"
+    >
+      <Upload className="size-3" />
+    </button>
+  );
+  return (
+    <div data-node={node.id} className="lu-node group absolute" style={{ left: node.x, top: node.y, width: w, height: h }}>
+      <div className={`flex h-full w-full flex-col overflow-hidden rounded-[10px] border border-black/10 bg-card text-foreground elev-3 dark:border-white/10 ${ring}`}>
+        {header("File", upload)}
+        <input ref={inputRef} type="file" className="hidden" onChange={pick} />
+        <div className="flex min-h-0 flex-1 items-center gap-2.5 px-3">
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => inputRef.current?.click()}
+            className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-lg bg-muted text-muted-foreground hover:text-foreground"
+            title="Upload a file"
+          >
+            {preview ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={preview} alt={node.content ?? "file"} className="size-full object-cover" />
+            ) : (
+              <FileIcon className="size-5" />
+            )}
+          </button>
+          <input
+            value={node.content ?? ""}
+            placeholder="file name…"
+            onChange={(e) => onContent(node.id, e.target.value)}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/50"
+            spellCheck={false}
+          />
+        </div>
       </div>
       {connectHandle}
     </div>

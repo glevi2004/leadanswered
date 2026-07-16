@@ -31,6 +31,8 @@ import type {
   SitePatch,
   SiteRecord,
   Store,
+  SupabaseConnectionInput,
+  SupabaseConnectionRecord,
   TaskFilter,
   TaskPatch,
   TaskRecord,
@@ -215,6 +217,17 @@ function mapVercelConnection(r: any): VercelConnectionRecord {
     accessToken: decryptTokenSafe(r.accessToken),
     teamId: r.teamId ?? null,
     vercelUserId: r.vercelUserId ?? null,
+    createdAt: iso(r.createdAt),
+    updatedAt: iso(r.updatedAt),
+  };
+}
+
+function mapSupabaseConnection(r: any): SupabaseConnectionRecord {
+  return {
+    orgId: r.orgId,
+    projectRef: r.projectRef,
+    serviceKey: decryptTokenSafe(r.serviceKey),
+    managementToken: decryptTokenSafe(r.managementToken),
     createdAt: iso(r.createdAt),
     updatedAt: iso(r.updatedAt),
   };
@@ -656,5 +669,49 @@ export class PrismaStore implements Store {
 
   async deleteVercelConnection(orgId: string): Promise<void> {
     await this.db.vercelConnection.deleteMany({ where: { orgId } });
+  }
+
+  async getSupabaseConnection(orgId: string): Promise<SupabaseConnectionRecord | null> {
+    const r = await this.db.supabaseConnection.findFirst({ where: { orgId } });
+    return r ? mapSupabaseConnection(r) : null;
+  }
+
+  async upsertSupabaseConnection(
+    orgId: string,
+    input: SupabaseConnectionInput,
+  ): Promise<SupabaseConnectionRecord> {
+    const encService = input.serviceKey !== undefined ? encryptToken(input.serviceKey) : undefined;
+    const encMgmt =
+      input.managementToken !== undefined ? encryptToken(input.managementToken) : undefined;
+    const existing = await this.db.supabaseConnection.findFirst({ where: { orgId } });
+    if (existing) {
+      const r = await this.db.supabaseConnection.update({
+        where: { id: existing.id },
+        data: {
+          projectRef: input.projectRef ?? undefined,
+          serviceKey: encService, // undefined → left unchanged
+          managementToken: encMgmt, // undefined → left unchanged
+        },
+      });
+      return mapSupabaseConnection(r);
+    }
+    if (input.projectRef === undefined || encService === undefined) {
+      throw new Error(
+        "upsertSupabaseConnection: projectRef and serviceKey are required to create a connection",
+      );
+    }
+    const r = await this.db.supabaseConnection.create({
+      data: {
+        orgId,
+        projectRef: input.projectRef,
+        serviceKey: encService,
+        managementToken: encMgmt ?? null,
+      },
+    });
+    return mapSupabaseConnection(r);
+  }
+
+  async deleteSupabaseConnection(orgId: string): Promise<void> {
+    await this.db.supabaseConnection.deleteMany({ where: { orgId } });
   }
 }

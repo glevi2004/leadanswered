@@ -12,15 +12,23 @@ import type { Store } from "../store/types.js";
 export interface ConnectStatus {
   github: boolean;
   vercel: boolean;
+  supabase: boolean;
 }
 
-/** Whether the org has a usable GitHub / Vercel token connected (GET /api/connect/status). */
+/** Whether the org has a usable GitHub / Vercel / Supabase connection (GET /api/connect/status).
+ *  Supabase = the company's one shared, Engineering-anchored project (docs/canvas.md §"the backend");
+ *  connected once a project ref + service key are stored (Management token is optional). */
 export async function connectionStatus(store: Store, orgId: string): Promise<ConnectStatus> {
-  const [gh, vc] = await Promise.all([
+  const [gh, vc, sb] = await Promise.all([
     store.getGithubConnection(orgId),
     store.getVercelConnection(orgId),
+    store.getSupabaseConnection(orgId),
   ]);
-  return { github: !!gh?.userToken, vercel: !!vc?.accessToken };
+  return {
+    github: !!gh?.userToken,
+    vercel: !!vc?.accessToken,
+    supabase: !!(sb?.projectRef && sb?.serviceKey),
+  };
 }
 
 /** The dispatch gate: true only when BOTH GitHub and Vercel are connected. */

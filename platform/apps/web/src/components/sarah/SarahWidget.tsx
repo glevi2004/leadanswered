@@ -10,12 +10,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { usePathname } from "next/navigation";
-import { useSarah } from "./sarah-context";
+import { useSarah, type DockTab } from "./sarah-context";
 import { SarahThread } from "./SarahThread";
 import { SarahComposer } from "./SarahComposer";
 import { ApprovalCard } from "@/components/app/ApprovalCard";
 import { PublishApprovals } from "./PublishApprovals";
 import { StatusDot } from "./LuBuildTracker";
+import { DockHome } from "./DockHome";
+import { DockCompany } from "./DockCompany";
+import { DockLibrary } from "./DockLibrary";
 import { AgentDockPanel } from "@/components/canvas/AgentDockPanel";
 import { SarahIcon } from "@/components/icons/sarah";
 import { useDockData, taskStatusLabel, type DockTask } from "@/lib/dock/live";
@@ -119,18 +122,16 @@ function PanelHeader() {
   );
 }
 
-type DockTab = "home" | "lu" | "tasks";
-const DOCK_TABS: DockTab[] = ["home", "lu", "tasks"];
+const DOCK_TABS: DockTab[] = ["home", "lu", "company", "tasks", "library"];
 
 /**
- * The dock body. When an agent is selected on the canvas it shows that agent's
- * panel (with a Back); otherwise a tab row (Home · Lu · Tasks) switches the view —
- * default "lu" so today's chat is the out-of-the-box behavior. (Company / Library
- * stubs were removed; Library returns later as the real folder-library.)
+ * The dock body. When an agent is selected on the canvas it shows that agent's panel (with a
+ * Back); otherwise a tab row (Home · Lu · Company · Tasks · Library — the cofounder structure
+ * from canvas.md) switches the view. `dockTab` lives in context so any tab can navigate (e.g.
+ * a Home clarification → Lu); default "lu" so today's chat is the out-of-the-box behavior.
  */
 function PanelBody() {
-  const { selectedAgent, setSelectedAgent } = useSarah();
-  const [dockTab, setDockTab] = React.useState<DockTab>("lu");
+  const { selectedAgent, setSelectedAgent, dockTab, setDockTab } = useSarah();
 
   return (
     <>
@@ -165,7 +166,11 @@ function PanelBody() {
       ) : dockTab === "lu" ? (
         <ChatTab />
       ) : dockTab === "home" ? (
-        <HomeTab />
+        <DockHome />
+      ) : dockTab === "company" ? (
+        <DockCompany />
+      ) : dockTab === "library" ? (
+        <DockLibrary />
       ) : (
         <TasksTab />
       )}
@@ -213,52 +218,6 @@ function ChatTab() {
         <SarahComposer showContext />
       </div>
     </>
-  );
-}
-
-/** Home glance — a greeting, the "needs you" count, and suggested next moves. */
-function HomeTab() {
-  const { ownerName, pendingCount, approvals, escalations } = useSarah();
-  return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4">
-      <h2 className="text-lg font-semibold text-foreground">Good day, {ownerName}</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Here&rsquo;s what&rsquo;s on your plate.</p>
-
-      <div className="mt-4 rounded-xl border bg-card p-4">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-medium text-foreground">Needs you</p>
-          <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{pendingCount}</span>
-        </div>
-        {pendingCount === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">All clear — nothing waiting on you.</p>
-        ) : (
-          <div className="mt-3 space-y-2">
-            {escalations.map((e) => (
-              <div key={e.id} className="flex items-center gap-2 text-sm">
-                <span className="size-1.5 shrink-0 rounded-full bg-orange-500" />
-                <span className="min-w-0 flex-1 truncate text-foreground">{e.contactName} asked a question</span>
-              </div>
-            ))}
-            {approvals.map((a) => (
-              <div key={a.id} className="flex items-center gap-2 text-sm">
-                <span className="size-1.5 shrink-0 rounded-full bg-amber-500" />
-                <span className="min-w-0 flex-1 truncate text-foreground">{a.summary}</span>
-                <span className="shrink-0 text-xs text-muted-foreground">approve</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <p className="mt-6 text-sm font-medium text-foreground">Suggested next</p>
-      <div className="mt-2.5 space-y-2.5 text-sm text-muted-foreground">
-        {["Connect your payment rail", "Launch the review wave", "Put your booking page live"].map((s) => (
-          <div key={s} className="flex items-center gap-2.5">
-            <span className="size-4 rounded-full border" /> {s}
-          </div>
-        ))}
-      </div>
-    </div>
   );
 }
 

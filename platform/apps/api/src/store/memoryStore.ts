@@ -31,6 +31,8 @@ import type {
   SitePatch,
   SiteRecord,
   Store,
+  SupabaseConnectionInput,
+  SupabaseConnectionRecord,
   TaskFilter,
   TaskPatch,
   TaskRecord,
@@ -53,6 +55,14 @@ interface StoredVercelConnection {
   accessTokenEnc: string;
   teamId: string | null;
   vercelUserId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+interface StoredSupabaseConnection {
+  orgId: string;
+  projectRef: string;
+  serviceKeyEnc: string;
+  managementTokenEnc: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -79,6 +89,7 @@ export class MemoryStore implements Store {
   // BYO connect — one row per org per provider, keyed by orgId (tokens encrypted at rest).
   private githubConnections = new Map<string, StoredGithubConnection>();
   private vercelConnections = new Map<string, StoredVercelConnection>();
+  private supabaseConnections = new Map<string, StoredSupabaseConnection>();
   private now: () => Date;
 
   /** Optional injected clock so tests can control record timestamps. */
@@ -526,5 +537,54 @@ export class MemoryStore implements Store {
 
   async deleteVercelConnection(orgId: string): Promise<void> {
     this.vercelConnections.delete(orgId);
+  }
+
+  private mapSupabaseConnection(r: StoredSupabaseConnection): SupabaseConnectionRecord {
+    return {
+      orgId: r.orgId,
+      projectRef: r.projectRef,
+      serviceKey: decryptTokenSafe(r.serviceKeyEnc),
+      managementToken: decryptTokenSafe(r.managementTokenEnc),
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    };
+  }
+
+  async getSupabaseConnection(orgId: string): Promise<SupabaseConnectionRecord | null> {
+    const r = this.supabaseConnections.get(orgId);
+    return r ? this.mapSupabaseConnection(r) : null;
+  }
+
+  async upsertSupabaseConnection(
+    orgId: string,
+    input: SupabaseConnectionInput,
+  ): Promise<SupabaseConnectionRecord> {
+    const ts = this.now().toISOString();
+    const existing = this.supabaseConnections.get(orgId);
+    const projectRef = input.projectRef ?? existing?.projectRef;
+    let serviceKeyEnc: string;
+    if (input.serviceKey !== undefined) serviceKeyEnc = encryptToken(input.serviceKey);
+    else if (existing) serviceKeyEnc = existing.serviceKeyEnc;
+    else throw new Error("upsertSupabaseConnection: serviceKey is required to create a connection");
+    if (projectRef === undefined) {
+      throw new Error("upsertSupabaseConnection: projectRef is required to create a connection");
+    }
+    const rec: StoredSupabaseConnection = {
+      orgId,
+      projectRef,
+      serviceKeyEnc,
+      managementTokenEnc:
+        input.managementToken !== undefined
+          ? encryptToken(input.managementToken)
+          : existing?.managementTokenEnc ?? null,
+      createdAt: existing?.createdAt ?? ts,
+      updatedAt: ts,
+    };
+    this.supabaseConnections.set(orgId, rec);
+    return this.mapSupabaseConnection(rec);
+  }
+
+  async deleteSupabaseConnection(orgId: string): Promise<void> {
+    this.supabaseConnections.delete(orgId);
   }
 }

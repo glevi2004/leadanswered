@@ -14,10 +14,27 @@ import { createResolveApprovalRoute } from "./routes/approvals.js";
 import {
   createConnectGithubRoute,
   createConnectVercelRoute,
+  createConnectSupabaseRoute,
   createDisconnectGithubRoute,
   createDisconnectVercelRoute,
+  createDisconnectSupabaseRoute,
   createConnectStatusRoute,
 } from "./routes/connect.js";
+import {
+  createConsoleOverviewRoute,
+  createConsoleDatabaseRoute,
+  createConsoleMigrationsRoute,
+  createConsoleStorageRoute,
+  createConsoleAuthRoute,
+  createConsoleUsersRoute,
+  createConsoleSecretsRoute,
+  createConsoleLogsRoute,
+  createConsoleSuggestionsRoute,
+  createConsoleRotateSecretRoute,
+  createConsoleAddRedirectRoute,
+  createConsoleCreateBucketRoute,
+  createConsoleAddUserRoute,
+} from "./routes/console.js";
 import {
   createGetCanvasRoute,
   createCreateNodeRoute,
@@ -71,12 +88,31 @@ export async function createApp(overrides: BuildDeps = {}): Promise<Express> {
   // Lu Computer — the owner's Publish button closes the approval gate (→ confirmPublish).
   app.post("/api/approvals/:id/resolve", createResolveApprovalRoute(deps));
 
-  // BYO connect — token-paste per-org GitHub / Vercel connections (docs/byo-connect.md).
+  // BYO connect — token-paste per-org GitHub / Vercel / Supabase connections (docs/byo-connect.md).
   app.post("/api/connect/github", createConnectGithubRoute(deps));
   app.post("/api/connect/vercel", createConnectVercelRoute(deps));
+  app.post("/api/connect/supabase", createConnectSupabaseRoute(deps));
   app.delete("/api/connect/github", createDisconnectGithubRoute(deps));
   app.delete("/api/connect/vercel", createDisconnectVercelRoute(deps));
+  app.delete("/api/connect/supabase", createDisconnectSupabaseRoute(deps));
   app.get("/api/connect/status", createConnectStatusRoute(deps));
+
+  // Lu Computer — the console proxy (docs/canvas.md §"the hub"): the department's Database-view
+  // mirrors the company's one shared Supabase project (Management API + project APIs). Honest-empty
+  // when unconnected; the service key is brokered and never leaves the server.
+  app.get("/api/console/overview", createConsoleOverviewRoute(deps));
+  app.get("/api/console/database", createConsoleDatabaseRoute(deps));
+  app.get("/api/console/migrations", createConsoleMigrationsRoute(deps));
+  app.get("/api/console/storage", createConsoleStorageRoute(deps));
+  app.get("/api/console/auth", createConsoleAuthRoute(deps));
+  app.get("/api/console/users", createConsoleUsersRoute(deps));
+  app.get("/api/console/secrets", createConsoleSecretsRoute(deps));
+  app.get("/api/console/logs", createConsoleLogsRoute(deps));
+  app.get("/api/console/suggestions", createConsoleSuggestionsRoute(deps));
+  app.post("/api/console/secrets/rotate", createConsoleRotateSecretRoute(deps));
+  app.post("/api/console/auth/redirect", createConsoleAddRedirectRoute(deps));
+  app.post("/api/console/storage/buckets", createConsoleCreateBucketRoute(deps));
+  app.post("/api/console/users", createConsoleAddUserRoute(deps));
 
   // Lu Computer — the composable canvas (cockpit.md Part C): nodes/edges/collections persist
   // per org so the canvas survives reloads and edges are the agents' working-set grants.

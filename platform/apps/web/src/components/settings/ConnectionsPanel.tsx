@@ -8,25 +8,27 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 /**
- * Connections — BYO connect (token-paste MVP). Two rows (GitHub, Vercel): each shows
- * connected / not-connected, reveals a password token-paste on Connect, and offers
- * Disconnect when connected. Talks ONLY to the same-origin proxy routes under
- * `/api/connect/*` (which resolve the session org server-side — the browser never sends
- * an orgId). The owner connects their OWN GitHub + Vercel; the Engineer then builds into
- * their accounts. Used in Settings and surfaced in onboarding.
+ * Connections — BYO connect (token-paste MVP). Three rows (GitHub, Vercel, Supabase): each
+ * shows connected / not-connected, reveals a password paste on Connect, and offers Disconnect
+ * when connected. Talks ONLY to the same-origin proxy routes under `/api/connect/*` (which
+ * resolve the session org server-side — the browser never sends an orgId). The owner connects
+ * their OWN GitHub + Vercel + Supabase; the Engineer then builds every department's sites into
+ * that one shared Supabase project (canvas.md "the backend"). Used in Settings + onboarding.
  *
  * Contract (proxy → apps/api):
- *   GET    /api/connect/status          → { github, vercel }
- *   POST   /api/connect/github { token } → { ok, login? } | { error }
- *   POST   /api/connect/vercel { token, teamId? } → { ok } | { error }
- *   DELETE /api/connect/github|vercel    → { ok }
+ *   GET    /api/connect/status                                → { github, vercel, supabase }
+ *   POST   /api/connect/github   { token }                    → { ok, login? } | { error }
+ *   POST   /api/connect/vercel   { token, teamId? }           → { ok } | { error }
+ *   POST   /api/connect/supabase { projectRef, serviceKey }   → { ok } | { error }
+ *   DELETE /api/connect/github|vercel|supabase                → { ok }
  */
 
-type Provider = "github" | "vercel";
+type Provider = "github" | "vercel" | "supabase";
 
 interface Status {
   github: boolean;
   vercel: boolean;
+  supabase: boolean;
 }
 
 /** GitHub octocat mark — lucide dropped brand icons (see FacebookMark in OnboardingSketch). */
@@ -47,14 +49,39 @@ function VercelMark({ className = "size-4" }: { className?: string }) {
   );
 }
 
-const PROVIDERS: {
+/** Supabase lightning mark — lucide dropped brand icons. */
+function SupabaseMark({ className = "size-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden>
+      <path d="M13.2 1.3c.6-.75 1.8-.34 1.8.62V9.5h5.9c1.02 0 1.6 1.18.96 1.98l-8.06 10.2c-.6.76-1.82.35-1.82-.61V14H6.1c-1.02 0-1.6-1.18-.96-1.98L13.2 1.3Z" />
+    </svg>
+  );
+}
+
+/**
+ * A field on a provider's connect form. `primary` fields render as a password; `text` fields
+ * render as plain text. Ordered by the array in each provider; the payload key is what apps/api
+ * expects. A field with `required` gates the Save button.
+ */
+interface Field {
+  payloadKey: string;
+  kind: "primary" | "text";
+  label: string;
+  placeholder: string;
+  required?: boolean;
+}
+
+interface ProviderDef {
   key: Provider;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   hint: React.ReactNode;
-  placeholder: string;
   tokenUrl: string;
-}[] = [
+  /** Ordered fields shown on the connect form. The first is auto-focused. */
+  fields: Field[];
+}
+
+const PROVIDERS: ProviderDef[] = [
   {
     key: "github",
     label: "GitHub",
@@ -65,16 +92,35 @@ const PROVIDERS: {
         <code className="rounded bg-muted px-1 py-0.5 font-mono text-[0.7rem]">repo</code> scope.
       </>
     ),
-    placeholder: "ghp_…",
     tokenUrl: "https://github.com/settings/tokens/new?scopes=repo&description=Lu",
+    fields: [{ payloadKey: "token", kind: "primary", label: "personal access token", placeholder: "ghp_…", required: true }],
   },
   {
     key: "vercel",
     label: "Vercel",
     icon: VercelMark,
     hint: <>Account Settings → Tokens → Create Token, then paste it here.</>,
-    placeholder: "Vercel access token",
     tokenUrl: "https://vercel.com/account/tokens",
+    fields: [
+      { payloadKey: "token", kind: "primary", label: "access token", placeholder: "Vercel access token", required: true },
+      { payloadKey: "teamId", kind: "text", label: "Team ID", placeholder: "Team ID (optional — leave blank for personal account)" },
+    ],
+  },
+  {
+    key: "supabase",
+    label: "Supabase",
+    icon: SupabaseMark,
+    hint: (
+      <>
+        Project Settings → API. Copy the <span className="font-medium">project ref</span> (in the Project URL) and the{" "}
+        <code className="rounded bg-muted px-1 py-0.5 font-mono text-[0.7rem]">service_role</code> secret key.
+      </>
+    ),
+    tokenUrl: "https://supabase.com/dashboard/project/_/settings/api",
+    fields: [
+      { payloadKey: "projectRef", kind: "text", label: "Project ref", placeholder: "Project ref (e.g. abcdwxyzmnop…)", required: true },
+      { payloadKey: "serviceKey", kind: "primary", label: "service-role key", placeholder: "service_role key (eyJ…)", required: true },
+    ],
   },
 ];
 
@@ -89,9 +135,13 @@ export function ConnectionsPanel({ className }: { className?: string }) {
     try {
       const res = await fetch("/api/connect/status", { cache: "no-store" });
       const data = (await res.json()) as Partial<Status>;
-      setStatus({ github: Boolean(data.github), vercel: Boolean(data.vercel) });
+      setStatus({
+        github: Boolean(data.github),
+        vercel: Boolean(data.vercel),
+        supabase: Boolean(data.supabase),
+      });
     } catch {
-      setStatus({ github: false, vercel: false });
+      setStatus({ github: false, vercel: false, supabase: false });
     }
   }, []);
 
@@ -99,20 +149,18 @@ export function ConnectionsPanel({ className }: { className?: string }) {
     void refresh();
   }, [refresh]);
 
-  const connect = async (provider: Provider, token: string, teamId?: string) => {
+  const connect = async (provider: Provider, values: Record<string, string>) => {
     setBusy(provider);
     setErrors((e) => ({ ...e, [provider]: undefined }));
     try {
       const res = await fetch(`/api/connect/${provider}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(
-          provider === "vercel" ? { token, ...(teamId ? { teamId } : {}) } : { token },
-        ),
+        body: JSON.stringify(values),
       });
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; login?: string; error?: string };
       if (!res.ok || !data.ok) {
-        setErrors((e) => ({ ...e, [provider]: data.error || "Couldn't connect — check the token and try again." }));
+        setErrors((e) => ({ ...e, [provider]: data.error || "Couldn't connect — check the details and try again." }));
         return;
       }
       if (data.login) setLogins((l) => ({ ...l, [provider]: data.login }));
@@ -160,7 +208,7 @@ export function ConnectionsPanel({ className }: { className?: string }) {
             setErrors((e) => ({ ...e, [p.key]: undefined }));
             setOpen((o) => (o === p.key ? null : p.key));
           }}
-          onConnect={(token, teamId) => connect(p.key, token, teamId)}
+          onConnect={(values) => connect(p.key, values)}
           onDisconnect={() => disconnect(p.key)}
         />
       ))}
@@ -180,7 +228,7 @@ function ProviderRow({
   onConnect,
   onDisconnect,
 }: {
-  provider: (typeof PROVIDERS)[number];
+  provider: ProviderDef;
   connected: boolean;
   login?: string;
   loading: boolean;
@@ -188,17 +236,23 @@ function ProviderRow({
   open: boolean;
   error?: string;
   onToggle: () => void;
-  onConnect: (token: string, teamId?: string) => void;
+  onConnect: (values: Record<string, string>) => void;
   onDisconnect: () => void;
 }) {
-  const [token, setToken] = React.useState("");
-  const [teamId, setTeamId] = React.useState("");
+  const [values, setValues] = React.useState<Record<string, string>>({});
   const Icon = provider.icon;
+
+  const missingRequired = provider.fields.some((f) => f.required && !(values[f.payloadKey] ?? "").trim());
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token.trim() || busy) return;
-    onConnect(token.trim(), teamId.trim() || undefined);
+    if (missingRequired || busy) return;
+    const payload: Record<string, string> = {};
+    for (const f of provider.fields) {
+      const v = (values[f.payloadKey] ?? "").trim();
+      if (v) payload[f.payloadKey] = v;
+    }
+    onConnect(payload);
   };
 
   return (
@@ -242,32 +296,49 @@ function ProviderRow({
 
       {open && !connected && (
         <form onSubmit={submit} className="mt-3 flex flex-col gap-2 pl-12">
-          <Label htmlFor={`${provider.key}-token`} className="text-xs text-muted-foreground">
-            Paste your {provider.label} token
-          </Label>
-          <div className="flex gap-2">
-            <Input
-              id={`${provider.key}-token`}
-              type="password"
-              autoComplete="off"
-              autoFocus
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              placeholder={provider.placeholder}
-              aria-invalid={!!error}
-            />
-            <Button type="submit" size="sm" disabled={!token.trim() || busy}>
+          {provider.fields.map((f, i) => (
+            <div key={f.payloadKey} className="flex flex-col gap-1.5">
+              <Label htmlFor={`${provider.key}-${f.payloadKey}`} className="text-xs text-muted-foreground">
+                Paste your {provider.label} {f.label}
+              </Label>
+              {f.kind === "primary" ? (
+                <div className="flex gap-2">
+                  <Input
+                    id={`${provider.key}-${f.payloadKey}`}
+                    type="password"
+                    autoComplete="off"
+                    autoFocus={i === 0}
+                    value={values[f.payloadKey] ?? ""}
+                    onChange={(e) => setValues((v) => ({ ...v, [f.payloadKey]: e.target.value }))}
+                    placeholder={f.placeholder}
+                    aria-invalid={!!error}
+                  />
+                  {/* Save sits next to the password field when it's last; else a standalone Save renders below */}
+                  {i === provider.fields.length - 1 && (
+                    <Button type="submit" size="sm" disabled={missingRequired || busy}>
+                      {busy ? <Loader2 className="size-3.5 animate-spin" /> : "Save"}
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <Input
+                  id={`${provider.key}-${f.payloadKey}`}
+                  type="text"
+                  autoComplete="off"
+                  autoFocus={i === 0}
+                  value={values[f.payloadKey] ?? ""}
+                  onChange={(e) => setValues((v) => ({ ...v, [f.payloadKey]: e.target.value }))}
+                  placeholder={f.placeholder}
+                  aria-invalid={!!error}
+                />
+              )}
+            </div>
+          ))}
+          {/* If the last field isn't the password (e.g. an optional text field trails it), give Save its own row */}
+          {provider.fields[provider.fields.length - 1]?.kind !== "primary" && (
+            <Button type="submit" size="sm" className="self-start" disabled={missingRequired || busy}>
               {busy ? <Loader2 className="size-3.5 animate-spin" /> : "Save"}
             </Button>
-          </div>
-          {provider.key === "vercel" && (
-            <Input
-              type="text"
-              autoComplete="off"
-              value={teamId}
-              onChange={(e) => setTeamId(e.target.value)}
-              placeholder="Team ID (optional — leave blank for personal account)"
-            />
           )}
           <p className="text-xs text-muted-foreground">
             {provider.hint}{" "}

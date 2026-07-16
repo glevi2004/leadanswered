@@ -9,11 +9,13 @@ import { connectionStatus } from "../connect/status.js";
  * provider, then store it ENCRYPTED (the store getters decrypt on read). The
  * Engineer later builds into THEIR accounts using these per-org tokens.
  *
- *   POST   /api/connect/github  { orgId, token }          → verify GET /user (Octokit) → { ok, login }
- *   POST   /api/connect/vercel  { orgId, token, teamId? } → verify GET /v2/user       → { ok }
- *   DELETE /api/connect/github  { orgId }                 → { ok }
- *   DELETE /api/connect/vercel  { orgId }                 → { ok }
- *   GET    /api/connect/status?orgId=                     → { github, vercel }
+ *   POST   /api/connect/github    { orgId, token }                              → verify GET /user (Octokit) → { ok, login }
+ *   POST   /api/connect/vercel    { orgId, token, teamId? }                     → verify GET /v2/user       → { ok }
+ *   POST   /api/connect/supabase  { orgId, projectRef, serviceKey, managementToken? } → verify project/mgmt → { ok }
+ *   DELETE /api/connect/github    { orgId }                                     → { ok }
+ *   DELETE /api/connect/vercel    { orgId }                                     → { ok }
+ *   DELETE /api/connect/supabase  { orgId }                                     → { ok }
+ *   GET    /api/connect/status?orgId=                                           → { github, vercel, supabase }
  *
  * OAuth (GitHub App install / Vercel Integration) is the phase-2 upgrade; the
  * store shape + the org-scoped ports are identical, so only these routes change.
@@ -29,6 +31,12 @@ function isFilled(value: unknown): value is string {
 }
 
 const VERCEL_USER_URL = "https://api.vercel.com/v2/user";
+const SUPABASE_MGMT_API = "https://api.supabase.com";
+
+/** The project's own REST base (https://{ref}.supabase.co) — bare project ref → URL. */
+function supabaseProjectUrl(projectRef: string): string {
+  return `https://${projectRef.trim()}.supabase.co`;
+}
 
 /**
  * POST /api/connect/github  { orgId, token }
@@ -122,6 +130,72 @@ export function createConnectVercelRoute(deps: ConnectDeps) {
   };
 }
 
+/**
+ * POST /api/connect/supabase  { orgId, projectRef, serviceKey, managementToken? }
+ * The company's ONE shared, Engineering-anchored managed project (docs/canvas.md §"the backend").
+ * Verify the creds with a lightweight call, then upsert the SupabaseConnection (serviceKey +
+ * managementToken encrypted at rest). Verification prefers the Management API (GET /v1/projects/{ref})
+ * when a management token is supplied; otherwise it checks the service key against the project's
+ * auth-admin endpoint. → 200 { ok:true } | 400 { ok:false, error }.
+ */
+export function createConnectSupabaseRoute(deps: ConnectDeps) {
+  return async function postConnectSupabase(req: Request, res: Response): Promise<void> {
+    const b = req.body ?? {};
+    const orgId = b.orgId ?? b.org_id;
+    const projectRef = b.projectRef ?? b.project_ref;
+    const serviceKey = b.serviceKey ?? b.service_key;
+    const managementToken = b.managementToken ?? b.management_token ?? b.accessToken ?? b.access_token;
+
+    if (!isFilled(orgId) || !isFilled(projectRef) || !isFilled(serviceKey)) {
+      res.status(400).json({ ok: false, error: "orgId, projectRef and serviceKey are required" });
+      return;
+    }
+
+    // 1) Verify. Prefer the Management API (project-level) if a management token is present;
+    //    else validate the service key against the project's own auth-admin API.
+    try {
+      if (isFilled(managementToken)) {
+        const url = `${SUPABASE_MGMT_API}/v1/projects/${encodeURIComponent(projectRef.trim())}`;
+        const resp = await fetch(url, {
+          headers: { Authorization: `Bearer ${managementToken.trim()}` },
+        });
+        if (!resp.ok) {
+          console.warn(`[/api/connect/supabase] mgmt verification failed (HTTP ${resp.status})`);
+          res.status(400).json({ ok: false, error: "Supabase management token or project ref is invalid" });
+          return;
+        }
+      } else {
+        const url = `${supabaseProjectUrl(projectRef)}/auth/v1/admin/users?page=1&per_page=1`;
+        const resp = await fetch(url, {
+          headers: { apikey: serviceKey.trim(), Authorization: `Bearer ${serviceKey.trim()}` },
+        });
+        if (!resp.ok) {
+          console.warn(`[/api/connect/supabase] service-key verification failed (HTTP ${resp.status})`);
+          res.status(400).json({ ok: false, error: "Supabase service key or project ref is invalid" });
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn("[/api/connect/supabase] verification error:", (err as Error).message);
+      res.status(400).json({ ok: false, error: "could not verify the Supabase connection" });
+      return;
+    }
+
+    // 2) Store it encrypted.
+    try {
+      await deps.store.upsertSupabaseConnection(orgId, {
+        projectRef: projectRef.trim(),
+        serviceKey: serviceKey.trim(),
+        managementToken: isFilled(managementToken) ? managementToken.trim() : undefined,
+      });
+      res.status(200).json({ ok: true });
+    } catch (err) {
+      console.error("[/api/connect/supabase] failed to store connection:", err);
+      res.status(500).json({ ok: false, error: "failed to store the Supabase connection" });
+    }
+  };
+}
+
 /** DELETE /api/connect/github  { orgId } → { ok:true }. Idempotent. */
 export function createDisconnectGithubRoute(deps: ConnectDeps) {
   return async function deleteConnectGithub(req: Request, res: Response): Promise<void> {
@@ -160,7 +234,26 @@ export function createDisconnectVercelRoute(deps: ConnectDeps) {
   };
 }
 
-/** GET /api/connect/status?orgId= → { github:boolean, vercel:boolean }. */
+/** DELETE /api/connect/supabase  { orgId } → { ok:true }. Idempotent. */
+export function createDisconnectSupabaseRoute(deps: ConnectDeps) {
+  return async function deleteConnectSupabase(req: Request, res: Response): Promise<void> {
+    const b = req.body ?? {};
+    const orgId = b.orgId ?? b.org_id;
+    if (!isFilled(orgId)) {
+      res.status(400).json({ ok: false, error: "orgId is required" });
+      return;
+    }
+    try {
+      await deps.store.deleteSupabaseConnection(orgId);
+      res.status(200).json({ ok: true });
+    } catch (err) {
+      console.error("[/api/connect/supabase] failed to delete connection:", err);
+      res.status(500).json({ ok: false, error: "failed to remove the Supabase connection" });
+    }
+  };
+}
+
+/** GET /api/connect/status?orgId= → { github:boolean, vercel:boolean, supabase:boolean }. */
 export function createConnectStatusRoute(deps: ConnectDeps) {
   return async function getConnectStatus(req: Request, res: Response): Promise<void> {
     const orgId = req.query.orgId ?? req.query.org_id;

@@ -344,6 +344,24 @@ model VercelConnection {
   @@index([orgId])
 }
 
+/// A per-org Supabase connection (BYO) — the company's ONE shared, Engineering-anchored managed
+/// Supabase project the console mirrors (docs/canvas.md §"the backend"; docs/byo-connect.md step 0).
+/// `projectRef` = the project id (→ https://{ref}.supabase.co). `serviceKey` = the encrypted
+/// project service_role key (project REST/auth/storage admin). `managementToken` = the encrypted
+/// Supabase Management API token (PAT or OAuth) for project-level reads (config/migrations/advisors).
+/// Secrets are brokered — never returned to the client. See docs/canvas.md.
+model SupabaseConnection {
+  id              String   @id @default(cuid())
+  orgId           String
+  projectRef      String
+  serviceKey      String
+  managementToken String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([orgId])
+}
+
 /// Generalized human-in-the-loop gate (extends the SMS hard-gate). Feeds "Needs you" (§4).
 model Approval {
   id        String         @id @default(cuid())

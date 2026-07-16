@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { TransformWrapper, TransformComponent, type ReactZoomPanPinchRef } from "react-zoom-pan-pinch";
 import {
-  Bell, Boxes, Check, ChevronDown, Code2, Headphones, Megaphone, PenTool,
+  ArrowUpRight, Bell, Boxes, Check, ChevronDown, Code2, Headphones, Megaphone, PenTool,
   Scale, TrendingUp, Undo2, Wallet,
 } from "lucide-react";
 import { SarahIcon } from "@/components/icons/sarah";
@@ -12,7 +13,7 @@ import {
   defaultPositions, agentById, ORBIT_R, type Positions, type DeptId,
 } from "@/lib/canvas/graph";
 import { useCanvasActivity } from "@/lib/canvas/activity";
-import { useCanvasGraph, type EdgeKind } from "@/lib/canvas/api";
+import { useCanvasGraph, type EdgeKind, type CanvasNode } from "@/lib/canvas/api";
 import { SheetGrid } from "@/components/canvas/SheetGrid";
 import { CanvasToolbar, type CanvasTool } from "@/components/canvas/CanvasToolbar";
 import { TerminalNode, type AgentKind } from "@/components/canvas/TerminalNode";
@@ -20,13 +21,16 @@ import { BrowserChrome } from "@/components/canvas/BrowserChrome";
 import { SitePreviewNode } from "@/components/canvas/SitePreviewNode";
 import { ArtifactsNav } from "@/components/canvas/ArtifactsNav";
 import { TextNote, type TextNoteData } from "@/components/canvas/TextNote";
-import { ResourceNode, nodeCenter, DEFAULT_NODE_DIMS } from "@/components/canvas/ResourceNode";
+import { ResourceNode, nodeCenter, nodeDims, DEFAULT_NODE_DIMS } from "@/components/canvas/ResourceNode";
 import { DrawLayer, type Stroke } from "@/components/canvas/DrawLayer";
 import { useSites } from "@/lib/dock/live";
 import { useSarah } from "@/components/sarah/sarah-context";
 
-/** Edge line color per capability-grant kind (COCKPIT Part C). */
+/** Edge line color + human label per capability-grant kind (canvas.md "Edges"). */
 const EDGE_COLOR: Record<EdgeKind, string> = { reads: "#5b9bff", uses: "#f59e0b", produces: "#22c55e" };
+const EDGE_LABEL: Record<EdgeKind, string> = { reads: "reads", uses: "uses", produces: "produces" };
+/** the grant kind a source node type creates when connected to an agent. */
+const kindForType = (type: string): EdgeKind => (type === "terminal" ? "uses" : "reads");
 
 /**
  * The Workspace canvas — a flat plane (Figma-style). Lu at center, agents on a ring; each
@@ -115,6 +119,14 @@ export interface CanvasDepartment {
 
 export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; departments?: CanvasDepartment[] }) {
   const { setSelectedAgent, openWidget, setWidgetMode } = useSarah();
+  const router = useRouter();
+
+  /* Open a department AS ITS APP — the department-as-app route (built by another agent). Selecting
+     an agent focuses it in-canvas + drives Lu's dock; OPENING navigates into its full page. */
+  const openDepartment = React.useCallback((key: string) => {
+    setSelectedAgent(key);
+    router.push(`/department/${key}`);
+  }, [router, setSelectedAgent]);
 
   // REAL activity (COCKPIT Part A) — agent badges / working spinners / the updates pill are
   // driven by live /api/dock/tasks, not the old mock AGENT_WORK.
@@ -647,6 +659,25 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
   const deptByAgentNode = new Map<string, string>();
   for (const n of graph.nodes) if (n.type === "agent" && n.refId) deptByAgentNode.set(n.id, n.refId);
 
+  // which nodes are wired to an agent (appear on any edge) — flips a spoke's plug to its
+  // solid "connected" state so it reads as part of a working set at a glance.
+  const connectedIds = new Set<string>();
+  for (const e of graph.edges) { connectedIds.add(e.fromId); connectedIds.add(e.toId); }
+
+  // folder membership — resource nodes whose CENTER falls inside a folder's box. Connecting the
+  // folder grants its whole library; the count on the tab makes the boundary read as a container.
+  const folderMemberCount = (folder: CanvasNode): number => {
+    const fd = nodeDims(folder);
+    const fx1 = folder.x + fd.w, fy1 = folder.y + fd.h;
+    let n = 0;
+    for (const r of resourceNodes) {
+      if (r.id === folder.id || r.type === "folder") continue;
+      const c = nodeCenter(r);
+      if (c.x >= folder.x && c.x <= fx1 && c.y >= folder.y && c.y <= fy1) n++;
+    }
+    return n;
+  };
+
   // world center of the current viewport — where a ＋-created node drops so it's visible
   const viewportCenterWorld = () => {
     const el = wrapRef.current;
@@ -698,7 +729,7 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
   const connectTo = async (fromId: string, dept: string) => {
     const fromNode = graph.nodes.find((n) => n.id === fromId);
     if (!fromNode) return;
-    const kind: EdgeKind = fromNode.type === "terminal" ? "uses" : "reads";
+    const kind = kindForType(fromNode.type);
     const c = pos[dept] ?? { x: 0, y: 0 };
     const agentNodeId = await graph.ensureAgentNode(dept, c.x, c.y);
     await graph.createEdge(fromId, agentNodeId, kind);
@@ -735,6 +766,14 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
     return nodeCenter(n);
   };
 
+  // while dragging a new connection: the source's grant color (so the rubber-band reads as its
+  // kind) + the agent under the cursor (the drop target lights up to confirm it will land).
+  const connectKind: EdgeKind | null = connect
+    ? kindForType(graph.nodes.find((n) => n.id === connect.fromId)?.type ?? "note")
+    : null;
+  const connectColor = connectKind ? EDGE_COLOR[connectKind] : SELECT_RING;
+  const connectTarget = connect ? agentAt(connect.wx, connect.wy) : null;
+
   return (
     <div
       ref={wrapRef}
@@ -748,7 +787,7 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
               : "cursor-default"
       }`}
     >
-      <style>{`@keyframes lu-dash{to{stroke-dashoffset:-8}}.lu-frame{pointer-events:none}`}</style>
+      <style>{`@keyframes lu-dash{to{stroke-dashoffset:-8}}.lu-frame{pointer-events:none}.lu-edge .lu-edge-rm{opacity:0;transition:opacity .12s}.lu-edge:hover .lu-edge-rm{opacity:1}.lu-edge-rm{cursor:pointer}`}</style>
 
       {/* screen-space grid — sibling of the transform, never scaled → never shimmers/vanishes */}
       <div
@@ -840,9 +879,10 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                 );
               })}
 
-              {/* CAPABILITY GRANTS (COCKPIT Part C) — a real, persisted line from a resource
-                  node to an agent. Color encodes the kind (reads / uses / produces); the
-                  midpoint is a click target that removes the connection. */}
+              {/* CAPABILITY GRANTS (canvas.md "Edges") — a real, persisted line from a resource
+                  node to an agent. Color encodes the kind (reads=blue / uses=amber /
+                  produces=green). Hover the edge → a clear × chip appears at the midpoint to
+                  remove the grant. */}
               {graph.edges.map((edge) => {
                 const a1 = edgeAnchor(edge.fromId);
                 const a2 = edgeAnchor(edge.toId);
@@ -850,32 +890,38 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                 const col = EDGE_COLOR[edge.kind];
                 const mx = (a1.x + a2.x) / 2, my = (a1.y + a2.y) / 2;
                 return (
-                  <g key={edge.id}>
+                  <g key={edge.id} className="lu-edge">
+                    {/* wide invisible hit region so hovering ANYWHERE on the edge reveals the × */}
+                    <line x1={a1.x} y1={a1.y} x2={a2.x} y2={a2.y} stroke="transparent" strokeWidth={16} style={{ pointerEvents: "stroke" }} />
+                    {/* the visible grant line */}
                     <line x1={a1.x} y1={a1.y} x2={a2.x} y2={a2.y} stroke={col} strokeOpacity={0.9} strokeWidth={2} vectorEffect="non-scaling-stroke" />
                     <circle cx={a2.x} cy={a2.y} r={4} fill={col} />
-                    <circle cx={mx} cy={my} r={3.5} fill={col} />
-                    <circle
-                      className={DRAG_CLASS}
-                      cx={mx} cy={my} r={11}
-                      fill={col} fillOpacity={0.001}
-                      style={{ cursor: "pointer" }}
-                      onClick={() => graph.deleteEdge(edge.id)}
-                    >
-                      <title>Remove connection ({edge.kind})</title>
-                    </circle>
+                    <circle cx={mx} cy={my} r={3} fill={col} />
+                    {/* removable midpoint — a × chip revealed on hover, click to delete the edge */}
+                    <g className="lu-edge-rm" onClick={() => graph.deleteEdge(edge.id)}>
+                      <circle cx={mx} cy={my} r={13} fill="transparent" style={{ pointerEvents: "all" }} />
+                      <circle cx={mx} cy={my} r={9} fill="var(--card)" stroke={col} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+                      <line x1={mx - 3.5} y1={my - 3.5} x2={mx + 3.5} y2={my + 3.5} stroke={col} strokeWidth={1.5} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                      <line x1={mx - 3.5} y1={my + 3.5} x2={mx + 3.5} y2={my - 3.5} stroke={col} strokeWidth={1.5} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                      <title>Remove connection — {EDGE_LABEL[edge.kind]}</title>
+                    </g>
                   </g>
                 );
               })}
 
-              {/* live rubber-band while dragging a new connection */}
+              {/* live rubber-band while dragging a new connection — dashed line in the SOURCE's
+                  grant color, with a dot tracking the cursor (the target agent lights up separately) */}
               {connect && (() => {
                 const a1 = edgeAnchor(connect.fromId);
                 if (!a1) return null;
                 return (
-                  <line
-                    x1={a1.x} y1={a1.y} x2={connect.wx} y2={connect.wy}
-                    stroke="#5b9bff" strokeWidth={2} strokeDasharray="6 5" vectorEffect="non-scaling-stroke"
-                  />
+                  <g>
+                    <line
+                      x1={a1.x} y1={a1.y} x2={connect.wx} y2={connect.wy}
+                      stroke={connectColor} strokeWidth={2} strokeDasharray="6 5" vectorEffect="non-scaling-stroke"
+                    />
+                    <circle cx={connect.wx} cy={connect.wy} r={5} fill={connectColor} fillOpacity={0.9} />
+                  </g>
                 );
               })()}
             </svg>
@@ -888,6 +934,8 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                 node={n}
                 getScale={getScale}
                 selected={selection.has(n.id)}
+                connected={connectedIds.has(n.id)}
+                memberCount={folderMemberCount(n)}
                 onMove={graph.moveNode}
                 onSelect={(id) => setSelection(new Set<string>([id]))}
                 onDelete={(id) => { graph.deleteNode(id); setSelection(new Set<string>(["lu"])); }}
@@ -958,7 +1006,15 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
               const Icon = DEPT_ICON[a.id];
               const badge = agentBadge(a.id);
               return (
-                <div key={a.id} data-node={a.id} className={`${DRAG_CLASS} absolute cursor-pointer`} style={{ left: p.x, top: p.y }} {...nodeDrag(a.id)}>
+                <div
+                  key={a.id}
+                  data-node={a.id}
+                  className={`${DRAG_CLASS} absolute cursor-pointer`}
+                  style={{ left: p.x, top: p.y }}
+                  onDoubleClick={(e) => { e.stopPropagation(); openDepartment(a.id); }}
+                  title={`Double-click to open ${a.label}`}
+                  {...nodeDrag(a.id)}
+                >
                   {badge && (
                     <span className="absolute -top-16 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-2xl bg-card px-4 py-2 text-lg font-medium text-foreground elev-2">
                       {badge.kind === "working"
@@ -969,7 +1025,13 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                   )}
                   <div
                     className="neu-socket -translate-x-1/2 -translate-y-1/2 rounded-[2.6rem] p-2 transition-shadow"
-                    style={{ boxShadow: on ? `0 0 0 5px var(--card), 0 0 0 10px ${SELECT_RING}, 0 0 0 26px ${SELECT_HALO}` : undefined }}
+                    style={{
+                      boxShadow: on
+                        ? `0 0 0 5px var(--card), 0 0 0 10px ${SELECT_RING}, 0 0 0 26px ${SELECT_HALO}`
+                        : connectTarget === a.id
+                          ? `0 0 0 5px var(--card), 0 0 0 11px ${connectColor}, 0 0 0 26px ${connectColor}22`
+                          : undefined,
+                    }}
                   >
                     <div className={`neu-raise flex items-center gap-4 rounded-[2.05rem] px-9 py-5 ${a.active ? "" : "opacity-40"}`}>
                       {a.active && (
@@ -978,6 +1040,18 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                         </span>
                       )}
                       <span className={`text-[2rem] font-medium ${a.active ? "text-foreground" : "text-muted-foreground"}`}>{a.label}</span>
+                      {/* OPEN → the department-as-app (shown when this agent is selected) */}
+                      {on && (
+                        <button
+                          type="button"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => { e.stopPropagation(); openDepartment(a.id); }}
+                          title={`Open ${a.label}`}
+                          className="ml-1 flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-[1.35rem] font-medium text-background transition-transform hover:scale-[1.03]"
+                        >
+                          Open <ArrowUpRight className="size-6" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1028,6 +1102,7 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                 node={n}
                 getScale={getScale}
                 selected={selection.has(n.id)}
+                connected={connectedIds.has(n.id)}
                 onMove={graph.moveNode}
                 onSelect={(id) => setSelection(new Set<string>([id]))}
                 onDelete={(id) => { graph.deleteNode(id); setSelection(new Set<string>(["lu"])); }}
@@ -1161,6 +1236,18 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
       >
         <Undo2 className="size-4" />
       </button>
+
+      {/* edge legend — what a connection GRANTS (only once the graph has any) */}
+      {graph.edges.length > 0 && (
+        <div className="elev-2 absolute bottom-4 right-4 z-20 flex items-center gap-3 rounded-full bg-card px-3 py-1.5 text-xs text-muted-foreground">
+          {(["reads", "uses", "produces"] as EdgeKind[]).map((k) => (
+            <span key={k} className="flex items-center gap-1.5">
+              <span className="h-0.5 w-4 rounded-full" style={{ background: EDGE_COLOR[k] }} />
+              {EDGE_LABEL[k]}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

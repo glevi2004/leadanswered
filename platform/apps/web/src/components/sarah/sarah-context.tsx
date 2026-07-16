@@ -48,6 +48,22 @@ export interface BuildBatch {
   taskIds: string[];
 }
 
+/** The dock's cofounder-structured tabs (canvas.md §"the dock"). */
+export type DockTab = "home" | "lu" | "company" | "tasks" | "library";
+
+/**
+ * A non-blocking clarifying question Lu raised (the orchestrator's `ask_user` tool). It
+ * arrives inline on the /api/lu/chat response `actions[]` — there's no pollable store — so
+ * we capture it here and the dock's Home surfaces it as a "Needs clarification" item until
+ * the owner answers (in the Lu chat) or dismisses it.
+ */
+export interface Clarification {
+  id: string;
+  question: string;
+  options?: string[];
+  at: string; // ISO
+}
+
 interface SarahState {
   demo: boolean;
   ownerName: string;
@@ -78,6 +94,12 @@ interface SarahState {
   /** the department/agent selected on the company canvas — drives the dock's agent view */
   selectedAgent: string | null;
   setSelectedAgent: (id: string | null) => void;
+  /** the active dock tab (Home · Lu · Company · Tasks · Library) — lifted so any tab can navigate */
+  dockTab: DockTab;
+  setDockTab: (tab: DockTab) => void;
+  /** clarifying questions Lu raised (ask_user) — surfaced on Home until answered/dismissed */
+  clarifications: Clarification[];
+  dismissClarification: (id: string) => void;
   sendMessage: (body: string) => void;
   /** Apollo-style "New chat": a fresh conversation; approvals/escalations untouched */
   startNewChat: () => void;
@@ -169,6 +191,8 @@ export function SarahProvider({
   const [widgetMode, setWidgetMode] = React.useState<"docked" | "floating">("docked");
   const [contextEntity, setContextEntity] = React.useState<string | null>(null);
   const [selectedAgent, setSelectedAgent] = React.useState<string | null>(null);
+  const [dockTab, setDockTab] = React.useState<DockTab>("lu");
+  const [clarifications, setClarifications] = React.useState<Clarification[]>([]);
   const [composerPrefill, setComposerPrefill] = React.useState<string | null>(null);
   const answeringEscalation = React.useRef<OpenEscalation | null>(null);
 
@@ -267,6 +291,29 @@ export function SarahProvider({
               // Record the batch; LuBuildTracker (in the thread) polls the dock for these ids and
               // shows queued → building → preview → needs-approval, ending at PublishApprovals.
               setBuilds((prev) => [...prev, { id: nextId(), chatId, at: new Date().toISOString(), taskIds }]);
+            }
+            // ask_user questions come back inline (non-blocking) — surface them on Home as
+            // "Needs clarification" until the owner answers or dismisses them.
+            const asks = Array.isArray(data.actions)
+              ? data.actions.filter(
+                  (a): a is { type: string; question: string; options?: string[] } =>
+                    !!a &&
+                    typeof a === "object" &&
+                    (a as { type?: unknown }).type === "ask_user" &&
+                    typeof (a as { question?: unknown }).question === "string",
+                )
+              : [];
+            if (asks.length > 0) {
+              const at = new Date().toISOString();
+              setClarifications((prev) => [
+                ...asks.map((a) => ({
+                  id: nextId(),
+                  question: a.question,
+                  options: Array.isArray(a.options) ? a.options : undefined,
+                  at,
+                })),
+                ...prev,
+              ]);
             }
           })
           .catch(() => {
@@ -380,6 +427,10 @@ export function SarahProvider({
     contextEntity,
     selectedAgent,
     setSelectedAgent,
+    dockTab,
+    setDockTab,
+    clarifications,
+    dismissClarification: (id) => setClarifications((prev) => prev.filter((c) => c.id !== id)),
     sendMessage,
     startNewChat,
     approve: (id, editedPreview) => resolveApproval(id, "approved", editedPreview),

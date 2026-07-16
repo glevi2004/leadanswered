@@ -330,6 +330,28 @@ export interface VercelConnectionInput {
   vercelUserId?: string;
 }
 
+/**
+ * An org's Supabase connection — the company's one shared, Engineering-anchored managed project
+ * (docs/canvas.md §"the backend"). `serviceKey` / `managementToken` are the DECRYPTED tokens (or
+ * null if none / undecryptable). Secrets are brokered — the console never returns these to the client.
+ */
+export interface SupabaseConnectionRecord {
+  orgId: string;
+  projectRef: string;
+  serviceKey: string | null;
+  managementToken: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+/** Upsert patch for a Supabase connection — `projectRef` + `serviceKey` are required on first create. */
+export interface SupabaseConnectionInput {
+  projectRef?: string;
+  /** The project service_role key (plaintext in → encrypted at rest). */
+  serviceKey?: string;
+  /** The Supabase Management API token — PAT or OAuth (plaintext in → encrypted at rest). */
+  managementToken?: string;
+}
+
 /** Persistence port. Implemented by MemoryStore (demo/tests) and PrismaStore (production). */
 export interface Store {
   // ─── Lu Computer agent backend (AGENTS-BACKEND.md §2/§3) ───────────────────
@@ -405,4 +427,10 @@ export interface Store {
   upsertVercelConnection(orgId: string, input: VercelConnectionInput): Promise<VercelConnectionRecord>;
   /** Remove the org's Vercel connection (idempotent). */
   deleteVercelConnection(orgId: string): Promise<void>;
+  /** The org's Supabase connection, tokens DECRYPTED — or null if not connected. */
+  getSupabaseConnection(orgId: string): Promise<SupabaseConnectionRecord | null>;
+  /** Create-or-update the org's Supabase connection (encrypts `serviceKey`/`managementToken`). One per org. */
+  upsertSupabaseConnection(orgId: string, input: SupabaseConnectionInput): Promise<SupabaseConnectionRecord>;
+  /** Remove the org's Supabase connection (idempotent). */
+  deleteSupabaseConnection(orgId: string): Promise<void>;
 }
