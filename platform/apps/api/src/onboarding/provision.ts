@@ -1,11 +1,11 @@
 import type { AgentRecord, DepartmentWithAgent, Store } from "../store/types.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Onboarding provisioning (ONBOARDING.md §3/§4, AGENTS-BACKEND.md §2).
-// "Boot up your company": create the 8 fixed Department rows for a fresh org.
-// Engineering is the ONE real agent (status `active` + an Agent row); the other
-// 7 land as `in_development` locked tiles with no agent. Idempotent — re-running
-// on an already-provisioned org is a no-op that just returns current state.
+// Onboarding provisioning (ONBOARDING.md §8, AGENTS-BACKEND.md §2).
+// "Boot up your company": create the Engineering department for a fresh org.
+// v0: Engineering is the ONLY department — status `active` + a real Agent row.
+// (The other keys in DEPARTMENT_KEYS come later.) Idempotent — re-running on an
+// already-provisioned org is a no-op that just returns current state.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** The 8 fixed departments, in canvas order. Engineering is the only real one (v0). */
@@ -79,9 +79,9 @@ export interface ProvisionOptions {
 }
 
 /**
- * Create the 8 fixed departments for `orgId`. Engineering → `active` + a real Agent
- * ("the Engineer"); the other 7 → `in_development`, no agent. Idempotent: if the org
- * already has any departments, returns the current state without creating duplicates.
+ * Create the Engineering department for `orgId` → `active` + a real Agent ("the Engineer").
+ * v0: Engineering is the only department. Idempotent: if the org already has any
+ * departments, returns the current state without creating duplicates.
  */
 export async function provisionDepartments(
   store: Store,
@@ -97,29 +97,23 @@ export async function provisionDepartments(
   }
 
   const business = opts.business?.trim() || undefined;
-  let engineeringAgent: AgentRecord | null = null;
 
-  for (const key of DEPARTMENT_KEYS) {
-    if (key === ENGINEERING_KEY) {
-      await store.createDepartment({
-        orgId,
-        key,
-        status: "active",
-        context: business ? `Business: ${business}` : "",
-      });
-      engineeringAgent = await store.createAgent({
-        orgId,
-        departmentKey: ENGINEERING_KEY,
-        name: "the Engineer",
-        role: "Engineering",
-        contract: engineeringContract(business),
-        models: { ...ENGINEERING_MODELS },
-        status: "idle",
-      });
-    } else {
-      await store.createDepartment({ orgId, key, status: "in_development" });
-    }
-  }
+  // v0: Engineering is the ONLY department. The other 7 (DEPARTMENT_KEYS) come later.
+  await store.createDepartment({
+    orgId,
+    key: ENGINEERING_KEY,
+    status: "active",
+    context: business ? `Business: ${business}` : "",
+  });
+  const engineeringAgent = await store.createAgent({
+    orgId,
+    departmentKey: ENGINEERING_KEY,
+    name: "the Engineer",
+    role: "Engineering",
+    contract: engineeringContract(business),
+    models: { ...ENGINEERING_MODELS },
+    status: "idle",
+  });
 
   const departments = await store.listDepartments(orgId);
   return { departments, engineeringAgent };
