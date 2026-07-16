@@ -6,6 +6,7 @@ import {
 } from "../agent/orchestrator.js";
 import { type EngineeringDeps } from "../agent/engineering.js";
 import { dispatchBuild } from "../agent/dispatch.js";
+import { orgHasConnections } from "../connect/status.js";
 
 /** True for a present, non-blank string field (missing/blank → 400, like the other routes). */
 function isFilled(value: unknown): value is string {
@@ -83,6 +84,14 @@ export function createEngineeringRoute(deps: EngineeringDeps) {
 
     if (!isFilled(orgId) || !isFilled(message)) {
       res.status(400).json({ error: "orgId and message are required" });
+      return;
+    }
+
+    // BYO connect gate: the customer build path requires the org's OWN GitHub + Vercel
+    // (docs/byo-connect.md). Not connected → do NOT dispatch; the UI prompts to connect.
+    // (The env-token fallback stays for platform dogfooding via non-gated internal calls.)
+    if (!(await orgHasConnections(deps.store, orgId))) {
+      res.status(412).json({ error: "connect GitHub and Vercel before building", needsConnect: true });
       return;
     }
 

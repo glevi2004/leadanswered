@@ -1,5 +1,6 @@
 import { requireOrganization } from "@/lib/dashboard-auth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConnectionsPanel } from "@/components/settings/ConnectionsPanel";
 
 /**
  * Settings — pared back to the essentials while the department-level config moves
@@ -27,6 +28,18 @@ export default async function SettingsPage() {
           <p className="mt-1 text-sm text-muted-foreground">
             Ask Lu to change anything about how your departments run.
           </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Connections</CardTitle>
+          <CardDescription>
+            Connect your own GitHub and Vercel so Lu&apos;s Engineer builds and ships into your accounts.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ConnectionsPanel />
         </CardContent>
       </Card>
     </div>

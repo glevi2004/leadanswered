@@ -2,6 +2,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import type { Store } from "../store/types.js";
 import { dispatchBuild } from "./dispatch.js";
+import { orgHasConnections } from "../connect/status.js";
 
 /**
  * The eight departments Lu delegates to (AGENTS-BACKEND §3). A task's
@@ -124,6 +125,11 @@ export function orchestratorTools(deps: OrchestratorToolDeps, ctx: OrchestratorC
         }
         if (task.departmentKey !== "engineering") {
           return { ok: false as const, reason: "not_an_engineering_task" };
+        }
+        // BYO connect gate: don't dispatch until the org connected its OWN GitHub + Vercel
+        // (docs/byo-connect.md). Lu should tell the owner to connect, then retry.
+        if (!(await orgHasConnections(deps.store, ctx.orgId))) {
+          return { ok: false as const, reason: "not_connected" as const };
         }
         await dispatchBuild(
           { store: deps.store },

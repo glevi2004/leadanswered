@@ -310,14 +310,32 @@ model Session {
 }
 
 /// GitHub App installation for an org — scoped clone/branch/PR tokens (§2/§6).
+/// A per-org GitHub App installation (BYO) — the org's own GitHub the Engineer builds in.
+/// `userToken` is the encrypted user-to-server OAuth token (repo creation); installation tokens
+/// (repo ops) are minted on the fly from the App id + private key. See docs/byo-connect.md.
 model GithubConnection {
   id             String   @id @default(cuid())
   orgId          String
-  installationId String
-  login          String
+  installationId String?
+  login          String?
   repos          Json?
+  userToken      String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  @@index([orgId])
+}
+
+/// A per-org Vercel connection (BYO) — the org's own Vercel account/team the Engineer deploys into.
+/// `accessToken` is the encrypted Vercel OAuth access token. See docs/byo-connect.md.
+model VercelConnection {
+  id           String   @id @default(cuid())
+  orgId        String
+  accessToken  String
+  teamId       String?
+  vercelUserId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([orgId])
 }

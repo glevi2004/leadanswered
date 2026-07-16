@@ -11,6 +11,13 @@ import {
   createListSitesRoute,
 } from "./routes/reads.js";
 import { createResolveApprovalRoute } from "./routes/approvals.js";
+import {
+  createConnectGithubRoute,
+  createConnectVercelRoute,
+  createDisconnectGithubRoute,
+  createDisconnectVercelRoute,
+  createConnectStatusRoute,
+} from "./routes/connect.js";
 
 export interface BuildDeps {
   store?: Store;
@@ -54,6 +61,13 @@ export async function createApp(overrides: BuildDeps = {}): Promise<Express> {
 
   // Lu Computer — the owner's Publish button closes the approval gate (→ confirmPublish).
   app.post("/api/approvals/:id/resolve", createResolveApprovalRoute(deps));
+
+  // BYO connect — token-paste per-org GitHub / Vercel connections (docs/byo-connect.md).
+  app.post("/api/connect/github", createConnectGithubRoute(deps));
+  app.post("/api/connect/vercel", createConnectVercelRoute(deps));
+  app.delete("/api/connect/github", createDisconnectGithubRoute(deps));
+  app.delete("/api/connect/vercel", createDisconnectVercelRoute(deps));
+  app.get("/api/connect/status", createConnectStatusRoute(deps));
 
   return app;
 }

@@ -24,6 +24,8 @@ import type {
   DepartmentWithAgent,
   DeploymentRecord,
   EdgeRecord,
+  GithubConnectionInput,
+  GithubConnectionRecord,
   SessionPatch,
   SessionRecord,
   SitePatch,
@@ -32,7 +34,28 @@ import type {
   TaskFilter,
   TaskPatch,
   TaskRecord,
+  VercelConnectionInput,
+  VercelConnectionRecord,
 } from "./types.js";
+import { decryptTokenSafe, encryptToken } from "../crypto/tokens.js";
+
+/** Internal encrypted-at-rest row shapes (mirrors PrismaStore: token ciphertext only). */
+interface StoredGithubConnection {
+  orgId: string;
+  installationId: string | null;
+  login: string | null;
+  userTokenEnc: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+interface StoredVercelConnection {
+  orgId: string;
+  accessTokenEnc: string;
+  teamId: string | null;
+  vercelUserId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
 
 /**
  * In-memory Store for demo mode + tests. Behaviorally mirrors PrismaStore:
@@ -53,6 +76,9 @@ export class MemoryStore implements Store {
   private canvasNodes = new Map<string, CanvasNodeRecord>();
   private edges = new Map<string, EdgeRecord>();
   private collections = new Map<string, CollectionRecord>();
+  // BYO connect — one row per org per provider, keyed by orgId (tokens encrypted at rest).
+  private githubConnections = new Map<string, StoredGithubConnection>();
+  private vercelConnections = new Map<string, StoredVercelConnection>();
   private now: () => Date;
 
   /** Optional injected clock so tests can control record timestamps. */
@@ -424,5 +450,81 @@ export class MemoryStore implements Store {
 
   async listCollections(orgId: string): Promise<CollectionRecord[]> {
     return [...this.collections.values()].filter((c) => c.orgId === orgId);
+  }
+
+  // --- BYO connect (per-org GitHub / Vercel connections; tokens encrypted at rest) ---
+  private mapGithubConnection(r: StoredGithubConnection): GithubConnectionRecord {
+    return {
+      orgId: r.orgId,
+      installationId: r.installationId,
+      login: r.login,
+      userToken: decryptTokenSafe(r.userTokenEnc),
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    };
+  }
+
+  private mapVercelConnection(r: StoredVercelConnection): VercelConnectionRecord {
+    return {
+      orgId: r.orgId,
+      accessToken: decryptTokenSafe(r.accessTokenEnc),
+      teamId: r.teamId,
+      vercelUserId: r.vercelUserId,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    };
+  }
+
+  async getGithubConnection(orgId: string): Promise<GithubConnectionRecord | null> {
+    const r = this.githubConnections.get(orgId);
+    return r ? this.mapGithubConnection(r) : null;
+  }
+
+  async upsertGithubConnection(orgId: string, input: GithubConnectionInput): Promise<GithubConnectionRecord> {
+    const ts = this.now().toISOString();
+    const existing = this.githubConnections.get(orgId);
+    const rec: StoredGithubConnection = {
+      orgId,
+      installationId: input.installationId ?? existing?.installationId ?? null,
+      login: input.login ?? existing?.login ?? null,
+      userTokenEnc:
+        input.userToken !== undefined ? encryptToken(input.userToken) : existing?.userTokenEnc ?? null,
+      createdAt: existing?.createdAt ?? ts,
+      updatedAt: ts,
+    };
+    this.githubConnections.set(orgId, rec);
+    return this.mapGithubConnection(rec);
+  }
+
+  async deleteGithubConnection(orgId: string): Promise<void> {
+    this.githubConnections.delete(orgId);
+  }
+
+  async getVercelConnection(orgId: string): Promise<VercelConnectionRecord | null> {
+    const r = this.vercelConnections.get(orgId);
+    return r ? this.mapVercelConnection(r) : null;
+  }
+
+  async upsertVercelConnection(orgId: string, input: VercelConnectionInput): Promise<VercelConnectionRecord> {
+    const ts = this.now().toISOString();
+    const existing = this.vercelConnections.get(orgId);
+    let accessTokenEnc: string;
+    if (input.accessToken !== undefined) accessTokenEnc = encryptToken(input.accessToken);
+    else if (existing) accessTokenEnc = existing.accessTokenEnc;
+    else throw new Error("upsertVercelConnection: accessToken is required to create a connection");
+    const rec: StoredVercelConnection = {
+      orgId,
+      accessTokenEnc,
+      teamId: input.teamId ?? existing?.teamId ?? null,
+      vercelUserId: input.vercelUserId ?? existing?.vercelUserId ?? null,
+      createdAt: existing?.createdAt ?? ts,
+      updatedAt: ts,
+    };
+    this.vercelConnections.set(orgId, rec);
+    return this.mapVercelConnection(rec);
+  }
+
+  async deleteVercelConnection(orgId: string): Promise<void> {
+    this.vercelConnections.delete(orgId);
   }
 }

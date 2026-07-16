@@ -24,6 +24,8 @@ import type {
   DepartmentWithAgent,
   DeploymentRecord,
   EdgeRecord,
+  GithubConnectionInput,
+  GithubConnectionRecord,
   SessionPatch,
   SessionRecord,
   SitePatch,
@@ -32,7 +34,10 @@ import type {
   TaskFilter,
   TaskPatch,
   TaskRecord,
+  VercelConnectionInput,
+  VercelConnectionRecord,
 } from "./types.js";
+import { decryptTokenSafe, encryptToken } from "../crypto/tokens.js";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -187,6 +192,29 @@ function mapCollection(r: any): CollectionRecord {
     orgId: r.orgId,
     agentId: r.agentId ?? null,
     name: r.name,
+    createdAt: iso(r.createdAt),
+    updatedAt: iso(r.updatedAt),
+  };
+}
+
+// BYO connect — decrypt the stored token on the way out (best-effort; null on failure).
+function mapGithubConnection(r: any): GithubConnectionRecord {
+  return {
+    orgId: r.orgId,
+    installationId: r.installationId ?? null,
+    login: r.login ?? null,
+    userToken: decryptTokenSafe(r.userToken),
+    createdAt: iso(r.createdAt),
+    updatedAt: iso(r.updatedAt),
+  };
+}
+
+function mapVercelConnection(r: any): VercelConnectionRecord {
+  return {
+    orgId: r.orgId,
+    accessToken: decryptTokenSafe(r.accessToken),
+    teamId: r.teamId ?? null,
+    vercelUserId: r.vercelUserId ?? null,
     createdAt: iso(r.createdAt),
     updatedAt: iso(r.updatedAt),
   };
@@ -554,5 +582,79 @@ export class PrismaStore implements Store {
   async listCollections(orgId: string): Promise<CollectionRecord[]> {
     const rows = await this.db.collection.findMany({ where: { orgId }, orderBy: { createdAt: "asc" } });
     return rows.map(mapCollection);
+  }
+
+  // --- BYO connect (per-org GitHub / Vercel connections; tokens encrypted at rest) ---
+  // No @@unique(orgId) on these models (only @@index), so we upsert manually by
+  // findFirst → update/create rather than db.upsert, keeping "one per org" in app logic.
+  async getGithubConnection(orgId: string): Promise<GithubConnectionRecord | null> {
+    const r = await this.db.githubConnection.findFirst({ where: { orgId } });
+    return r ? mapGithubConnection(r) : null;
+  }
+
+  async upsertGithubConnection(orgId: string, input: GithubConnectionInput): Promise<GithubConnectionRecord> {
+    const enc = input.userToken !== undefined ? encryptToken(input.userToken) : undefined;
+    const existing = await this.db.githubConnection.findFirst({ where: { orgId } });
+    if (existing) {
+      const r = await this.db.githubConnection.update({
+        where: { id: existing.id },
+        data: {
+          userToken: enc, // undefined → left unchanged
+          login: input.login ?? undefined,
+          installationId: input.installationId ?? undefined,
+        },
+      });
+      return mapGithubConnection(r);
+    }
+    const r = await this.db.githubConnection.create({
+      data: {
+        orgId,
+        userToken: enc ?? null,
+        login: input.login ?? null,
+        installationId: input.installationId ?? null,
+      },
+    });
+    return mapGithubConnection(r);
+  }
+
+  async deleteGithubConnection(orgId: string): Promise<void> {
+    await this.db.githubConnection.deleteMany({ where: { orgId } });
+  }
+
+  async getVercelConnection(orgId: string): Promise<VercelConnectionRecord | null> {
+    const r = await this.db.vercelConnection.findFirst({ where: { orgId } });
+    return r ? mapVercelConnection(r) : null;
+  }
+
+  async upsertVercelConnection(orgId: string, input: VercelConnectionInput): Promise<VercelConnectionRecord> {
+    const enc = input.accessToken !== undefined ? encryptToken(input.accessToken) : undefined;
+    const existing = await this.db.vercelConnection.findFirst({ where: { orgId } });
+    if (existing) {
+      const r = await this.db.vercelConnection.update({
+        where: { id: existing.id },
+        data: {
+          accessToken: enc, // undefined → left unchanged
+          teamId: input.teamId ?? undefined,
+          vercelUserId: input.vercelUserId ?? undefined,
+        },
+      });
+      return mapVercelConnection(r);
+    }
+    if (enc === undefined) {
+      throw new Error("upsertVercelConnection: accessToken is required to create a connection");
+    }
+    const r = await this.db.vercelConnection.create({
+      data: {
+        orgId,
+        accessToken: enc,
+        teamId: input.teamId ?? null,
+        vercelUserId: input.vercelUserId ?? null,
+      },
+    });
+    return mapVercelConnection(r);
+  }
+
+  async deleteVercelConnection(orgId: string): Promise<void> {
+    await this.db.vercelConnection.deleteMany({ where: { orgId } });
   }
 }

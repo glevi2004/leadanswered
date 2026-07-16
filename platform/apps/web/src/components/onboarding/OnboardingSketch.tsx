@@ -37,6 +37,7 @@ import { TeamSetup } from "@/components/team/TeamSetup";
 import type { Member } from "@/lib/data/team/types";
 import { completeOnboarding } from "@/app/onboarding/actions";
 import type { OrganizationConfigInput } from "@/lib/config";
+import { ConnectionsPanel } from "@/components/settings/ConnectionsPanel";
 
 /**
  * SKETCH — self-onboarding, first run (VISION-LU §3). The owner talks to Lu on
@@ -1211,6 +1212,21 @@ function Ready({ ws, onOpenWorkspace, submitting = false, error }: { ws: Workspa
             </div>
           ))}
         </motion.div>
+      </div>
+
+      <div className="rounded-2xl border bg-card p-4">
+        <div className="flex items-start gap-2">
+          <Code2 className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+          <div className="min-w-0">
+            <p className="text-sm font-medium">Connect your accounts</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Engineering builds your site into your own GitHub + Vercel — connect them so Lu can start building. You can also do this later in Settings.
+            </p>
+          </div>
+        </div>
+        <div className="mt-3 border-t pt-1">
+          <ConnectionsPanel />
+        </div>
       </div>
 
       <div className="flex flex-col items-center gap-2">

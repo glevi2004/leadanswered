@@ -3,7 +3,7 @@ import { getModel, recommendModel } from "@leadanswered/core";
 import type { ArtifactRecord } from "../store/types.js";
 import {
   engineeringTools,
-  resolveEngineeringDeps,
+  resolveEngineeringDepsForOrg,
   slugify,
   type EngineeringAction,
   type EngineeringContext,
@@ -91,7 +91,9 @@ export async function runEngineering(
     artifacts: [],
     actions: [],
   };
-  const tools = engineeringTools(deps, ctx);
+  // BYO connect: bind Git + Deploy to THIS org's own connection tokens (env fallback).
+  const runDeps = await resolveEngineeringDepsForOrg(deps, input.orgId);
+  const tools = engineeringTools(runDeps, ctx);
   const system = systemPrompt();
 
   const messages = [
@@ -159,12 +161,13 @@ export async function confirmPublish(
   deps: EngineeringToolDeps,
   { siteId, approvalId }: { siteId: string; approvalId: string },
 ): Promise<ConfirmPublishResult> {
-  const d = resolveEngineeringDeps(deps);
-
-  const site = await d.store.getSite(siteId);
+  const site = await deps.store.getSite(siteId);
   if (!site) throw new Error(`confirmPublish: site ${siteId} not found`);
   if (!site.repoFullName) throw new Error(`confirmPublish: site ${siteId} has no repo`);
   if (!site.vercelProjectId) throw new Error(`confirmPublish: site ${siteId} has no Vercel project`);
+
+  // BYO connect: publish through the site owner's OWN Git + Vercel connection (env fallback).
+  const d = await resolveEngineeringDepsForOrg(deps, site.orgId);
 
   // The preview Deployment open_preview recorded carries the PR number + sha to publish.
   const deployments = await d.store.listDeployments(siteId);

@@ -292,6 +292,44 @@ export interface CreateCollectionInput {
   name: string;
 }
 
+// ─── BYO connect (docs/byo-connect.md) — per-org provider connections ─────────
+// One row per org per provider. Tokens are ENCRYPTED at rest (AES-256-GCM); the
+// getters return the DECRYPTED token to callers (or null if none / undecryptable).
+
+/** An org's GitHub connection. `userToken` is the DECRYPTED pasted access token (or null). */
+export interface GithubConnectionRecord {
+  orgId: string;
+  installationId: string | null;
+  login: string | null;
+  userToken: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+/** Upsert patch for a GitHub connection — only the provided fields are written. */
+export interface GithubConnectionInput {
+  /** The pasted access token (plaintext in → encrypted at rest). */
+  userToken?: string;
+  login?: string;
+  installationId?: string;
+}
+
+/** An org's Vercel connection. `accessToken` is the DECRYPTED pasted token (or null). */
+export interface VercelConnectionRecord {
+  orgId: string;
+  accessToken: string | null;
+  teamId: string | null;
+  vercelUserId: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+/** Upsert patch for a Vercel connection — `accessToken` is required on first create. */
+export interface VercelConnectionInput {
+  /** The pasted access token (plaintext in → encrypted at rest). */
+  accessToken?: string;
+  teamId?: string;
+  vercelUserId?: string;
+}
+
 /** Persistence port. Implemented by MemoryStore (demo/tests) and PrismaStore (production). */
 export interface Store {
   // ─── Lu Computer agent backend (AGENTS-BACKEND.md §2/§3) ───────────────────
@@ -353,4 +391,18 @@ export interface Store {
   deleteEdge(id: string): Promise<void>;
   createCollection(input: CreateCollectionInput): Promise<CollectionRecord>;
   listCollections(orgId: string): Promise<CollectionRecord[]>;
+
+  // --- BYO connect (per-org GitHub / Vercel connections; tokens encrypted at rest) ---
+  /** The org's GitHub connection, token DECRYPTED — or null if not connected. */
+  getGithubConnection(orgId: string): Promise<GithubConnectionRecord | null>;
+  /** Create-or-update the org's GitHub connection (encrypts `userToken`). One per org. */
+  upsertGithubConnection(orgId: string, input: GithubConnectionInput): Promise<GithubConnectionRecord>;
+  /** Remove the org's GitHub connection (idempotent). */
+  deleteGithubConnection(orgId: string): Promise<void>;
+  /** The org's Vercel connection, token DECRYPTED — or null if not connected. */
+  getVercelConnection(orgId: string): Promise<VercelConnectionRecord | null>;
+  /** Create-or-update the org's Vercel connection (encrypts `accessToken`). One per org. */
+  upsertVercelConnection(orgId: string, input: VercelConnectionInput): Promise<VercelConnectionRecord>;
+  /** Remove the org's Vercel connection (idempotent). */
+  deleteVercelConnection(orgId: string): Promise<void>;
 }

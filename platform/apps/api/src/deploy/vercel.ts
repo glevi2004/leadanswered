@@ -74,19 +74,33 @@ function toUrl(host: string): string {
 
 export class VercelDeploy implements Deploy {
   /**
+   * Per-org token + team scope (BYO connect). When set, they OVERRIDE the env
+   * (`VERCEL_TOKEN` / `VERCEL_TEAM_ID`) so a build deploys into the ORG's own
+   * Vercel account. Left undefined for the env-based dogfood instance (getDeploy()),
+   * which keeps reading env at call time — unchanged behavior.
+   */
+  private readonly token?: string;
+  private readonly teamId?: string;
+
+  constructor(opts: { token?: string; teamId?: string } = {}) {
+    this.token = opts.token;
+    this.teamId = opts.teamId;
+  }
+
+  /**
    * Base fetch wrapper: prepends the API host, attaches the Bearer token, appends the team
    * scope, sets JSON `Content-Type` on writes, and turns any non-2xx response into a thrown
    * Error carrying Vercel's own error message.
    */
   private async vfetch<T>(path: string, init: VfetchInit = {}): Promise<T> {
-    const token = process.env.VERCEL_TOKEN;
+    const token = this.token ?? process.env.VERCEL_TOKEN;
     if (!token) {
       throw new Error("VERCEL_TOKEN is not set — cannot reach the Vercel API.");
     }
 
     // `path` may already carry a query string; `URL` merges it, and we add `teamId` on top.
     const url = new URL(path, VERCEL_API);
-    const teamId = process.env.VERCEL_TEAM_ID;
+    const teamId = this.teamId ?? process.env.VERCEL_TEAM_ID;
     if (teamId && !url.searchParams.has("teamId")) {
       url.searchParams.set("teamId", teamId);
     }

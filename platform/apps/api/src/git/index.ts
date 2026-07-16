@@ -1,6 +1,7 @@
 import { GhCliGit } from "./github.js";
 import { OctokitGit } from "./octokit.js";
 import type { Git } from "./types.js";
+import type { Store } from "../store/types.js";
 
 export type { Git, CreateRepoOpts, RepoRef, OpenPrOpts, PrRef } from "./types.js";
 export { GhCliGit } from "./github.js";
@@ -30,4 +31,18 @@ export function getGit(): Git {
     instance = process.env.GITHUB_TOKEN ? new OctokitGit() : new GhCliGit();
   }
   return instance;
+}
+
+/**
+ * Org-scoped Git (BYO connect — docs/byo-connect.md). When `orgId` is given AND the
+ * org has a stored GitHub connection with a usable token, return an `OctokitGit`
+ * bound to THAT token, so the Engineer builds into the org's OWN GitHub. Otherwise
+ * fall back to the env-based `getGit()` (the platform's dogfood path — unchanged).
+ */
+export async function getGitForOrg(store: Store, orgId?: string): Promise<Git> {
+  if (orgId) {
+    const conn = await store.getGithubConnection(orgId);
+    if (conn?.userToken) return new OctokitGit(conn.userToken);
+  }
+  return getGit();
 }

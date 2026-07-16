@@ -3,8 +3,8 @@ import { z } from "zod";
 import { getImageModel, recommendModel } from "@leadanswered/core";
 import type { ArtifactRecord, Store } from "../store/types.js";
 import { getSandbox, type Sandbox } from "../sandbox/index.js";
-import { getGit, type Git } from "../git/index.js";
-import { getDeploy, type Deploy, type PreviewDeployment } from "../deploy/index.js";
+import { getGit, getGitForOrg, type Git } from "../git/index.js";
+import { getDeploy, getDeployForOrg, type Deploy, type PreviewDeployment } from "../deploy/index.js";
 
 /**
  * The ENGINEERING agent's toolkit (AGENTS-BACKEND §6, ENGINEERING-AGENT §5). The
@@ -74,13 +74,34 @@ export interface ResolvedEngineeringDeps {
   deploy: Deploy;
 }
 
-/** Apply the factory-getter defaults for the optional infra ports. */
+/** Apply the factory-getter defaults for the optional infra ports (env-based / passthrough). */
 export function resolveEngineeringDeps(deps: EngineeringToolDeps): ResolvedEngineeringDeps {
   return {
     store: deps.store,
     sandbox: deps.sandbox ?? getSandbox(),
     git: deps.git ?? getGit(),
     deploy: deps.deploy ?? getDeploy(),
+  };
+}
+
+/**
+ * ORG-SCOPED variant (BYO connect — docs/byo-connect.md §"Port swap"). Resolves the
+ * Git + Deploy ports to the ORG's OWN connection token when `orgId` is given and a
+ * connection exists (else env fallback). Explicitly-passed ports (tests) still win.
+ * `runEngineering` calls this with `ctx.orgId` and hands the resolved deps to
+ * `engineeringTools`, so every tool body uses the per-org ports with NO change to
+ * the tools themselves (the sync `resolveEngineeringDeps` inside them then just
+ * passes the already-resolved ports through).
+ */
+export async function resolveEngineeringDepsForOrg(
+  deps: EngineeringToolDeps,
+  orgId?: string,
+): Promise<ResolvedEngineeringDeps> {
+  return {
+    store: deps.store,
+    sandbox: deps.sandbox ?? getSandbox(),
+    git: deps.git ?? (await getGitForOrg(deps.store, orgId)),
+    deploy: deps.deploy ?? (await getDeployForOrg(deps.store, orgId)),
   };
 }
 
