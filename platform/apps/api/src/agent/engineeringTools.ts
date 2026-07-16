@@ -1,7 +1,7 @@
 import { experimental_generateImage as generateImage, tool } from "ai";
 import { z } from "zod";
 import { getImageModel, recommendModel } from "@leadanswered/core";
-import type { ArtifactRecord, Store } from "../store/types.js";
+import type { ArtifactRecord, CanvasNodeRecord, Store } from "../store/types.js";
 import { getSandbox, type Sandbox } from "../sandbox/index.js";
 import { getGit, getGitForOrg, type Git } from "../git/index.js";
 import { getDeploy, getDeployForOrg, type Deploy, type PreviewDeployment } from "../deploy/index.js";
@@ -159,6 +159,32 @@ function slugFromRepo(repoFullName: string): string {
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+// ── Timeouts (docs/cockpit.md Part 1 — a build must never hang) ─────────────────
+
+/** Max wall-clock for the coding agent (the long step). Overridable; default 10 min. */
+const CODING_TIMEOUT_MS = Number(process.env.CODING_TIMEOUT_MS) || 600_000;
+/** Bound for the shorter git/network/sandbox steps (clone-token, writeFiles, PR, deploy). Default 2 min. */
+const STEP_TIMEOUT_MS = Number(process.env.ENGINEERING_STEP_TIMEOUT_MS) || 120_000;
+
+/**
+ * Reject if `work` outlives `ms` — so no unbounded external await (git / deploy / sandbox
+ * writeFiles) can stall the build. The underlying promise keeps running but the pipeline
+ * stops waiting and THROWS, which fails the run cleanly (the throw propagates to
+ * runEngineering → the worker/dispatch failed-handler marks the Task `failed`).
+ */
+async function withTimeout<T>(label: string, ms: number, work: Promise<T>): Promise<T> {
+  if (!ms || ms <= 0) return work;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+  });
+  try {
+    return await Promise.race([work, deadline]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 /**
  * Render the provider-keys env file (server-side `process.env`, single-quoted).
  * Empty if no keys are set — the coding agent then simply has no key and reports
@@ -223,7 +249,12 @@ async function pollPreview(
   const DELAY_MS = 3000;
   let last: PreviewDeployment | null = null;
   for (let i = 0; i < ATTEMPTS; i++) {
-    last = await deploy.getPreviewForPr(projectId, prNumber);
+    // Bound each poll so a single hung provider call can't stall the whole loop forever.
+    last = await withTimeout(
+      "getPreviewForPr",
+      STEP_TIMEOUT_MS,
+      deploy.getPreviewForPr(projectId, prNumber),
+    ).catch(() => last);
     if (last && (last.status === "READY" || last.status === "ERROR" || last.status === "CANCELED")) {
       return last;
     }
@@ -271,11 +302,15 @@ export function engineeringTools(deps: EngineeringToolDeps, ctx: EngineeringCont
             repoUrl: `https://github.com/${existing.repoFullName}`,
           };
         }
-        const repo = await d.git.createRepoFromTemplate({
-          name: slug,
-          template: preset ?? DEFAULT_SITE_TEMPLATE,
-          private: true,
-        });
+        const repo = await withTimeout(
+          "createRepoFromTemplate",
+          STEP_TIMEOUT_MS,
+          d.git.createRepoFromTemplate({
+            name: slug,
+            template: preset ?? DEFAULT_SITE_TEMPLATE,
+            private: true,
+          }),
+        );
         const site = await d.store.createSite({
           orgId: ctx.orgId,
           departmentKey: "engineering",
@@ -315,14 +350,25 @@ export function engineeringTools(deps: EngineeringToolDeps, ctx: EngineeringCont
       }),
       execute: async ({ repoFullName, prompt, agentKind }) => {
         // Scoped clone/push token for this repo's org (v0: the authed gh user).
-        const token = await d.git.installationToken();
-        const { id } = await d.sandbox.spawn({ repo: repoFullName, token });
+        const token = await withTimeout("installationToken", STEP_TIMEOUT_MS, d.git.installationToken());
+        // Give the sandbox a lifetime that outlasts the coding step (+buffer) so it can't die mid-build.
+        const { id } = await d.sandbox.spawn({
+          repo: repoFullName,
+          token,
+          timeoutMs: CODING_TIMEOUT_MS + 300_000,
+        });
         try {
           // Keys reach the sandbox via a sourced env file (never inline in a command → never in the transcript).
-          await d.sandbox.writeFiles(id, [{ path: ENV_FILE, content: renderEnvFile() }]);
+          await withTimeout(
+            "writeFiles",
+            STEP_TIMEOUT_MS,
+            d.sandbox.writeFiles(id, [{ path: ENV_FILE, content: renderEnvFile() }]),
+          );
 
           const runCmd = buildAgentCommand(agentKind, prompt);
-          const run = await d.sandbox.exec(id, runCmd);
+          // The long step. On timeout the sandbox exec throws SandboxTimeoutError → the `finally`
+          // below kills the sandbox and the throw propagates, failing the run cleanly (no hang).
+          const run = await d.sandbox.exec(id, runCmd, { timeoutMs: CODING_TIMEOUT_MS });
 
           // agent_session Artifact — `command` holds the ENV-VAR reference form, not the secret value.
           const session = await d.store.addArtifact({
@@ -342,8 +388,10 @@ export function engineeringTools(deps: EngineeringToolDeps, ctx: EngineeringCont
           artifacts.push(session);
 
           // Commit + push, then read the pushed HEAD sha (for the later promote-to-prod).
-          const commit = await d.sandbox.exec(id, buildCommitCommand(prompt));
-          const shaRes = await d.sandbox.exec(id, `cd ${REPO_DIR} && git rev-parse HEAD`);
+          const commit = await d.sandbox.exec(id, buildCommitCommand(prompt), { timeoutMs: STEP_TIMEOUT_MS });
+          const shaRes = await d.sandbox.exec(id, `cd ${REPO_DIR} && git rev-parse HEAD`, {
+            timeoutMs: STEP_TIMEOUT_MS,
+          });
           const sha = shaRes.exitCode === 0 ? shaRes.stdout.trim() : undefined;
 
           const raw = (run.stdout || run.stderr || "").trim();
@@ -434,18 +482,26 @@ export function engineeringTools(deps: EngineeringToolDeps, ctx: EngineeringCont
         if (!site) return { ok: false as const, reason: "site_not_found" as const };
 
         const slug = slugFromRepo(repoFullName);
-        const pr = await d.git.openPR({
-          repo: repoFullName,
-          head: branch,
-          base: "main",
-          title: `Lu build: ${slug}`,
-          body: "Automated build by the Lu Engineering agent. Review the preview, then approve to publish.",
-        });
+        const pr = await withTimeout(
+          "openPR",
+          STEP_TIMEOUT_MS,
+          d.git.openPR({
+            repo: repoFullName,
+            head: branch,
+            base: "main",
+            title: `Lu build: ${slug}`,
+            body: "Automated build by the Lu Engineering agent. Review the preview, then approve to publish.",
+          }),
+        );
 
         // Ensure the Site has a Vercel project (create on first preview).
         let projectId = site.vercelProjectId;
         if (!projectId) {
-          const created = await d.deploy.createProject({ name: slug, repoFullName });
+          const created = await withTimeout(
+            "createProject",
+            STEP_TIMEOUT_MS,
+            d.deploy.createProject({ name: slug, repoFullName }),
+          );
           projectId = created.projectId;
           await d.store.updateSite(siteId, { vercelProjectId: projectId });
         }
@@ -463,7 +519,11 @@ export function engineeringTools(deps: EngineeringToolDeps, ctx: EngineeringCont
           status,
         });
 
-        const diff = await d.git.getDiff(repoFullName, pr.number);
+        const diff = await withTimeout(
+          "getDiff",
+          STEP_TIMEOUT_MS,
+          d.git.getDiff(repoFullName, pr.number),
+        );
         const diffArtifact = await d.store.addArtifact({
           orgId: ctx.orgId,
           taskId,
@@ -508,4 +568,149 @@ export function engineeringTools(deps: EngineeringToolDeps, ctx: EngineeringCont
       },
     }),
   };
+}
+
+// ── Part E: working-set context injection (docs/cockpit.md §Part E, MVP) ─────────
+//
+// An agent's WORKING SET = every canvas node with a `reads` edge into it. Before the
+// build loop, we resolve those connected resources and inject a bounded "Connected
+// context" block into the Engineer's system prompt. This is the CONTEXT slice only —
+// terminal-driving (`uses` edges → a drive_terminal tool) is deliberately deferred.
+//
+// TODO(Part E, terminals): the schema's EdgeKind is currently `owns | reads | produces`
+// (no `uses` yet). When `uses` lands, expose connected Session terminals as a
+// `drive_terminal` tool bound to each Session's e2b pty. Skipped for this MVP.
+//
+// TODO(Part E, folders): a `folder` node backs a Collection; expanding it needs a
+// collection-membership read the Store doesn't surface yet (no listCollectionMembers).
+// For now folders are skipped; wire member expansion when that read exists.
+
+/** Note-ish artifact kinds → injected as text. (Schema kinds `doc`/`file` + forward-compat `note`/`markdown`/`text`.) */
+const NOTE_ARTIFACT_KINDS = new Set(["note", "doc", "markdown", "text"]);
+
+/** Per-item + overall caps so the injected context stays small and safe. */
+const MAX_ITEM_CHARS = 4_000;
+const MAX_CONNECTED_ITEMS = 12;
+const MAX_CONNECTED_TOTAL_CHARS = 24_000;
+
+/** One connected resource, distilled for the prompt. `body` is already reference-only for binaries. */
+interface ConnectedItem {
+  kind: "note" | "file" | "site";
+  title: string;
+  body: string;
+}
+
+/** Pull a text field out of an artifact payload (notes store content under a few common keys). */
+function extractText(payload: unknown): string {
+  if (typeof payload === "string") return payload;
+  if (payload && typeof payload === "object") {
+    const p = payload as Record<string, unknown>;
+    for (const key of ["content", "text", "markdown", "md", "body", "value"]) {
+      if (typeof p[key] === "string") return p[key] as string;
+    }
+  }
+  return "";
+}
+
+/** Resolve one connected canvas node into an injectable item (or null if there's nothing to inject). */
+async function resolveNodeContent(
+  store: Store,
+  node: CanvasNodeRecord,
+  artifactById: Map<string, ArtifactRecord>,
+): Promise<ConnectedItem | null> {
+  const backing = node.refId ? artifactById.get(node.refId) : undefined;
+
+  // Site node → include the URL/domain as a reference (never the page bytes).
+  if (node.type === "site") {
+    if (node.refId) {
+      const site = await store.getSite(node.refId).catch(() => null);
+      if (site?.domain) return { kind: "site", title: site.domain, body: `https://${site.domain}` };
+      if (site?.repoFullName) return { kind: "site", title: site.repoFullName, body: `repo ${site.repoFullName}` };
+    }
+    if (backing?.kind === "site_preview") {
+      const url = extractText((backing.payload as Record<string, unknown>)?.url) || "";
+      if (url) return { kind: "site", title: backing.title, body: url };
+    }
+    return null;
+  }
+
+  if (!backing) return null; // a note/file node with no resolvable backing artifact — nothing to inject
+
+  // Images (and other binaries) go in BY REFERENCE — never inline the base64 payload.
+  if (backing.kind === "image") {
+    return { kind: "file", title: backing.title, body: `[image asset — artifact ${backing.id}]` };
+  }
+  if (NOTE_ARTIFACT_KINDS.has(backing.kind)) {
+    const text = extractText(backing.payload).trim();
+    if (!text) return null;
+    return { kind: "note", title: backing.title, body: text };
+  }
+  if (backing.kind === "file") {
+    const text = extractText(backing.payload).trim();
+    return {
+      kind: "file",
+      title: backing.title,
+      body: text || `[file asset — artifact ${backing.id}]`,
+    };
+  }
+  return null; // other artifact kinds (agent_session, pr_diff) aren't context resources
+}
+
+/** Render the resolved items into the "Connected context" prompt block (empty string when there are none). */
+function formatConnectedContext(items: ConnectedItem[]): string {
+  if (items.length === 0) return "";
+  const lines = [
+    "Connected context — resources the owner wired to you on the canvas (read-only; use them as needed, do not assume anything beyond them):",
+  ];
+  for (const it of items) {
+    if (it.kind === "site") lines.push(`- [site] ${it.title}: ${it.body}`);
+    else lines.push(`- [${it.kind}] ${it.title}\n${it.body}`);
+  }
+  return lines.join("\n");
+}
+
+/**
+ * Resolve the Engineer's WORKING SET into a bounded "Connected context" prompt block
+ * (docs/cockpit.md Part E). Reads the org's edges + canvas nodes + artifacts from the
+ * Store, keeps `reads`-kind edges pointing at the engineering agent/department node, and
+ * distils each source node (notes/files as text/reference, sites as URLs). Best-effort:
+ * any failure logs and returns "" so a context problem never breaks a build.
+ *
+ * Assumption: the "engineering agent node" is identified either by the Agent row id or by
+ * the literal "engineering" department key — both are accepted, since the canvas
+ * persistence layer that fixes a single convention (Part C) is still being built.
+ */
+export async function resolveConnectedContext(store: Store, orgId: string): Promise<string> {
+  try {
+    const [edges, nodes, artifacts] = await Promise.all([
+      store.listEdges(orgId),
+      store.listCanvasNodes(orgId),
+      store.listArtifacts({ orgId }),
+    ]);
+    const targets = new Set<string>(["engineering"]);
+    const agent = await store.getAgentByDepartment(orgId, "engineering").catch(() => null);
+    if (agent) targets.add(agent.id);
+
+    const nodeById = new Map(nodes.map((n) => [n.id, n]));
+    const artifactById = new Map(artifacts.map((a) => [a.id, a]));
+
+    const reads = edges.filter((e) => e.kind === "reads" && targets.has(e.toId));
+    const items: ConnectedItem[] = [];
+    let budget = MAX_CONNECTED_TOTAL_CHARS;
+
+    for (const edge of reads) {
+      if (items.length >= MAX_CONNECTED_ITEMS || budget <= 0) break;
+      const node = nodeById.get(edge.fromId);
+      if (!node) continue; // source isn't a resolvable canvas node (e.g. an agent→agent edge)
+      const item = await resolveNodeContent(store, node, artifactById);
+      if (!item) continue;
+      const capped = item.body.slice(0, Math.min(MAX_ITEM_CHARS, budget));
+      items.push({ ...item, body: capped });
+      budget -= capped.length + item.title.length;
+    }
+    return formatConnectedContext(items);
+  } catch (err) {
+    console.error("[engineering] resolveConnectedContext failed (skipping):", err);
+    return "";
+  }
 }

@@ -1,7 +1,8 @@
 import { E2bSandbox } from "./e2b.js";
 import type { Sandbox } from "./types.js";
 
-export type { Sandbox, SpawnOpts, ExecResult, FileWrite, PtyHandle } from "./types.js";
+export type { Sandbox, SpawnOpts, ExecOpts, ExecResult, FileWrite, PtyHandle } from "./types.js";
+export { SandboxTimeoutError } from "./types.js";
 export { E2bSandbox } from "./e2b.js";
 
 /**

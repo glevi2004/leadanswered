@@ -1,14 +1,51 @@
-import { generateText, stepCountIs, type LanguageModel, type ModelMessage } from "ai";
+import {
+  generateText,
+  stepCountIs,
+  InvalidToolInputError,
+  NoSuchToolError,
+  type LanguageModel,
+  type ModelMessage,
+} from "ai";
 import { getModel, recommendModel } from "@leadanswered/core";
 import type { ArtifactRecord } from "../store/types.js";
 import {
   engineeringTools,
+  resolveConnectedContext,
   resolveEngineeringDepsForOrg,
   slugify,
   type EngineeringAction,
   type EngineeringContext,
   type EngineeringToolDeps,
 } from "./engineeringTools.js";
+
+/**
+ * Absolute ceiling on ONE Engineering turn (model latency + every tool step). A hard
+ * backstop over the per-step timeouts: if the whole turn somehow exceeds this, generateText
+ * aborts and rejects, so the run fails cleanly instead of hanging (docs/cockpit.md Part 1).
+ */
+const ENGINEERING_TURN_TIMEOUT_MS = Number(process.env.ENGINEERING_TURN_TIMEOUT_MS) || 900_000; // 15 min
+
+/**
+ * A thrown error inside a tool's `execute` is CAPTURED by the AI SDK as a `tool-error`
+ * content part — `generateText` then resolves normally instead of rejecting. That is why a
+ * hung/failed build could leave the run looking "done" and the Task stuck. So after the loop
+ * we scan the steps for tool-errors and re-throw, which fails the run cleanly (the throw
+ * reaches runEngineering → the worker/dispatch failed-handler marks the Task `failed`).
+ * Pure model-call mistakes (bad tool input, unknown tool) are excluded — the model can retry
+ * those within the loop; only genuine execution failures (incl. timeouts) are fatal.
+ */
+function firstFatalToolError(
+  steps: ReadonlyArray<{ content: ReadonlyArray<{ type: string; toolName?: string; error?: unknown }> }>,
+): { toolName: string; error: unknown } | null {
+  for (const step of steps) {
+    for (const part of step.content) {
+      if (part.type !== "tool-error") continue;
+      if (part.error instanceof InvalidToolInputError || part.error instanceof NoSuchToolError) continue;
+      return { toolName: part.toolName ?? "unknown", error: part.error };
+    }
+  }
+  return null;
+}
 
 /**
  * The ENGINEERING agent (AGENTS-BACKEND §6, ENGINEERING-AGENT §5) — the flagship
@@ -94,7 +131,11 @@ export async function runEngineering(
   // BYO connect: bind Git + Deploy to THIS org's own connection tokens (env fallback).
   const runDeps = await resolveEngineeringDepsForOrg(deps, input.orgId);
   const tools = engineeringTools(runDeps, ctx);
-  const system = systemPrompt();
+  // Working-set context injection (docs/cockpit.md Part E): resolve the resources the owner
+  // wired to the Engineer on the canvas (reads-edges → notes/files/sites) and prepend a bounded
+  // "Connected context" block. Best-effort — returns "" (no-op) if nothing is connected or it fails.
+  const connected = await resolveConnectedContext(deps.store, input.orgId);
+  const system = connected ? `${systemPrompt()}\n\n${connected}` : systemPrompt();
 
   const messages = [
     ...(input.history ?? []),
@@ -115,8 +156,17 @@ export async function runEngineering(
     messages,
     tools,
     stopWhen: stepCountIs(10), // bound the build loop (create → code → image → preview → publish)
+    timeout: { totalMs: ENGINEERING_TURN_TIMEOUT_MS }, // ultimate ceiling — the turn can never hang
     experimental_telemetry: { isEnabled: true, functionId: "lu-engineering-turn", metadata: meta },
   });
+
+  // Fail clean: a tool that threw (e.g. a coding-step TIMEOUT) was swallowed into a tool-error
+  // part, so re-throw here to end the run and let the Task go to `failed`.
+  const fatal = firstFatalToolError(result.steps);
+  if (fatal) {
+    const detail = fatal.error instanceof Error ? fatal.error.message : String(fatal.error);
+    throw new Error(`Engineering run failed at ${fatal.toolName}: ${detail}`);
+  }
 
   let reply = result.text.trim();
   // Like runner.ts / orchestrator.ts: a turn that ends on a tool call (e.g. open_preview)
@@ -129,6 +179,7 @@ export async function runEngineering(
       messages: [...messages, ...result.response.messages],
       tools,
       toolChoice: "none",
+      timeout: { totalMs: 120_000 }, // a plain closing reply — keep it short and bounded
       experimental_telemetry: { isEnabled: true, functionId: "lu-engineering-closing", metadata: meta },
     });
     reply = followup.text.trim();

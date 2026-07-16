@@ -1,5 +1,32 @@
-import { Sandbox as E2bClient, CommandExitError } from "e2b";
+import { Sandbox as E2bClient, CommandExitError, TimeoutError as E2bTimeoutError } from "e2b";
+import { SandboxTimeoutError } from "./types.js";
 import type { ExecOpts, ExecResult, FileWrite, PtyHandle, Sandbox, SpawnOpts } from "./types.js";
+
+/** Default sandbox LIFETIME when a caller passes none (env override). Well over the e2b 5-min default. */
+const DEFAULT_SANDBOX_LIFETIME_MS = Number(process.env.SANDBOX_LIFETIME_MS) || 900_000; // 15 min
+/** Wall-clock budget for spawn (create + optional clone) — a hung boot must fail, not stall. */
+const SPAWN_TIMEOUT_MS = Number(process.env.SANDBOX_SPAWN_TIMEOUT_MS) || 180_000; // 3 min
+/** Extra grace over a command's own `timeoutMs` before the JS backstop fires (lets e2b kill first). */
+const EXEC_DEADLINE_GRACE_MS = 15_000;
+
+/**
+ * Race a promise against a wall-clock deadline. On expiry, reject with a clear
+ * {@link SandboxTimeoutError} — the JS-level backstop that guarantees a provider call can
+ * never hang the pipeline even if the SDK's own timeout fails to fire. The underlying work
+ * keeps running until the caller kills the sandbox (its `finally`), so no state is corrupted.
+ */
+async function withDeadline<T>(op: string, ms: number, work: Promise<T>): Promise<T> {
+  if (!ms || ms <= 0) return work; // 0 / unset = no JS deadline (provider limits still apply)
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new SandboxTimeoutError(op, ms)), ms);
+  });
+  try {
+    return await Promise.race([work, deadline]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 
 /**
  * e2b adapter for the `Sandbox` port (AGENTS-BACKEND §11 — e2b is the LOCKED provider).
@@ -32,9 +59,23 @@ export class E2bSandbox implements Sandbox {
 
   async spawn(opts: SpawnOpts = {}): Promise<{ id: string }> {
     const { template, repo, token } = opts;
+    // Sandbox LIFETIME: hard cap so a sandbox can never outlive its build. The e2b default is
+    // 5 min — shorter than a real coding build, so builds outran it. Set it generously.
+    const lifetimeMs = opts.timeoutMs ?? DEFAULT_SANDBOX_LIFETIME_MS;
     // Make the token available inside the sandbox too (for later pushes by the coding agent).
     const envs = token ? { GITHUB_TOKEN: token } : undefined;
-    const createOpts = { apiKey: this.apiKey(), envs };
+    const createOpts = { apiKey: this.apiKey(), envs, timeoutMs: lifetimeMs };
+
+    // Bound the whole boot (create + clone): a hung provider boot must fail, never stall.
+    return withDeadline("spawn", SPAWN_TIMEOUT_MS, this.doSpawn(template, repo, token, createOpts));
+  }
+
+  private async doSpawn(
+    template: string | undefined,
+    repo: string | undefined,
+    token: string | undefined,
+    createOpts: { apiKey: string; envs?: Record<string, string>; timeoutMs: number },
+  ): Promise<{ id: string }> {
     const sandbox = template
       ? await E2bClient.create(template, createOpts)
       : await E2bClient.create(createOpts);
@@ -48,7 +89,10 @@ export class E2bSandbox implements Sandbox {
         token && httpsUrl.startsWith("https://")
           ? httpsUrl.replace("https://", `https://x-access-token:${token}@`)
           : httpsUrl;
-      const res = await sandbox.commands.run(`git clone ${cloneUrl} /home/user/repo`);
+      // A clone can hang on a bad network/host; bound it so spawn can't stall on it.
+      const res = await sandbox.commands.run(`git clone ${cloneUrl} /home/user/repo`, {
+        timeoutMs: 120_000,
+      });
       if (res.exitCode !== 0) {
         throw new Error(`git clone failed (exit ${res.exitCode}): ${res.stderr || res.stdout}`);
       }
@@ -61,16 +105,24 @@ export class E2bSandbox implements Sandbox {
     const sandbox = await this.client(id);
     // Provider default (~60s) times out real work; default to 5min, honour an explicit override (0 = none).
     const timeoutMs = opts.timeoutMs ?? 300_000;
-    try {
-      const res = await sandbox.commands.run(cmd, { timeoutMs });
-      return { stdout: res.stdout, stderr: res.stderr, exitCode: res.exitCode };
-    } catch (err) {
-      // `commands.run` throws on a non-zero exit; surface it as a value, not an exception.
-      if (err instanceof CommandExitError) {
-        return { stdout: err.stdout, stderr: err.stderr, exitCode: err.exitCode ?? 1 };
+    const run = (async (): Promise<ExecResult> => {
+      try {
+        const res = await sandbox.commands.run(cmd, { timeoutMs });
+        return { stdout: res.stdout, stderr: res.stderr, exitCode: res.exitCode };
+      } catch (err) {
+        // `commands.run` throws on a non-zero exit; surface it as a value, not an exception.
+        if (err instanceof CommandExitError) {
+          return { stdout: err.stdout, stderr: err.stderr, exitCode: err.exitCode ?? 1 };
+        }
+        // Normalise the provider's own timeout to our clear, provider-agnostic error.
+        if (err instanceof E2bTimeoutError) throw new SandboxTimeoutError("exec", timeoutMs);
+        throw err;
       }
-      throw err;
-    }
+    })();
+    // JS-level backstop: even if the provider's `timeoutMs` fails to fire, this deadline throws
+    // SandboxTimeoutError so a hung coding CLI fails the run instead of stalling forever. Grace
+    // over the command's own budget lets e2b kill the process first when it works normally.
+    return withDeadline("exec", timeoutMs > 0 ? timeoutMs + EXEC_DEADLINE_GRACE_MS : 0, run);
   }
 
   async pty(id: string): Promise<PtyHandle> {

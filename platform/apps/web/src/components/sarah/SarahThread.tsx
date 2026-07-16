@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import type { SarahMessage } from "@/lib/data/shared";
+import { LuBuildTracker } from "./LuBuildTracker";
 import { cn } from "@/lib/utils";
 
 /** The owner thread as authentic iMessage bubbles (marketing-site construction). */
@@ -45,6 +46,8 @@ export function SarahThread({
           </div>
         </div>
       )}
+      {/* The chat↔Engineer wire: Lu's dispatched builds unfold right here in the thread. */}
+      <LuBuildTracker />
       <div ref={endRef} />
     </div>
   );

@@ -160,12 +160,16 @@ enum CanvasNodeType {
   site
   text
   drawing
+  note
+  file
+  agent
 }
 
 enum EdgeKind {
   owns
   reads
   produces
+  uses
 }
 
 /// A department (one of the 8) instantiated for an org. `active` replaces graph.ts's

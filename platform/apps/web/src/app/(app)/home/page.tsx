@@ -1,6 +1,9 @@
 import { requireOrganization, organizationTz } from "@/lib/dashboard-auth";
+import { isDemoMode } from "@/lib/data/gating";
 import { PageHeader } from "@/components/app/PageHeader";
 import { NeedsYou } from "@/components/dashboard/NeedsYou";
+import { EngineeringHome } from "./EngineeringHome";
+import { loadEngineeringHome } from "@/lib/dashboard/engineering-home";
 
 function greeting(tz: string): string {
   const hour = Number(
@@ -12,12 +15,16 @@ function greeting(tz: string): string {
 }
 
 /**
- * Dashboard home — a greeting over the cross-agent "Needs you" rollup. Honest-empty
- * by construction: it reads no lead/appointment/escalation tables, only the mock
- * agent-work rollup that fronts the Workspace canvas.
+ * Dashboard home — a greeting over the "Needs you" rollup.
+ *
+ * REAL orgs see ONLY the Engineering agent, sourced from the org's real tasks / approvals /
+ * sites off the dock seam (`loadEngineeringHome`). Honest-empty when the Engineer has no
+ * work — never the old Apex fixtures. DEMO mode (the mature Apex profile / `la_demo`) is the
+ * ONLY place the mock multi-agent rollup (`NeedsYou` → agent-work fixtures) renders.
  */
 export default async function HomePage() {
   const organization = await requireOrganization();
+  const demo = await isDemoMode();
   const tz = organizationTz(organization);
   const ownerFirst = (organization.name as string)?.split(" ")[0] ?? "";
 
@@ -32,8 +39,13 @@ export default async function HomePage() {
         description="Here's where things stand."
       />
 
-      {/* Cross-agent "Needs you" rollup (compiles every agent's workplace). */}
-      <NeedsYou />
+      {demo ? (
+        /* Demo (Apex): the living multi-agent company rollup — fixtures, demo-only. */
+        <NeedsYou />
+      ) : (
+        /* Real org: only the Engineering agent, driven by the real dock proxies. */
+        <EngineeringHome data={await loadEngineeringHome(organization.id as string)} />
+      )}
     </div>
   );
 }

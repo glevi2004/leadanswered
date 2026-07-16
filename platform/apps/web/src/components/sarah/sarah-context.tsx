@@ -35,6 +35,19 @@ export interface OpenEscalation {
   createdAt: string;
 }
 
+/**
+ * One turn's worth of work Lu kicked off (the cockpit chat↔Engineer wire). When
+ * /api/lu/chat returns `tasksCreated`, we record the ids here and the thread WATCHES
+ * them unfold (LuBuildTracker polls /api/dock/tasks + /api/dock/artifacts for these ids:
+ * queued → building → preview → needs-approval). Scoped to the chat it happened in.
+ */
+export interface BuildBatch {
+  id: string;
+  chatId: string;
+  at: string; // ISO
+  taskIds: string[];
+}
+
 interface SarahState {
   demo: boolean;
   ownerName: string;
@@ -49,6 +62,8 @@ interface SarahState {
   approvals: Approval[];
   escalations: OpenEscalation[];
   actions: SarahAction[];
+  /** builds Lu dispatched this session — the thread watches these unfold live */
+  builds: BuildBatch[];
   /** approvals + open escalations — the one "needs you" number, all surfaces */
   pendingCount: number;
   typing: boolean;
@@ -148,6 +163,7 @@ export function SarahProvider({
   const [approvals, setApprovals] = React.useState(initialApprovals);
   const [escalations, setEscalations] = React.useState(initialEscalations);
   const [actions, setActions] = React.useState(initialActions);
+  const [builds, setBuilds] = React.useState<BuildBatch[]>([]);
   const [typing, setTyping] = React.useState(false);
   const [widgetOpen, setWidgetOpen] = React.useState(false);
   const [widgetMode, setWidgetMode] = React.useState<"docked" | "floating">("docked");
@@ -235,12 +251,22 @@ export function SarahProvider({
         })
           .then(async (res) => {
             if (!res.ok) throw new Error(String(res.status));
-            return (await res.json()) as { reply?: string };
+            // Lu already created the Task rows AND dispatched the Engineer server-side; the
+            // response carries the ids so the thread can WATCH the build (don't throw them away).
+            return (await res.json()) as { reply?: string; tasksCreated?: string[]; actions?: unknown[] };
           })
-          .then(({ reply }) => {
+          .then((data) => {
             setTyping(false);
-            if (reply?.trim()) {
-              appendTo(chatId, { id: nextId(), at: new Date().toISOString(), role: "sarah", body: reply.trim(), via: "app" });
+            if (data.reply?.trim()) {
+              appendTo(chatId, { id: nextId(), at: new Date().toISOString(), role: "sarah", body: data.reply.trim(), via: "app" });
+            }
+            const taskIds = Array.isArray(data.tasksCreated)
+              ? data.tasksCreated.filter((t): t is string => typeof t === "string")
+              : [];
+            if (taskIds.length > 0) {
+              // Record the batch; LuBuildTracker (in the thread) polls the dock for these ids and
+              // shows queued → building → preview → needs-approval, ending at PublishApprovals.
+              setBuilds((prev) => [...prev, { id: nextId(), chatId, at: new Date().toISOString(), taskIds }]);
             }
           })
           .catch(() => {
@@ -340,6 +366,7 @@ export function SarahProvider({
     approvals,
     escalations,
     actions,
+    builds,
     pendingCount: approvals.length + escalations.length,
     typing,
     widgetOpen,

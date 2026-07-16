@@ -7,6 +7,21 @@
  * ENGINEERING-AGENT.md §4 (the ports), CANVAS-TOOLS.md §4 (the interactive terminal / PTY).
  */
 
+/**
+ * Thrown when a sandbox operation (spawn or a command exec) exceeds its wall-clock
+ * budget. A DISTINCT, provider-agnostic error so the pipeline can tell a hang apart
+ * from a normal non-zero exit (which is returned as a value, never thrown) and fail
+ * the run cleanly instead of stalling forever (docs/cockpit.md Part 1, the hang bug).
+ */
+export class SandboxTimeoutError extends Error {
+  readonly timeoutMs: number;
+  constructor(op: string, timeoutMs: number) {
+    super(`sandbox ${op} timed out after ${timeoutMs}ms`);
+    this.name = "SandboxTimeoutError";
+    this.timeoutMs = timeoutMs;
+  }
+}
+
 /** Options for spawning a sandbox. All optional — a bare `spawn()` boots the provider's base image. */
 export interface SpawnOpts {
   /** Provider template id/name (the prebuilt e2b template = node + git + Claude Code + Codex). */
@@ -15,6 +30,12 @@ export interface SpawnOpts {
   repo?: string;
   /** Scoped token used to clone a private `repo` (e.g. a GitHub-App installation token). */
   token?: string;
+  /**
+   * Max sandbox LIFETIME, ms — a hard backstop so a sandbox can never outlive its build
+   * and leak/hang. The e2b default is only 5 min, which a real coding build overruns; the
+   * caller sets this from the coding-agent budget + a buffer. `undefined` = provider default.
+   */
+  timeoutMs?: number;
 }
 
 /** Result of a one-shot command. A non-zero `exitCode` is a value, not a thrown error. */
@@ -29,6 +50,8 @@ export interface ExecOpts {
   /**
    * Max wall-clock for the command, ms. Provider default (~60s) is too short for real work — a
    * `claude -p` build or a `vercel deploy` runs for minutes — so callers bump it. `0` = no limit.
+   * ENFORCED at the JS level too (the adapter races the provider call against this deadline and
+   * throws {@link SandboxTimeoutError}), so a hung coding CLI fails the run instead of stalling.
    */
   timeoutMs?: number;
 }

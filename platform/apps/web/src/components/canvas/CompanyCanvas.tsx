@@ -11,7 +11,8 @@ import {
   AGENTS, PAGES, SHEETS, TEAMMATES, loadPositions, savePositions, clearPositions,
   defaultPositions, agentById, ORBIT_R, type Positions, type DeptId,
 } from "@/lib/canvas/graph";
-import { agentBadge, workingDepts } from "@/lib/canvas/agent-work";
+import { useCanvasActivity } from "@/lib/canvas/activity";
+import { useCanvasGraph, type EdgeKind } from "@/lib/canvas/api";
 import { SheetGrid } from "@/components/canvas/SheetGrid";
 import { CanvasToolbar, type CanvasTool } from "@/components/canvas/CanvasToolbar";
 import { TerminalNode, type AgentKind } from "@/components/canvas/TerminalNode";
@@ -19,10 +20,13 @@ import { BrowserChrome } from "@/components/canvas/BrowserChrome";
 import { SitePreviewNode } from "@/components/canvas/SitePreviewNode";
 import { ArtifactsNav } from "@/components/canvas/ArtifactsNav";
 import { TextNote, type TextNoteData } from "@/components/canvas/TextNote";
-import { MarkdownNote, type MarkdownNoteData } from "@/components/canvas/MarkdownNote";
+import { ResourceNode, nodeCenter, DEFAULT_NODE_DIMS } from "@/components/canvas/ResourceNode";
 import { DrawLayer, type Stroke } from "@/components/canvas/DrawLayer";
 import { useSites } from "@/lib/dock/live";
 import { useSarah } from "@/components/sarah/sarah-context";
+
+/** Edge line color per capability-grant kind (COCKPIT Part C). */
+const EDGE_COLOR: Record<EdgeKind, string> = { reads: "#5b9bff", uses: "#f59e0b", produces: "#22c55e" };
 
 /**
  * The Workspace canvas — a flat plane (Figma-style). Lu at center, agents on a ring; each
@@ -112,6 +116,16 @@ export interface CanvasDepartment {
 export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; departments?: CanvasDepartment[] }) {
   const { setSelectedAgent, openWidget, setWidgetMode } = useSarah();
 
+  // REAL activity (COCKPIT Part A) — agent badges / working spinners / the updates pill are
+  // driven by live /api/dock/tasks, not the old mock AGENT_WORK.
+  const { agentBadge, workingDepts } = useCanvasActivity(true);
+  // DB-persisted composable graph (COCKPIT Part C) — nodes (terminal/note/file/folder/site),
+  // their positions, and the EDGES (capability grants). Replaces the localStorage-only canvas.
+  const graph = useCanvasGraph(true);
+  // Mock teammates (Dev/Marina/Sol) are demo-only — real orgs never see them.
+  const [demoMode, setDemoMode] = React.useState(false);
+  React.useEffect(() => { setDemoMode(/(?:^|; )la_org=mature/.test(document.cookie)); }, []);
+
   /* ---- REAL departments (v0: just Engineering, status `active`) drive the graph. We keep
         every node's static VISUAL from graph.ts (icon / accent / label / positions) but only
         render the agents the API actually provisioned — each department `key` maps to its
@@ -128,7 +142,10 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
   const allowed = React.useMemo(() => new Set(agents.map((a) => a.id)), [agents]);
   const pages = React.useMemo(() => PAGES.filter((p) => allowed.has(p.dept)), [allowed]);
   const sheets = React.useMemo(() => SHEETS.filter((s) => allowed.has(s.dept)), [allowed]);
-  const teammates = React.useMemo(() => TEAMMATES.filter((t) => allowed.has(t.dept)), [allowed]);
+  const teammates = React.useMemo(
+    () => (demoMode ? TEAMMATES.filter((t) => allowed.has(t.dept)) : []),
+    [allowed, demoMode],
+  );
   const frameIds = React.useMemo(() => [...pages.map((p) => p.id), ...sheets.map((s) => s.id)], [pages, sheets]);
   const allNodeIds = React.useMemo(
     () => ["lu", ...agents.map((a) => a.id), ...teammates.map((t) => t.id), ...frameIds],
@@ -190,19 +207,15 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
   const closeTerminal = React.useCallback((id: string) => {
     setTerminals((prev) => prev.filter((t) => t.id !== id));
   }, []);
-  // the toolbar's `terminal` tool opens a panel (default Claude Code) then reverts to hand;
-  // every other tool just sets the interaction mode as before.
-  const onPickTool = React.useCallback((t: CanvasTool) => {
-    if (t === "terminal") { openTerminal("claude_code"); setTool("hand"); return; }
-    setTool(t);
-  }, [openTerminal]);
+  // live edge-drag from a resource node's connect handle to an agent (COCKPIT Part C). `connect`
+  // holds the source id + the moving end (world coords) so we can rubber-band a line to the cursor.
+  const [connect, setConnect] = React.useState<{ fromId: string; wx: number; wy: number } | null>(null);
 
   /* ---- PURE-CANVAS elements (CANVAS-TOOLS.md §8 text, §9 draw, §5 md). v0 = LOCAL React state
         only (no backend/persistence yet — a CanvasNode store wires later). All three live in the
         RZPP transformed layer at WORLD coords, so they pan/zoom with the plane. Placement snaps
         the tool back to `hand`; draw stays active. ---- */
   const [textNotes, setTextNotes] = React.useState<TextNoteData[]>([]);
-  const [mdNotes, setMdNotes] = React.useState<MarkdownNoteData[]>([]);
   const [strokes, setStrokes] = React.useState<Stroke[]>([]);
   const [liveStroke, setLiveStroke] = React.useState<Stroke | null>(null);
   const [drawColor, setDrawColor] = React.useState<string>(DRAW_COLORS[0]);
@@ -218,13 +231,6 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
     setTextNotes((prev) => prev.map((n) => (n.id === id ? { ...n, text } : n))), []);
   const removeTextNote = React.useCallback((id: string) =>
     setTextNotes((prev) => prev.filter((n) => n.id !== id)), []);
-
-  const moveMdNote = React.useCallback((id: string, x: number, y: number) =>
-    setMdNotes((prev) => prev.map((n) => (n.id === id ? { ...n, x, y } : n))), []);
-  const changeMdNote = React.useCallback((id: string, text: string) =>
-    setMdNotes((prev) => prev.map((n) => (n.id === id ? { ...n, text } : n))), []);
-  const removeMdNote = React.useCallback((id: string) =>
-    setMdNotes((prev) => prev.filter((n) => n.id !== id)), []);
 
   /* ---- live SITE-PREVIEW frames (CANVAS-TOOLS.md §7): the real Site rows the Engineer builds,
         polled from the backend while the canvas is mounted. Each becomes a browser-frame node
@@ -485,7 +491,7 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
       if (e.button !== 0) return;                            // middle/right → RZPP (middle pans)
       if (panModeRef.current) return;                        // SPACE held → RZPP pans
       const tool = toolRef.current;
-      if (tool !== "text" && tool !== "md" && tool !== "draw") return;
+      if (tool !== "text" && tool !== "draw") return;
       const t = e.target as Element | null;
       if (!t || !t.closest(".react-transform-wrapper")) return; // outside the plane
       if (t.closest(`.${DRAG_CLASS}`)) return;               // on a node → it owns the press
@@ -495,13 +501,6 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
       if (tool === "text") {
         const id = `text-${noteSeq.current++}`;
         setTextNotes((prev) => [...prev, { id, x: w.x, y: w.y, text: "" }]);
-        setNewNoteId(id);
-        setTool("hand");
-        return;
-      }
-      if (tool === "md") {
-        const id = `md-${noteSeq.current++}`;
-        setMdNotes((prev) => [...prev, { id, x: w.x, y: w.y, text: "" }]);
         setNewNoteId(id);
         setTool("hand");
         return;
@@ -640,6 +639,102 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
   const updates = agents.map((a) => ({ a, badge: agentBadge(a.id) })).filter((x) => x.badge);
   const totalUpdates = updates.reduce((n, x) => n + (x.badge?.count ?? 0), 0);
 
+  /* ------------ COMPOSABLE nodes + edges (COCKPIT Part C) ------------ */
+
+  // the persisted, connectable resources (everything but the agent position-carriers)
+  const resourceNodes = graph.nodes.filter((n) => n.type !== "agent");
+  // agent position-carrier nodes exist only to give edges a stable, DB-real `toId`
+  const deptByAgentNode = new Map<string, string>();
+  for (const n of graph.nodes) if (n.type === "agent" && n.refId) deptByAgentNode.set(n.id, n.refId);
+
+  // world center of the current viewport — where a ＋-created node drops so it's visible
+  const viewportCenterWorld = () => {
+    const el = wrapRef.current;
+    const { scale, positionX, positionY } = tf.current;
+    const cw = el?.clientWidth ?? 800, ch = el?.clientHeight ?? 600;
+    return { x: (cw / 2 - positionX) / scale, y: (ch / 2 - positionY) / scale };
+  };
+  // screen point → world point (for the connect rubber-band + drop hit-test)
+  const toWorldPt = (clientX: number, clientY: number) => {
+    const el = wrapRef.current;
+    const rect = el?.getBoundingClientRect();
+    const { scale, positionX, positionY } = tf.current;
+    return {
+      x: ((clientX - (rect?.left ?? 0)) - positionX) / scale,
+      y: ((clientY - (rect?.top ?? 0)) - positionY) / scale,
+    };
+  };
+
+  // create a persisted composable node at viewport center, centered on that point
+  const createResource = (type: "terminal" | "note" | "file" | "folder" | "site") => {
+    const c = viewportCenterWorld();
+    const d = DEFAULT_NODE_DIMS[type];
+    void graph.createNode({ type, x: c.x - d.w / 2, y: c.y - d.h / 2, w: d.w, h: d.h });
+    setTool("hand");
+  };
+
+  // the ＋ toolbar: composable types create a REAL node; text/draw stay in-canvas annotation tools
+  const onPickTool = (t: CanvasTool) => {
+    if (t === "terminal" || t === "md" || t === "folder" || t === "site") {
+      createResource(t === "md" ? "note" : t);
+      return;
+    }
+    if (t === "files") { createResource("file"); return; }
+    setTool(t);
+  };
+
+  // which agent (if any) sits under a world point — the connect drop target
+  const agentAt = (wx: number, wy: number): string | null => {
+    const hw = NODE_HALF.agent.hw, hh = NODE_HALF.agent.hh;
+    for (const a of agents) {
+      const c = pos[a.id];
+      if (c && Math.abs(wx - c.x) <= hw && Math.abs(wy - c.y) <= hh) return a.id;
+    }
+    return null;
+  };
+
+  // finish a connect: ensure the target agent has a DB node, then persist the edge (kind by
+  // source type — a terminal is a tool the agent USES, everything else is context it READS)
+  const connectTo = async (fromId: string, dept: string) => {
+    const fromNode = graph.nodes.find((n) => n.id === fromId);
+    if (!fromNode) return;
+    const kind: EdgeKind = fromNode.type === "terminal" ? "uses" : "reads";
+    const c = pos[dept] ?? { x: 0, y: 0 };
+    const agentNodeId = await graph.ensureAgentNode(dept, c.x, c.y);
+    await graph.createEdge(fromId, agentNodeId, kind);
+  };
+
+  // begin dragging a connection from a node's connect handle
+  const startConnect = (fromId: string, e: React.PointerEvent) => {
+    const p = toWorldPt(e.clientX, e.clientY);
+    setConnect({ fromId, wx: p.x, wy: p.y });
+    const onMove = (ev: PointerEvent) => {
+      const w = toWorldPt(ev.clientX, ev.clientY);
+      setConnect((prev) => (prev ? { ...prev, wx: w.x, wy: w.y } : prev));
+    };
+    const onUp = (ev: PointerEvent) => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      setConnect(null);
+      const w = toWorldPt(ev.clientX, ev.clientY);
+      const dept = agentAt(w.x, w.y);
+      if (dept) void connectTo(fromId, dept);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
+
+  // world anchor for either end of an edge (an agent end resolves to its live ring position)
+  const edgeAnchor = (nodeId: string): { x: number; y: number } | null => {
+    const n = graph.nodes.find((x) => x.id === nodeId);
+    if (!n) return null;
+    if (n.type === "agent") {
+      const dept = n.refId;
+      return dept && pos[dept] ? pos[dept] : { x: n.x, y: n.y };
+    }
+    return nodeCenter(n);
+  };
+
   return (
     <div
       ref={wrapRef}
@@ -744,7 +839,63 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                   </g>
                 );
               })}
+
+              {/* CAPABILITY GRANTS (COCKPIT Part C) — a real, persisted line from a resource
+                  node to an agent. Color encodes the kind (reads / uses / produces); the
+                  midpoint is a click target that removes the connection. */}
+              {graph.edges.map((edge) => {
+                const a1 = edgeAnchor(edge.fromId);
+                const a2 = edgeAnchor(edge.toId);
+                if (!a1 || !a2) return null;
+                const col = EDGE_COLOR[edge.kind];
+                const mx = (a1.x + a2.x) / 2, my = (a1.y + a2.y) / 2;
+                return (
+                  <g key={edge.id}>
+                    <line x1={a1.x} y1={a1.y} x2={a2.x} y2={a2.y} stroke={col} strokeOpacity={0.9} strokeWidth={2} vectorEffect="non-scaling-stroke" />
+                    <circle cx={a2.x} cy={a2.y} r={4} fill={col} />
+                    <circle cx={mx} cy={my} r={3.5} fill={col} />
+                    <circle
+                      className={DRAG_CLASS}
+                      cx={mx} cy={my} r={11}
+                      fill={col} fillOpacity={0.001}
+                      style={{ cursor: "pointer" }}
+                      onClick={() => graph.deleteEdge(edge.id)}
+                    >
+                      <title>Remove connection ({edge.kind})</title>
+                    </circle>
+                  </g>
+                );
+              })}
+
+              {/* live rubber-band while dragging a new connection */}
+              {connect && (() => {
+                const a1 = edgeAnchor(connect.fromId);
+                if (!a1) return null;
+                return (
+                  <line
+                    x1={a1.x} y1={a1.y} x2={connect.wx} y2={connect.wy}
+                    stroke="#5b9bff" strokeWidth={2} strokeDasharray="6 5" vectorEffect="non-scaling-stroke"
+                  />
+                );
+              })()}
             </svg>
+
+            {/* FOLDER boundaries (COCKPIT Part C) — drawn behind the frames so they read as a
+                library enclosing member nodes; connect the folder to grant the whole library */}
+            {resourceNodes.filter((n) => n.type === "folder").map((n) => (
+              <ResourceNode
+                key={n.id}
+                node={n}
+                getScale={getScale}
+                selected={selection.has(n.id)}
+                onMove={graph.moveNode}
+                onSelect={(id) => setSelection(new Set<string>([id]))}
+                onDelete={(id) => { graph.deleteNode(id); setSelection(new Set<string>(["lu"])); }}
+                onContent={graph.setNodeContent}
+                onConnectStart={startConnect}
+                onOpenTerminal={() => openTerminal("claude_code")}
+              />
+            ))}
 
             {/* page frames — REAL /embed miniatures; iframe only when near the viewport */}
             {pages.map((pg) => {
@@ -869,6 +1020,23 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
               </div>
             </div>
 
+            {/* COMPOSABLE resource nodes (COCKPIT Part C) — terminal / note / file / site, each
+                persisted (position + type) and connectable to an agent via its handle */}
+            {resourceNodes.filter((n) => n.type !== "folder").map((n) => (
+              <ResourceNode
+                key={n.id}
+                node={n}
+                getScale={getScale}
+                selected={selection.has(n.id)}
+                onMove={graph.moveNode}
+                onSelect={(id) => setSelection(new Set<string>([id]))}
+                onDelete={(id) => { graph.deleteNode(id); setSelection(new Set<string>(["lu"])); }}
+                onContent={graph.setNodeContent}
+                onConnectStart={startConnect}
+                onOpenTerminal={() => openTerminal("claude_code")}
+              />
+            ))}
+
             {/* pure-canvas TEXT notes (§8) — world-positioned sticky notes, draggable + editable */}
             {textNotes.map((n) => (
               <TextNote
@@ -878,19 +1046,6 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                 onMove={moveTextNote}
                 onChange={changeTextNote}
                 onRemove={removeTextNote}
-                autoFocus={n.id === newNoteId}
-              />
-            ))}
-
-            {/* pure-canvas MARKDOWN notes (§5) — paper cards with a view/edit toggle */}
-            {mdNotes.map((n) => (
-              <MarkdownNote
-                key={n.id}
-                note={n}
-                getScale={getScale}
-                onMove={moveMdNote}
-                onChange={changeMdNote}
-                onRemove={removeMdNote}
                 autoFocus={n.id === newNoteId}
               />
             ))}

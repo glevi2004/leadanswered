@@ -1,10 +1,21 @@
 import { AGENTS, type DeptId } from "./graph";
 
 /**
+ * ⚠️ DEMO-ONLY FIXTURES — never render these to a real org.
+ *
  * Mock "what the agent is working on" data — feeds each agent's Workplace page
  * (/embed/{dept}-work), the task badges above agent pills, and the activity-particle
- * spokes on the canvas. Pure fixtures for the /canvas experiment; a real task/artifact
- * store replaces this later.
+ * spokes on the canvas. Pure fixtures for the /canvas experiment; the real task/artifact
+ * store (dock proxies `/api/dock/*` → apps/api) is the source of truth for real orgs.
+ *
+ * The reality-check audit found `NEEDS_YOU_SEED`/`AGENT_WORK` (Apex people, eight fake
+ * agents) rendering on real owners' `/home`. Gating is done at the RENDER BOUNDARY — these
+ * are static data and can't read the session — so every caller must be behind
+ * `isDemoMode()`:
+ *   - `/home` renders the `needsYou()` rollup ONLY when demo (see app/(app)/home/page.tsx);
+ *     real orgs get the Engineering-only home from real data instead.
+ *   - the canvas renders `AGENT_WORK`/`agentBadge`/`workingDepts` ONLY in demo mode.
+ * Keep the file — demo (mature/Apex) still uses it; just never let it reach the real path.
  */
 
 export interface AgentWork {

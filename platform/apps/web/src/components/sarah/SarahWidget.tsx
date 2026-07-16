@@ -15,8 +15,10 @@ import { SarahThread } from "./SarahThread";
 import { SarahComposer } from "./SarahComposer";
 import { ApprovalCard } from "@/components/app/ApprovalCard";
 import { PublishApprovals } from "./PublishApprovals";
+import { StatusDot } from "./LuBuildTracker";
 import { AgentDockPanel } from "@/components/canvas/AgentDockPanel";
 import { SarahIcon } from "@/components/icons/sarah";
+import { useDockData, taskStatusLabel, type DockTask } from "@/lib/dock/live";
 import { cn } from "@/lib/utils";
 
 /**
@@ -117,18 +119,14 @@ function PanelHeader() {
   );
 }
 
-type DockTab = "home" | "lu" | "company" | "tasks" | "library";
-const DOCK_TABS: DockTab[] = ["home", "lu", "company", "tasks", "library"];
-const STUB_COPY: Record<string, string> = {
-  company: "Your company profile, connections, and the knowledge Lu shares across every department.",
-  tasks: "Every task across all departments, and what needs your approval.",
-  library: "Reusable agents, spaces, and artifact templates to install into a department.",
-};
+type DockTab = "home" | "lu" | "tasks";
+const DOCK_TABS: DockTab[] = ["home", "lu", "tasks"];
 
 /**
  * The dock body. When an agent is selected on the canvas it shows that agent's
- * panel (with a Back); otherwise a tab row (Home · Lu · Company · Tasks · Library)
- * switches the view — default "lu" so today's chat is the out-of-the-box behavior.
+ * panel (with a Back); otherwise a tab row (Home · Lu · Tasks) switches the view —
+ * default "lu" so today's chat is the out-of-the-box behavior. (Company / Library
+ * stubs were removed; Library returns later as the real folder-library.)
  */
 function PanelBody() {
   const { selectedAgent, setSelectedAgent } = useSarah();
@@ -169,7 +167,7 @@ function PanelBody() {
       ) : dockTab === "home" ? (
         <HomeTab />
       ) : (
-        <StubTab tab={dockTab} />
+        <TasksTab />
       )}
     </>
   );
@@ -264,12 +262,64 @@ function HomeTab() {
   );
 }
 
-/** One-line stub for the Company / Tasks / Library tabs. */
-function StubTab({ tab }: { tab: DockTab }) {
+/** The real, live task list across every department — polled while the dock is open. */
+function TasksTab() {
+  const { widgetOpen } = useSarah();
+  const { tasks, loaded } = useDockData(widgetOpen);
+  const open = tasks.filter((t) => t.status !== "done" && t.status !== "failed");
+  const closed = tasks.filter((t) => t.status === "done" || t.status === "failed");
+
   return (
     <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-      <h2 className="text-base font-semibold capitalize text-foreground">{tab}</h2>
-      <p className="mt-2 text-sm text-muted-foreground">{STUB_COPY[tab] ?? ""}</p>
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-semibold text-foreground">Tasks</h2>
+        {tasks.length > 0 && (
+          <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+            {open.length} open
+          </span>
+        )}
+      </div>
+      <p className="mt-1 text-sm text-muted-foreground">Every task across your departments, and what needs you.</p>
+
+      {tasks.length === 0 ? (
+        <p className="mt-4 text-sm text-muted-foreground">
+          {loaded ? "No tasks yet. Ask Lu to get a department working." : "Loading…"}
+        </p>
+      ) : (
+        <div className="mt-4 space-y-4">
+          {open.length > 0 && (
+            <div className="space-y-2">
+              {open.map((t) => (
+                <TaskRow key={t.id} task={t} />
+              ))}
+            </div>
+          )}
+          {closed.length > 0 && (
+            <div>
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Done</p>
+              <div className="space-y-2">
+                {closed.map((t) => (
+                  <TaskRow key={t.id} task={t} />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** One row of the live task list — status dot, title, owning department, status label. */
+function TaskRow({ task }: { task: DockTask }) {
+  return (
+    <div className="flex items-center gap-2.5 rounded-lg border bg-card px-3 py-2 text-sm">
+      <StatusDot status={task.status} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-foreground">{task.title}</p>
+        <p className="truncate text-xs capitalize text-muted-foreground">{task.departmentKey}</p>
+      </div>
+      <span className="shrink-0 text-xs text-muted-foreground">{taskStatusLabel(task.status)}</span>
     </div>
   );
 }

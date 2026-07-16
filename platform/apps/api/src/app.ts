@@ -18,6 +18,15 @@ import {
   createDisconnectVercelRoute,
   createConnectStatusRoute,
 } from "./routes/connect.js";
+import {
+  createGetCanvasRoute,
+  createCreateNodeRoute,
+  createUpdateNodeRoute,
+  createDeleteNodeRoute,
+  createCreateEdgeRoute,
+  createDeleteEdgeRoute,
+  createCreateCollectionRoute,
+} from "./routes/canvas.js";
 
 export interface BuildDeps {
   store?: Store;
@@ -68,6 +77,16 @@ export async function createApp(overrides: BuildDeps = {}): Promise<Express> {
   app.delete("/api/connect/github", createDisconnectGithubRoute(deps));
   app.delete("/api/connect/vercel", createDisconnectVercelRoute(deps));
   app.get("/api/connect/status", createConnectStatusRoute(deps));
+
+  // Lu Computer — the composable canvas (cockpit.md Part C): nodes/edges/collections persist
+  // per org so the canvas survives reloads and edges are the agents' working-set grants.
+  app.get("/api/canvas", createGetCanvasRoute(deps));
+  app.post("/api/canvas/nodes", createCreateNodeRoute(deps));
+  app.patch("/api/canvas/nodes/:id", createUpdateNodeRoute(deps));
+  app.delete("/api/canvas/nodes/:id", createDeleteNodeRoute(deps));
+  app.post("/api/canvas/edges", createCreateEdgeRoute(deps));
+  app.delete("/api/canvas/edges/:id", createDeleteEdgeRoute(deps));
+  app.post("/api/canvas/collections", createCreateCollectionRoute(deps));
 
   return app;
 }
