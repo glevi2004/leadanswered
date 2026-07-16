@@ -39,17 +39,32 @@ rough priority:
 
 **Dogfood:** use the Engineering agent itself to help build each next department.
 
-## Presets & peripherals — the computer, filled out
+## Channels, orchestration & presets — the computer, filled out
 
+**Channels (real I/O):**
 - **The phone** — a real SMS/voice number: text or call Lu, Lu texts back and orchestrates (the owner's
   door). Then Support answers customers on the same line.
 - **The inbox** — a real email address the computer sends and receives on: email it a task; its agents
   email your customers.
-- **The presets beyond Business** — **Studio/Dev** (a fleet of coding agents; our dogfood + the
-  Cursor-competitor), **Personal**, and **Custom** (compose your own agents, wire your own I/O).
+- **Slack** — connect Lu to your workspace: drive it from where you already work, and agents post updates
+  and ask for approvals there.
+
+**Composable, multi-model orchestration** (Maestri-in-the-cloud):
+- **Any model per agent** — add **xAI/Grok** (and others) to the gateway; pick the model per agent (Grok
+  CFO, Claude Engineer).
+- **Agents orchestrate agents** — a `spawn_agent` / delegate tool + attach-and-drive-a-terminal (an agent
+  on the pty write-end), wired as canvas **edges** (the who-conducts-whom graph).
+
+**Presets:**
+- **Beyond Business** — **Studio/Dev** (coding-agent fleet; our dogfood + the Cursor-competitor),
+  **Personal**, **Custom**.
 - **The preset Library** — presets (agents, spaces, roadmaps) become installable and shareable.
 
 ## Platform maturation
+
+- **Durable agent-run worker** *(the key scale item)* — move runs off the in-process background onto a
+  queue / durable-execution engine (Trigger.dev / Inngest; Temporal if heavy) so overnight work survives
+  redeploys and crashes, resumes, and waits for approval. What makes "work while you sleep" real at scale.
 
 - **Multi-tenant hosting** — `*.lu.computer` via Vercel-for-Platforms (one project, many tenants) for
   customer sites at scale, replacing the v0 repo-per-project model.

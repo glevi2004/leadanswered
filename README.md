@@ -1,8 +1,9 @@
 # Lu Computer
 
-**Lu Computer is a real computer for AI agents** — screen, shell, phone, and inbox — that you command and
-they operate. Not another dashboard, not another editor: an operating system where a fleet of agents does
-real work on real infrastructure. Boot it from a **preset** — run a business, a dev studio, your own thing
+**Lu Computer is a real computer for AI agents** — screen, shell, phone, inbox, and Slack — that you
+command and they operate. Not another dashboard, not another editor: an operating system with a *body*
+(real channels), a *cloud that never sleeps* (durable overnight runs), and a *composable multi-model mind*
+(agents that orchestrate agents). Boot it from a **preset** — run a business, a dev studio, your own thing
 — then watch, steer, and approve. The **Engineering** agent already builds and ships real software in a
 real sandbox to a real URL. *Cursor put one agent in your editor; Lu puts a company of them on your computer.*
 

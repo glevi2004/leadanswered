@@ -5,10 +5,12 @@
 
 ## What we sell
 
-**The AI-native computer** — an operating system where a fleet of agents does real work on real
-infrastructure. It's layered: a general **kernel** (canvas + Lu the orchestrator + agents that each get
-a real machine), **presets** that wire it for a use case (Business, Studio/Dev, Personal, → Custom), and
-the freedom to reshape any preset. We sell access to the computer **and the agent-work it does**.
+**The AI-native computer.** Agents need a computer to do real work — a *body* of real channels (screen,
+shell, phone, inbox, Slack, deploy), a *cloud that never sleeps* (durable overnight runs), and a
+*composable multi-model mind* (agents that orchestrate agents) — so we sell them one. It's layered: a
+general **kernel** (canvas + Lu + agents with real machines and channels), **presets** that wire it for a
+use (Business, Studio/Dev, Personal, → Custom), and the freedom to reshape any preset. We sell access to
+the computer **and the agent-work it does**.
 
 **North star:** *Cursor put one agent in your editor. Lu puts a company of them on your computer.*
 
