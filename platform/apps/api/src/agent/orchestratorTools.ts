@@ -2,7 +2,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import type { Store } from "../store/types.js";
 import { dispatchBuild } from "./dispatch.js";
-import { orgHasConnections } from "../connect/status.js";
+import { orgHasConnections, connectionStatus } from "../connect/status.js";
 
 /**
  * The eight departments Lu delegates to (AGENTS-BACKEND §3). A task's
@@ -109,6 +109,22 @@ export function orchestratorTools(deps: OrchestratorToolDeps, ctx: OrchestratorC
         }
         const task = await deps.store.updateTask(taskId, { departmentKey });
         return { ok: true as const, taskId: task.id, departmentKey: task.departmentKey };
+      },
+    }),
+
+    check_connections: tool({
+      description:
+        "Check which of the owner's OWN accounts are connected: their GitHub, Vercel, and Supabase. Use this whenever the owner asks whether you have their connections, and before dispatching a build so you can tell them exactly what is missing. GitHub AND Vercel are BOTH required to build and deploy a site; Supabase is only needed for a database-backed app. Report the result plainly.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        const s = await connectionStatus(deps.store, ctx.orgId);
+        return {
+          github: s.github,
+          vercel: s.vercel,
+          supabase: s.supabase,
+          readyToBuild: s.github && s.vercel,
+          missing: [!s.github ? "GitHub" : null, !s.vercel ? "Vercel" : null].filter(Boolean),
+        };
       },
     }),
 

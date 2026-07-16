@@ -254,11 +254,12 @@ export function SarahProvider({
         return;
       }
 
-      // The New (onboarded) org has ONE real assistant: this same widget talks to
-      // /api/lu/chat, which (server-side) drives the REAL Lu orchestrator on apps/api —
-      // she decomposes the goal into Task rows and dispatches engineering builds; the dock
-      // then watches them. Demo (Mature) and off keep their scripted/honest-toast behavior below.
-      if (isNewOrg) {
+      // The onboarded "New" demo AND every real (non-demo) org share ONE real assistant: this
+      // widget talks to /api/lu/chat, which (server-side, from the session org) drives the REAL
+      // Lu orchestrator on apps/api — she decomposes the goal into Task rows and dispatches
+      // engineering builds; the dock then watches them. Only the scripted Mature demo keeps canned
+      // replies below.
+      if (isNewOrg || !demo) {
         const prior = chatsRef.current.find((c) => c.id === chatId)?.messages ?? [];
         const thread = [...prior, ownerMsg].map((m) => ({
           role: m.role === "owner" ? ("user" as const) : ("assistant" as const),
@@ -329,13 +330,7 @@ export function SarahProvider({
         return;
       }
 
-      if (!demo) {
-        // Honest until POST /sarah/turn exists: never fake a reply on real accounts.
-        toast("In-app chat is almost ready", {
-          description: `${assistantName} answers by text today — text her line and she's on it.`,
-        });
-        return;
-      }
+      // Only the scripted Mature demo reaches here (real + New already returned above).
       setTyping(true);
       const reply = scriptedReply(text);
       window.setTimeout(() => {
