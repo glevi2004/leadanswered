@@ -57,6 +57,31 @@ export const PAGES: PageNode[] = AGENTS.flatMap((a): PageNode[] => [
 
 export const agentById = (id: string): AgentNode | undefined => AGENTS.find((a) => a.id === id);
 
+/* ------------------------------ app departments (inline app on the plane) ------------------------------ */
+// Departments that have a REAL built app (v0 = Engineering only). An app dept renders as its
+// PILL on the ring (connected to Lu) with its two depth-cards — the Department card + the
+// Workplace card — hanging BELOW the pill, each a large desktop-window node connected by a
+// dashed spoke. (canvas.md "The hub — a department is its agent's app".)
+export const APP_DEPTS = new Set<DeptId>(["engineering"]);
+export const isAppDept = (id: string): id is DeptId => APP_DEPTS.has(id as DeptId);
+
+/** The two depth-cards hanging below an app-dept pill. */
+export type DeptCardKind = "deptcard" | "workcard";
+/** The stable node id of one of an app-dept's two cards (also its position key). */
+export const deptCardId = (dept: DeptId, kind: DeptCardKind): string => `${dept}-${kind}`;
+/** Every app dept's two card node descriptors (dept + which card). */
+export const APP_CARD_NODES: { id: string; dept: DeptId; kind: DeptCardKind }[] =
+  [...APP_DEPTS].flatMap((dept) => [
+    { id: deptCardId(dept, "deptcard"), dept, kind: "deptcard" as const },
+    { id: deptCardId(dept, "workcard"), dept, kind: "workcard" as const },
+  ]);
+
+/** World size of ONE depth-card node — a desktop-window proportion (landscape monitor). */
+export const DESK_CARD_W = 1200;
+export const DESK_CARD_H = 760;
+const CARD_GAP = 160; // horizontal gap between the two cards
+const CARD_DROP = 720; // vertical drop from the pill center down to the card-row center
+
 /* ------------------------------ sheets ------------------------------ */
 // Spreadsheet nodes — a department can keep editable tables (a Finance cash-flow, etc.)
 // you zoom into and use directly. The grid DATA lives in `sheets.ts`; this is just the
@@ -115,12 +140,22 @@ export function defaultPositions(): Positions {
     const tx = -uy, ty = ux;
     pos[t.id] = { x: ux * (ORBIT_R * 0.45) + tx * 190, y: uy * (ORBIT_R * 0.45) + ty * 190 };
   }
+  // an app dept's two depth-cards hang BELOW its pill, side by side (Department | Workplace),
+  // centered under the pill so the dashed spokes fan straight down to them.
+  for (const dept of APP_DEPTS) {
+    const c = pos[dept];
+    if (!c) continue;
+    const cy = c.y + CARD_DROP;
+    const dx = (DESK_CARD_W + CARD_GAP) / 2;
+    pos[deptCardId(dept, "deptcard")] = { x: c.x - dx, y: cy };
+    pos[deptCardId(dept, "workcard")] = { x: c.x + dx, y: cy };
+  }
   return pos;
 }
 
 /* ------------------------------ persistence ------------------------------ */
 
-const LAYOUT_KEY = "lu_canvas_layout_v7"; // bumped: rows-below-agent layout + shrunk frames
+const LAYOUT_KEY = "lu_canvas_layout_v8"; // bumped: Lu → dept pill → two depth-cards tree layout
 
 export function loadPositions(): Positions {
   const base = defaultPositions();

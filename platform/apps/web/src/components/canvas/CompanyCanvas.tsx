@@ -9,8 +9,9 @@ import {
 } from "lucide-react";
 import { SarahIcon } from "@/components/icons/sarah";
 import {
-  AGENTS, PAGES, SHEETS, TEAMMATES, loadPositions, savePositions, clearPositions,
-  defaultPositions, agentById, ORBIT_R, type Positions, type DeptId,
+  AGENTS, PAGES, SHEETS, loadPositions, savePositions, clearPositions,
+  defaultPositions, agentById, ORBIT_R, isAppDept, APP_CARD_NODES,
+  deptCardId, DESK_CARD_W, DESK_CARD_H, type Positions, type DeptId,
 } from "@/lib/canvas/graph";
 import { useCanvasActivity } from "@/lib/canvas/activity";
 import { useCanvasGraph, type EdgeKind, type CanvasNode } from "@/lib/canvas/api";
@@ -22,7 +23,7 @@ import { SitePreviewNode } from "@/components/canvas/SitePreviewNode";
 import { ArtifactsNav } from "@/components/canvas/ArtifactsNav";
 import { TextNote, type TextNoteData } from "@/components/canvas/TextNote";
 import { ResourceNode, nodeCenter, nodeDims, DEFAULT_NODE_DIMS } from "@/components/canvas/ResourceNode";
-import { DepartmentCanvasNode, DEPT_NODE_W, DEPT_NODE_H } from "@/components/canvas/DepartmentCanvasNode";
+import { DeptCardNode, WorkCardNode } from "@/components/canvas/DepartmentCanvasNode";
 import { DrawLayer, type Stroke } from "@/components/canvas/DrawLayer";
 import { useSites } from "@/lib/dock/live";
 import { useSarah } from "@/components/sarah/sarah-context";
@@ -82,25 +83,22 @@ const DRAW_WIDTH = 3;           // stroke width in WORLD units (scales with zoom
 
 const FRAME_IDS: string[] = [...PAGES.map((p) => p.id), ...SHEETS.map((s) => s.id)];
 
-/** Departments that have a REAL built app (v0 = Engineering only, matching DepartmentApp's
- *  REAL_DEPT). These render INLINE on the plane as their two department depth-cards (the hub)
- *  instead of a pill — there is no click-to-open-a-separate-page for them. */
-const APP_DEPTS = new Set<DeptId>(["engineering"]);
-const isAppDept = (id: string): id is DeptId => APP_DEPTS.has(id as DeptId);
+/** The two depth-card node ids of every app dept (a Set for O(1) canvas lookups). */
+const APP_CARD_IDS = new Set(APP_CARD_NODES.map((c) => c.id));
+const isDeptCardId = (id: string): boolean => APP_CARD_IDS.has(id);
 
-// pages/sheets carry a real w/h; the pill/avatar nodes don't, so we approximate their world
+// pages/sheets/cards carry a real w/h; the pill nodes don't, so we approximate their world
 // half-extents for marquee intersection (generous enough to feel right, not pixel-exact).
-const NODE_HALF = { lu: { hw: 130, hh: 74 }, agent: { hw: 150, hh: 62 }, teammate: { hw: 96, hh: 92 } };
+const NODE_HALF = { lu: { hw: 130, hh: 74 }, agent: { hw: 150, hh: 62 } };
 /** a node's world-space AABB {x0,y0,x1,y1}, or null if it has no position */
 function worldBox(id: string, positions: Positions): { x0: number; y0: number; x1: number; y1: number } | null {
   const p = positions[id];
   if (!p) return null;
   let hw: number, hh: number;
-  if (isAppDept(id)) { hw = DEPT_NODE_W / 2; hh = DEPT_NODE_H / 2; }   // the inline department node
+  if (isDeptCardId(id)) { hw = DESK_CARD_W / 2; hh = DESK_CARD_H / 2; }   // a department depth-card
   else if (PAGES.some((pg) => pg.id === id)) { hw = CARD_W / 2; hh = CARD_H / 2; }
   else if (SHEETS.some((s) => s.id === id)) { hw = SHEET_W / 2; hh = SHEET_H / 2; }
   else if (id === "lu") { hw = NODE_HALF.lu.hw; hh = NODE_HALF.lu.hh; }
-  else if (TEAMMATES.some((t) => t.id === id)) { hw = NODE_HALF.teammate.hw; hh = NODE_HALF.teammate.hh; }
   else { hw = NODE_HALF.agent.hw; hh = NODE_HALF.agent.hh; }
   return { x0: p.x - hw, y0: p.y - hh, x1: p.x + hw, y1: p.y + hh };
 }
@@ -129,9 +127,9 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
   const { setSelectedAgent, openWidget, setWidgetMode } = useSarah();
   const router = useRouter();
 
-  /* Deep-link fallback ONLY for a *pill* (non-app) department — one with no inline app yet.
-     The REAL provisioned department (Engineering) renders its two depth-cards INLINE on the
-     plane (see APP_DEPTS / DepartmentCanvasNode) and is NEVER opened as a separate page. */
+  /* Deep-link fallback ONLY for a non-app department — one with no inline app yet. An APP dept
+     (Engineering) renders its two depth-cards INLINE on the plane, below its pill (see
+     APP_CARD_NODES / DeptCardNode + WorkCardNode), and is NEVER opened as a separate page. */
   const openDepartment = React.useCallback((key: string) => {
     setSelectedAgent(key);
     router.push(`/department/${key}`);
@@ -143,15 +141,12 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
   // DB-persisted composable graph (COCKPIT Part C) — nodes (terminal/note/file/folder/site),
   // their positions, and the EDGES (capability grants). Replaces the localStorage-only canvas.
   const graph = useCanvasGraph(true);
-  // Mock teammates (Dev/Marina/Sol) are demo-only — real orgs never see them.
-  const [demoMode, setDemoMode] = React.useState(false);
-  React.useEffect(() => { setDemoMode(/(?:^|; )la_org=mature/.test(document.cookie)); }, []);
 
   /* ---- REAL departments (v0: just Engineering, status `active`) drive the graph. We keep
         every node's static VISUAL from graph.ts (icon / accent / label / positions) but only
         render the agents the API actually provisioned — each department `key` maps to its
         AGENTS entry, and the API `status` decides the active/dimmed styling. Everything else
-        keyed off a department (its pages, sheet, teammates) is filtered to the same set, so an
+        keyed off a department (its pages, sheet, app cards) is filtered to the same set, so an
         EMPTY or FAILED fetch (departments=[]) renders Lu alone instead of the old static 8. ---- */
   const agents = React.useMemo(() => {
     const byKey = new Map(departments.map((d) => [d.key, d]));
@@ -161,21 +156,16 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
     });
   }, [departments]);
   const allowed = React.useMemo(() => new Set(agents.map((a) => a.id)), [agents]);
-  // agents that render INLINE as the department node (their app is on the plane) vs. the rest,
-  // which stay as ring PILLS. An app dept has no pill and no route-open — it IS on the canvas.
-  const appAgents = React.useMemo(() => agents.filter((a) => APP_DEPTS.has(a.id)), [agents]);
-  const pillAgents = React.useMemo(() => agents.filter((a) => !APP_DEPTS.has(a.id)), [agents]);
+  // EVERY provisioned agent renders as a ring PILL (connected to Lu). An APP dept (Engineering)
+  // ALSO gets its two depth-cards hanging BELOW its pill — the two `appCardNodes` below.
+  const appCardNodes = React.useMemo(() => APP_CARD_NODES.filter((c) => allowed.has(c.dept)), [allowed]);
   // an app dept's Home/Workplace cards REPLACE its two /embed page miniatures → drop those pages.
-  const pages = React.useMemo(() => PAGES.filter((p) => allowed.has(p.dept) && !APP_DEPTS.has(p.dept)), [allowed]);
+  const pages = React.useMemo(() => PAGES.filter((p) => allowed.has(p.dept) && !isAppDept(p.dept)), [allowed]);
   const sheets = React.useMemo(() => SHEETS.filter((s) => allowed.has(s.dept)), [allowed]);
-  const teammates = React.useMemo(
-    () => (demoMode ? TEAMMATES.filter((t) => allowed.has(t.dept)) : []),
-    [allowed, demoMode],
-  );
   const frameIds = React.useMemo(() => [...pages.map((p) => p.id), ...sheets.map((s) => s.id)], [pages, sheets]);
   const allNodeIds = React.useMemo(
-    () => ["lu", ...agents.map((a) => a.id), ...teammates.map((t) => t.id), ...frameIds],
-    [agents, teammates, frameIds],
+    () => ["lu", ...agents.map((a) => a.id), ...appCardNodes.map((c) => c.id), ...frameIds],
+    [agents, appCardNodes, frameIds],
   );
   // callbacks read the current filtered id sets through refs (they close over stable deps)
   const frameIdsRef = React.useRef(frameIds);
@@ -265,15 +255,16 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
   const { sites } = useSites(true);
   const sitePlacements = React.useMemo(() => {
     if (sites.length === 0) return [];
-    const eng = pos["engineering"] ?? defaultPositions()["engineering"];
+    const wcId = deptCardId("engineering", "workcard");
+    const wc = pos[wcId] ?? defaultPositions()[wcId];
     const n = sites.length;
-    // Engineering now renders as its wide inline department node; stack the live site windows
-    // to the RIGHT of that node's edge (SITE_OUT clear of the card), vertically centered on it.
-    const cx = eng.x + DEPT_NODE_W / 2 + SITE_OUT + SITE_W / 2;
+    // Engineering's Workplace card is the rightmost card of its hub; stack the live site windows
+    // to the RIGHT of that card's edge (SITE_OUT clear of it), vertically centered on it.
+    const cx = wc.x + DESK_CARD_W / 2 + SITE_OUT + SITE_W / 2;
     return sites.map((site, i) => ({
       site,
       x: cx,
-      y: eng.y + (i - (n - 1) / 2) * (SITE_H + SITE_VGAP),
+      y: wc.y + (i - (n - 1) / 2) * (SITE_H + SITE_VGAP),
     }));
   }, [sites, pos]);
 
@@ -609,11 +600,10 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
   };
   const nodeClick = (id: string) => {
     if (id === "lu") return selectLu();
+    if (isDeptCardId(id)) return goToSite(id, DESK_CARD_W, DESK_CARD_H); // focus + fly to the card
     if (PAGES.some((p) => p.id === id)) return goToSite(id, CARD_W, CARD_H);
     if (SHEETS.some((s) => s.id === id)) return goToSite(id, SHEET_W, SHEET_H);
     if (AGENTS.some((a) => a.id === id)) return goToAgent(id, id, id as DeptId, 0.55);
-    const t = TEAMMATES.find((x) => x.id === id);
-    if (t) goToAgent(id, id, t.dept, 0.7);
   };
 
   /* ------------ node drag (reposition) — nodes carry DRAG_CLASS so RZPP never pans from
@@ -729,15 +719,13 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
     setTool(t);
   };
 
-  // which agent (if any) sits under a world point — the connect drop target. An app dept is a
-  // wide inline node, so its whole card area is the target (drop a grant anywhere on it).
+  // which agent (if any) sits under a world point — the connect drop target. Every agent is a
+  // pill (app depts included), so a grant lands on the pill; edges anchor to that pill position.
   const agentAt = (wx: number, wy: number): string | null => {
     for (const a of agents) {
       const c = pos[a.id];
       if (!c) continue;
-      const hw = isAppDept(a.id) ? DEPT_NODE_W / 2 : NODE_HALF.agent.hw;
-      const hh = isAppDept(a.id) ? DEPT_NODE_H / 2 : NODE_HALF.agent.hh;
-      if (Math.abs(wx - c.x) <= hw && Math.abs(wy - c.y) <= hh) return a.id;
+      if (Math.abs(wx - c.x) <= NODE_HALF.agent.hw && Math.abs(wy - c.y) <= NODE_HALF.agent.hh) return a.id;
     }
     return null;
   };
@@ -841,8 +829,10 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                 const ap = pos[a.id]; if (!ap) return null;
                 const on = selection.has(a.id);
                 const isWorking = working.includes(a.id);
+                const app = isAppDept(a.id);
                 const stroke = on ? SELECT_RING : isWorking ? `rgb(${a.accent})` : "currentColor";
                 const op = on ? 0.9 : isWorking ? 0.55 : 0.34;
+                // a spoke down to a child frame (page/sheet) — dashed, with a dot at its edge
                 const childEdge = (x2: number, y2: number, key: string, r = 4) => (
                   <g key={key}>
                     <line x1={ap.x} y1={ap.y} x2={x2} y2={y2} stroke={on ? SELECT_RING : "currentColor"} strokeOpacity={on ? 0.6 : 0.32} strokeWidth={1.25} strokeDasharray="5 7" vectorEffect="non-scaling-stroke" />
@@ -851,17 +841,36 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                 );
                 return (
                   <g key={a.id}>
+                    {/* Lu → pill. An APP dept's pill is the department NODE, joined to Lu by a
+                        SOLID line (the reference); other pills keep the dashed radial spoke. */}
                     <line
                       x1={0} y1={0} x2={ap.x} y2={ap.y}
-                      stroke={stroke} strokeOpacity={op} strokeWidth={1.25} strokeDasharray="5 7" vectorEffect="non-scaling-stroke"
+                      stroke={stroke} strokeOpacity={op} strokeWidth={app ? 1.5 : 1.25}
+                      strokeDasharray={app ? undefined : "5 7"} vectorEffect="non-scaling-stroke"
                       style={isWorking && !on ? { animation: "lu-dash 1s linear infinite" } : undefined}
                     />
                     <circle cx={ap.x} cy={ap.y} r={5} fill="currentColor" opacity={0.32} />
-                    {/* child spokes only for RENDERED frames — an app dept's pages are dropped
-                        (its Home/Workplace cards replace them), so use the filtered id sets */}
-                    {pages.filter((pg) => pg.dept === a.id).map((pg) => { const pp = pos[pg.id]; return pp ? childEdge(pp.x, pp.y, pg.id) : null; })}
-                    {sheets.filter((s) => s.dept === a.id).map((s) => { const sp = pos[s.id]; return sp ? childEdge(sp.x, sp.y, s.id) : null; })}
-                    {teammates.filter((t) => t.dept === a.id).map((t) => { const tp = pos[t.id]; return tp ? childEdge(tp.x, tp.y, t.id, 6) : null; })}
+                    {app ? (
+                      // an app dept: DASHED spokes fan DOWN from the pill to its two depth-cards
+                      (["deptcard", "workcard"] as const).map((k) => {
+                        const cp = pos[deptCardId(a.id, k)];
+                        if (!cp) return null;
+                        const y1 = ap.y + NODE_HALF.agent.hh;   // start just below the pill
+                        const x2 = cp.x, y2 = cp.y - DESK_CARD_H / 2; // end at the card's top edge
+                        return (
+                          <g key={deptCardId(a.id, k)}>
+                            <line x1={ap.x} y1={y1} x2={x2} y2={y2} stroke={on ? SELECT_RING : "currentColor"} strokeOpacity={on ? 0.6 : 0.34} strokeWidth={1.5} strokeDasharray="6 7" vectorEffect="non-scaling-stroke" />
+                            <circle cx={x2} cy={y2} r={5} fill="currentColor" opacity={0.32} />
+                          </g>
+                        );
+                      })
+                    ) : (
+                      // a non-app dept: dashed spokes to its rendered page/sheet frames
+                      <>
+                        {pages.filter((pg) => pg.dept === a.id).map((pg) => { const pp = pos[pg.id]; return pp ? childEdge(pp.x, pp.y, pg.id) : null; })}
+                        {sheets.filter((s) => s.dept === a.id).map((s) => { const sp = pos[s.id]; return sp ? childEdge(sp.x, sp.y, s.id) : null; })}
+                      </>
+                    )}
                   </g>
                 );
               })}
@@ -886,16 +895,16 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                 );
               })}
 
-              {/* Engineering agent → its live SITE-PREVIEW frames (CANVAS-TOOLS §7 "Edge → the
-                  agent that owns it") — dashed link to each frame's near edge */}
+              {/* Engineering's Workplace card → its live SITE-PREVIEW frames (CANVAS-TOOLS §7
+                  "Edge → the agent that owns it") — dashed link to each frame's near edge */}
               {sitePlacements.map(({ site, x, y }) => {
-                const eng = pos["engineering"];
-                if (!eng) return null;
-                // start the link at the department node's right edge (not its hidden center)
-                const originX = eng.x + DEPT_NODE_W / 2;
+                const wc = pos[deptCardId("engineering", "workcard")];
+                if (!wc) return null;
+                // start the link at the Workplace card's right edge (not a hidden center)
+                const originX = wc.x + DESK_CARD_W / 2;
                 return (
                   <g key={`site-edge-${site.id}`}>
-                    <line x1={originX} y1={eng.y} x2={x - SITE_W / 2} y2={y} stroke="currentColor" strokeOpacity={0.32} strokeWidth={1.25} strokeDasharray="5 7" vectorEffect="non-scaling-stroke" />
+                    <line x1={originX} y1={wc.y} x2={x - SITE_W / 2} y2={y} stroke="currentColor" strokeOpacity={0.32} strokeWidth={1.25} strokeDasharray="5 7" vectorEffect="non-scaling-stroke" />
                     <circle cx={x - SITE_W / 2} cy={y} r={4} fill="currentColor" opacity={0.3} />
                   </g>
                 );
@@ -1021,33 +1030,33 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
               <SitePreviewNode key={site.id} site={site} x={x} y={y} w={SITE_W} h={SITE_H} />
             ))}
 
-            {/* INLINE DEPARTMENT NODES — a provisioned app dept (v0: Engineering) IS its app on
-                the plane: the two department depth-cards (Home ⇄ Database + Workplace), a large
-                positioned node that pans/zooms/drags with the canvas. NOT a pill, NOT a route. */}
-            {appAgents.map((a) => {
-              const p = pos[a.id]; if (!p) return null;
-              const ringColor = selection.has(a.id)
-                ? SELECT_RING
-                : connectTarget === a.id
-                  ? connectColor
-                  : null;
+            {/* DEPARTMENT DEPTH-CARDS — an app dept's app on the plane: two SEPARATE desktop-
+                window-sized nodes (Department card + Workplace card) hanging BELOW its pill, each
+                world-positioned + draggable by its grip tab, connected up to the pill by a dashed
+                spoke (drawn above). Reuses DeptCardNode / WorkCardNode. */}
+            {appCardNodes.map((c) => {
+              const p = pos[c.id]; if (!p) return null;
+              const ringColor = selection.has(c.id) ? SELECT_RING : null;
+              const Card = c.kind === "deptcard" ? DeptCardNode : WorkCardNode;
               return (
                 <div
-                  key={a.id}
-                  data-node={a.id}
+                  key={c.id}
+                  data-node={c.id}
                   className={`${DRAG_CLASS} absolute`}
-                  style={{ left: p.x - DEPT_NODE_W / 2, top: p.y - DEPT_NODE_H / 2, width: DEPT_NODE_W, height: DEPT_NODE_H }}
+                  style={{ left: p.x - DESK_CARD_W / 2, top: p.y - DESK_CARD_H / 2, width: DESK_CARD_W, height: DESK_CARD_H }}
                 >
-                  <DepartmentCanvasNode department={a.id} ringColor={ringColor} gripHandlers={nodeDrag(a.id)} />
+                  <Card department={c.dept} ringColor={ringColor} gripHandlers={nodeDrag(c.id)} />
                 </div>
               );
             })}
 
-            {/* agent PILLS — the ring of provisioned departments that DON'T yet have an inline app
-                (app depts render as the department node above). A pill's open is a deep-link fallback. */}
-            {pillAgents.map((a) => {
+            {/* agent PILLS — EVERY provisioned department (app depts included), each a rounded pill
+                connected to Lu. An app dept's pill is the department NODE its two cards hang below,
+                so it never route-opens; a non-app pill's Open is a deep-link fallback. */}
+            {agents.map((a) => {
               const p = pos[a.id]; if (!p) return null;
               const on = selection.has(a.id);
+              const app = isAppDept(a.id);
               const Icon = DEPT_ICON[a.id];
               const badge = agentBadge(a.id);
               return (
@@ -1056,8 +1065,8 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                   data-node={a.id}
                   className={`${DRAG_CLASS} absolute cursor-pointer`}
                   style={{ left: p.x, top: p.y }}
-                  onDoubleClick={(e) => { e.stopPropagation(); openDepartment(a.id); }}
-                  title={`Double-click to open ${a.label}`}
+                  onDoubleClick={app ? undefined : (e) => { e.stopPropagation(); openDepartment(a.id); }}
+                  title={app ? a.label : `Double-click to open ${a.label}`}
                   {...nodeDrag(a.id)}
                 >
                   {badge && (
@@ -1085,8 +1094,8 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                         </span>
                       )}
                       <span className={`text-[2rem] font-medium ${a.active ? "text-foreground" : "text-muted-foreground"}`}>{a.label}</span>
-                      {/* OPEN → the department-as-app (shown when this agent is selected) */}
-                      {on && (
+                      {/* OPEN → the department-as-app (non-app depts only; app depts are inline below) */}
+                      {on && !app && (
                         <button
                           type="button"
                           onPointerDown={(e) => e.stopPropagation()}
@@ -1098,29 +1107,6 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                         </button>
                       )}
                     </div>
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* teammate nodes — game-like + selectable (ring) */}
-            {teammates.map((t) => {
-              const p = pos[t.id]; if (!p) return null;
-              const a = agentById(t.dept)!;
-              const on = selection.has(t.id);
-              return (
-                <div key={t.id} data-node={t.id} className={`${DRAG_CLASS} absolute cursor-pointer`} style={{ left: p.x, top: p.y }} {...nodeDrag(t.id)}>
-                  <div className="flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2">
-                    <span
-                      className="grid size-24 place-items-center rounded-full border-[3px] text-4xl font-bold text-white"
-                      style={{ backgroundColor: `rgb(${a.accent})`, borderColor: on ? SELECT_RING : `rgba(${a.accent},0.5)`, boxShadow: on ? `0 0 0 5px var(--card), 0 0 0 10px ${SELECT_RING}, 0 0 0 24px ${SELECT_HALO}` : "0 10px 20px rgba(0,0,0,0.2), inset 0 3px 3px rgba(255,255,255,0.4), inset 0 -6px 10px rgba(0,0,0,0.2)" }}
-                    >
-                      {t.initials}
-                    </span>
-                    <span className="rounded-2xl bg-card px-5 py-2 text-center elev-2">
-                      <span className="block text-2xl font-semibold leading-tight text-foreground">{t.name}</span>
-                      <span className="block text-lg leading-tight text-muted-foreground">{t.role}</span>
-                    </span>
                   </div>
                 </div>
               );

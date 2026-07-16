@@ -19,5 +19,5 @@ export default async function TeamPage() {
   // The roster of teammates sitting alongside each department's agent on the Workspace.
   // (The conversational "Lu builds your team" flow — TeamSetupPersisted — still lives in
   // the codebase and in onboarding; the Team page itself is now the roster for everyone.)
-  return <TeamRoster />;
+  return <TeamRoster demo={demo} />;
 }

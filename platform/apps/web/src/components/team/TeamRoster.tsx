@@ -70,8 +70,9 @@ const initialsOf = (name: string) =>
 
 const firstName = (name: string) => name.trim().split(/\s+/)[0] || "They";
 
-export function TeamRoster() {
-  const [members, setMembers] = React.useState<TeammateProfile[]>(() => [...teamProfiles]);
+export function TeamRoster({ demo = false }: { demo?: boolean }) {
+  // Real orgs start with no teammates (honest-empty); the sample roster is demo-only.
+  const [members, setMembers] = React.useState<TeammateProfile[]>(() => (demo ? [...teamProfiles] : []));
   const [addOpen, setAddOpen] = React.useState(false);
   const [addName, setAddName] = React.useState("");
   const [addRole, setAddRole] = React.useState("");
@@ -141,26 +142,36 @@ export function TeamRoster() {
         {deptCount === 1 ? "department" : "departments"}
       </p>
 
-      <div className="flex flex-col gap-8">
-        {groups.map(({ id, meta, people }) => (
-          <section key={id} className="flex flex-col gap-3">
-            <div className="flex items-center gap-2.5">
-              <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-foreground ring-1 ring-foreground/10">
-                <meta.Icon className="size-4" />
-              </span>
-              <h2 className="text-sm font-semibold tracking-tight">{meta.label}</h2>
-              <span className="font-mono text-xs text-muted-foreground">
-                {String(people.length).padStart(2, "0")}
-              </span>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {people.map((m) => (
-                <TeammateCard key={m.id} member={m} deptLabel={meta.label} />
-              ))}
-            </div>
-          </section>
-        ))}
-      </div>
+      {members.length === 0 ? (
+        <div className="rounded-2xl border border-dashed bg-card/50 px-6 py-12 text-center">
+          <p className="text-sm font-medium">No teammates yet</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Add the people who work alongside your agents — they&rsquo;ll appear on the canvas next to
+            their department.
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-8">
+          {groups.map(({ id, meta, people }) => (
+            <section key={id} className="flex flex-col gap-3">
+              <div className="flex items-center gap-2.5">
+                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-foreground ring-1 ring-foreground/10">
+                  <meta.Icon className="size-4" />
+                </span>
+                <h2 className="text-sm font-semibold tracking-tight">{meta.label}</h2>
+                <span className="font-mono text-xs text-muted-foreground">
+                  {String(people.length).padStart(2, "0")}
+                </span>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {people.map((m) => (
+                  <TeammateCard key={m.id} member={m} deptLabel={meta.label} />
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
 
       {/* Add teammate — local mock (no persistence yet). */}
       <Dialog open={addOpen} onOpenChange={(o) => { setAddOpen(o); if (!o) resetForm(); }}>
