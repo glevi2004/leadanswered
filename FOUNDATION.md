@@ -18,8 +18,10 @@ Lu Computer is a workspace for AI agents. Its parts:
 - **Approvals** — you sign off on anything irreversible.
 
 Live today: the screen, shell, agents, and approvals. On the roadmap: phone, email, Slack, and the presets
-beyond Business. The owner boots their company in onboarding, then works on the canvas and the **Lu dock**
-(a chat/command surface on the right).
+beyond Business. The owner boots their company in onboarding, then works on the **canvas** — one graph of
+**Lu + departments** (each an agent's own **app**: Home / database console / workplace) **+ resources**
+(terminal · note · file · folder · site) joined by **edges-as-grants** — with the **Lu dock** (chat/command)
+wrapped around it. The canvas is the whole product surface; its complete model is **[docs/canvas.md](./docs/canvas.md)**.
 
 ## 2. The stack
 
@@ -50,8 +52,10 @@ itself.
 a live **cloud terminal**'s pty. Connections are drawn on the canvas as **`Edge`s** between
 **`CanvasNode`s** (the who-conducts-whom graph). Lu runs the top; every agent can run the ones beneath it.
 
-**Departments** are the **Business preset's** unit (agent + space + tasks + memory + tools). v0 provisions
-**Engineering only**; the rest of Business, and the other presets, are the roadmap.
+**Departments** are the **Business preset's** unit — each department *is* its agent, rendered as its own
+**app** (Home / database console / workplace); resources connect to it as its working set (the full model:
+**[docs/canvas.md](./docs/canvas.md)**). v0 provisions **Engineering only**; the rest of Business, and the
+other presets, are the roadmap.
 
 ## 4. The runtime
 

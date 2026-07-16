@@ -60,7 +60,7 @@ Lu-managed + metered hosting tier is the later destination. With that framing, t
 
 The sandbox `pty()` + the `Session` table back a **websocket PTY route** (`apps/api`) + an **xterm.js terminal
 node** on the canvas: the toolbar `terminal` button spawns Claude Code/Codex/shell, streams the PTY, and you
-watch + type. It rides the same sandbox the autonomous runs use ([canvas-tools.md §4](./canvas-tools.md)).
+watch + type. It rides the same sandbox the autonomous runs use ([canvas.md §4](./canvas.md)).
 
 ## 5. generate_image + the hosting path (BYO)
 

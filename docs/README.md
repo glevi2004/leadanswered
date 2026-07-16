@@ -3,14 +3,17 @@
 The deep specs behind the canon. Start with the root [FOUNDATION.md](../FOUNDATION.md) (architecture, agents,
 data model, hosting); these docs go one level deeper.
 
+## The canvas (start here)
+- **[canvas.md](./canvas.md)** — **the unified model**: Lu + departments (each an agent's app —
+  Home/console/workplace) + resources (terminal · note · file · folder · site) joined by edges-as-grants;
+  the backend, the publish flow, the dock, the plane. The one source of truth for the product surface.
+
 ## Backend & agents
 - **[agent-backend.md](./agent-backend.md)** — Lu orchestrating department agents: the runtime, the data model, context/memory, the CONTRACT, the model gateway, hosting.
 - **[engineering-agent.md](./engineering-agent.md)** — the flagship Engineering agent: sandbox + Git + Vercel ports, the build tool-loop, the terminal.
 - **[engineer-activation.md](./engineer-activation.md)** — wiring the Engineer into the product: async dispatch, read routes, the publish gate, invoke/watch/approve.
-
-## Canvas
-- **[canvas-engine.md](./canvas-engine.md)** — the pan/zoom canvas on `react-zoom-pan-pinch`: screen-space grid, iframe culling, camera.
-- **[canvas-tools.md](./canvas-tools.md)** — the toolbar: real, persisted, agent-connectable elements (terminal · md · folder · site · text · draw).
+- **[durable-worker.md](./durable-worker.md)** — the durable BullMQ agent-run worker: crash-safe re-delivery, supervise-in-sandbox, fail-clean.
+- **[byo-connect.md](./byo-connect.md)** — BYO connect: each org's own GitHub / Vercel / Supabase, org-scoped ports, the dispatch gate.
 
 ## Onboarding & team
 - **[onboarding.md](./onboarding.md)** — waitlist-gated self-serve onboarding: boot up your company, real DB provisioning.

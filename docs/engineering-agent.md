@@ -4,7 +4,7 @@
 
 The flagship agent, built first: it's the site pipeline the wedge (Marketing) reuses and the dev accelerator
 Lu dogfoods to build the other departments. Companions: [agent-backend.md](./agent-backend.md) (the runtime +
-data model), [canvas-tools.md](./canvas-tools.md) (the terminal tool). For wiring it into the product surface,
+data model), [canvas.md](./canvas.md) (the terminal tool). For wiring it into the product surface,
 see [engineer-activation.md](./engineer-activation.md).
 
 ## 0. The end-to-end
@@ -19,7 +19,7 @@ Lu / you: "build my marketing site"
 ```
 
 Same infra, two entry modes: **autonomous** (a Task, headless coding agent) and **interactive** (the canvas
-**terminal** tool — the coding agent in a PTY you watch/drive, [canvas-tools.md §4](./canvas-tools.md)).
+**terminal** tool — the coding agent in a PTY you watch/drive, [canvas.md §4](./canvas.md)).
 
 ## 1. The stack
 
@@ -61,7 +61,7 @@ Add the Engineering slice of the agent-OS tables (full schema in [agent-backend.
 `model`), **Artifact** (`kind`: `agent_session|pr_diff|site_preview|image|file`), **Site** (`repoFullName`,
 `vercelProjectId`, `domain`), **Deployment** (`env`, `url`, `sha`, `prNumber`), **GithubConnection**
 (`installationId`, `login`), **Session** (`sandboxId`, `agentKind`, `repo`, `status`),
-**CanvasNode**/**Edge** ([canvas-tools.md §1](./canvas-tools.md)), **Approval**. The `Store` port carries the
+**CanvasNode**/**Edge** ([canvas.md §1](./canvas.md)), **Approval**. The `Store` port carries the
 CRUD; web reads via `@supabase/ssr`.
 
 ## 4. The ports (clean seams)
@@ -93,7 +93,7 @@ Discipline: deterministic tool bodies, idempotent (a Task/PR is created once), e
 
 ## 6. The terminal tool (the interactive door)
 
-Reuses the `Sandbox` port ([canvas-tools.md §4](./canvas-tools.md)): the canvas terminal node = **xterm.js**
+Reuses the `Sandbox` port ([canvas.md §4](./canvas.md)): the canvas terminal node = **xterm.js**
 (`apps/web`) ⇄ a **websocket** on `apps/api` ⇄ `Sandbox.pty()`. Pick Claude Code / Codex / shell → spawn →
 attach the PTY → you watch + type; the session is a `Session` + `agent_session` Artifact, Edge→ the Engineering
 agent. The same sandbox that autonomous Tasks use.

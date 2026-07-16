@@ -56,7 +56,7 @@ All org-scoped and additive (scalar `orgId`, no FK to `Organization`, so they co
   is only a v0 demo fallback.)
 - **Approval** — the human-in-the-loop gate: `orgId`, `taskId`, `action`, `status`, `decidedBy`. Feeds
   "Needs you".
-- **CanvasNode** / **Edge** / **Collection** — the canvas layer (see [canvas-tools.md](./canvas-tools.md)).
+- **CanvasNode** / **Edge** / **Collection** — the canvas layer (see [canvas.md](./canvas.md)).
 
 Agents read/write only through the **`Store` port** (`apps/api/src/store/`, `PrismaStore` in prod /
 `MemoryStore` for tests) — never the DB directly. Web reads via `@supabase/ssr`.
@@ -224,7 +224,7 @@ repo Lu controls; v1 flips one input (their repo) and reuses everything.
 
 **The cloud terminal** is the interactive door to the same runtime: a websocket (`/api/terminal`) bridges an
 e2b **pty** to an **xterm.js** node on the canvas — the owner watches and types into a real coding session. See
-[canvas-tools.md §4](./canvas-tools.md) and [engineering-agent.md](./engineering-agent.md) for the build spec.
+[canvas.md §4](./canvas.md) and [engineering-agent.md](./engineering-agent.md) for the build spec.
 
 ## 7. Sites / hosting — BYO by default, two surfaces
 
