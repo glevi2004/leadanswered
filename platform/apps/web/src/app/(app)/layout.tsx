@@ -10,7 +10,6 @@ import { isDemoMode, resolveModuleStatus } from "@/lib/data/gating";
 import { MODULE_KEYS } from "@/lib/data/registry";
 import type { ModuleKey, ModuleStatus } from "@/lib/data/shared";
 import { APEX, APEX_ACTIONS, APEX_APPROVALS, APEX_ESCALATIONS, APEX_PAST_CHATS, APEX_THREAD } from "@/lib/data/fixtures/apex";
-import { listOpenEscalations } from "@/lib/data/home";
 
 /**
  * The OS shell (00 §2–§3): sidebar with unlabeled clusters + the global Sarah
@@ -32,7 +31,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const ownerName = demo ? APEX.ownerName : ((organization.name as string)?.split(" ")[0] ?? "there");
   const assistantName = (organization.sarahName as string) || "Lu";
-  const escalations = demo ? APEX_ESCALATIONS : await listOpenEscalations(organization.id).catch(() => []);
+  // Real orgs start with no open escalations until the messaging backend lands.
+  const escalations = demo ? APEX_ESCALATIONS : [];
 
   const welcome = [
     {

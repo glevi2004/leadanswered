@@ -5,16 +5,14 @@ import { Workplace } from "@/components/canvas/Workplace";
 import { DepartmentPage } from "@/components/dept/DepartmentPage";
 import { AGENTS, agentById, type DeptId } from "@/lib/canvas/graph";
 // The real page bodies, reused verbatim — the canvas shows the SAME pages the app serves.
-import SchedulePage from "@/app/(app)/schedule/page";
 import AgentDetailPage from "@/app/(app)/agents/[id]/page";
 
 /**
  * /embed/[node] — the canvas node dispatch. `{dept}-dept` renders that department's
- * DASHBOARD (chrome-less: Sales & Finance → the bespoke DepartmentPage, Ops →
- * Schedule, Marketing → Content, Support → the Lu assistant);
- * `{dept}-work` renders the agent's WORKPLACE. Departments without a built surface
- * yet get an honest-empty stub. The (app) routes stay canonical — this group only
- * strips the chrome so iframes can show the live page.
+ * DASHBOARD (chrome-less: the bespoke DepartmentPage for built departments, the Lu
+ * assistant for Support); `{dept}-work` renders the agent's WORKPLACE. Departments
+ * without a built surface yet get an honest-empty stub. The (app) routes stay
+ * canonical — this group only strips the chrome so iframes can show the live page.
  */
 
 export const metadata = { title: "Lu Computer" };
@@ -30,15 +28,15 @@ export default async function EmbedNodePage({ params }: { params: Promise<{ node
   if (m[2] === "work") return <Workplace dept={dept} />;
 
   switch (dept) {
-    // Sales & Finance now preview the bespoke Department page (roadmap + tabbed body).
+    // Built departments preview the bespoke Department page (roadmap + tabbed body).
     case "finance":
       return <DepartmentPage dept="finance" />;
     case "sales":
       return <DepartmentPage dept="sales" />;
     case "operations":
-      return <SchedulePage searchParams={Promise.resolve({})} />;
+      return <DepartmentPage dept="operations" />;
     case "marketing":
-      return <AgentDetailPage params={Promise.resolve({ id: "content" })} searchParams={Promise.resolve({})} />;
+      return <DepartmentPage dept="marketing" />;
     case "support":
       return <AgentDetailPage params={Promise.resolve({ id: "receptionist" })} searchParams={Promise.resolve({})} />;
     default: {

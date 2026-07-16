@@ -21,9 +21,6 @@ import { EmptyState } from "@/components/app/EmptyState";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CrmIndex } from "@/components/crm/CrmIndex";
-import { InvoicesIndex } from "@/components/invoices/InvoicesIndex";
-import { QuotesIndex } from "@/components/quotes/QuotesIndex";
 import { cn } from "@/lib/utils";
 
 /**
@@ -96,27 +93,12 @@ export function DepartmentPage({ dept }: { dept: DeptId }) {
 
         {/* ── CRM ── */}
         <TabsContent value="crm">
-          {dept === "sales" ? (
-            <CrmIndex contacts={[]} needsFollowupIds={[]} attentionIds={[]} />
-          ) : dept === "finance" ? (
-            <div className="flex flex-col gap-8">
-              <section className="flex flex-col gap-3">
-                <h2 className="text-sm font-medium text-muted-foreground">Invoices</h2>
-                <InvoicesIndex />
-              </section>
-              <section className="flex flex-col gap-3">
-                <h2 className="text-sm font-medium text-muted-foreground">Quotes</h2>
-                <QuotesIndex />
-              </section>
-            </div>
-          ) : (
-            <EmptyState
-              variant="mono"
-              icon={Database}
-              title="No records yet"
-              body={`The ${agent.agentName}'s records show up here once work begins.`}
-            />
-          )}
+          <EmptyState
+            variant="mono"
+            icon={Database}
+            title="No records yet"
+            body={`The ${agent.agentName}'s records show up here once work begins.`}
+          />
         </TabsContent>
 
         {/* ── Inbox ── */}

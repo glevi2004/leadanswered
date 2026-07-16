@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { Calendar, Globe, Link2, Star, Upload, Users } from "lucide-react";
+import { Calendar, Users } from "lucide-react";
 import type { OrgProfile, SetupStepKey } from "@/lib/data/org-profile";
 import type { ModuleKey, ModuleStatus } from "@/lib/data/shared";
 import { patchOnboardedProfile } from "@/lib/org-cookie";
@@ -22,11 +22,7 @@ export type SetupRung = {
 
 export const SETUP_RUNGS: SetupRung[] = [
   { key: "team", label: "Add your team", detail: "I'll add your crew and build an org chart — who can text me, and what each person's allowed to do.", icon: Users, route: "/team", moduleKey: "team" },
-  { key: "website", label: "Build your website", detail: "I'll stand up your site and you can shape it just by texting me.", icon: Globe, route: "/sites", moduleKey: "website" },
-  { key: "reviews", label: "Launch your first review campaign", detail: "I'll line up your past customers and run your first review wave — most owners see a jump in week one.", icon: Star, route: "/reviews/new", moduleKey: "reviews" },
-  { key: "import", label: "Import your customer history", detail: "Bring your QuickBooks or a CSV and I'll know your business from day one.", icon: Upload, route: "/customers/import" },
   { key: "google", label: "Connect Google Calendar", detail: "Connect your calendar so I book around what's already on it.", icon: Calendar },
-  { key: "domain", label: "Connect your own domain", detail: "Point your own domain at your site — live in minutes.", icon: Link2, route: "/sites", moduleKey: "website" },
 ];
 
 /** Complete a rung: mark it done, unlock its module, then navigate to where you build it. */

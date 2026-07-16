@@ -50,7 +50,7 @@ export const PAGES: PageNode[] = AGENTS.flatMap((a): PageNode[] => [
   {
     kind: "page", id: `${a.id}-dept`, dept: a.id, pageKind: "department",
     label: `${a.label} Department`,
-    href: { sales: "/customers", operations: "/schedule", finance: "/money", marketing: "/agents/content", support: "/sarah" }[a.id as string] ?? `/embed/${a.id}-dept`,
+    href: `/embed/${a.id}-dept`,
   },
   { kind: "page", id: `${a.id}-work`, dept: a.id, pageKind: "workplace", label: `${a.agentName} Workplace`, href: `/embed/${a.id}-work` },
 ]);

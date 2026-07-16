@@ -162,7 +162,7 @@ export const MODULE_KEYS = [
  */
 export const NAV_CLUSTERS: ReadonlyArray<ReadonlyArray<SurfaceKey>> = [
   ["home", "sarah", "canvas"],
-  ["schedule", "team"],
+  ["team"],
 ];
 
 /** Longest-prefix match of a pathname to a registry surface (widget page context). */

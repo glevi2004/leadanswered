@@ -28,10 +28,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { SarahIcon } from "@/components/icons/sarah";
-import { FacebookMark } from "@/components/content/FacebookMark";
-import { ScheduleClient } from "@/components/schedule/ScheduleClient";
 import type { AvailabilityWindow } from "@/lib/onboarding-state";
-import type { ScheduleItem } from "@/lib/data/schedule/types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { writeOnboardedProfile } from "@/lib/org-cookie";
@@ -146,16 +143,17 @@ function windowsFromAvail(avail: Set<string>): AvailabilityWindow[] {
   return out;
 }
 
-/** the fake Google events as real ScheduleItems, placed in the current week (blocks read as "busy"). */
-function busyItemsThisWeek(): ScheduleItem[] {
-  const monday = new Date();
-  monday.setHours(0, 0, 0, 0);
-  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
-  return BUSY.map((b, i) => {
-    const s = new Date(monday); s.setDate(s.getDate() + b.day); s.setHours(b.start, 0, 0, 0);
-    const e = new Date(monday); e.setDate(e.getDate() + b.day); e.setHours(b.end, 0, 0, 0);
-    return { id: `busy_${i}`, kind: "block" as const, contactName: b.label, startAt: s.toISOString(), endAt: e.toISOString(), status: "confirmed" as const, bookedBy: "owner" as const };
-  });
+/** The Facebook "f" roundel (lucide dropped brand icons) — chips + app-bar use. */
+function FacebookMark({ className = "size-3" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden>
+      <circle cx="12" cy="12" r="12" fill="#1877F2" />
+      <path
+        fill="#fff"
+        d="M16.4 12h-2.9v8.5h-3.4V12H8.4V9.2h1.7V7.6c0-2 1.2-3.6 3.6-3.6l2.5.1v2.7h-1.6c-.9 0-1.1.4-1.1 1.1v1.3h2.9L16.4 12z"
+      />
+    </svg>
+  );
 }
 
 /** Instagram gradient camera (lucide dropped brand icons). */
@@ -1040,9 +1038,7 @@ function FitToWidth({ contentWidth, children }: { contentWidth: number; children
   );
 }
 
-function CalendarStage({ value, status, onConnect, onSkip, onContinue }: { value: Set<string>; status: GcalStatus; onConnect: () => void; onSkip: () => void; onContinue: () => void }) {
-  const items = React.useMemo(() => busyItemsThisWeek(), []);
-  const windows = React.useMemo(() => windowsFromAvail(value), [value]);
+function CalendarStage({ status, onConnect, onSkip, onContinue }: { value: Set<string>; status: GcalStatus; onConnect: () => void; onSkip: () => void; onContinue: () => void }) {
   if (status === "idle")
     return (
       <StageShell title="Your calendar" subtitle="Connect Google so I see what's already on your plate">
@@ -1068,14 +1064,20 @@ function CalendarStage({ value, status, onConnect, onSkip, onContinue }: { value
     );
   return (
     <StageShell
-      title="Your calendar, on top of your hours"
-      subtitle="Green is your open hours; hatched blocks are what's already on your Google calendar. I book around both."
+      title="Your calendar's connected"
+      subtitle="I can see what's already on your plate — I'll book estimates around it, on top of your open hours."
       footer={<Button className="btn-glow w-full gap-2" onClick={onContinue}>Continue <ArrowRight className="size-4" /></Button>}
     >
-      <div className="min-h-0 flex-1 overflow-auto">
-        <FitToWidth contentWidth={760}>
-          <ScheduleClient items={items} demo timezone="America/New_York" windows={windows} sync={{ state: "connected" }} routeFixture={null} base={null} embedded />
-        </FitToWidth>
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
+        <span className="flex size-14 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+          <Calendar className="size-7" />
+        </span>
+        <div className="max-w-xs">
+          <p className="text-sm font-medium">Google Calendar connected</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            You're never double-booked — I only offer times that are open on your calendar and inside your hours.
+          </p>
+        </div>
       </div>
     </StageShell>
   );
@@ -1159,11 +1161,6 @@ function Ready({ ws, onOpenWorkspace, submitting = false, error }: { ws: Workspa
     { icon: Clock, label: "Availability", value: ws.hours ?? "—" },
     { icon: Calendar, label: "Calendar", value: ws.gcal ? "Google — synced" : "Not connected", live: ws.gcal },
   ];
-  const ladder = [
-    { icon: Import, title: "Bring your customer history", metric: "usually 200+ contacts — your first review pool", href: "/customers/import" },
-    { icon: Star, title: "Launch your first review wave", metric: "owners see +20 Google reviews in week one", href: "/reviews/new" },
-    { icon: Globe, title: "Connect your own domain", metric: `${ws.handle}.com → live in minutes`, href: "/website" },
-  ];
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col gap-6 px-6 pb-10 pt-8">
       <div className="text-center">
@@ -1214,24 +1211,6 @@ function Ready({ ws, onOpenWorkspace, submitting = false, error }: { ws: Workspa
             </div>
           ))}
         </motion.div>
-      </div>
-
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Where the next wins are</p>
-        <div className="mt-3 flex flex-col gap-2">
-          {ladder.map((s) => (
-            <button key={s.title} type="button" onClick={() => { window.location.href = s.href; }} className="card-lift flex items-center gap-3 rounded-2xl border bg-card px-4 py-3 text-left">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted">
-                <s.icon className="size-4 text-muted-foreground" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">{s.title}</p>
-                <p className="truncate text-xs text-muted-foreground">{s.metric}</p>
-              </div>
-              <ArrowRight className="size-4 shrink-0 text-muted-foreground/50" />
-            </button>
-          ))}
-        </div>
       </div>
 
       <div className="flex flex-col items-center gap-2">

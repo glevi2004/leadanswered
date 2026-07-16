@@ -40,26 +40,6 @@ export default async function ManageOrganizationPage({
         <LineBadge status={c.verificationStatus} />
       </div>
 
-      {/* Onboarding — admin-led. Finishing the wizard also sends the first invite. */}
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle className="text-base">Onboarding</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-wrap items-center justify-between gap-4">
-          <p className="max-w-sm text-sm text-muted-foreground">
-            {onboarded
-              ? "Setup is complete. Re-run the wizard to edit their config — it won't re-send the invite."
-              : "Run the setup wizard with them (usually on a call). Finishing sends their invite automatically."}
-          </p>
-          <Button
-            render={<Link href={`/admin/${c.id}/onboard`} />}
-            variant={onboarded ? "outline" : "default"}
-          >
-            {onboarded ? "Edit setup" : "Onboard"}
-          </Button>
-        </CardContent>
-      </Card>
-
       {/* Status panel — both statuses are informational; neither gates the agent. */}
       <Card className="mt-6">
         <CardHeader>
