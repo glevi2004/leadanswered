@@ -47,10 +47,10 @@ const BUILD_BRANCH = "lu/build";
 
 /**
  * Default starter template the v0 "we build your site" flow seeds a repo from, as
- * `owner/template` in the Lu-owned GitHub org. Placeholder id — swap for the real
- * cached Lu starter once the GitHub App org is provisioned (ENGINEERING-AGENT §2).
+ * `owner/template`. A real private Next.js template on the token's GitHub account;
+ * swap for a Lu-owned org / GitHub App template later (ENGINEERING-AGENT §2).
  */
-const DEFAULT_SITE_TEMPLATE = "lu-computer/site-starter";
+const DEFAULT_SITE_TEMPLATE = "glevi2004/lu-site-starter";
 
 // ── Deps / context ─────────────────────────────────────────────────────────────
 
