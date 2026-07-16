@@ -24,6 +24,7 @@
     "@langfuse/otel": "^5.6.0",
     "@leadanswered/core": "workspace:*",
     "@leadanswered/db": "workspace:*",
+    "@octokit/rest": "^22.0.1",
     "@opentelemetry/sdk-node": "^0.219.0",
     "ai": "^6.0.209",
     "bullmq": "^5.79.1",
