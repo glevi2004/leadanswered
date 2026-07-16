@@ -1,20 +1,5 @@
-import type { EmailSender, SmsSender } from "@leadanswered/core";
 import type { LanguageModel } from "ai";
 import { MockLanguageModelV3 } from "ai/test";
-
-export class CapturingSms implements SmsSender {
-  sent: { to: string; body: string }[] = [];
-  async send(to: string, body: string): Promise<void> {
-    this.sent.push({ to, body });
-  }
-}
-
-export class CapturingEmail implements EmailSender {
-  sent: { to: string; subject: string; body: string }[] = [];
-  async send(to: string, subject: string, body: string): Promise<void> {
-    this.sent.push({ to, subject, body });
-  }
-}
 
 const USAGE = {
   inputTokens: { total: 1, noCache: 1, cacheRead: undefined, cacheWrite: undefined },
