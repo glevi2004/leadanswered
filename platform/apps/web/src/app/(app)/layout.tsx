@@ -39,7 +39,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       id: "welcome",
       at: new Date().toISOString(),
       role: "sarah" as const,
-      body: `Hi ${ownerName} — I'm ${assistantName}. I'm already answering your line; ask me anything about your leads, schedule, or jobs. For now I answer by text — in-app replies are coming.`,
+      body: `Hi ${ownerName}, I'm ${assistantName}, the conductor of your computer. My Engineer is live and ready to build: tell me what you want made (a website, a web app, an internal tool, an integration) and I'll have her ship it to your own GitHub and Vercel.`,
       via: "app" as const,
     },
   ];
