@@ -137,7 +137,7 @@ export function CompanyCanvas({ departments = [] }: { departments?: CanvasDepart
   // the old `sel` — it drives the dock/fly/focused-overlay; `sel` is now derived from it.
   const [selection, setSelection] = React.useState<Set<string>>(() => new Set<string>(["lu"]));
   const sel = selection.size === 1 ? ([...selection][0] as string) : ""; // focused single id ("" when 0 or many)
-  const [tool, setTool] = React.useState<CanvasTool>("select");
+  const [tool, setTool] = React.useState<CanvasTool>("hand");
   const [visible, setVisible] = React.useState<Set<string>>(() => new Set(FRAME_IDS));
   const posRef = React.useRef<Positions>(pos);
   posRef.current = pos;
@@ -482,7 +482,7 @@ export function CompanyCanvas({ departments = [] }: { departments?: CanvasDepart
   return (
     <div
       ref={wrapRef}
-      className="relative h-full w-full cursor-grab select-none overflow-hidden bg-background font-sans text-foreground active:cursor-grabbing"
+      className={`relative h-full w-full select-none overflow-hidden bg-background font-sans text-foreground ${tool === "hand" ? "cursor-grab active:cursor-grabbing" : "cursor-default"}`}
     >
       <style>{`@keyframes lu-dash{to{stroke-dashoffset:-8}}.lu-frame{pointer-events:none}`}</style>
 

@@ -2,14 +2,15 @@
 
 import * as React from "react";
 import {
-  MousePointer2, SquareTerminal, FileText, Paperclip,
+  Hand, MousePointer2, SquareTerminal, FileText, Paperclip,
   Folder, Globe, Type, Pencil, Plus,
 } from "lucide-react";
 
 export type CanvasTool =
-  | "select" | "terminal" | "md" | "files" | "folder" | "site" | "text" | "draw";
+  | "hand" | "select" | "terminal" | "md" | "files" | "folder" | "site" | "text" | "draw";
 
 const TOOLS: { id: CanvasTool; icon: React.ComponentType<{ className?: string }>; label: string }[] = [
+  { id: "hand", icon: Hand, label: "Hand — pan the canvas" },
   { id: "select", icon: MousePointer2, label: "Select" },
   { id: "terminal", icon: SquareTerminal, label: "Spawn a terminal agent (Claude Code, Codex…)" },
   { id: "md", icon: FileText, label: "Add a markdown doc" },
