@@ -27,10 +27,11 @@ department concretely; other departments (Design, Finance, …) come later.
 
 ## Where the backend comes from
 
-The console's "Database view" **is the department's own managed Supabase project** — the one the owner
-connects in [BYO](./byo-connect.md). Each department's app runs on a Supabase project; the Engineer builds
-sites *into* it; Home lists those sites; the Workplace shows the active build. So the department-as-app is
-the product face of the BYO connection.
+The console's "Database view" **is the company's single managed Supabase project** — the one the owner
+connects in [BYO](./byo-connect.md) — shown as the **Engineering** department's console (Engineering owns
+the backend; **decision A** below). The Engineer builds every department's sites *into* that one project; a
+department's Home lists the sites it owns; the Workplace shows the active build. So the department-as-app is
+the product face of the BYO connection, anchored to Engineering.
 
 **Data sources for the mirror** (all reachable via the stored BYO Supabase credentials — a project ref +
 keys):
@@ -155,10 +156,13 @@ design intentionally diverges**:
   Vercel invite) and own the whole stack. Our BYO already puts it in their account, so we're graduated by
   default.
 
-## The one decision: per-department backend vs. one shared backend
+## Decision (locked): one shared backend, Engineering-anchored — (A)
 
-Your screenshots show the **Engineering Department** with its *own* project (`lucomputer-ffaa25`). cofounder
-instead runs **one** shared project per company, anchored to Engineering. Two ways to build it:
+The backend model is settled: **(A) one shared managed Supabase project per company, owned by Engineering.**
+Every other department is an app/site the Engineer builds into it, with its own Home + Workplace pointing at
+the shared backend — cofounder-proven, cheaper (one project), and the cross-wiring ("Design's site built by
+the Engineer") falls out naturally. Revisit (B) only if a department ever needs an isolated backend. The two
+options for the record:
 
 - **(A) One shared managed backend, Engineering-anchored** (cofounder's proven model). The Database-view
   console is the *company's* app backend, shown under Engineering; other departments own their **sites**
