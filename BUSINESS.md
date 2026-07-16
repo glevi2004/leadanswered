@@ -1,80 +1,61 @@
 # Lu Computer — Business Model
 
-> Part of the Lu Computer canon — the *why* is [MANIFESTO.md](./MANIFESTO.md), the *how* is
-> [FOUNDATION.md](./FOUNDATION.md), the *what next* is [ROADMAP.md](./ROADMAP.md).
+> Why: [MANIFESTO.md](./MANIFESTO.md) · How: [FOUNDATION.md](./FOUNDATION.md) · Next:
+> [ROADMAP.md](./ROADMAP.md).
 
 ## What we sell
 
-**The AI-native computer.** Agents need a computer to do real work — a *body* of real channels (screen,
-shell, phone, inbox, Slack, deploy), a *cloud that never sleeps* (durable overnight runs), and a
-*composable multi-model mind* (agents that orchestrate agents) — so we sell them one. It's layered: a
-general **kernel** (canvas + Lu + agents with real machines and channels), **presets** that wire it for a
-use (Business, Studio/Dev, Personal, → Custom), and the freedom to reshape any preset. We sell access to
-the computer **and the agent-work it does**.
-
-**North star:** *Cursor put one agent in your editor. Lu puts a company of them on your computer.*
+**The AI-native computer** — a workspace where agents do real work: a *body* of channels (screen, shell,
+phone, inbox, Slack, deploy), a *cloud that never sleeps* (durable overnight runs), and a *composable
+multi-model mind* (agents that orchestrate agents). It's layered: a general kernel + **presets**
+(Business, Studio/Dev, Personal, Custom). We sell access to the computer **and the agent-work it does**.
 
 ## Who pays
 
-- **Front door — the Business preset (B2B).** A company points Lu at its operations and the departments
-  run. This is where the money is and where we lead.
-- **Dogfood/wedge — the Studio/Dev preset.** A fleet of coding agents building software; our own daily
-  driver ("we build Lu with Lu") and the sharpest *replace-Cursor* story.
-- **Funnel — Personal/solo.** Cheap entry, a single operator, one preset.
+- **Front door — Business (B2B).** A company points Lu at its operations and it runs. Where the money is.
+- **Dogfood — Studio/Dev.** Coding agents; our own daily driver ("we build Lu with Lu").
+- **Funnel — Personal / solo.** Cheap entry, one operator.
 
-**Why B2B is the money (and necessary, not just lucrative):**
-- **Willingness to pay** — a business buying "the back office runs itself" tolerates real monthly spend;
-  a consumer caps low and churns after one project.
-- **Retention** — B2B embeds into operations (switching cost). The longer Lu runs, the more each
-  department's **Context** knows how *you* work — that's the moat, and it compounds per account.
-- **Expansion** — usage scales with the business, so revenue grows without raising the sticker (below).
+**Why B2B:** willingness to pay (a business tolerates real monthly spend; a consumer caps low and churns);
+retention (the longer Lu runs, the more each Context knows how you work — the moat); expansion (usage
+scales with the business).
 
 ## How we charge
 
-**The model: a monthly fee that *is* an included agent-usage bucket, plus overage. Seatless.** The fee
-buys agent-work; heavy use bills as overage; the biggest accounts move to Enterprise. This is the model
-every compute-heavy agent product converged on — a platform fee **+** metered usage:
-
-| Product | Shape |
-|---|---|
-| **cofounder.co** (our price anchor) | fee = usage bucket + overage |
-| **Cursor** (our ambition) | seat + usage pools |
-| **Devin** (autonomous eng) | seat + ACU meter (~$2/ACU ≈ 15 min agent work) |
-
-Nobody survives on flat-only — model tokens + sandbox compute + deploys are real, variable COGS.
-
-**The ladder — price-matched to cofounder:**
+**A monthly fee that *is* an included usage bucket, plus overage. Seatless.** Price-matched to cofounder:
 
 | Tier | Price | Included | For |
 |---|---|---|---|
 | **Trial** | Free 7 days | ~$10 usage | funnel |
-| **Pro** | **$20/mo** | $20 usage + overage | solo operator · Business preset · real publish |
+| **Pro** | **$20/mo** | $20 usage + overage | solo operator · real publish |
 | **Team** | **$50/mo** | $50 usage + overage | multiplayer · SOC 2 · priority · all presets |
-| **Enterprise** | custom | usage order form | BYO compute/keys · SSO/SOC 2 · custom presets — the whale tier |
+| **Enterprise** | custom | usage order form | SSO/SOC 2 · custom presets · managed hosting option |
 
-**The metered unit is the agent-hour** (≈ 15 min of autonomous agent work, benchmarked to ~$2 COGS à la
-Devin's ACU), surfaced to the user as usage/credits. The included bucket is always **denominated in our
-real COGS** — that's what makes a $20 sticker margin-safe.
+The metered unit is the **agent-hour** (~15 min of agent work). **Where the B2B money is: overage +
+Enterprise (land-and-expand), not the sticker** — a company running agents all day blows through its
+bucket and pays usage.
 
-**Where the B2B money actually comes from: overage + Enterprise, not the sticker.** Cheap entry lands the
-account; a company running agents all day blows through the bucket and pays usage; whales go Enterprise.
-Land-and-expand — a better B2B motion than a high seat price, and it keeps us price-matched to cofounder.
+## What it costs us — why the margin is clean
 
-## Margin discipline (unit economics)
+Because what agents build runs on the **customer's own infra** (BYO — [FOUNDATION §7](./FOUNDATION.md)),
+**we are not the payer-of-record for hosting or databases.** Our COGS is only:
 
-Our COGS is the **same class** as cofounder's — both run coding agents and provision real infra
-(Vercel/Supabase/domains/images). The *only* place we can out-cost them is the "computer" feel:
-persistent machines + a cloud terminal you can open anytime. If those stay warm, that's continuous
-metered compute. We hold margin by design:
+- **Agent compute** — model tokens + ephemeral e2b sandboxes, metered as agent-hours and covered by the
+  bucket/overage.
+- **The Lu product** — a cheap multi-tenant SaaS (fixed, tiny).
 
-- **Ephemeral by default** — spin a sandbox up for a task, tear it down when it finishes.
-- **Hibernate, don't idle** — e2b sandboxes pause/resume; the terminal sleeps when you're not typing and
-  resumes on reconnect. Never pay for an idle machine.
-- **Model-route** — cheap models for routine steps, the expensive ones only for hard coding.
-- **Bucket sized to COGS** — if $20 of "agent work" costs more than $20 to serve, the fix is the bucket
-  sizing, not the sticker.
+We hold margin by design: **ephemeral + hibernating sandboxes**, **model-routing** (cheap models for
+routine steps), and **free = preview-only** (no standing infra). We never bleed on idle tenants because
+**we don't host them.** *(Destination: an optional Lu-managed hosting tier, always metered so it pays for
+itself.)*
 
-## The frame in one line
+## The competitive frame (2026)
 
-**Match cofounder on price ($20 / $50), chase Cursor on ambition (the AI-native computer, not an
-editor), and make the money B2B through usage overage and Enterprise.**
+| Product | Shape | Price |
+|---|---|---|
+| **cofounder.co** (our price anchor) | fee = usage bucket + overage | $20 / $50 |
+| **Cursor** (our ambition) | seat + usage pools | $32–96/seat |
+| **Devin** (autonomous eng) | seat + ACU meter | ~$2/ACU |
+
+Everyone doing real, compute-heavy agent work converged on **fee + metered usage**. **Match cofounder on
+price, chase Cursor on ambition, make the money B2B via overage + Enterprise.**

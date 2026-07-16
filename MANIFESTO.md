@@ -1,94 +1,68 @@
 # Lu Computer — Manifesto
 
-## The thesis
+## The problem
 
-Making a computer do something real has always meant development — and development has always been the
-bottleneck. To ship a product, run an operation, or automate a process, someone had to *build* it: write
-the code, wire the services, host it, operate it. Slow, expert-only, and it ended in **inert code someone
-still had to run**.
+To make software do something real, someone has to build it — write the code, wire the services, host
+it, run it. That's development, and it has always been slow and expert-only. Every tool we've had just
+speeds up *typing* the code — frameworks, no-code, Cursor. You are still the builder, and still the
+operator.
 
-Every tool we invented just sped up producing that artifact. Frameworks, no-code, Cursor — faster
-keystrokes, same shape: you are still the builder, and still the operator.
+And to make software *act on its own* — send the email, chase the invoice, move data between apps — you
+had to hand-wire workflows in n8n or Zapier: drag nodes, connect APIs, glue credentials. Fragile,
+technical, and still not autonomous.
 
-And when people tried to make software *act on its own* — send the email, chase the invoice, move the
-data — they hit the worst of it: **hand-wired workflows**. n8n, Zapier, Make. Drag a node, connect an
-API, define a trigger, glue a credential. Fragile, technical, and *still not autonomous* — just a rigid
-machine you programmed by hand.
+## The shift
 
-**Agents end that.** They don't autocomplete — they *build, run, and operate*. You prompt, and the agent
-composes the automation itself and spawns other agents to do the parts. The plumbing layer evaporates.
-What's left is a new kind of development: **you command, and it builds and runs — for real.**
+Agents change this. They don't autocomplete — they build, run, and operate. You describe what you want,
+and the agent writes the automation itself and spawns other agents to do the parts. The workflow-wiring
+layer disappears. **You command; it builds and runs.**
 
-But an agent that does real work isn't just a model. It needs an orchestrator to direct it, memory,
-tools, and real I/O to touch the world — an email to send from, a phone to answer, a place to deploy,
-connections to your data. Those things, together, are a **computer**.
+But an agent that does real work needs more than a model. It needs somewhere to run, an orchestrator,
+memory, and real ways to act — an email, a phone number, a place to deploy, connections to your data. Put
+those together and you have a **computer**.
 
-**Agents need a computer to do real work. So we built them one. That's Lu.**
+**So we built agents a computer. That's Lu.**
 
-## What it is
+## What Lu is
 
-Lu Computer is a real computer for AI agents — and it puts together three things no one else does:
+Lu Computer is a workspace where AI agents do real work. "Computer" is the *shape* of the product — a
+canvas, a terminal, files, programs (agents), channels. What's real about it is not a metaphor: a real
+phone number, a real inbox, real software deployed to a real URL.
 
-**A body.** Real faculties and real channels: a **screen** (the canvas), a **shell** (a cloud terminal you
-can open), a **filesystem** (the Library + the Context that remembers how you work), and real I/O — a
-**phone** number, an **inbox**, and **Slack** — so you reach the computer where you already are, and its
-agents reach the world: send the mail, answer the text, post to the channel, ship to a domain. Not a
-chatbot behind a form — an operator with hands.
+It puts together three things:
 
-**A cloud that never sleeps.** Give the Engineer a task tonight; it works while you sleep, and you wake to
-a full timeline of what it did. Runs are durable — they survive, resume, and wait for your approval, for
-hours. It's a cloud, not a box on your desk: reachable anywhere, by your whole team.
+**A body — it can act.** A screen (the canvas), a shell (a cloud terminal), files (the Library + the
+Context that learns how you work), and real channels: a **phone**, an **email inbox**, and **Slack**. You
+reach it where you already work; its agents reach the world — send the email, answer the text, ship the
+site.
 
-**A composable mind.** Agents are programs you compose on the fly. Any agent can run any model — Grok as
-your CFO, Claude for the Engineer. Any agent can spawn and orchestrate other agents — the CFO spins up a
-terminal and directs it. You wire them on the canvas by drawing the connection; no middleware, no glue.
-Lu conducts the top; every agent can conduct beneath it.
+**A cloud that never sleeps.** Give an agent a task tonight; it works while you sleep and you wake to what
+it did. Runs are durable — they keep going, wait for your approval, and resume, for hours. It lives in the
+cloud, reachable by your whole team.
 
-A body, a cloud that never sleeps, and a mind that composes itself. **You command; it builds and runs.**
+**A composable mind.** Agents are programs you wire together. Any agent can run any model — Grok for your
+CFO, Claude for your engineer. Any agent can spawn and direct other agents, including a live terminal. You
+connect them on the canvas; there is no glue code. Lu runs the top; every agent can run the ones beneath
+it.
 
-## One computer, many shapes
+## One computer, many uses
 
-The **kernel** is general — a canvas, **Lu** the orchestrator, and agents with real machines and real
-channels. On top, **presets** boot the computer for a use, each arriving with a Lu-generated **roadmap**
-its agents work down:
+The core is general. **Presets** boot it for a purpose, each with a plan its agents work through:
 
-- **Business** *(the front door)* — department agents run your company.
-- **Studio / Dev** — a fleet of coding agents build and ship software. *It's how we build Lu with Lu.*
-- **Personal** — your own agents for your own work.
-- **→ Custom** — compose your own agents, wire your own channels.
+- **Business** — agents run your company. *Our front door.*
+- **Studio / Dev** — coding agents build and ship software. *How we build Lu with Lu.*
+- **Personal** — your own agents.
+- **Custom** — wire your own.
 
-Start from a preset and reshape it however you like — a dev tool, an automation tool, a business OS, or
-whatever you point it at. Presets become a shareable library over time.
+Start from a preset and change it however you want.
 
-**The north star:** *Cursor made you a faster developer. Lu makes the computer the developer.*
-
-## Why now
-
-- **Agents crossed from assist to do.** They write software, hold conversations, operate machines, send
-  mail and messages — they finish jobs, not keystrokes.
-- **The plumbing era is ending.** You no longer wire workflows; you prompt, and the intelligence composes
-  them — and composes the agents that run them.
-- **Managed cloud makes it real and cheap.** Sandboxes, hosting, and databases are rentable primitives — a
-  computer for agents is *orchestration over managed infra*, not a datacenter.
-
-## The principles
-
-1. **Agents do, dashboards don't.** The unit of value is a job finished, not a screen to operate.
-2. **A real body.** Screen, shell, phone, inbox, Slack, deploy — agents act on the world with real I/O and
-   real infrastructure. No mockups, no theater.
-3. **Command, don't wire.** You compose agents and automations by prompting and drawing connections — the
-   plumbing is the machine's job, not yours.
-4. **You stay in command.** Agents propose; you approve what matters — spending, shipping, sending. Staged,
-   legible, never a surprise.
-5. **One computer, many shapes.** Boot it as a business, a studio, or your own thing; the longer it runs,
-   the more its Context knows how *you* work.
+**North star: Cursor made you a faster developer. Lu makes the computer the developer.**
 
 ## Who it's for
 
-Anyone with work to be done and no wish to become a software operator — or a workflow engineer. We **lead
-with business**: an owner points Lu at their operations and the back office simply *runs*, because that's
-where the leverage and willingness to pay are clearest. We **dogfood with Dev** (we build Lu with Lu), and
-open the computer to personal and custom uses as it matures.
+Anyone with work to do who doesn't want to become a software operator — or a workflow engineer. We lead
+with **business** (an owner points Lu at their operations and it runs), dogfood with **dev**, and open up
+personal and custom uses as we grow.
 
 ## The bet
 
