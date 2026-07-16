@@ -47,11 +47,13 @@ All org-scoped and additive (scalar `orgId`, no FK to `Organization`, so they co
 - **Artifact** — `orgId`, `taskId`, `agentId`, `kind` (`file | image | site_preview | pr_diff | doc |
   agent_session | invoice | post`), `title`, `payload` (url/json/text), `createdAt`. Powers the dock's
   Artifacts nav (browser = site_preview, images, publish-to-preview, PR diff, agent interaction = agent_session).
-- **Site** — `orgId`, `departmentKey`, `repoFullName`, `vercelProjectId`, `domain` (`{slug}.lu.computer`),
-  `status`. **Deployment** — `siteId`, `env` (preview/production), `url`, `sha`, `prNumber`, `status`.
+- **Site** — `orgId`, `departmentKey`, `repoFullName`, `vercelProjectId` (in the **owner's own** Vercel — BYO,
+  §7), `domain` (the owner's own domain, or the free `{slug}.lu.computer` default), `status`. **Deployment** —
+  `siteId`, `env` (preview/production), `url`, `sha`, `prNumber`, `status`.
 - **Session** — the sandbox/terminal: `sandboxId`, `agentKind`, `repo`, `status`.
-- **GithubConnection** — `orgId`, `installationId`, `login`, `repos[]`. (A Vercel connection is a Lu-owned
-  team for v0.)
+- **GithubConnection** — `orgId`, `installationId`, `login`, `repos[]` — the **owner's own** GitHub, OAuthed /
+  App-installed by Lu (BYO, §7). (A Vercel connection is likewise the owner's own team via OAuth; a Lu-owned team
+  is only a v0 demo fallback.)
 - **Approval** — the human-in-the-loop gate: `orgId`, `taskId`, `action`, `status`, `decidedBy`. Feeds
   "Needs you".
 - **CanvasNode** / **Edge** / **Collection** — the canvas layer (see [canvas-tools.md](./canvas-tools.md)).
@@ -188,6 +190,12 @@ spanning every provider and modality, not a hardcoded model. Two axes:
 The Engineer turns "build me X" into a deployed thing: it inspects a repo, spins a sandbox, opens a PR with a
 preview link, and publishes the approved change to production — real infra work.
 
+**BYO by default.** What the Engineer builds lands in the **customer's own** GitHub + Vercel (+ Supabase for a
+backend): Lu OAuths those accounts and provisions there, so the owner owns the infra and pays those bills
+directly ([FOUNDATION.md §7](../FOUNDATION.md)). The two rungs below are the *bootstrap sequence* — v0 uses a
+Lu-owned home so the wedge demo needs no accounts of the owner's; v1 (connect-your-GitHub) is the BYO model. A
+fully Lu-managed + metered hosting tier is the later destination, not today's model.
+
 **Runtime = a headless coding agent in a sandbox.** A state-of-the-art coding agent (Claude Code / Codex,
 headless) runs inside an ephemeral **e2b sandbox**. A background Engineering run spawns the sandbox per task,
 mounts the repo, runs the coding agent with the task prompt + department context, and streams its transcript
@@ -209,7 +217,7 @@ into an `agent_session` Artifact.
 1. **GitHub App install** → `GithubConnection{installationId}`; a scoped installation token clones/branches/PRs
    the owner's chosen repo.
 2. The sandbox clones the repo → the coding agent inspects structure/deps, makes the change, runs their tests →
-   PR → their Vercel (or ours) builds a preview → same approve→merge.
+   PR → their Vercel builds a preview → same approve→merge.
 
 v0 ships the wedge promise while exercising the whole pipeline (sandbox, Git, Vercel, artifacts, approvals) on a
 repo Lu controls; v1 flips one input (their repo) and reuses everything.
@@ -218,26 +226,32 @@ repo Lu controls; v1 flips one input (their repo) and reuses everything.
 e2b **pty** to an **xterm.js** node on the canvas — the owner watches and types into a real coding session. See
 [canvas-tools.md §4](./canvas-tools.md) and [engineering-agent.md](./engineering-agent.md) for the build spec.
 
-## 7. Sites / hosting — two models
+## 7. Sites / hosting — BYO by default, two surfaces
 
-Owners never touch Vercel or GitHub — Lu hosts everything (the site-builder norm). Two distinct surfaces:
+**What agents build lives in the customer's OWN accounts.** By default Lu OAuths their **GitHub + Vercel +
+Supabase** and provisions the repo / project / database *there*, so the owner owns it and pays those bills
+directly ([FOUNDATION.md §7](../FOUNDATION.md)). Lu is the payer-of-record for nothing but our own SaaS + metered
+agent compute; free tier = preview-only (no standing infra), real infra begins at paid, idle scales to zero. Two
+distinct surfaces:
 
-**(A) Customer marketing/booking SITES = a multi-tenant site app (Vercel for Platforms).** ONE Vercel project
-holds the `*.lu.computer` wildcard + up to 100k domains — **no per-tenant project/Vercel object**. Each tenant's
-site renders **from the DB** (pages/theme/content as data); middleware routes `{slug}.lu.computer` → that
-tenant. The Marketing/Design agent edits the tenant's content + generates the hero (§5b). Wildcard SSL needs
-`lu.computer` on Vercel's nameservers (one-time). **Custom domains** (the owner's own domain) are added
-per-tenant via the Vercel Domains API, so a real business runs on its own domain and `*.lu.computer` is the free
-default. Shared-domain hygiene: submit `lu.computer` to the **Public Suffix List** (cookie + reputation
-isolation, like `*.vercel.app`) + content moderation. This is the **scale path** for customer sites, not yet
-built (see [ROADMAP.md](../ROADMAP.md)).
+**(A) A DB-rendered content SITE = an optional lighter path.** A marketing/booking site whose pages/theme/content
+are **data, not a per-tenant repo**: it renders **from the DB**, so it needs no code repo — good for the simplest
+sites and for **free previews** at `{slug}.lu.computer`. This is a **Lu-managed multi-tenant** app: ONE Vercel
+project holds the `*.lu.computer` wildcard + up to 100k domains (**no per-tenant Vercel object**); middleware
+routes `{slug}.lu.computer` → that tenant; the Marketing/Design agent edits the tenant's content + generates the
+hero (§5b). Wildcard SSL needs `lu.computer` on Vercel's nameservers (one-time); a **custom domain** (the owner's
+own) is added via the Vercel Domains API; shared-domain hygiene = `lu.computer` on the **Public Suffix List**
+(cookie + reputation isolation, like `*.vercel.app`) + content moderation. This shared surface is the seed of the
+**Lu-managed + metered hosting tier — the later destination** (the cofounder model; see [FOUNDATION.md §7](../FOUNDATION.md)
+· [ROADMAP.md](../ROADMAP.md)), **not** where real apps live today.
 
-**(B) The Engineering agent's real CODING = repo + sandbox + Vercel deploy** (§6). For actual software/tools +
-**dogfooding Lu's own product** — and it *builds* surface (A). v0 hosts each built site **repo-per-Vercel-
-project** (→ Vercel for Platforms at scale, per (A)); a built app's own backend runs on **Supabase (serverless
-functions + DB)**. The rule throughout: *rent the heavy infra (compute, hosting, DB), build only thin
-orchestration glue* ([FOUNDATION.md §7](../FOUNDATION.md)). Technical owners with an existing repo use the v1
-connect-your-GitHub path (their repo, their Vercel, their domain).
+**(B) Real CODING = repo + sandbox + deploy into the customer's own accounts** (§6). For actual software/tools —
+and for **dogfooding Lu's own product** (it *builds* surface (A)). The Engineer provisions a **repo in the
+customer's GitHub**, deploys to **their Vercel** (repo-per-project), and a built app's backend runs on **their
+Supabase** (DB + serverless functions) — all in accounts Lu OAuthed on their behalf, billed to them, **zero
+hosting cost or risk to us**. Technical owners connect an existing repo (the v1 path); either way the infra is
+theirs. The rule throughout: *rent the heavy metered compute (sandboxes + tokens) but route hosting/DB to the
+customer's accounts; build only thin orchestration glue* ([FOUNDATION.md §7](../FOUNDATION.md)).
 
 ## 8. Onboarding wiring
 
@@ -275,9 +289,12 @@ Priority order lives in [ROADMAP.md](../ROADMAP.md); in brief:
 
 - **Sandbox = e2b** (ephemeral cloud sandbox) — behind a `Sandbox` port so Daytona/Fly are swappable.
 - **Coding agent = the owner's choice: Claude Code or Codex** (both preinstalled in the sandbox) + plain shell.
-- **Repo ownership = Lu-owned repos first** (v0 "build your site"); connect-your-GitHub is v1.
-- **Hosting = Vercel, two models (§7):** customer sites = one multi-tenant "Vercel for Platforms" project (scale
-  path); real software + dogfooding = repo-per-project. Owners never touch Vercel.
+- **Repo ownership = the customer's own GitHub by default** (Lu OAuths + provisions there — BYO, §7); a Lu-owned
+  home is only the v0 wedge bootstrap.
+- **Hosting = the customer's own Vercel/Supabase by default (BYO, §7):** real apps deploy repo-per-project into
+  *their* accounts (they own + pay). An optional DB-rendered content site rides a Lu-managed multi-tenant surface
+  — the free-preview path and the seed of the later **managed-metered** hosting tier (the destination). Free =
+  preview-only.
 - **Onboarding = a real DB org** (Supabase/Prisma write + invite-gated auth), not a cookie handoff.
 - **Model registry (§5b) = Anthropic + OpenAI + Google + xAI/Grok** (reasoning) · **gpt-image / Flux /
   Higgsfield** (image); default per role/modality; Lu auto-escalates the model per hard task.

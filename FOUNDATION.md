@@ -70,11 +70,12 @@ and resumes when resolved. Persistent state is cheap DB rows; heavy compute is e
 ## 5. The Engineer (the flagship agent)
 
 Turns "build me X" into a deployed thing. Runs **async** (`POST /api/engineering` → `202 {taskId}` →
-worker) over four **ports**:
+worker) over five **ports** — the last three provision into the **customer's own accounts** (§7):
 
 - **Sandbox** (e2b): an isolated cloud machine — clone, `exec`, stream a **pty**.
 - **Git** (GitHub App / Octokit): create repo, open/merge PR, diff.
 - **Deploy** (Vercel): create project, get the PR preview, promote to prod, attach a domain.
+- **Data** (Supabase Management API): provision the app's project/database, run migrations.
 - **Model gateway**: text (coding) + image (hero).
 
 **Pipeline:** `create_site` → `run_coding_agent` (Claude Code / Codex writes the code in the sandbox) →

@@ -27,9 +27,12 @@ Same infra, two entry modes: **autonomous** (a Task, headless coding agent) and 
   **Claude Code** (`@anthropic-ai/claude-code`) + **Codex** (`@openai/codex`) + a starter web template cached.
 - **Coding agent:** the owner picks **Claude Code** (`claude -p`, headless / PTY) **or Codex** (`codex exec` /
   PTY) — the runtime wraps whichever.
-- **Repos:** **Lu-owned** — a GitHub App on a Lu org creates one repo per site from a starter template (v0);
-  connect-your-GitHub is v1.
-- **Hosting:** Vercel API — project per repo, auto preview per PR, prod on merge, domain `{slug}.lu.computer`.
+- **Repos: the customer's own GitHub, by default** — Lu OAuths / App-installs on the owner's account and creates
+  the repo *there* (BYO — [agent-backend.md §7](./agent-backend.md) · [FOUNDATION.md §7](../FOUNDATION.md)); a
+  Lu-owned org holding a v0 starter-template repo is only the wedge bootstrap.
+- **Hosting:** Vercel API — deploy into the **customer's own** Vercel (BYO): project per repo, auto preview per
+  PR, prod on merge. The free/preview default is `{slug}.lu.computer` on a Lu-managed surface; a real business
+  runs on its own domain. A fully Lu-managed + metered tier is the later destination.
 - **Reasoning models:** Anthropic + OpenAI + Google + **xAI/Grok** via AI SDK v6 (the model gateway —
   [agent-backend.md §5b](./agent-backend.md); any agent runs any model). **Image:** gpt-image / Flux / Higgsfield.
 - **Where the code lives:** the Engineering AGENT + Sandbox/GitHub/Vercel ports in `apps/api` (heavy runs go
@@ -41,11 +44,13 @@ Same infra, two entry modes: **autonomous** (a Task, headless coding agent) and 
 
 Everything up to these seams is buildable; these need real accounts/dashboards:
 
-1. **GitHub home** — a Lu-org **GitHub App** (repo + PR + contents scopes) → App ID + private key, installed on
-   a Lu-owned GitHub org that holds the v0 site repos. Gives installation tokens.
+1. **GitHub App** — a Lu **GitHub App** (repo + PR + contents scopes) → App ID + private key, **installed on the
+   customer's own org** to provision into *their* account (BYO); installation tokens are scoped per install. A
+   Lu-owned org holding v0 starter repos is the wedge bootstrap.
 2. **e2b** — account + **`E2B_API_KEY`**; the e2b template (a Dockerfile with the CLIs) is authored against it.
-3. **Vercel** — account/team + **`VERCEL_TOKEN`** (+ `VERCEL_TEAM_ID`); add the domain **`lu.computer`** +
-   wildcard `*.lu.computer` DNS to the Vercel team.
+3. **Vercel** — a **Vercel OAuth app** to deploy into the **customer's own** Vercel (BYO real deploys), plus a Lu
+   account/team + **`VERCEL_TOKEN`** (+ `VERCEL_TEAM_ID`) for previews / dogfooding / the managed surface; add the
+   domain **`lu.computer`** + wildcard `*.lu.computer` DNS to the Lu team (for `{slug}.lu.computer` free previews).
 4. **Provider keys** (Railway env for `apps/api`): `ANTHROPIC_API_KEY`, **`OPENAI_API_KEY`** (Codex + gpt-image +
    GPT), optional Google, **`BFL_API_KEY`** (Flux). Higgsfield = the connected MCP.
 

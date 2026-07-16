@@ -15,7 +15,7 @@ online), the rest of the company as the roadmap, and the owner lands on the canv
 | 0 | **Welcome** | Meet Lu. "Let's set up your company." |
 | 1 | **What do you do** | Free-text business description (trade-agnostic). |
 | 2 | **Links → learn your brand** | Paste site/socials → the scan. Framed: "so your agents build in your voice." Feeds the Engineering agent's context. |
-| 3 | **Your handle** | `you.lu.computer` — where Engineering ships your sites. |
+| 3 | **Your handle** | `you.lu.computer` — your free default site address (your own domain when you connect one). |
 | 4 | **Meet your Engineer** | The one live agent. A short beat: sets up its `contract`, tees the first real action ("what should we build first?"). |
 | 5 | **Team** (optional) | The real Lu team-graph conversation ([team-graph.md](./team-graph.md)). |
 | 6 | **Building** | The real provisioning screen — the company boots. |

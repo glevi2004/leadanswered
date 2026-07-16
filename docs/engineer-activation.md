@@ -16,9 +16,13 @@ publish gate.
 
 ## 1. Provision the seams (external infra)
 
-The same seams as [engineering-agent.md §2](./engineering-agent.md), with v0 choices:
+The same seams as [engineering-agent.md §2](./engineering-agent.md). **Note the model:** real infra is **BYO** —
+Lu OAuths the customer's own GitHub/Vercel/Supabase and provisions *there* ([FOUNDATION.md §7](../FOUNDATION.md));
+the v0 choices below are a **demo bootstrap** on Lu-owned scaffolding to get the loop running, and a fully
+Lu-managed + metered hosting tier is the later destination. With that framing, the v0 choices:
 
-- **GitHub home** — v0: an authed `gh` user; v1: a Lu GitHub **App + org**.
+- **GitHub home** — v0: an authed `gh` user; v1 / the BYO model: a Lu GitHub **App** installed on the customer's
+  own org.
 - **Starter template repo** — a minimal Next.js/static site, or let `run_coding_agent` scaffold from an empty
   repo (v0 drops the template requirement).
 - **Stable Vercel token** — a non-expiring Vercel **API token** + `VERCEL_TEAM_ID` in `apps/api`'s Railway env;
@@ -58,12 +62,14 @@ The sandbox `pty()` + the `Session` table back a **websocket PTY route** (`apps/
 node** on the canvas: the toolbar `terminal` button spawns Claude Code/Codex/shell, streams the PTY, and you
 watch + type. It rides the same sandbox the autonomous runs use ([canvas-tools.md §4](./canvas-tools.md)).
 
-## 5. generate_image + the hosting scale path
+## 5. generate_image + the hosting path (BYO)
 
 - The hero model defaults to `gpt-image-1`; Flux (via `@ai-sdk/replicate|fal`) or Higgsfield (via the MCP
   client) extend it.
-- The **multi-tenant `*.lu.computer`** hosting model (surface A, [agent-backend.md §7](./agent-backend.md)) is
-  the scale path for customer sites; the deploy adapter starts repo-per-project.
+- **Hosting is BYO:** real apps deploy repo-per-project into the **customer's own** Vercel/Supabase
+  ([agent-backend.md §7](./agent-backend.md)) — the deploy adapter starts there. The **multi-tenant
+  `*.lu.computer`** surface (surface A) is the optional lighter / free-preview path and the seed of the later
+  **Lu-managed + metered** hosting tier (the destination), not where real apps live.
 
 ## 6. The v0 loop (shortest end-to-end)
 
@@ -74,9 +80,11 @@ at a URL.** That's the whole thesis, real. The terminal (§4) and multi-tenant h
 
 ## 7. v0 choices
 
-- **GitHub home:** the `gh` user for v0; a Lu GitHub App/org for v1.
+- **GitHub home:** the `gh` user for the v0 bootstrap; the BYO model is the **customer's own** GitHub via a Lu
+  App installed on their org.
 - **Async model:** a background task in `apps/api` writing Store progress.
-- **Hosting:** repo-per-Vercel-project (surface B) for v0; multi-tenant later.
+- **Hosting:** repo-per-Vercel-project (surface B), into the **customer's own** Vercel by default (BYO); the
+  Lu-managed multi-tenant surface (A) is the optional / free-preview path + the managed-metered destination.
 - **Hero image:** default to `gpt-image-1`; Flux/Higgsfield later.
 - **Invoke path:** the Lu dock chat → the real orchestrator.
 - **Template:** scaffold from an empty repo (no template dependency).
