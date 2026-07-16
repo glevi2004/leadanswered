@@ -339,7 +339,10 @@ export function SarahDock() {
     >
       <div
         inert={!widgetOpen}
-        className="absolute inset-y-0 right-0 flex w-(--sarah-dock) flex-col py-2 pl-1 pr-2"
+        className={cn(
+          "absolute inset-y-0 right-0 flex w-(--sarah-dock) flex-col py-2 pl-1 pr-2 transition-transform duration-200 ease-linear",
+          widgetOpen ? "translate-x-0" : "translate-x-full",
+        )}
       >
         {/* Same handle anatomy as SidebarResizer: full-height 3px pill at the dock's left edge. */}
         <div
