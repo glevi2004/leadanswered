@@ -35,10 +35,13 @@ demo for free.
 ## Phase 0 — The durable, reliable build spine
 
 *Make one agent build reliably, durably, and actually deploy.*
-- **Build the durable worker.** Create `apps/api/src/worker.ts` on the declared `bullmq`/`REDIS_URL`
-  scaffolding (or adopt Trigger.dev/Inngest). `POST /api/engineering` **enqueues**; the worker runs the
-  build, streams progress to the Store, **parks on Approvals** and **resumes** — off the in-process `Map`.
-  Runs survive a redeploy. *(FOUNDATION §4.)*
+- **Build the durable worker on BullMQ.** Create `apps/api/src/worker.ts` on the declared
+  `bullmq`/`REDIS_URL` scaffolding (Redis on Railway/Upstash — self-hosted, cheap). `POST /api/engineering`
+  **enqueues**; the worker runs the build, streams progress to the Store, **parks on Approvals** and
+  **resumes** — off the in-process `Map`. We get durable-execution semantics (checkpoint/replay, crash-safe
+  resume, wait-for-approval, idempotency) by **studying the OSS run-engines** (Trigger.dev / Inngest) and
+  implementing the *minimal* pattern on BullMQ + Postgres — not reinventing it naively, not adopting a whole
+  engine. Runs survive a redeploy. *(FOUNDATION §4; design → `docs/durable-worker.md`.)*
 - **Prove + harden the deploy path.** Run `deploy/vercel.ts` against a live build; verify create-project →
   PR-preview → promote-to-prod → attach-domain. Fix the self-flagged endpoints. This is the money path.
 - **Engineer reliability.** A real starter template for `create_site`; a prebuilt **e2b template** with the
