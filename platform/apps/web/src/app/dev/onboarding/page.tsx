@@ -6,7 +6,8 @@ import { OnboardingSketch } from "@/components/onboarding/OnboardingSketch";
 export default function DevOnboarding() {
   return (
     <div className="min-h-svh bg-sidebar">
-      <OnboardingSketch />
+      {/* dev preview: finishes with the cookie mock (no real backend/session) + the skip bar */}
+      <OnboardingSketch dev />
     </div>
   );
 }

@@ -38,6 +38,8 @@ import { writeOnboardedProfile } from "@/lib/org-cookie";
 import type { OrgProfile } from "@/lib/data/org-profile";
 import { TeamSetup } from "@/components/team/TeamSetup";
 import type { Member } from "@/lib/data/team/types";
+import { completeOnboarding } from "@/app/onboarding/actions";
+import type { OrganizationConfigInput } from "@/lib/config";
 
 /**
  * SKETCH — self-onboarding, first run (VISION-LU §3). The owner talks to Lu on
@@ -214,7 +216,12 @@ function DevBar({ phase, step, onStep, onPhase }: { phase: Phase; step: StepKey;
   );
 }
 
-export function OnboardingSketch() {
+/**
+ * @param dev DEV preview mode (/dev/onboarding): finish writes the cookie mock (no real
+ *   backend/session) and the skip bar is shown. Default (real /onboarding route): finish
+ *   persists to the real backend via `completeOnboarding`.
+ */
+export function OnboardingSketch({ dev = false }: { dev?: boolean } = {}) {
   const [phase, setPhase] = React.useState<Phase>("welcome");
   const [step, setStep] = React.useState<StepKey>("trade");
   const [ws, setWs] = React.useState<Workspace>({});
@@ -224,6 +231,8 @@ export function OnboardingSketch() {
   const [gcalStatus, setGcalStatus] = React.useState<GcalStatus>("idle");
   const [history, setHistory] = React.useState<Snapshot[]>([]);
   const [teamMembers, setTeamMembers] = React.useState<Member[]>([]);
+  const [submitting, setSubmitting] = React.useState(false);
+  const [submitError, setSubmitError] = React.useState<string | null>(null);
   const pushHistory = () => setHistory((h) => [...h, { step, ws, msgs, avail, gcalStatus }]);
   const goBack = () =>
     setHistory((h) => {
@@ -372,26 +381,60 @@ export function OnboardingSketch() {
   // team step is the last one → go straight to building the workspace.
   const finishTeam = () => setPhase("building");
 
-  const openWorkspace = () => {
-    const teammates = teamMembers.filter((m) => m.roleKey !== "owner");
-    const profile: OrgProfile = {
-      id: "org_new",
-      companyName: ws.name || "Your Company",
-      sarahName: ws.assistantName || "Lu",
-      projectTypes: ws.trade ? [ws.trade] : [],
-      standingAvailability: { timezone: "America/New_York", windows: windowsFromAvail(avail) },
-      twilioNumber: ws.line || "(844) 415-7642",
-      ownerCell: ws.ownerCell,
-      siteHandle: ws.handle ? `${ws.handle}.lu.computer` : undefined,
-      assistantEmail: ws.handle ? `${ws.handle}@lu.computer` : undefined,
-      gcalConnected: !!ws.gcal,
-      // Fixed nav — every new org gets the same surfaces, honest-empty.
-      modules: { crm: "live", schedule: "live", money: "live", team: "live", agents: "live", sites: "live" },
-      setupSteps: { assistant: true, hours: avail.size > 0, google: !!ws.gcal, ...(teammates.length ? { team: true } : {}) },
-      seedMembers: teammates,
-    };
-    writeOnboardedProfile(profile);
-    window.location.href = "/home";
+  // (ws, team) → the config we persist. Same shape the mock profile derived; honest-empty
+  // for the fields the Lu flow doesn't collect (service area, project types when no trade).
+  const buildConfig = (): OrganizationConfigInput => ({
+    companyName: ws.name || "Your Company",
+    sarahName: ws.assistantName || "Lu",
+    personaNotes: null,
+    projectTypes: ws.trade ? [ws.trade] : [],
+    serviceArea: { baseLocations: [], includeOverrides: [], excludeOverrides: [] },
+    qualificationRules: { requireDecisionMaker: true },
+    standingAvailability: { timezone: "America/New_York", windows: windowsFromAvail(avail) },
+    escalationTopics: [],
+    recipients: [],
+  });
+
+  const openWorkspace = async () => {
+    if (dev) {
+      // DEV preview — cookie mock, so /dev/onboarding works with no real backend or session.
+      const teammates = teamMembers.filter((m) => m.roleKey !== "owner");
+      const profile: OrgProfile = {
+        id: "org_new",
+        companyName: ws.name || "Your Company",
+        sarahName: ws.assistantName || "Lu",
+        projectTypes: ws.trade ? [ws.trade] : [],
+        standingAvailability: { timezone: "America/New_York", windows: windowsFromAvail(avail) },
+        twilioNumber: ws.line || "(844) 415-7642",
+        ownerCell: ws.ownerCell,
+        siteHandle: ws.handle ? `${ws.handle}.lu.computer` : undefined,
+        assistantEmail: ws.handle ? `${ws.handle}@lu.computer` : undefined,
+        gcalConnected: !!ws.gcal,
+        // Fixed nav — every new org gets the same surfaces, honest-empty.
+        modules: { crm: "live", schedule: "live", money: "live", team: "live", agents: "live", sites: "live" },
+        setupSteps: { assistant: true, hours: avail.size > 0, google: !!ws.gcal, ...(teammates.length ? { team: true } : {}) },
+        seedMembers: teammates,
+      };
+      writeOnboardedProfile(profile);
+      window.location.href = "/home";
+      return;
+    }
+
+    // REAL — persist config (flips onboardingComplete=true) + boot departments, then open /home.
+    setSubmitError(null);
+    setSubmitting(true);
+    try {
+      const result = await completeOnboarding(buildConfig(), ws.name || ws.trade);
+      if (result?.error) {
+        setSubmitError(result.error);
+        setSubmitting(false);
+        return;
+      }
+      window.location.href = "/home";
+    } catch {
+      setSubmitError("Something went wrong finishing your setup. Please try again.");
+      setSubmitting(false);
+    }
   };
 
   const jumpToStep = (s: StepKey) => {
@@ -408,11 +451,12 @@ export function OnboardingSketch() {
     setWs((w) => ({ ...DEV_DEFAULTS, ...w }));
     setPhase(p);
   };
-  const devBar = <DevBar phase={phase} step={step} onStep={jumpToStep} onPhase={jumpToPhase} />;
+  // The skip bar is a DEV harness only — never shown on the real /onboarding route.
+  const devBar = dev ? <DevBar phase={phase} step={step} onStep={jumpToStep} onPhase={jumpToPhase} /> : null;
 
   if (phase === "welcome") return (<>{devBar}<Welcome onStart={start} /></>);
   if (phase === "building") return (<>{devBar}<Building name={ws.name ?? "your business"} onDone={() => setPhase("ready")} /></>);
-  if (phase === "ready") return (<>{devBar}<Ready ws={ws} onOpenWorkspace={openWorkspace} /></>);
+  if (phase === "ready") return (<>{devBar}<Ready ws={ws} onOpenWorkspace={openWorkspace} submitting={submitting} error={submitError} /></>);
 
   // last step — Lu builds your team graph with you (same experience as the Team page)
   if (step === "team")
@@ -1106,7 +1150,7 @@ const DEPARTMENTS: { label: string; icon: React.ComponentType<{ className?: stri
   { label: "Sales", icon: TrendingUp },
 ];
 
-function Ready({ ws, onOpenWorkspace }: { ws: Workspace; onOpenWorkspace: () => void }) {
+function Ready({ ws, onOpenWorkspace, submitting = false, error }: { ws: Workspace; onOpenWorkspace: () => void; submitting?: boolean; error?: string | null }) {
   const setup = [
     { icon: Globe, label: "Website", value: `${ws.handle}.lu.computer`, live: true },
     { icon: Mail, label: "Email", value: `${ws.handle}@lu.computer` },
@@ -1190,9 +1234,16 @@ function Ready({ ws, onOpenWorkspace }: { ws: Workspace; onOpenWorkspace: () => 
         </div>
       </div>
 
-      <Button size="lg" className="btn-glow mx-auto gap-2" onClick={onOpenWorkspace}>
-        Open my workspace <ArrowRight className="size-4" />
-      </Button>
+      <div className="flex flex-col items-center gap-2">
+        <Button size="lg" className="btn-glow mx-auto gap-2" onClick={onOpenWorkspace} disabled={submitting}>
+          {submitting ? (
+            <>Opening your workspace… <Loader2 className="size-4 animate-spin" /></>
+          ) : (
+            <>Open my workspace <ArrowRight className="size-4" /></>
+          )}
+        </Button>
+        {error && <p className="text-center text-sm text-destructive">{error}</p>}
+      </div>
     </div>
   );
 }

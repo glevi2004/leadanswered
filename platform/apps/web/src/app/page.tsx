@@ -11,18 +11,17 @@ export default async function Home() {
   if (isAdminEmail(user.email)) redirect("/admin");
 
   const organization = await getOrganizationByOwnerEmail(user.email ?? "");
-  // Onboarding is admin-led, so a signed-in organization is normally already set up. The two cards
-  // below are defensive (no linked organization, or setup not finished) — never route to the wizard.
-  if (!organization || !organization.onboardingComplete) {
+  // An org that exists but hasn't finished setup goes to the self-serve Lu onboarding.
+  if (organization && !organization.onboardingComplete) redirect("/onboarding");
+  // No linked org at all is still defensive — their Lead Answered contact provisions it first.
+  if (!organization) {
     return (
       <main className="flex min-h-screen items-center justify-center p-6">
         <Card className="w-full max-w-md text-center">
           <CardHeader>
             <CardTitle>You're almost set</CardTitle>
             <CardDescription>
-              {organization
-                ? "Your Lead Answered contact is finishing your setup — you'll be up and running shortly."
-                : `We don't have an account linked to ${user.email} yet. Your Lead Answered contact will get you set up shortly.`}
+              {`We don't have an account linked to ${user.email} yet. Your Lead Answered contact will get you set up shortly.`}
             </CardDescription>
           </CardHeader>
           <CardContent>

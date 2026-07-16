@@ -1,11 +1,27 @@
 import { redirect } from "next/navigation";
+import { currentUser, isAdminEmail } from "@/lib/auth";
+import { getOrganizationByOwnerEmail } from "@/lib/organizations";
+import { OnboardingSketch } from "@/components/onboarding/OnboardingSketch";
 
 /**
- * Onboarding is ADMIN-LED now — the wizard lives at /admin/[organizationId]/onboard and is run by the
- * admin. This organization-facing route is retired; anyone who lands here (a stale link/bookmark) is
- * sent home to be role-routed. The OnboardingWizard component + actions in this folder are still used
- * by the admin route and by Settings.
+ * Self-serve Lu onboarding (VISION-LU §3). The owner talks to Lu; on finish we persist their
+ * config + boot their departments (see `completeOnboarding`) and open the real workspace.
+ * Reachable only by a logged-in owner whose org exists but isn't onboarded yet:
+ *   - no user → sign-in, admin → /admin, no linked org → "/", already onboarded → /home.
+ * (The dev preview of this same flow — cookie mock, no real backend — lives at /dev/onboarding.)
  */
-export default function OnboardingPage() {
-  redirect("/");
+export default async function OnboardingPage() {
+  const user = await currentUser();
+  if (!user) redirect("/sign-in");
+  if (isAdminEmail(user.email)) redirect("/admin");
+
+  const organization = await getOrganizationByOwnerEmail(user.email ?? "");
+  if (!organization) redirect("/"); // no org linked yet → "almost set" card
+  if (organization.onboardingComplete) redirect("/home"); // already set up
+
+  return (
+    <div className="min-h-svh bg-sidebar">
+      <OnboardingSketch />
+    </div>
+  );
 }
