@@ -14,6 +14,7 @@ import {
 import { agentBadge, workingDepts } from "@/lib/canvas/agent-work";
 import { SheetGrid } from "@/components/canvas/SheetGrid";
 import { CanvasToolbar, type CanvasTool } from "@/components/canvas/CanvasToolbar";
+import { TerminalNode, type AgentKind } from "@/components/canvas/TerminalNode";
 import { BrowserChrome } from "@/components/canvas/BrowserChrome";
 import { ArtifactsNav } from "@/components/canvas/ArtifactsNav";
 import { useSarah } from "@/components/sarah/sarah-context";
@@ -95,7 +96,7 @@ export interface CanvasDepartment {
   status?: string;
 }
 
-export function CompanyCanvas({ departments = [] }: { departments?: CanvasDepartment[] }) {
+export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; departments?: CanvasDepartment[] }) {
   const { setSelectedAgent, openWidget, setWidgetMode } = useSarah();
 
   /* ---- REAL departments (v0: just Engineering, status `active`) drive the graph. We keep
@@ -158,6 +159,28 @@ export function CompanyCanvas({ departments = [] }: { departments?: CanvasDepart
   const cullRaf = React.useRef<number | null>(null);
   const goT = React.useRef<number | null>(null);
   const panMoved = React.useRef(false);
+
+  /* ---- cloud terminals (CANVAS-TOOLS.md §4): floating xterm.js panels wired to the backend
+        websocket PTY. Live in a screen-space overlay (NOT on the RZPP plane) so they don't
+        pan/zoom. Picking the `terminal` tool spawns one, then the tool snaps back to hand. ---- */
+  const [terminals, setTerminals] = React.useState<{ id: string; kind: AgentKind; x: number; y: number }[]>([]);
+  const termSeq = React.useRef(0);
+  const openTerminal = React.useCallback((kind: AgentKind = "claude_code") => {
+    setTerminals((prev) => {
+      const i = termSeq.current++;
+      const step = (i % 5) * 34;                 // cascade successive panels so they don't stack
+      return [...prev, { id: `term-${i}`, kind, x: 96 + step, y: 88 + step }];
+    });
+  }, []);
+  const closeTerminal = React.useCallback((id: string) => {
+    setTerminals((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+  // the toolbar's `terminal` tool opens a panel (default Claude Code) then reverts to hand;
+  // every other tool just sets the interaction mode as before.
+  const onPickTool = React.useCallback((t: CanvasTool) => {
+    if (t === "terminal") { openTerminal("claude_code"); setTool("hand"); return; }
+    setTool(t);
+  }, [openTerminal]);
 
   const persist = React.useCallback((p: Positions) => {
     if (saveT.current) window.clearTimeout(saveT.current);
@@ -729,8 +752,20 @@ export function CompanyCanvas({ departments = [] }: { departments?: CanvasDepart
         })()}
       </div>
 
+      {/* cloud-terminal overlay — floating xterm.js panels, screen-space (above the plane) */}
+      {terminals.map((t) => (
+        <TerminalNode
+          key={t.id}
+          orgId={orgId}
+          agentKind={t.kind}
+          initialX={t.x}
+          initialY={t.y}
+          onClose={() => closeTerminal(t.id)}
+        />
+      ))}
+
       {/* canvas toolbar (bottom-center) */}
-      <CanvasToolbar active={tool} onPick={setTool} />
+      <CanvasToolbar active={tool} onPick={onPickTool} />
 
       {/* agent-updates pill (ref-75) — bottom-left, layered avatar chips */}
       {updates.length > 0 && (

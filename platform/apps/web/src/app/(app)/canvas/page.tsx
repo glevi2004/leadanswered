@@ -43,7 +43,7 @@ export default async function CanvasPage() {
   const departments = await loadDepartments(organization.id);
   return (
     <div className="-m-4 -mb-24 flex h-[calc(100svh-2rem)] flex-col overflow-hidden sm:-m-6">
-      <CompanyCanvas departments={departments} />
+      <CompanyCanvas orgId={organization.id} departments={departments} />
     </div>
   );
 }

@@ -215,8 +215,9 @@ export function SarahProvider({
       }
 
       // The New (onboarded) org has ONE real assistant: this same widget talks to
-      // /api/lu/chat (real Claude Haiku) — a plain conversation over the fixed
-      // workspace. Demo (Mature) and off keep their scripted/honest-toast behavior below.
+      // /api/lu/chat, which (server-side) drives the REAL Lu orchestrator on apps/api —
+      // she decomposes the goal into Task rows and dispatches engineering builds; the dock
+      // then watches them. Demo (Mature) and off keep their scripted/honest-toast behavior below.
       if (isNewOrg) {
         const prior = chatsRef.current.find((c) => c.id === chatId)?.messages ?? [];
         const thread = [...prior, ownerMsg].map((m) => ({

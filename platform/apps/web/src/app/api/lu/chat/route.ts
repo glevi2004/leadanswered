@@ -1,49 +1,121 @@
-import { anthropic } from "@ai-sdk/anthropic";
-import { generateText, type ModelMessage } from "ai";
+import { API_BASE, currentOrgId } from "@/lib/dock/backend";
 
 /**
- * The New org's ONE real assistant. The global Lu widget/dock/`/sarah` talks to this —
- * a plain, warm Claude Haiku conversation (no tools, no "install"): Lu is the operating
- * layer over the fixed workspace (Customers · Schedule · Money · Team · Agents · Sites).
- * Falls back to a scripted line (503 "no_key") when ANTHROPIC_API_KEY is absent.
+ * INVOKE — the New org's ONE assistant, now wired to the REAL Lu ORCHESTRATOR
+ * (apps/api `POST /api/lu`) instead of a tool-less Haiku chat. The global Lu
+ * widget/dock/`/sarah` POSTs the conversation here; this route (server-side, so the
+ * browser never hits Railway and never passes an orgId):
+ *   1) resolves the session org,
+ *   2) forwards { orgId, message, history } to the orchestrator, which understands the
+ *      goal, decomposes it into Task rows, and delegates to the owning department,
+ *   3) DISPATCHES every engineering Task it created to `POST /api/engineering` so the
+ *      async build actually runs (fire-and-forget; the dock then WATCHes it), and
+ *   4) returns { reply, tasksCreated, actions } — the client keeps its existing chat UX.
+ *
+ * The client speaks the same `{ messages }` shape it always has; we split the transcript
+ * into the latest turn (`message`) + prior turns (`history`) the orchestrator expects.
  */
 
 export const runtime = "nodejs";
-export const maxDuration = 30;
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
-const SYSTEM = `You are Lu, the AI assistant and operating layer for a small service business — like you're texting the owner. Warm, sharp, concise (1–3 short sentences).
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
 
-The owner's workspace has a fixed set of surfaces you help them run:
-- Customers — the people they serve (leads, jobs, history)
-- Schedule — their calendar and jobs
-- Money — quotes, invoices, and who owes them
-- Team — their crew (people and AI agents on one org chart)
-- Agents — AI workers they can hire (a Receptionist that answers the line, plus Follow-ups, Reviews, Content)
-- Sites — their websites
+interface LuResult {
+  reply: string;
+  tasksCreated: string[];
+  actions: unknown[];
+}
 
-Help them get things done, answer questions about their business, and when it fits, point them to the right surface ("that lives in Money", "hire the Follow-ups agent under Agents"). Never invent data you don't have; if they ask about specific numbers, tell them where to look. Don't offer to "install apps" — the workspace is already set up.`;
+interface TaskRow {
+  id: string;
+  departmentKey: string;
+  title: string;
+  body: string;
+}
+
+/**
+ * Kick off the async Engineer build for a task the orchestrator just created (best-effort).
+ * `runEngineering` treats the posted `message` as the build instruction, so we send the
+ * Task's body (the detailed brief Lu wrote) and thread the taskId so it dispatches the
+ * EXISTING task instead of minting a new one.
+ */
+async function dispatchEngineering(orgId: string, task: TaskRow): Promise<void> {
+  try {
+    const res = await fetch(`${API_BASE}/api/engineering`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ orgId, taskId: task.id, message: task.body?.trim() || task.title }),
+    });
+    if (!res.ok) console.warn(`[lu/chat] engineering dispatch for ${task.id} → ${res.status}`);
+  } catch (err) {
+    console.warn(`[lu/chat] engineering dispatch for ${task.id} error:`, err);
+  }
+}
+
+/** The subset of `tasksCreated` that belong to Engineering — those get an async build. */
+async function engineeringTasks(orgId: string, createdIds: string[]): Promise<TaskRow[]> {
+  if (createdIds.length === 0) return [];
+  try {
+    const res = await fetch(`${API_BASE}/api/tasks?orgId=${encodeURIComponent(orgId)}`, { cache: "no-store" });
+    if (!res.ok) return [];
+    const { tasks } = (await res.json()) as { tasks?: TaskRow[] };
+    const created = new Set(createdIds);
+    return (tasks ?? []).filter((t) => created.has(t.id) && t.departmentKey === "engineering");
+  } catch (err) {
+    console.warn("[lu/chat] could not resolve engineering tasks:", err);
+    return [];
+  }
+}
 
 export async function POST(req: Request) {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return Response.json({ error: "no_key" }, { status: 503 });
-  }
+  const orgId = await currentOrgId();
+  if (!orgId) return Response.json({ error: "no_org" }, { status: 401 });
 
-  let messages: ModelMessage[];
+  let messages: ChatMessage[];
   try {
-    ({ messages } = (await req.json()) as { messages: ModelMessage[] });
+    ({ messages } = (await req.json()) as { messages: ChatMessage[] });
   } catch {
     return Response.json({ error: "bad_request" }, { status: 400 });
   }
-
-  try {
-    const result = await generateText({
-      model: anthropic(process.env.AI_MODEL || "claude-haiku-4-5"),
-      system: SYSTEM,
-      messages,
-    });
-    return Response.json({ reply: result.text });
-  } catch (err) {
-    console.error("[lu/chat]", err);
-    return Response.json({ error: "generation_failed" }, { status: 500 });
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return Response.json({ error: "bad_request" }, { status: 400 });
   }
+
+  // Latest owner turn is the `message`; everything before it is `history`.
+  const last = messages[messages.length - 1];
+  const message = last?.content?.trim() ?? "";
+  const history = messages.slice(0, -1);
+  if (!message) return Response.json({ error: "empty_message" }, { status: 400 });
+
+  let result: LuResult;
+  try {
+    const res = await fetch(`${API_BASE}/api/lu`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ orgId, message, history }),
+    });
+    if (!res.ok) throw new Error(`lu route ${res.status}`);
+    const data = (await res.json()) as Partial<LuResult>;
+    result = {
+      reply: data.reply ?? "",
+      tasksCreated: Array.isArray(data.tasksCreated) ? data.tasksCreated : [],
+      actions: Array.isArray(data.actions) ? data.actions : [],
+    };
+  } catch (err) {
+    console.error("[lu/chat] orchestrator error:", err);
+    return Response.json({ error: "generation_failed" }, { status: 502 });
+  }
+
+  // Dispatch the async build for every engineering Task Lu created this turn. Awaited
+  // (each POST returns 202 immediately — the build runs in the background on apps/api),
+  // so the serverless function isn't torn down before the kicks are sent.
+  const engTasks = await engineeringTasks(orgId, result.tasksCreated);
+  await Promise.allSettled(engTasks.map((task) => dispatchEngineering(orgId, task)));
+
+  return Response.json(result);
 }

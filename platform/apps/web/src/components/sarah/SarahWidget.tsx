@@ -14,6 +14,7 @@ import { useSarah } from "./sarah-context";
 import { SarahThread } from "./SarahThread";
 import { SarahComposer } from "./SarahComposer";
 import { ApprovalCard } from "@/components/app/ApprovalCard";
+import { PublishApprovals } from "./PublishApprovals";
 import { AgentDockPanel } from "@/components/canvas/AgentDockPanel";
 import { SarahIcon } from "@/components/icons/sarah";
 import { cn } from "@/lib/utils";
@@ -176,10 +177,12 @@ function PanelBody() {
 
 /** The Lu chat — the existing thread (escalations + approvals + thread + composer). */
 function ChatTab() {
-  const { approvals, escalations, beginEscalationAnswer, messages, typing } = useSarah();
+  const { approvals, escalations, beginEscalationAnswer, messages, typing, widgetOpen } = useSarah();
   return (
     <>
       <div className="flex-1 overflow-y-auto px-4 py-3">
+        {/* Real publish gates from the Engineer (polled while the dock is open). */}
+        <PublishApprovals active={widgetOpen} />
         {escalations.length > 0 && (
           <div className="mb-3 flex flex-col gap-2">
             {escalations.map((e) => (
