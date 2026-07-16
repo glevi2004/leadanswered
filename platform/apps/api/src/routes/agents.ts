@@ -4,8 +4,8 @@ import {
   type OrchestratorDeps,
   type OrchestratorMessage,
 } from "../agent/orchestrator.js";
-import { runEngineering, type EngineeringDeps } from "../agent/engineering.js";
-import { enqueueEngineering, useRedis } from "../queue.js";
+import { type EngineeringDeps } from "../agent/engineering.js";
+import { dispatchBuild } from "../agent/dispatch.js";
 
 /** True for a present, non-blank string field (missing/blank → 400, like the other routes). */
 function isFilled(value: unknown): value is string {
@@ -75,34 +75,6 @@ export function createLuRoute(deps: OrchestratorDeps) {
  * 400 if orgId/message blank.
  */
 export function createEngineeringRoute(deps: EngineeringDeps) {
-  // Fallback registry (no Redis): one live in-process run per task across requests.
-  const inflight = new Map<string, Promise<unknown>>();
-
-  /** In-process fallback: run the Engineer now; owns the failure → `failed` transition + cleanup. */
-  function dispatchInProcess(orgId: string, taskId: string, message: string): void {
-    if (inflight.has(taskId)) return; // already running — do not double-dispatch
-    const run = runEngineering(deps, { orgId, taskId, message })
-      .catch(async (err) => {
-        console.error(`[/api/engineering] task ${taskId} failed:`, err);
-        await deps.store.updateTaskStatus(taskId, "failed").catch((e) => {
-          console.error(`[/api/engineering] could not mark task ${taskId} failed:`, e);
-        });
-      })
-      .finally(() => {
-        inflight.delete(taskId);
-      });
-    inflight.set(taskId, run);
-  }
-
-  /** Durable when Redis is set (enqueue → worker), else an in-process run. */
-  async function dispatch(orgId: string, taskId: string, message: string): Promise<void> {
-    if (useRedis()) {
-      await enqueueEngineering({ orgId, taskId, message });
-    } else {
-      dispatchInProcess(orgId, taskId, message);
-    }
-  }
-
   return async function postEngineering(req: Request, res: Response): Promise<void> {
     const b = req.body ?? {};
     const orgId = b.orgId ?? b.org_id;
@@ -124,9 +96,6 @@ export function createEngineeringRoute(deps: EngineeringDeps) {
           return;
         }
         taskId = existing.id;
-        if (existing.status !== "in_progress" && existing.status !== "needs_approval") {
-          await deps.store.updateTaskStatus(taskId, "in_progress");
-        }
       } else {
         // No task yet — create the engineering Task the build will report onto.
         const task = await deps.store.createTask({
@@ -140,8 +109,8 @@ export function createEngineeringRoute(deps: EngineeringDeps) {
         taskId = task.id;
       }
 
-      // Enqueue (or fall back to in-process), then answer immediately.
-      await dispatch(orgId, taskId, message);
+      // Durable dispatch (enqueue → worker; in-process fallback), then answer immediately.
+      await dispatchBuild(deps, { orgId, taskId, message });
       res.status(202).json({ taskId });
     } catch (err) {
       console.error("[/api/engineering] error:", err);

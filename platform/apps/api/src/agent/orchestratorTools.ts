@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import type { Store } from "../store/types.js";
+import { dispatchBuild } from "./dispatch.js";
 
 /**
  * The eight departments Lu delegates to (AGENTS-BACKEND §3). A task's
@@ -107,6 +108,28 @@ export function orchestratorTools(deps: OrchestratorToolDeps, ctx: OrchestratorC
         }
         const task = await deps.store.updateTask(taskId, { departmentKey });
         return { ok: true as const, taskId: task.id, departmentKey: task.departmentKey };
+      },
+    }),
+
+    dispatch_to_engineering: tool({
+      description:
+        "Start the Engineering agent BUILDING an engineering task now. Call this right after create_task (departmentKey 'engineering') to actually kick off the build: the Engineer stands up a repo, writes the code in a sandbox, opens a preview, and stages a publish approval for the owner. Pass the taskId you just created. You never build anything yourself — the Engineer only runs when you dispatch it. The build runs in the background; the owner watches it in the dock. Only dispatch engineering tasks.",
+      inputSchema: z.object({
+        taskId: z.string().describe("The engineering task to build (from create_task)"),
+      }),
+      execute: async ({ taskId }) => {
+        const task = await deps.store.getTask(taskId);
+        if (!task || task.orgId !== ctx.orgId) {
+          return { ok: false as const, reason: "task_not_found" };
+        }
+        if (task.departmentKey !== "engineering") {
+          return { ok: false as const, reason: "not_an_engineering_task" };
+        }
+        await dispatchBuild(
+          { store: deps.store },
+          { orgId: ctx.orgId, taskId: task.id, message: task.body?.trim() || task.title },
+        );
+        return { ok: true as const, taskId: task.id, dispatched: true };
       },
     }),
 
