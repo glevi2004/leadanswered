@@ -35,6 +35,9 @@ The same seams as [engineering-agent.md §2](./engineering-agent.md), with v0 ch
    a **fire-and-forget background task inside `apps/api`** that writes progress (task status + artifacts) to the
    Store; the UI reads/streams the Store. A **dispatcher** consumes a `createTask(engineering)` →
    `runEngineering(deps, { orgId, taskId, message })` (wire `taskId` through the route + the orchestrator).
+   *This v0 in-process model is deliberately demo-grade; the scale path — the key platform-maturation item — is
+   a **durable worker** (Trigger.dev / Inngest) so overnight runs survive redeploys/crashes, supervise the
+   sandbox marathon, and resume after Approvals ([FOUNDATION.md §4](../FOUNDATION.md) · [ROADMAP.md](../ROADMAP.md)).*
 2. **Read routes** — `GET /api/tasks`, `/api/artifacts`, `/api/approvals`, `/api/sites` (scoped to `orgId`).
 3. **Publish endpoint** — `POST /api/approvals/:id/resolve` → on approve, call `confirmPublish` (merge →
    promote → attach `{slug}.lu.computer`). Closes the gate.

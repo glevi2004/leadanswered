@@ -30,10 +30,12 @@ Same infra, two entry modes: **autonomous** (a Task, headless coding agent) and 
 - **Repos:** **Lu-owned** — a GitHub App on a Lu org creates one repo per site from a starter template (v0);
   connect-your-GitHub is v1.
 - **Hosting:** Vercel API — project per repo, auto preview per PR, prod on merge, domain `{slug}.lu.computer`.
-- **Reasoning models:** Anthropic + OpenAI + Google via AI SDK v6. **Image:** gpt-image / Flux / Higgsfield.
-- **Where the code lives:** the Engineering AGENT + Sandbox/GitHub/Vercel ports in `apps/api` (heavy runs as
-  async background work); the terminal node + canvas elements in `apps/web`; shared types in `packages/core`;
-  the tables in `packages/db`.
+- **Reasoning models:** Anthropic + OpenAI + Google + **xAI/Grok** via AI SDK v6 (the model gateway —
+  [agent-backend.md §5b](./agent-backend.md); any agent runs any model). **Image:** gpt-image / Flux / Higgsfield.
+- **Where the code lives:** the Engineering AGENT + Sandbox/GitHub/Vercel ports in `apps/api` (heavy runs go
+  async — v0 in-process, scaling to a **durable worker** that supervises the sandbox marathon;
+  [agent-backend.md §3](./agent-backend.md) / [FOUNDATION.md §4](../FOUNDATION.md)); the terminal node + canvas
+  elements in `apps/web`; shared types in `packages/core`; the tables in `packages/db`.
 
 ## 2. External setup (the real blockers)
 

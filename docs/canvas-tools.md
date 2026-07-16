@@ -49,9 +49,10 @@ The toolbar sets the canvas **mode** (`tool`). The library owns drag = pan; the 
 
 **What it does:** click terminal → pick **Claude Code / Codex / plain shell** → it spawns, and a **live
 terminal node** renders on the plane (real `xterm.js`), streaming the session; you can watch and type. The node
-is an **Edge→ an agent** (the Engineering agent working interactively, or a standalone coding session). This is
-the manual door to the same sandbox + coding-agent runtime the Engineering agent uses autonomously
-([agent-backend.md §6](./agent-backend.md)).
+is an **Edge→ an agent** (the Engineering agent working interactively — or, per the recursive-orchestration
+model, **any agent** attaching and driving the pty — or a standalone coding session). This is the manual door to
+the same sandbox + coding-agent runtime the Engineering agent uses autonomously
+([agent-backend.md §3/§6](./agent-backend.md)).
 
 **Where it runs — three tiers:**
 

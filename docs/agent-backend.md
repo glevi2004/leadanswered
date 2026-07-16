@@ -5,6 +5,9 @@
 How Lu orchestrates department agents: the runtime, the data model, the Engineering agent, sites/hosting,
 and how onboarding wires it all together. Lu is the conductor; each **department** is an agent with a space,
 tasks, memory, and tools; the canvas is a **live view over real `Agent`/`Task`/`Artifact` rows**.
+**Departments** are the unit of the **Business preset** — the v0 front door and the only preset provisioned
+now; the kernel is general, and the other presets (Studio/Dev, Personal, Custom) are on the
+[roadmap](../ROADMAP.md) (see [FOUNDATION.md](../FOUNDATION.md)).
 
 ## 1. Architecture (one diagram)
 
@@ -38,8 +41,9 @@ All org-scoped and additive (scalar `orgId`, no FK to `Organization`, so they co
   — versioned history (diff/revert).
 - **Task** — `orgId`, `departmentKey`, `agentId`, `title`, `body`, `status`
   (`agent_can_do | needs_input | needs_earlier | in_progress | needs_approval | done | failed`),
-  `parentTaskId` (Lu's decomposition), `input`/`result` Json, `model` (per-task override), `assignedBy`
-  (lu|user), timestamps. Roadmap steps *are* tasks with ordering + `needs_earlier`.
+  `parentTaskId` (the decomposition tree — Lu's, or **any agent orchestrating its own sub-agents**; §3),
+  `input`/`result` Json, `model` (per-task override), `assignedBy` (lu|user|agent), timestamps. Roadmap
+  steps *are* tasks with ordering + `needs_earlier`.
 - **Artifact** — `orgId`, `taskId`, `agentId`, `kind` (`file | image | site_preview | pr_diff | doc |
   agent_session | invoice | post`), `title`, `payload` (url/json/text), `createdAt`. Powers the dock's
   Artifacts nav (browser = site_preview, images, publish-to-preview, PR diff, agent interaction = agent_session).
@@ -66,10 +70,19 @@ Agents read/write only through the **`Store` port** (`apps/api/src/store/`, `Pri
 - **Long-running tasks run async.** A department task (especially an Engineering build) runs as background
   work in `apps/api`, writing `Task.status` + `Artifact` rows as it goes; the web shows a **live task tracker**
   by reading those rows (polling now, Supabase Realtime later) — this is the dock's Tasks panel and the roadmap.
+  *This in-process background is today's demo-grade state; the scale path (the key roadmap item) is a
+  **durable worker** — a queue / durable-execution engine (Trigger.dev / Inngest) that survives redeploys and
+  crashes, and for long marathons **supervises** while the run executes inside the e2b sandbox, parking on
+  Approvals (hibernating the sandbox) and resuming. See [FOUNDATION.md §4](../FOUNDATION.md).*
 - **Lu the orchestrator** is a planning agent in `apps/api` on a stronger model (Sonnet/Opus) with tools:
   `ask_user` (renders as a question in the Lu dock), `create_task`, `assign_to_department`, `get_status`,
   `summarize`. Given a goal ("build my marketing site"), Lu decomposes → tasks → assigns → reports back like a
   chief of staff. The web `/api/lu` calls this orchestrator.
+- **Orchestration is recursive + multi-model.** Lu conducts the top, but an agent is a program you compose on
+  the fly: it runs **any model** (`Agent.models`, via the gateway — §5b) and can itself **spawn and orchestrate
+  sub-agents** (a child `Task` via `parentTaskId`), including attaching and driving a cloud terminal's pty (a
+  Grok CFO points a Claude terminal and directs it). Connections are drawn on the canvas as **`Edge`s**
+  (Maestri-style); no middleware. Lu conducts the top; every agent can conduct beneath it.
 - **Model tiering:** orchestrator + Engineering coding = Sonnet/Opus; routine department turns = Haiku (cost).
 
 ## 4. Approvals / human-in-the-loop
@@ -127,8 +140,9 @@ sandbox reads it.
 The runtime is provider-agnostic behind a **model gateway** (`packages/core/models.ts`): a registry + router
 spanning every provider and modality, not a hardcoded model. Two axes:
 
-- **Reasoning (the agent's brain) — any provider.** Anthropic (Claude), OpenAI (GPT), Google (Gemini), and any
-  AI-SDK provider, swappable per agent (`ai` v6 + `@ai-sdk/{anthropic,openai,google}`).
+- **Reasoning (the agent's brain) — any provider.** Anthropic (Claude), OpenAI (GPT), Google (Gemini),
+  **xAI (Grok)**, and any AI-SDK provider, swappable per agent (`ai` v6 +
+  `@ai-sdk/{anthropic,openai,google,xai}`).
 - **Generation (the agent's hands) — any modality.** Agents produce assets, not just text:
   - **Image** — website **hero image**, logo, social graphics: OpenAI `gpt-image-1`, Black-Forest **Flux**,
     Ideogram, and the connected **Higgsfield MCP** (`generate_image` / `create_website`). Via AI SDK
@@ -164,8 +178,10 @@ spanning every provider and modality, not a hardcoded model. Two axes:
   scoped to one project) are the *blast-radius* guardrail. Every action lands in the org activity log.
 - **Deterministic tools + idempotency.** Business logic in code, result authoritative, idempotency keys — so
   retries and duplicate events never double-charge or double-post.
-- **Agent-to-agent orchestration.** Lu→department delegation is A2A; each agent exposes a capability summary (an
-  "agent card") so Lu + the Library can discover and route — a clean seam for future third-party agents.
+- **Agent-to-agent orchestration.** Delegation is **recursive**, not Lu-only: Lu→department is A2A, and any
+  agent can itself spawn + orchestrate sub-agents (a child `Task` via `parentTaskId`) and attach/drive a cloud
+  terminal — wired as canvas `Edge`s (§3). Each agent exposes a capability summary (an "agent card") so Lu + the
+  Library can discover and route — a clean seam for future third-party agents.
 
 ## 6. The Engineering agent (the flagship)
 
@@ -218,8 +234,10 @@ built (see [ROADMAP.md](../ROADMAP.md)).
 
 **(B) The Engineering agent's real CODING = repo + sandbox + Vercel deploy** (§6). For actual software/tools +
 **dogfooding Lu's own product** — and it *builds* surface (A). v0 hosts each built site **repo-per-Vercel-
-project**. Technical owners with an existing repo use the v1 connect-your-GitHub path (their repo, their Vercel,
-their domain).
+project** (→ Vercel for Platforms at scale, per (A)); a built app's own backend runs on **Supabase (serverless
+functions + DB)**. The rule throughout: *rent the heavy infra (compute, hosting, DB), build only thin
+orchestration glue* ([FOUNDATION.md §7](../FOUNDATION.md)). Technical owners with an existing repo use the v1
+connect-your-GitHub path (their repo, their Vercel, their domain).
 
 ## 8. Onboarding wiring
 
@@ -261,8 +279,8 @@ Priority order lives in [ROADMAP.md](../ROADMAP.md); in brief:
 - **Hosting = Vercel, two models (§7):** customer sites = one multi-tenant "Vercel for Platforms" project (scale
   path); real software + dogfooding = repo-per-project. Owners never touch Vercel.
 - **Onboarding = a real DB org** (Supabase/Prisma write + invite-gated auth), not a cookie handoff.
-- **Model registry (§5b) = Anthropic + OpenAI + Google** (reasoning) · **gpt-image / Flux / Higgsfield** (image);
-  default per role/modality; Lu auto-escalates the model per hard task.
+- **Model registry (§5b) = Anthropic + OpenAI + Google + xAI/Grok** (reasoning) · **gpt-image / Flux /
+  Higgsfield** (image); default per role/modality; Lu auto-escalates the model per hard task.
 - **Agent config = the CONTRACT (§5a)**: `Agent.contract` + `ContractRevision`, company-root + per-agent;
   committed into the Engineering repo.
 - **Build order = the Engineering agent first, and dogfood it** to build the other departments (see
