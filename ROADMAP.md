@@ -39,6 +39,16 @@ rough priority:
 
 **Dogfood:** use the Engineering agent itself to help build each next department.
 
+## Presets & peripherals — the computer, filled out
+
+- **The phone** — a real SMS/voice number: text or call Lu, Lu texts back and orchestrates (the owner's
+  door). Then Support answers customers on the same line.
+- **The inbox** — a real email address the computer sends and receives on: email it a task; its agents
+  email your customers.
+- **The presets beyond Business** — **Studio/Dev** (a fleet of coding agents; our dogfood + the
+  Cursor-competitor), **Personal**, and **Custom** (compose your own agents, wire your own I/O).
+- **The preset Library** — presets (agents, spaces, roadmaps) become installable and shareable.
+
 ## Platform maturation
 
 - **Multi-tenant hosting** — `*.lu.computer` via Vercel-for-Platforms (one project, many tenants) for

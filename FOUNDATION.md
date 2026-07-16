@@ -2,9 +2,17 @@
 
 The system spec of record: vision → architecture → the agents → the data → the surfaces. If a decision
 about how Lu Computer is built lives anywhere, it lives here. (The *why* is [MANIFESTO.md](./MANIFESTO.md);
-the *what next* is [ROADMAP.md](./ROADMAP.md); deep specs live in [`docs/`](./docs/).)
+the *money* is [BUSINESS.md](./BUSINESS.md); the *what next* is [ROADMAP.md](./ROADMAP.md); deep specs
+live in [`docs/`](./docs/).)
 
 ## 1. The shape (what the owner experiences)
+
+Lu Computer is a real computer for agents. Its faculties: a **screen** (the canvas), a **shell** (the
+cloud terminal), a **phone** (an SMS/voice number), an **inbox** (email), a **filesystem** (the Library
+of artifacts + Context), **programs** (agents), **distros** (presets), and **permissions** (approvals).
+Screen, shell, agents, and approvals are live today; phone and email are I/O channels on the roadmap. The
+kernel is general; **presets** boot it for a use — **Business** (departments; the front door and the only
+preset provisioned in v0), **Studio/Dev**, **Personal**, **Custom**.
 
 1. **Boot up** — a waitlist-gated, self-serve **onboarding**: the owner meets Lu, describes their
    business, and their **company boots** — departments assemble, the Engineer comes online.
@@ -37,8 +45,9 @@ Monorepo under `platform/` (pnpm workspace):
 and routes each to the right **department** — it does not do the work itself. Lu also asks the owner
 clarifying questions and reports back like a chief of staff.
 
-**Departments** are the fixed set of company functions; each is (agent + space + tasks + memory + tools).
-v0 provisions **Engineering only** (active, with a real agent); the rest exist as the roadmap.
+**Departments** are the **Business preset's** unit — the company functions, each (agent + space + tasks +
+memory + tools). v0 provisions **Engineering only** (active, with a real agent); the rest of the Business
+preset, and the other presets (Studio/Dev, Personal, Custom), are the roadmap.
 
 ## 4. The agent runtime (how any agent works)
 

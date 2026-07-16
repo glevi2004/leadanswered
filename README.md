@@ -1,14 +1,16 @@
 # Lu Computer
 
-**An AI operating system for your business.** Not another dashboard — a *computer* where AI agents do the
-work and you watch, steer, and approve. Lu orchestrates department agents on a canvas that is your
-company's home: the **Engineering** agent builds and ships your software and sites in a real sandbox to a
-real URL; Support answers customers; Finance chases the money. You ask; the company does.
+**Lu Computer is a real computer for AI agents** — screen, shell, phone, and inbox — that you command and
+they operate. Not another dashboard, not another editor: an operating system where a fleet of agents does
+real work on real infrastructure. Boot it from a **preset** — run a business, a dev studio, your own thing
+— then watch, steer, and approve. The **Engineering** agent already builds and ships real software in a
+real sandbox to a real URL. *Cursor put one agent in your editor; Lu puts a company of them on your computer.*
 
 ## Start here
 
 - **[MANIFESTO.md](./MANIFESTO.md)** — what Lu Computer is, and why.
 - **[FOUNDATION.md](./FOUNDATION.md)** — how it's built: architecture, the agents, the data model, hosting.
+- **[BUSINESS.md](./BUSINESS.md)** — how it makes money: positioning, pricing, segments.
 - **[ROADMAP.md](./ROADMAP.md)** — what's shipped and what's next.
 - **[docs/](./docs/)** — the technical specs (agent backend, the Engineer, the canvas, onboarding, design).
 
