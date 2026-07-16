@@ -293,8 +293,10 @@ export function SarahDock() {
     if (saved >= DOCK_MIN && saved <= DOCK_MAX) ref.current?.style.setProperty("--sarah-dock", `${saved}px`);
   });
 
+  // Stay mounted while this is the docked surface so open/close animates its WIDTH like the
+  // left sidebar (return null only when the dock isn't the active surface at all).
   if (pathname?.startsWith("/sarah")) return null;
-  if (!widgetOpen || widgetMode !== "docked") return null;
+  if (widgetMode !== "docked") return null;
 
   const clamp = (x: number) => Math.min(DOCK_MAX, Math.max(DOCK_MIN, x));
   const onResizeStart = (e: React.PointerEvent) => {
@@ -304,6 +306,7 @@ export function SarahDock() {
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
+    el.style.transition = "none"; // no width easing while actively dragging
     const move = (ev: PointerEvent) => {
       const right = el.getBoundingClientRect().right;
       el.style.setProperty("--sarah-dock", `${clamp(right - ev.clientX)}px`);
@@ -313,6 +316,7 @@ export function SarahDock() {
       window.removeEventListener("pointerup", up);
       document.body.style.removeProperty("cursor");
       document.body.style.removeProperty("user-select");
+      el.style.removeProperty("transition");
       const right = el.getBoundingClientRect().right;
       window.localStorage.setItem("sarah_dock_width", String(Math.round(clamp(right - ev.clientX))));
     };
@@ -321,28 +325,42 @@ export function SarahDock() {
   };
 
   return (
-    // Outside the rounded frame, on the shell background — the website chat lane's twin.
+    // Outside the rounded frame, on the shell background — the website chat lane's twin. Width
+    // animates 0 <-> --sarah-dock (matches ui/sidebar: transition-[width] duration-200 ease-linear);
+    // the frame compresses beside it. The inner panel is fixed-width + pinned right so its content
+    // doesn't reflow while the width animates — it's simply revealed/hidden.
     <aside
       ref={ref}
-      className="relative hidden w-(--sarah-dock) shrink-0 flex-col py-2 pl-1 pr-2 [--bubble-surface:var(--sidebar)] [--sarah-dock:380px] md:flex md:h-svh"
+      data-open={widgetOpen}
+      className={cn(
+        "relative hidden shrink-0 overflow-hidden [--bubble-surface:var(--sidebar)] [--sarah-dock:380px] transition-[width] duration-200 ease-linear md:block md:h-svh",
+        widgetOpen ? "w-(--sarah-dock)" : "w-0",
+      )}
     >
-      {/* Same handle anatomy as SidebarResizer: full-height 3px pill sitting IN the gutter,
-          hugging the frame's edge — not floating inside the dock. */}
       <div
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize Sarah panel"
-        className="group absolute inset-y-0 -left-3 z-30 w-2 cursor-col-resize"
-        onPointerDown={onResizeStart}
-        onDoubleClick={() => {
-          ref.current?.style.setProperty("--sarah-dock", `${DOCK_DEFAULT}px`);
-          window.localStorage.setItem("sarah_dock_width", String(DOCK_DEFAULT));
-        }}
+        inert={!widgetOpen}
+        className="absolute inset-y-0 right-0 flex w-(--sarah-dock) flex-col py-2 pl-1 pr-2"
       >
-        <div className="mx-auto h-full w-[3px] rounded-full bg-transparent transition-colors duration-150 group-hover:bg-primary/25 group-active:bg-primary/40" />
+        {/* Same handle anatomy as SidebarResizer: full-height 3px pill at the dock's left edge. */}
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize Sarah panel"
+          className={cn(
+            "group absolute inset-y-0 left-0 z-30 w-2 cursor-col-resize",
+            !widgetOpen && "pointer-events-none",
+          )}
+          onPointerDown={onResizeStart}
+          onDoubleClick={() => {
+            ref.current?.style.setProperty("--sarah-dock", `${DOCK_DEFAULT}px`);
+            window.localStorage.setItem("sarah_dock_width", String(DOCK_DEFAULT));
+          }}
+        >
+          <div className="mx-auto h-full w-[3px] rounded-full bg-transparent transition-colors duration-150 group-hover:bg-primary/25 group-active:bg-primary/40" />
+        </div>
+        <PanelHeader />
+        <PanelBody />
       </div>
-      <PanelHeader />
-      <PanelBody />
     </aside>
   );
 }
