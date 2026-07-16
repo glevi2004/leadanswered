@@ -8,20 +8,22 @@
 
 ## The model
 
-**Each agent is a department, and each department is "the agent's app."** It is a self-contained module
-with three faces:
+**Each agent is a department, and each department is "the agent's app."** On the canvas it is **two
+depth-cards, side by side**:
 
-1. **Home** — lists the **applications (sites)** this agent has built.
-2. **The console (Database view)** — a **mirror-with-key-actions** of the department's own **managed
-   Supabase project**: Database · Migrations · Storage · Authentication · Users · Secrets · Logs ·
-   Suggestions.
-3. **The Workplace** — the live site(s) it's building right now, with the task selector + **Publish to
-   Staging / Revert / Request changes** controls.
+- **The Department card** (left) — a **Home ⇄ Database-view** toggle (the top-right switcher):
+  - **Home** — lists the **applications (sites)** this agent has built (each row: name, a page/app label,
+    "Last updated", a **Staging / Live** status, and open).
+  - **Database view** — a **mirror-with-key-actions** of the department's own **managed Supabase project**
+    (Database · Migrations · Storage · Authentication · Users · Secrets · Logs · Suggestions).
+- **The Workplace card** (right) — the live site(s) it's building **right now**, with the task selector at
+  the top + the **Publish to Staging / Revert All / Request changes** controls.
 
-The whole department renders as a **depth-card** (the dev/design design language). The **frame is generic**
-— every department has these three faces — but **each department specializes** what fills them. This spec
-defines the generic frame + the **Engineering** department concretely; other departments (Design, Finance,
-…) come later.
+Both are **depth-cards** (the dev/design design language), sitting **side by side** and connected on the
+canvas — the Department (what it manages + has shipped) next to the Workplace (what it's building). The
+**frame is generic** — every department is this Department-card + Workplace-card pair — but **each
+department specializes** what fills them. This spec defines the generic frame + the **Engineering**
+department concretely; other departments (Design, Finance, …) come later.
 
 ## Where the backend comes from
 
@@ -119,9 +121,61 @@ Cofounder-structured tabs (replacing the cockpit's `home·lu·tasks`):
 5. **The dock** — the cofounder tab structure (Company Stack + Library).
 6. **Cross-department deliverables** (Design's site built by the Engineer) — later.
 
-## Open questions
+## Reference: how cofounder actually does it (from the crawl) + our deltas
 
-- **Per-department vs per-org project:** the screenshots show ONE Supabase project for the Engineering
-  Department (`lucomputer-ffaa25`). v0: **one managed project per department** (the Engineer's app). Whether
-  every department gets its own project or some share the org's project is TBD — spec the Engineer with one.
-- **Mirror depth:** start read-heavy + the handful of key actions in the table; expand actions as needed.
+The crawl of cofounder.co docs + the Supabase case study confirmed the model and surfaced where **our
+design intentionally diverges**:
+
+- **Managed backend is PER-COMPANY, not per-department (cofounder).** cofounder provisions **one** dedicated
+  Supabase project + **two** GitHub repos (`app` + `marketing`) + **two** Vercel projects per *customer*,
+  **anchored to Engineering and consumed by every department**. The full Database/Auth/Users/Storage/Logs/
+  Advisors surface exists because that one project is real — the customer can drop into the actual Supabase
+  dashboard. cofounder's *own* per-department UI is lighter (a Database *viewer* artifact + repo-based
+  migrations + Settings-level secrets). **So the per-department console this spec describes is an expansion
+  beyond cofounder** — see "the one decision" below.
+- **The department surface (cofounder)** = Agents · Tasks · Context · Rules · Artifacts (staging URLs =
+  "sites built"; the live task tracker = "workplace"). Our **Home ⇄ Database-view + Workplace** is our own,
+  sharper framing of the same concepts.
+- **Publish flow = two-stage, human-gated at each hop:** sandbox → **staging** ("Publish to Preview") →
+  **production** ("Publish" button). Only two envs (staging + production); "preview" = the deploy that lands
+  on staging. Migrations apply on the staging path at publish-to-staging, the prod path at publish-to-prod.
+  This is exactly the **Publish to Staging / Revert All / Request changes** control in the Workplace.
+- **Roadmap mechanic** (drives the dock Home's %): **Stages** (idea → setup → identity → build → GTM →
+  launch → scale → mature) › **Tracks** (product/eng/brand/research/ops/revenue/support) › **Steps**
+  (Available / In-Progress / Completed / **Locked**). Steps auto-complete as the workspace changes; a
+  "Suggested Next" list is derived from it. Task labels: "Agent can do this / Needs your input / Needs
+  earlier steps first."
+- **Secrets are BROKERED, never stored** — agents get **placeholders**; the trusted backend swaps the real
+  credential in at the outbound request. Ties directly to our BYO/secrets model (store encrypted, inject at
+  call time; never hand the raw token to the model). Worth mirroring.
+- **Migration safety gates** (cofounder's real "advisors"): agents can't run a migration via a tool call —
+  every schema change is a PR; a lint **blocks any table without RLS**; a lint **blocks deleting old
+  migrations**. Adopt these for our Engineer.
+- **Project graduation** — the customer can graduate and keep the Supabase project (+ GitHub collaborator +
+  Vercel invite) and own the whole stack. Our BYO already puts it in their account, so we're graduated by
+  default.
+
+## The one decision: per-department backend vs. one shared backend
+
+Your screenshots show the **Engineering Department** with its *own* project (`lucomputer-ffaa25`). cofounder
+instead runs **one** shared project per company, anchored to Engineering. Two ways to build it:
+
+- **(A) One shared managed backend, Engineering-anchored** (cofounder's proven model). The Database-view
+  console is the *company's* app backend, shown under Engineering; other departments own their **sites**
+  (built by the Engineer) but consume the one backend. Cheaper (1 Supabase project), simpler, proven.
+- **(B) Per-department app + backend** (your screenshots' implication). Each agent's department is a fully
+  independent app with its **own** Supabase project/console. Richer + matches "each agent has its own app,"
+  but N projects = more cost + provisioning + the "design site is built by the Engineer" cross-wiring gets
+  more complex (whose project does it deploy to?).
+
+**Recommendation:** start **(A)** — Engineering owns the one managed backend + console; every other
+department is an **app/site the Engineer builds** into it (Design's marketing site, etc.), with its own
+Home + Workplace but *pointing at* the shared backend. It's cofounder-proven, cheaper, and the cross-wiring
+("Design's site built by Engineer") falls out naturally. We can graduate to (B) if a department genuinely
+needs an isolated backend.
+
+## Open questions (smaller)
+
+- **Mirror depth:** start read-heavy + the handful of key actions in the console table; expand as needed.
+- **Repos:** cofounder uses two (`app` + `marketing`); we currently make one repo per site. Decide whether
+  to consolidate to app+marketing or keep repo-per-site.
