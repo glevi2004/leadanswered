@@ -18,6 +18,7 @@ other). Boot it from a **preset** — run a business, a dev studio, your own thi
   data, hosting.
 - **[BUSINESS.md](./BUSINESS.md)** — how it makes money: positioning, pricing, unit economics.
 - **[ROADMAP.md](./ROADMAP.md)** — what's shipped and what's next.
+- **[DEVELOPMENT.md](./DEVELOPMENT.md)** — the current build plan, grounded in the code.
 - **[docs/](./docs/)** — the technical specs.
 
 ## The repo
