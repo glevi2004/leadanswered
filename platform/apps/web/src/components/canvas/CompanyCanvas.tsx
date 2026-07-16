@@ -16,7 +16,9 @@ import { SheetGrid } from "@/components/canvas/SheetGrid";
 import { CanvasToolbar, type CanvasTool } from "@/components/canvas/CanvasToolbar";
 import { TerminalNode, type AgentKind } from "@/components/canvas/TerminalNode";
 import { BrowserChrome } from "@/components/canvas/BrowserChrome";
+import { SitePreviewNode } from "@/components/canvas/SitePreviewNode";
 import { ArtifactsNav } from "@/components/canvas/ArtifactsNav";
+import { useSites } from "@/lib/dock/live";
 import { useSarah } from "@/components/sarah/sarah-context";
 
 /**
@@ -48,6 +50,12 @@ const SHEET_SCALE = SHEET_W / SHEET_INNER_W;
 const SHEET_INNER_H = Math.round(SHEET_H / SHEET_SCALE);
 const SEL_PAD = 8;    // breathing room around a frame (selection-box offset) — tight, hugs the frame
 const CLICK_Z = 3.2;  // zoom cap when you click a site — frame nearly fills the viewport
+
+// live SITE-PREVIEW frames (real Site rows) — a column next to the Engineering agent
+const SITE_W = 380;
+const SITE_H = 260;
+const SITE_VGAP = 90;     // vertical gap between stacked site frames
+const SITE_OUT = 640;     // how far to the side of the Engineering agent the column sits
 
 const MIN_Z = 0.18;   // floor: the whole board still fits, but you can't shrink it to a dot
 const MAX_Z = 3.2;
@@ -181,6 +189,24 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
     if (t === "terminal") { openTerminal("claude_code"); setTool("hand"); return; }
     setTool(t);
   }, [openTerminal]);
+
+  /* ---- live SITE-PREVIEW frames (CANVAS-TOOLS.md §7): the real Site rows the Engineer builds,
+        polled from the backend while the canvas is mounted. Each becomes a browser-frame node
+        anchored in a column beside the Engineering agent — "Building…" until a deploy URL exists,
+        then the live deployment. Zero sites → nothing extra renders (canvas unchanged). ---- */
+  const { sites } = useSites(true);
+  const sitePlacements = React.useMemo(() => {
+    if (sites.length === 0) return [];
+    const eng = pos["engineering"] ?? defaultPositions()["engineering"];
+    const n = sites.length;
+    // stack to the RIGHT of the agent (its page row drops straight down, so this stays clear)
+    const cx = eng.x + SITE_OUT;
+    return sites.map((site, i) => ({
+      site,
+      x: cx,
+      y: eng.y + (i - (n - 1) / 2) * (SITE_H + SITE_VGAP),
+    }));
+  }, [sites, pos]);
 
   const persist = React.useCallback((p: Positions) => {
     if (saveT.current) window.clearTimeout(saveT.current);
@@ -585,6 +611,19 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                   />
                 );
               })}
+
+              {/* Engineering agent → its live SITE-PREVIEW frames (CANVAS-TOOLS §7 "Edge → the
+                  agent that owns it") — dashed link to each frame's near edge */}
+              {sitePlacements.map(({ site, x, y }) => {
+                const eng = pos["engineering"];
+                if (!eng) return null;
+                return (
+                  <g key={`site-edge-${site.id}`}>
+                    <line x1={eng.x} y1={eng.y} x2={x - SITE_W / 2} y2={y} stroke="currentColor" strokeOpacity={0.32} strokeWidth={1.25} strokeDasharray="5 7" vectorEffect="non-scaling-stroke" />
+                    <circle cx={x - SITE_W / 2} cy={y} r={4} fill="currentColor" opacity={0.3} />
+                  </g>
+                );
+              })}
             </svg>
 
             {/* page frames — REAL /embed miniatures; iframe only when near the viewport */}
@@ -633,6 +672,13 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                 </div>
               );
             })}
+
+            {/* live SITE-PREVIEW frames — REAL Site rows (GET /api/sites) as browser windows.
+                Building… until a deploy URL exists, then the live deployment. Data-driven, not
+                part of the graph's drag/select set; `lu-node` keeps them from stealing the pan. */}
+            {sitePlacements.map(({ site, x, y }) => (
+              <SitePreviewNode key={site.id} site={site} x={x} y={y} w={SITE_W} h={SITE_H} />
+            ))}
 
             {/* agent nodes */}
             {agents.map((a) => {

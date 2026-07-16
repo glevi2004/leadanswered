@@ -40,6 +40,7 @@ export interface DockApproval {
 }
 
 const POLL_MS = 3000;
+const SITES_POLL_MS = 5000;
 
 async function getJSON<T>(url: string, fallback: T): Promise<T> {
   try {
@@ -167,4 +168,82 @@ export function previewUrl(payload: Record<string, unknown> | null): string | nu
   if (!payload) return null;
   const url = payload.url;
   return typeof url === "string" && url.trim() !== "" ? url : null;
+}
+
+/* --------------------------------- sites --------------------------------- */
+
+/** A preview / production deploy of a Site (apps/api DeploymentRecord). */
+export interface DockDeployment {
+  id: string;
+  siteId: string;
+  env: string; // preview | production
+  url: string;
+  sha: string | null;
+  prNumber: number | null;
+  status: string; // READY | BUILDING | ERROR | ...
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/** One org Site as returned by GET /api/sites, joined with its latest deployment. */
+export interface DockSite {
+  id: string;
+  orgId: string;
+  departmentKey: string | null; // "engineering"
+  repoFullName: string | null; // owner/name
+  vercelProjectId: string | null;
+  domain: string | null; // "{slug}.lu.computer" once live
+  status: string; // building | preview | live
+  createdAt?: string;
+  updatedAt?: string;
+  latestDeployment?: DockDeployment | null;
+}
+
+/**
+ * Poll the org's sites while `active` (canvas mounted). Each Site carries its latest
+ * deployment; the canvas turns them into browser-frame nodes. Keeps the last good value
+ * across a transient failure, so a hiccup never blanks the frames.
+ */
+export function useSites(active: boolean): { sites: DockSite[]; loaded: boolean } {
+  const [sites, setSites] = React.useState<DockSite[]>([]);
+  const [loaded, setLoaded] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!active) return;
+    let alive = true;
+    const load = async () => {
+      const d = await getJSON<{ sites: DockSite[] }>("/api/dock/sites", { sites: [] });
+      if (!alive) return;
+      setSites(d.sites ?? []);
+      setLoaded(true);
+    };
+    load();
+    const iv = window.setInterval(load, SITES_POLL_MS);
+    return () => {
+      alive = false;
+      window.clearInterval(iv);
+    };
+  }, [active]);
+
+  return { sites, loaded };
+}
+
+/** Best live/preview URL for a Site (domain wins once live, else the latest deploy), or
+ *  null while it's still building — the canvas shows "Building…" until this resolves. */
+export function siteUrl(site: DockSite): string | null {
+  const withProto = (u: string) => (/^https?:\/\//i.test(u) ? u : `https://${u}`);
+  if (site.domain && site.domain.trim() !== "") return withProto(site.domain.trim());
+  const url = site.latestDeployment?.url;
+  return typeof url === "string" && url.trim() !== "" ? withProto(url.trim()) : null;
+}
+
+/** The host shown in the frame's chrome (the pretty domain, the deploy host, else the repo). */
+export function siteHost(site: DockSite): string {
+  const u = siteUrl(site);
+  if (!u) return site.repoFullName ?? "building";
+  try {
+    return new URL(u).host;
+  } catch {
+    return u.replace(/^https?:\/\//i, "");
+  }
 }
