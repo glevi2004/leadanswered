@@ -11,6 +11,11 @@ export const env = {
   AI_MODEL: process.env.AI_MODEL ?? process.env.CLAUDE_MODEL ?? "claude-haiku-4-5",
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? "",
   OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? "",
+  // --- Engineering infra (Engineer agent + cloud terminal). Optional at boot — the ports read
+  //     these at call time and fail with a clear error only when actually exercised (ENGINEER-ACTIVATION §B4). ---
+  E2B_API_KEY: process.env.E2B_API_KEY ?? "",
+  VERCEL_TOKEN: process.env.VERCEL_TOKEN ?? "",
+  VERCEL_TEAM_ID: process.env.VERCEL_TEAM_ID ?? "",
   // --- Persistence / telephony ---
   DATABASE_URL: process.env.DATABASE_URL ?? "",
   TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID ?? "",
@@ -62,6 +67,12 @@ export const useLangfuse = (): boolean =>
 
 /** Postgres persistence is on when DATABASE_URL is set; otherwise we run the in-memory demo store. */
 export const usePostgres = (): boolean => env.DATABASE_URL.length > 0;
+
+/** The e2b sandbox provider is reachable when its key is set (needed for the Engineer + terminal). */
+export const useE2b = (): boolean => env.E2B_API_KEY.length > 0;
+
+/** Vercel deploys are wired when a stable API token is set (team id optional for personal accounts). */
+export const useVercel = (): boolean => env.VERCEL_TOKEN.length > 0;
 
 /** Real Twilio sending is on when credentials are set; otherwise we log to the console. */
 export const useTwilio = (): boolean =>

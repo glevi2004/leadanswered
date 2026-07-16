@@ -259,6 +259,12 @@ export class MemoryStore implements Store {
     return this.sites.get(id) ?? null;
   }
 
+  async listSites(orgId: string): Promise<SiteRecord[]> {
+    return [...this.sites.values()]
+      .filter((s) => s.orgId === orgId)
+      .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
+  }
+
   async updateSite(id: string, patch: SitePatch): Promise<SiteRecord> {
     const s = this.mustGet(this.sites, id, "site");
     for (const [k, v] of Object.entries(patch)) if (v !== undefined) (s as any)[k] = v;

@@ -4,6 +4,13 @@ import type { Store } from "./store/types.js";
 import { MemoryStore } from "./store/memoryStore.js";
 import { createProvisionRoute, createListDepartmentsRoute } from "./routes/onboarding.js";
 import { createLuRoute, createEngineeringRoute } from "./routes/agents.js";
+import {
+  createListTasksRoute,
+  createListArtifactsRoute,
+  createListApprovalsRoute,
+  createListSitesRoute,
+} from "./routes/reads.js";
+import { createResolveApprovalRoute } from "./routes/approvals.js";
 
 export interface BuildDeps {
   store?: Store;
@@ -35,9 +42,18 @@ export async function createApp(overrides: BuildDeps = {}): Promise<Express> {
   app.post("/api/onboarding/provision", createProvisionRoute(deps));
   app.get("/api/departments", createListDepartmentsRoute(deps));
 
-  // Lu Computer — the agents over HTTP: the Lu orchestrator + the Engineering agent.
+  // Lu Computer — the agents over HTTP: the Lu orchestrator + the (async) Engineering agent.
   app.post("/api/lu", createLuRoute(deps));
   app.post("/api/engineering", createEngineeringRoute(deps));
+
+  // Lu Computer — read routes the canvas polls to WATCH the Engineer work.
+  app.get("/api/tasks", createListTasksRoute(deps));
+  app.get("/api/artifacts", createListArtifactsRoute(deps));
+  app.get("/api/approvals", createListApprovalsRoute(deps));
+  app.get("/api/sites", createListSitesRoute(deps));
+
+  // Lu Computer — the owner's Publish button closes the approval gate (→ confirmPublish).
+  app.post("/api/approvals/:id/resolve", createResolveApprovalRoute(deps));
 
   return app;
 }

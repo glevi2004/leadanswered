@@ -40,7 +40,7 @@ const REPO_DIR = "/home/user/repo";
  * and exposes no generic `envs` passthrough; when it grows one, move this to
  * spawn-time envs.)
  */
-const ENV_FILE = "/home/user/.lu-agent.env";
+export const ENV_FILE = "/home/user/.lu-agent.env";
 
 /** The single build branch the coding agent commits to (idempotent — `checkout -B`). */
 const BUILD_BRANCH = "lu/build";
@@ -143,7 +143,7 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
  * Empty if no keys are set — the coding agent then simply has no key and reports
  * that itself (we don't fabricate one).
  */
-function renderEnvFile(): string {
+export function renderEnvFile(): string {
   const lines: string[] = [];
   const anthropic = process.env.ANTHROPIC_API_KEY;
   const openai = process.env.OPENAI_API_KEY;

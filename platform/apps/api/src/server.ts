@@ -1,18 +1,33 @@
-import { createApp } from "./app.js";
-import { assertEnv, env, usePostgres, useTwilio } from "./env.js";
+import { createServer } from "node:http";
+import { buildStore, createApp } from "./app.js";
+import { assertEnv, env, useE2b, usePostgres, useTwilio, useVercel } from "./env.js";
 import { startTelemetry } from "./telemetry.js";
+import { attachTerminalWs } from "./routes/terminal.js";
 
 async function main(): Promise<void> {
   assertEnv();
   startTelemetry(); // Langfuse tracing (no-op unless LANGFUSE_* set)
-  const app = await createApp();
-  app.listen(env.PORT, () => {
+
+  // Build the store ONCE and share it between the HTTP app and the terminal WS server,
+  // so autonomous Engineer runs and interactive terminal sessions read/write the same rows.
+  const store = await buildStore();
+  const app = await createApp({ store });
+
+  // Own the http.Server explicitly so the WebSocket PTY route (/api/terminal) can ride the
+  // same port as the REST API. `attachTerminalWs` only claims the /api/terminal upgrade; every
+  // other HTTP request (and any other upgrade) is left untouched.
+  const server = createServer(app);
+  attachTerminalWs(server, { store });
+
+  server.listen(env.PORT, () => {
     console.log(`[api] listening on http://localhost:${env.PORT}`);
     console.log(`[api] POST /lead                — create a lead + fire Sarah's opening SMS`);
     console.log(`[api] POST /webhooks/twilio/sms — inbound SMS → Sarah`);
     console.log(`[api] POST /webhooks/email/postmark/:secret — inbound lead email → Sarah`);
+    console.log(`[api] POST /api/engineering     — dispatch the Engineer (async → 202 { taskId })`);
+    console.log(`[api] WS   /api/terminal        — cloud terminal (sandbox PTY bridge)`);
     console.log(
-      `[api] model: ${env.AI_PROVIDER}/${env.AI_MODEL} | store: ${usePostgres() ? "postgres" : "in-memory"} | sms: ${useTwilio() ? "twilio" : "console"}`,
+      `[api] model: ${env.AI_PROVIDER}/${env.AI_MODEL} | store: ${usePostgres() ? "postgres" : "in-memory"} | sms: ${useTwilio() ? "twilio" : "console"} | e2b: ${useE2b() ? "on" : "off"} | vercel: ${useVercel() ? "on" : "off"}`,
     );
   });
 }

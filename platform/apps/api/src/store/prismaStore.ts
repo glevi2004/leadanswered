@@ -390,6 +390,11 @@ export class PrismaStore implements Store {
     return s ? mapSite(s) : null;
   }
 
+  async listSites(orgId: string): Promise<SiteRecord[]> {
+    const rows = await this.db.site.findMany({ where: { orgId }, orderBy: { createdAt: "desc" } });
+    return rows.map(mapSite);
+  }
+
   async updateSite(id: string, patch: SitePatch): Promise<SiteRecord> {
     const s = await this.db.site.update({
       where: { id },

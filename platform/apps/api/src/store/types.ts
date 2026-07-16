@@ -326,6 +326,8 @@ export interface Store {
   // --- Sites & Deployments ---
   createSite(input: CreateSiteInput): Promise<SiteRecord>;
   getSite(id: string): Promise<SiteRecord | null>;
+  /** The org's sites (newest first) — the `GET /api/sites` canvas read. */
+  listSites(orgId: string): Promise<SiteRecord[]>;
   updateSite(id: string, patch: SitePatch): Promise<SiteRecord>;
   addDeployment(input: AddDeploymentInput): Promise<DeploymentRecord>;
   listDeployments(siteId: string): Promise<DeploymentRecord[]>;

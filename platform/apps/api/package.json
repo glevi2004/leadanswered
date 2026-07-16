@@ -32,12 +32,14 @@
     "e2b": "^2.33.1",
     "express": "^5.2.1",
     "twilio": "^6.0.2",
+    "ws": "^8.18.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^25.9.2",
     "@types/supertest": "^7.2.0",
+    "@types/ws": "^8.18.1",
     "supertest": "^7.2.2",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3",
