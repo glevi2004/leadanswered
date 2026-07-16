@@ -352,7 +352,10 @@ function recommendTextModel(role: string): ModelRecommendation {
 }
 
 function recommendImageModel(role: string): ModelRecommendation {
-  // Photoreal hero / marketing photography → Flux.
+  // Photoreal hero / marketing photography. Flux is the eventual pick, but it has
+  // no first-party AI-SDK image model yet (getImageModel(flux) → undefined →
+  // placeholder), so the WORKING default is gpt-image-1 (real @ai-sdk/openai
+  // adapter). Restore ID.flux here once the Replicate/Fal wiring lands (§5b).
   if (
     matches(role, [
       "hero",
@@ -366,8 +369,9 @@ function recommendImageModel(role: string): ModelRecommendation {
     ])
   ) {
     return {
-      id: ID.flux,
-      rationale: "Photoreal hero imagery → Flux (§5b).",
+      id: ID.gptImage,
+      rationale:
+        "Photoreal hero imagery → gpt-image-1, a real wired image model (Flux not yet wired) (§5b).",
     };
   }
 
