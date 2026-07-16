@@ -36,6 +36,7 @@ export async function middleware(request: NextRequest) {
   const publicPath =
     path === "/sign-in" ||
     path === "/forgot-password" ||
+    path === "/waitlist" ||
     path.startsWith("/auth/") ||
     path.startsWith("/q/") ||
     path.startsWith("/i/") ||

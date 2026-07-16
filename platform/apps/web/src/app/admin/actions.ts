@@ -145,3 +145,52 @@ export async function saveOnboardingAdminAction(
   revalidatePath(`/admin/${organizationId}`);
   return { ok: true, warning };
 }
+
+/**
+ * Accept a waitlist entry: create a shell org for that email + send the owner invite (the exact
+ * inviteUserByEmail + /auth/land?type=invite path used elsewhere), then mark the row accepted.
+ * The number/slug are provisional — the admin sets the real ones on the organization page. From
+ * the accepted invite, the un-onboarded owner is routed into the Lu onboarding flow.
+ */
+export async function acceptWaitlistAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const company = String(formData.get("company") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim();
+  if (!id || !email) return;
+
+  const companyName = company || name || email;
+  const slug = `${slugify(companyName) || "org"}-${Math.random().toString(36).slice(2, 6)}`;
+
+  // Shell only — no Twilio number yet; the admin buys + fills it in on the organization page.
+  await createOrganizationShell({ companyName, slug, twilioNumber: "", ownerEmail: email });
+
+  const sb = createSupabaseAdmin();
+  const { error } = await sb.auth.admin.inviteUserByEmail(email, {
+    redirectTo: INVITE_REDIRECT(siteUrl()),
+  });
+  if (error && !isAlreadyRegistered(error)) throw new Error(error.message);
+
+  const { error: wErr } = await sb
+    .from("Waitlist")
+    .update({ status: "accepted", updatedAt: new Date().toISOString() })
+    .eq("id", id);
+  if (wErr) throw wErr;
+
+  revalidatePath("/admin");
+}
+
+/** Decline a waitlist entry — marks the row declined; sends nothing. */
+export async function declineWaitlistAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  const sb = createSupabaseAdmin();
+  const { error } = await sb
+    .from("Waitlist")
+    .update({ status: "declined", updatedAt: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
+  revalidatePath("/admin");
+}

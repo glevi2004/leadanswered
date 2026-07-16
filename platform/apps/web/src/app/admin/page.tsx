@@ -3,6 +3,7 @@ import Link from "next/link";
 import { currentUser, isAdminEmail } from "@/lib/auth";
 import { listOrganizationsWithStatus } from "@/lib/organizations";
 import { CreateOrganizationForm } from "./CreateOrganizationForm";
+import { WaitlistCard } from "./WaitlistCard";
 import { AccountBadge, LineBadge } from "./status";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,6 +68,8 @@ export default async function AdminPage() {
           </CardContent>
         </Card>
       </div>
+
+      <WaitlistCard />
     </main>
   );
 }

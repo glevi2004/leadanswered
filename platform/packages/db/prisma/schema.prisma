@@ -71,6 +71,26 @@ enum NotificationChannel {
   both
 }
 
+// Waitlist (self-serve front door): people join → admin accepts → shell org + invite → onboarding.
+enum WaitlistStatus {
+  pending
+  accepted
+  declined
+}
+
+model Waitlist {
+  id        String         @id @default(cuid())
+  email     String         @unique
+  name      String?
+  company   String?
+  note      String?        @db.Text
+  status    WaitlistStatus @default(pending)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([status])
+}
+
 model Organization {
   id                   String   @id @default(cuid())
   name                 String
