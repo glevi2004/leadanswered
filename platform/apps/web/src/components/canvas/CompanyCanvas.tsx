@@ -59,9 +59,6 @@ const DRAG_CLASS = "lu-node";   // marks a node: excluded from canvas panning + 
 
 const FRAME_IDS: string[] = [...PAGES.map((p) => p.id), ...SHEETS.map((s) => s.id)];
 
-// every selectable node id (for marquee hit-testing)
-const ALL_NODE_IDS: string[] = ["lu", ...AGENTS.map((a) => a.id), ...TEAMMATES.map((t) => t.id), ...FRAME_IDS];
-
 // pages/sheets carry a real w/h; the pill/avatar nodes don't, so we approximate their world
 // half-extents for marquee intersection (generous enough to feel right, not pixel-exact).
 const NODE_HALF = { lu: { hw: 130, hh: 74 }, agent: { hw: 150, hh: 62 }, teammate: { hw: 96, hh: 92 } };
@@ -92,8 +89,43 @@ function FramePlaceholder({ label, dept }: { label: string; dept: DeptId }) {
   );
 }
 
-export function CompanyCanvas() {
+/** One REAL department as returned by GET /api/departments (canvas only needs key + status). */
+export interface CanvasDepartment {
+  key: string;
+  status?: string;
+}
+
+export function CompanyCanvas({ departments = [] }: { departments?: CanvasDepartment[] }) {
   const { setSelectedAgent, openWidget, setWidgetMode } = useSarah();
+
+  /* ---- REAL departments (v0: just Engineering, status `active`) drive the graph. We keep
+        every node's static VISUAL from graph.ts (icon / accent / label / positions) but only
+        render the agents the API actually provisioned — each department `key` maps to its
+        AGENTS entry, and the API `status` decides the active/dimmed styling. Everything else
+        keyed off a department (its pages, sheet, teammates) is filtered to the same set, so an
+        EMPTY or FAILED fetch (departments=[]) renders Lu alone instead of the old static 8. ---- */
+  const agents = React.useMemo(() => {
+    const byKey = new Map(departments.map((d) => [d.key, d]));
+    return AGENTS.filter((a) => byKey.has(a.id)).map((a) => {
+      const d = byKey.get(a.id)!;
+      return { ...a, active: d.status ? d.status === "active" : a.active };
+    });
+  }, [departments]);
+  const allowed = React.useMemo(() => new Set(agents.map((a) => a.id)), [agents]);
+  const pages = React.useMemo(() => PAGES.filter((p) => allowed.has(p.dept)), [allowed]);
+  const sheets = React.useMemo(() => SHEETS.filter((s) => allowed.has(s.dept)), [allowed]);
+  const teammates = React.useMemo(() => TEAMMATES.filter((t) => allowed.has(t.dept)), [allowed]);
+  const frameIds = React.useMemo(() => [...pages.map((p) => p.id), ...sheets.map((s) => s.id)], [pages, sheets]);
+  const allNodeIds = React.useMemo(
+    () => ["lu", ...agents.map((a) => a.id), ...teammates.map((t) => t.id), ...frameIds],
+    [agents, teammates, frameIds],
+  );
+  // callbacks read the current filtered id sets through refs (they close over stable deps)
+  const frameIdsRef = React.useRef(frameIds);
+  frameIdsRef.current = frameIds;
+  const allNodeIdsRef = React.useRef(allNodeIds);
+  allNodeIdsRef.current = allNodeIds;
+
   const wrapRef = React.useRef<HTMLDivElement>(null);
   const gridRef = React.useRef<HTMLDivElement>(null);
   const apiRef = React.useRef<ReactZoomPanPinchRef | null>(null);
@@ -151,7 +183,7 @@ export function CompanyCanvas() {
     const { scale, positionX, positionY } = tf.current;
     const W = el.clientWidth, H = el.clientHeight, m = 280;
     const next = new Set<string>();
-    for (const id of FRAME_IDS) {
+    for (const id of frameIdsRef.current) {
       const p = posRef.current[id];
       if (!p) continue;
       const sx = positionX + p.x * scale, sy = positionY + p.y * scale;
@@ -300,7 +332,7 @@ export function CompanyCanvas() {
       const wx0 = (Math.min(m.sx, cx) - positionX) / scale, wy0 = (Math.min(m.sy, cy) - positionY) / scale;
       const wx1 = (Math.max(m.sx, cx) - positionX) / scale, wy1 = (Math.max(m.sy, cy) - positionY) / scale;
       const hits = new Set<string>();
-      for (const id of ALL_NODE_IDS) {
+      for (const id of allNodeIdsRef.current) {
         const b = worldBox(id, posRef.current);
         if (b && b.x1 >= wx0 && b.x0 <= wx1 && b.y1 >= wy0 && b.y0 <= wy1) hits.add(id);
       }
@@ -444,7 +476,7 @@ export function CompanyCanvas() {
   };
 
   const working = workingDepts();
-  const updates = AGENTS.map((a) => ({ a, badge: agentBadge(a.id) })).filter((x) => x.badge);
+  const updates = agents.map((a) => ({ a, badge: agentBadge(a.id) })).filter((x) => x.badge);
   const totalUpdates = updates.reduce((n, x) => n + (x.badge?.count ?? 0), 0);
 
   return (
@@ -484,7 +516,7 @@ export function CompanyCanvas() {
             {/* edges */}
             <svg width={1} height={1} style={{ position: "absolute", left: 0, top: 0, overflow: "visible" }}>
               <circle cx={0} cy={0} r={ORBIT_R} fill="none" stroke="currentColor" strokeOpacity={0.12} strokeWidth={1} vectorEffect="non-scaling-stroke" />
-              {AGENTS.map((a) => {
+              {agents.map((a) => {
                 const ap = pos[a.id]; if (!ap) return null;
                 const on = selection.has(a.id);
                 const isWorking = working.includes(a.id);
@@ -533,7 +565,7 @@ export function CompanyCanvas() {
             </svg>
 
             {/* page frames — REAL /embed miniatures; iframe only when near the viewport */}
-            {PAGES.map((pg) => {
+            {pages.map((pg) => {
               const p = pos[pg.id]; if (!p) return null;
               return (
                 <div
@@ -560,7 +592,7 @@ export function CompanyCanvas() {
             })}
 
             {/* sheet frames — REAL editable spreadsheets (scaled DOM); culled the same way */}
-            {SHEETS.map((s) => {
+            {sheets.map((s) => {
               const p = pos[s.id]; if (!p) return null;
               return (
                 <div
@@ -580,7 +612,7 @@ export function CompanyCanvas() {
             })}
 
             {/* agent nodes */}
-            {AGENTS.map((a) => {
+            {agents.map((a) => {
               const p = pos[a.id]; if (!p) return null;
               const on = selection.has(a.id);
               const Icon = DEPT_ICON[a.id];
@@ -613,7 +645,7 @@ export function CompanyCanvas() {
             })}
 
             {/* teammate nodes — game-like + selectable (ring) */}
-            {TEAMMATES.map((t) => {
+            {teammates.map((t) => {
               const p = pos[t.id]; if (!p) return null;
               const a = agentById(t.dept)!;
               const on = selection.has(t.id);
