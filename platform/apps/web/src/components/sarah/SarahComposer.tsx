@@ -4,6 +4,7 @@ import * as React from "react";
 import { ArrowUp } from "lucide-react";
 import { useSarah } from "./sarah-context";
 import { ModelPicker } from "./ModelPicker";
+import { UsageMeter } from "./UsageMeter";
 import { cn } from "@/lib/utils";
 
 /**
@@ -111,8 +112,9 @@ export function SarahComposer({
         />
         <div className="flex items-center justify-between gap-2 px-2 pb-2">
           <div className="flex min-w-0 items-center gap-1.5">
-            {/* The Lu model picker shows only on the main dock chat (no onSend override). */}
+            {/* The Lu model picker + compute-usage meter show only on the main dock chat. */}
             {!onSend && <ModelPicker />}
+            {!onSend && <UsageMeter />}
             {contextLabel && (
               <span className="max-w-40 truncate rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
                 On: {contextLabel}

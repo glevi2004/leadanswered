@@ -513,3 +513,19 @@ model Memory {
   @@index([orgId])
   @@index([orgId, tier])
 }
+
+/// Per-org usage plan + bucket (plan Pillar 2 — the usage bucket). No Stripe yet: `bucketMicros` is
+/// the included agent-compute per period and `overageOptIn` lets builds continue past it (default
+/// true so dogfooding never blocks). Stripe subscription/customer ids slot in here when billing lands.
+model Subscription {
+  id           String   @id @default(cuid())
+  orgId        String   @unique
+  plan         String   @default("pro")
+  bucketMicros Int      @default(20000000) // included compute/period (~$20 placeholder; tune with pricing)
+  overageOptIn Boolean  @default(true)
+  periodStart  DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([orgId])
+}

@@ -9,6 +9,7 @@ import {
   createListArtifactsRoute,
   createListApprovalsRoute,
   createListSitesRoute,
+  createUsageRoute,
 } from "./routes/reads.js";
 import { createResolveApprovalRoute } from "./routes/approvals.js";
 import {
@@ -84,6 +85,7 @@ export async function createApp(overrides: BuildDeps = {}): Promise<Express> {
   app.get("/api/artifacts", createListArtifactsRoute(deps));
   app.get("/api/approvals", createListApprovalsRoute(deps));
   app.get("/api/sites", createListSitesRoute(deps));
+  app.get("/api/usage", createUsageRoute(deps));
 
   // Lu Computer — the owner's Publish button closes the approval gate (→ confirmPublish).
   app.post("/api/approvals/:id/resolve", createResolveApprovalRoute(deps));

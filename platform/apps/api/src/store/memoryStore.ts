@@ -43,6 +43,7 @@ import type {
   CreateUsageEventInput,
   MemoryRecord,
   MessageRecord,
+  SubscriptionRecord,
   ThreadRecord,
   UpsertMemoryInput,
   UsageEventRecord,
@@ -95,6 +96,7 @@ export class MemoryStore implements Store {
   private threads = new Map<string, ThreadRecord>();
   private threadMessages: MessageRecord[] = [];
   private memories: MemoryRecord[] = [];
+  private subscriptions = new Map<string, SubscriptionRecord>();
   private approvals = new Map<string, ApprovalRecord>();
   private canvasNodes = new Map<string, CanvasNodeRecord>();
   private edges = new Map<string, EdgeRecord>();
@@ -634,6 +636,24 @@ export class MemoryStore implements Store {
       sandboxSeconds: rows.reduce((s, e) => s + (e.sandboxSeconds ?? 0), 0),
       events: rows.length,
     };
+  }
+
+  async getOrCreateSubscription(orgId: string): Promise<SubscriptionRecord> {
+    const existing = this.subscriptions.get(orgId);
+    if (existing) return existing;
+    const ts = this.now().toISOString();
+    const rec: SubscriptionRecord = {
+      id: randomUUID(),
+      orgId,
+      plan: "pro",
+      bucketMicros: 20_000_000,
+      overageOptIn: true,
+      periodStart: ts,
+      createdAt: ts,
+      updatedAt: ts,
+    };
+    this.subscriptions.set(orgId, rec);
+    return rec;
   }
 
   // --- Memory: working (persisted conversation) ---

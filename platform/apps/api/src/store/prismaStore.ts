@@ -43,6 +43,7 @@ import type {
   CreateUsageEventInput,
   MemoryRecord,
   MessageRecord,
+  SubscriptionRecord,
   ThreadRecord,
   UpsertMemoryInput,
   UsageEventRecord,
@@ -771,6 +772,21 @@ export class PrismaStore implements Store {
       outputTokens: agg._sum.outputTokens ?? 0,
       sandboxSeconds: agg._sum.sandboxSeconds ?? 0,
       events: agg._count ?? 0,
+    };
+  }
+
+  async getOrCreateSubscription(orgId: string): Promise<SubscriptionRecord> {
+    const existing = await this.db.subscription.findUnique({ where: { orgId } });
+    const s = existing ?? (await this.db.subscription.create({ data: { orgId } }));
+    return {
+      id: s.id,
+      orgId: s.orgId,
+      plan: s.plan,
+      bucketMicros: s.bucketMicros,
+      overageOptIn: s.overageOptIn,
+      periodStart: s.periodStart.toISOString(),
+      createdAt: iso(s.createdAt),
+      updatedAt: iso(s.updatedAt),
     };
   }
 

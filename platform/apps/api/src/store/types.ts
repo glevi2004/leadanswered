@@ -391,6 +391,18 @@ export interface UsageSummary {
   events: number;
 }
 
+/** Per-org usage plan + bucket (plan Pillar 2 — no Stripe yet). */
+export interface SubscriptionRecord {
+  id: string;
+  orgId: string;
+  plan: string;
+  bucketMicros: number;
+  overageOptIn: boolean;
+  periodStart: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 /** A persisted Lu conversation thread (plan Pillar 3 — working memory). */
 export interface ThreadRecord {
   id: string;
@@ -515,6 +527,8 @@ export interface Store {
   createUsageEvent(input: CreateUsageEventInput): Promise<UsageEventRecord>;
   /** Sum an org's metered compute since an ISO timestamp (the period start). */
   sumUsageSince(orgId: string, sinceISO: string): Promise<UsageSummary>;
+  /** The org's usage plan + bucket — created (pro defaults) on first use. */
+  getOrCreateSubscription(orgId: string): Promise<SubscriptionRecord>;
 
   // --- Memory: working (persisted conversation, plan Pillar 3) ---
   /** The org's single main Lu thread — created on first use. */

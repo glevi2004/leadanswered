@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { Store } from "../store/types.js";
 import { dispatchBuild } from "./dispatch.js";
 import { orgHasConnections, connectionStatus } from "../connect/status.js";
+import { usageThisPeriod } from "../billing/usage.js";
 
 /**
  * The eight departments Lu delegates to (AGENTS-BACKEND §3). A task's
@@ -146,6 +147,12 @@ export function orchestratorTools(deps: OrchestratorToolDeps, ctx: OrchestratorC
         // (docs/byo-connect.md). Lu should tell the owner to connect, then retry.
         if (!(await orgHasConnections(deps.store, ctx.orgId))) {
           return { ok: false as const, reason: "not_connected" as const };
+        }
+        // Usage-bucket gate (plan Pillar 2): don't start a build once the org is over its compute
+        // bucket and has NOT opted into overage. Lu should tell the owner they're out of compute.
+        const usage = await usageThisPeriod(deps.store, ctx.orgId);
+        if (usage.overBucket && !usage.overageOptIn) {
+          return { ok: false as const, reason: "not_enough_credit" as const };
         }
         await dispatchBuild(
           { store: deps.store },
