@@ -1,11 +1,11 @@
-import { experimental_generateImage as generateImage, tool } from "ai";
+import { experimental_generateImage as generateImage, generateObject, tool } from "ai";
 import { z } from "zod";
-import { getImageModel, recommendModel } from "@leadanswered/core";
+import { getImageModel, getModel, recommendModel } from "@leadanswered/core";
 import type { ArtifactRecord, CanvasNodeRecord, Store } from "../store/types.js";
 import { getSandbox, type Sandbox } from "../sandbox/index.js";
 import { getGit, getGitForOrg, type Git } from "../git/index.js";
 import { getDeploy, getDeployForOrg, type Deploy, type PreviewDeployment } from "../deploy/index.js";
-import { meterSandbox } from "./metering.js";
+import { meterLlm, meterSandbox } from "./metering.js";
 
 /**
  * The ENGINEERING agent's toolkit (AGENTS-BACKEND §6, ENGINEERING-AGENT §5). The
@@ -552,6 +552,88 @@ export function engineeringTools(deps: EngineeringToolDeps, ctx: EngineeringCont
         actions.push({ type: "preview_ready", siteId, prNumber: pr.number, url });
 
         return { ok: true as const, prNumber: pr.number, prUrl: pr.url, previewUrl: url, status };
+      },
+    }),
+
+    verify_acceptance: tool({
+      description:
+        "Check the build against the plan's acceptance criteria BEFORE asking to publish. Reads the acceptance criteria off the approved plan and the build evidence (the preview URL, the PR diff, the coding transcript) and judges, criterion by criterion, whether the work is actually done. Takes no input — it reads this task's plan and artifacts. Returns { pass, unmet, notes }: if pass is false, fix the listed 'unmet' items with run_coding_agent, then call verify_acceptance again. Do NOT call request_publish until this passes. If there is no plan / no criteria it passes trivially.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        // 1) Read the acceptance criteria off the approved plan (the doc Artifact propose_plan wrote).
+        const arts = await d.store.listArtifacts({ taskId: ctx.taskId });
+        const plan = arts.find(
+          (a) => a.kind === "doc" && (a.payload as { type?: string } | null)?.type === "plan",
+        );
+        const planPayload = (plan?.payload ?? null) as
+          | { objective?: string; acceptance?: string[] }
+          | null;
+        const acceptance = planPayload?.acceptance ?? [];
+        const objective = planPayload?.objective ?? "";
+        if (!plan || acceptance.length === 0) {
+          // No plan / no criteria to check — never block the pipeline.
+          return { pass: true as const, unmet: [] as string[], notes: "no acceptance criteria to check" };
+        }
+
+        // 2) Gather build evidence from the same task's artifacts (latest of each kind).
+        const latestOf = (kind: string) => arts.filter((a) => a.kind === kind).at(-1);
+        const previewPayload = (latestOf("site_preview")?.payload ?? null) as
+          | { url?: string | null; status?: string | null } | null;
+        const diffPayload = (latestOf("pr_diff")?.payload ?? null) as
+          | { diff?: string; prUrl?: string } | null;
+        const sessionPayload = (latestOf("agent_session")?.payload ?? null) as
+          | { stdout?: string; stderr?: string; exitCode?: number } | null;
+
+        const previewUrl = previewPayload?.url ?? "";
+        const diff = (diffPayload?.diff ?? "").slice(0, 8_000);
+        const transcript = (sessionPayload?.stdout || sessionPayload?.stderr || "").slice(0, 3_000);
+        const evidence = [
+          `Preview URL: ${previewUrl || "(none yet)"} (status ${previewPayload?.status ?? "unknown"})`,
+          `Coding agent exit code: ${sessionPayload?.exitCode ?? "unknown"}`,
+          "PR diff (truncated):",
+          diff || "(no diff artifact)",
+          "Coding transcript (truncated):",
+          transcript || "(no transcript)",
+        ].join("\n");
+
+        // 3) Judge each criterion via the model gateway. Strict reviewer — evidence must show it done.
+        const modelId = recommendModel("orchestrator", "text").id;
+        const model = getModel(modelId);
+        const result = await generateObject({
+          model,
+          schema: z.object({
+            pass: z.boolean(),
+            unmet: z.array(z.string()),
+            notes: z.string(),
+          }),
+          system:
+            "You are a strict acceptance reviewer for a software build. You are given a build's objective, its acceptance criteria, and the build evidence (preview URL, PR diff, coding transcript). Decide for EACH acceptance criterion whether the evidence actually demonstrates it is met. Be strict: if the evidence does not clearly show a criterion is satisfied, treat it as NOT met — do not give the benefit of the doubt. Set pass=true ONLY when every criterion is met. In 'unmet', list the criteria that are not met, restated in plain language as concrete things still to fix. Put a one or two sentence rationale in 'notes'.",
+          prompt: [
+            `Objective: ${objective}`,
+            "",
+            "Acceptance criteria:",
+            ...acceptance.map((c, i) => `${i + 1}. ${c}`),
+            "",
+            "Build evidence:",
+            evidence,
+          ].join("\n"),
+        });
+        void meterLlm(d.store, ctx.orgId, modelId, result.usage, { taskId });
+
+        const { pass, unmet, notes } = result.object;
+
+        // 4) Record the verdict as a doc Artifact so the dock shows the acceptance check.
+        const verdict = await d.store.addArtifact({
+          orgId: ctx.orgId,
+          taskId,
+          kind: "doc",
+          title: `Acceptance check — ${pass ? "passed" : "needs work"}`,
+          payload: { type: "acceptance", pass, unmet, notes },
+        });
+        artifacts.push(verdict);
+
+        // 5) Return the verdict for the loop.
+        return { pass, unmet, notes };
       },
     }),
 

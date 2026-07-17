@@ -1,10 +1,10 @@
 # Lu Computer — planning & the plan gate
 
-> Part of the Lu canon. **Status: BUILT (2026-07-17)** — `propose_plan` + the `approve_plan` gate +
-> dispatch-on-approval + the plan-review card (Approve / **Request changes** → re-plan / Reject) + the
-> actionable roadmap all ship. Remaining: **acceptance-based verification** (§5 — the seam is emitted;
-> the build is the broader agent-workflow pass) and the enum precision (`planned` status / `Task.acceptance`).
-> Tracked in [DEVELOPMENT.md](../DEVELOPMENT.md).
+> Part of the Lu canon. **Status: BUILT (2026-07-17)** — the whole plan gate ships: `propose_plan` + the
+> `approve_plan` gate + dispatch-on-approval + the plan-review card (Approve / **Request changes** → re-plan /
+> Reject) + the actionable roadmap + **acceptance verification** (§5 — `verify_acceptance` judges the build
+> against the criteria and reworks until it passes before publish). Remaining: only the cosmetic enum
+> precision (`planned` status / `Task.acceptance` column — functionally covered). Tracked in [DEVELOPMENT.md](../DEVELOPMENT.md).
 > This specs the **planning slice** of the agent workflow — how a goal becomes an *approved plan* before any
 > build runs. It defines clean **seams** (§7) to the broader agent-workflow (agent→Lu reporting, task
 > verification, chat states, approval surfacing) so the two compose rather than collide. Handbook:
