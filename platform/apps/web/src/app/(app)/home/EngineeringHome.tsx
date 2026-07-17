@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowRight, CircleCheck, Clock3, Globe, ListTodo, ShieldCheck, Wrench } from "lucide-react";
 import { EmptyState } from "@/components/app/EmptyState";
@@ -6,7 +8,7 @@ import {
   relativeAgo,
   siteHostOf,
   type EngineeringHomeData,
-} from "@/lib/dashboard/engineering-home";
+} from "@/lib/dashboard/engineering-home-view";
 
 /**
  * The REAL dashboard home — Engineering only (the cockpit's Part A). Replaces the mock
