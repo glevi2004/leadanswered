@@ -21,6 +21,7 @@ import { DockCompany } from "./DockCompany";
 import { DockLibrary } from "./DockLibrary";
 import { AgentDockPanel } from "@/components/canvas/AgentDockPanel";
 import { SarahIcon } from "@/components/icons/sarah";
+import { PixelVoice } from "@/components/ds/PixelVoice";
 import { useDockData, taskStatusLabel, type DockTask } from "@/lib/dock/live";
 import { cn } from "@/lib/utils";
 
@@ -63,7 +64,8 @@ export function SarahTrigger() {
 }
 
 function PanelHeader() {
-  const { setWidgetOpen, widgetMode, setWidgetMode, startNewChat, chats, activeChatId, switchChat } = useSarah();
+  const { setWidgetOpen, widgetMode, setWidgetMode, startNewChat, chats, activeChatId, switchChat, typing } =
+    useSarah();
   const activeTitle = chats.find((c) => c.id === activeChatId)?.title ?? "New chat";
   const docked = widgetMode === "docked";
   const ModeIcon = docked ? PictureInPicture2 : PanelRight;
@@ -73,7 +75,8 @@ function PanelHeader() {
   return (
     <header className="flex shrink-0 items-center justify-between px-3 py-2.5">
       <div className="flex min-w-0 flex-1 items-center gap-1.5">
-        <SarahIcon className="size-5 shrink-0" />
+        {/* Lu's living presence — the voice equalizer IS the avatar (no redundant icon). */}
+        <PixelVoice state={typing ? "speaking" : "idle"} cols={10} rows={4} className="shrink-0" />
         <DropdownMenu>
           <DropdownMenuTrigger className="flex min-w-0 items-center gap-1 rounded-md px-1.5 py-1 text-sm font-semibold outline-none hover:bg-muted">
             <span className="min-w-0 truncate">{activeTitle}</span>

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { ArrowRight, MessageCircleQuestion, X } from "lucide-react";
 import { useSarah } from "./sarah-context";
 import { StatusDot } from "./LuBuildTracker";
@@ -15,7 +16,8 @@ import { cn } from "@/lib/utils";
  * every value comes from the same live proxies the dock already polls.
  */
 export function DockHome() {
-  const { ownerName, widgetOpen, clarifications, dismissClarification, setDockTab } = useSarah();
+  const { ownerName, widgetOpen, clarifications, dismissClarification, setDockTab, sendMessage, openWidget } =
+    useSarah();
   const { tasks, loaded } = useDockData(widgetOpen);
   const { sites } = useSites(widgetOpen);
   const { github, vercel } = useConnectStatus(widgetOpen);
@@ -23,6 +25,17 @@ export function DockHome() {
   const roadmap = computeRoadmap({ github, vercel, tasks, sites });
   const suggestions = suggestNext({ github, vercel, tasks, sites });
   const openTasks = tasks.filter((t) => t.status !== "done" && t.status !== "failed");
+
+  // A "next" (roadmap step or suggestion) doesn't navigate — it hands the step to the real Lu:
+  // fire the intent into the owner thread and jump to the Lu tab so she takes it from here.
+  const fireIntent = React.useCallback(
+    (intent: string) => {
+      sendMessage(intent);
+      openWidget();
+      setDockTab("lu");
+    },
+    [sendMessage, openWidget, setDockTab],
+  );
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4">
@@ -42,8 +55,8 @@ export function DockHome() {
           />
         </div>
         <div className="mt-3 space-y-1.5">
-          {roadmap.steps.map((s) => (
-            <div key={s.label} className="flex items-center gap-2 text-sm">
+          {roadmap.steps.map((s) => {
+            const check = (
               <span
                 className={cn(
                   "grid size-4 shrink-0 place-items-center rounded-full border text-[9px]",
@@ -52,11 +65,29 @@ export function DockHome() {
               >
                 ✓
               </span>
-              <span className={cn("min-w-0 flex-1 truncate", s.done ? "text-muted-foreground line-through" : "text-foreground")}>
-                {s.label}
-              </span>
-            </div>
-          ))}
+            );
+            // Done steps are just a record; an incomplete step is a button that hands it to Lu.
+            if (s.done) {
+              return (
+                <div key={s.label} className="flex items-center gap-2 text-sm">
+                  {check}
+                  <span className="min-w-0 flex-1 truncate text-muted-foreground line-through">{s.label}</span>
+                </div>
+              );
+            }
+            return (
+              <button
+                key={s.label}
+                type="button"
+                onClick={() => fireIntent(s.intent)}
+                className="group flex w-full items-center gap-2 rounded-md text-left text-sm text-foreground hover:text-foreground"
+              >
+                {check}
+                <span className="min-w-0 flex-1 truncate group-hover:underline">{s.label}</span>
+                <ArrowRight className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -131,8 +162,25 @@ export function DockHome() {
       {suggestions.length > 0 ? (
         <div className="mt-2.5 space-y-2.5 text-sm text-muted-foreground">
           {suggestions.map((s) => (
-            <div key={s} className="flex items-center gap-2.5">
-              <span className="size-4 shrink-0 rounded-full border" /> {s}
+            <div key={s.id} className="flex items-center gap-2.5">
+              {/* Primary click hands the step to Lu; connect items keep a quiet Settings deep-link. */}
+              <button
+                type="button"
+                onClick={() => fireIntent(s.intent)}
+                className="group flex min-w-0 flex-1 items-center gap-2.5 text-left hover:text-foreground"
+              >
+                <span className="size-4 shrink-0 rounded-full border" />
+                <span className="min-w-0 flex-1 group-hover:underline">{s.label}</span>
+                <ArrowRight className="size-3.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
+              </button>
+              {s.settingsHref && (
+                <Link
+                  href={s.settingsHref}
+                  className="shrink-0 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                >
+                  Settings
+                </Link>
+              )}
             </div>
           ))}
         </div>

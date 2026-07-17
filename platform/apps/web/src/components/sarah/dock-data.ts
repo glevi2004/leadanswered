@@ -48,11 +48,33 @@ export function useConnectStatus(active: boolean): ConnectStatus {
   return state;
 }
 
+/* -------------------------------- Lu intents -------------------------------- */
+
+/** Deep-link to the connections settings — the secondary affordance on connect items. */
+export const SETTINGS_HREF = "/settings";
+
+/**
+ * The natural-language prompt each "next" fires at the REAL Lu (/api/lu/chat) when clicked, so a
+ * suggestion actually TAKES the step (Lu walks the connect / proposes the plan) instead of
+ * dead-ending at a static Settings link. Shared by the Roadmap steps and the Suggested-next list
+ * so both speak with one voice.
+ */
+export const LU_INTENTS = {
+  connectGithub: "Walk me through connecting my GitHub so you can build into it.",
+  connectVercel: "Walk me through connecting my Vercel so you can deploy my sites.",
+  dispatchBuild: "Draft a plan to build me my first project — something simple to get started.",
+  shipSite: "Ship my first site to a preview so I can see it live.",
+} as const;
+
 /* ---------------------------------- roadmap % ---------------------------------- */
 
 export interface RoadmapStep {
   label: string;
   done: boolean;
+  /** the Lu prompt clicking an INCOMPLETE step fires (done steps aren't actionable) */
+  intent: string;
+  /** optional Settings deep-link — the secondary affordance for connect steps */
+  settingsHref?: string;
 }
 
 export interface Roadmap {
@@ -73,10 +95,10 @@ export function computeRoadmap(input: {
 }): Roadmap {
   const { github, vercel, tasks, sites } = input;
   const steps: RoadmapStep[] = [
-    { label: "Connect GitHub", done: github },
-    { label: "Connect Vercel", done: vercel },
-    { label: "Dispatch a build", done: tasks.length > 0 },
-    { label: "Ship a site", done: sites.length > 0 },
+    { label: "Connect GitHub", done: github, intent: LU_INTENTS.connectGithub, settingsHref: SETTINGS_HREF },
+    { label: "Connect Vercel", done: vercel, intent: LU_INTENTS.connectVercel, settingsHref: SETTINGS_HREF },
+    { label: "Dispatch a build", done: tasks.length > 0, intent: LU_INTENTS.dispatchBuild },
+    { label: "Ship a site", done: sites.length > 0, intent: LU_INTENTS.shipSite },
   ];
   const doneSteps = steps.filter((s) => s.done).length;
   const doneTasks = tasks.filter((t) => t.status === "done").length;
@@ -88,19 +110,50 @@ export function computeRoadmap(input: {
 
 /* -------------------------------- suggested next -------------------------------- */
 
-/** Derive concrete next moves from real state (never fiction). Empty ⇒ "you're all set". */
+/** A concrete next move — a label the owner reads and the Lu intent clicking it fires. */
+export interface Suggestion {
+  id: string;
+  label: string;
+  /** the natural-language prompt clicking it sends to the REAL Lu (/api/lu/chat) */
+  intent: string;
+  /** optional Settings deep-link — the secondary affordance for connect items */
+  settingsHref?: string;
+}
+
+/**
+ * Derive concrete next moves from real state (never fiction). Each carries a Lu intent so the
+ * click TAKES the step (Lu acts) rather than just navigating. Empty ⇒ "you're all set".
+ */
 export function suggestNext(input: {
   github: boolean;
   vercel: boolean;
   tasks: DockTask[];
   sites: DockSite[];
-}): string[] {
+}): Suggestion[] {
   const { github, vercel, tasks, sites } = input;
-  const out: string[] = [];
-  if (!github) out.push("Connect GitHub so the Engineer can build");
-  if (!vercel) out.push("Connect Vercel to deploy your sites");
-  if (tasks.length === 0) out.push("Dispatch your first build — ask Lu to build something");
-  else if (sites.length === 0) out.push("Ship your first site to a preview");
+  const out: Suggestion[] = [];
+  if (!github)
+    out.push({
+      id: "connect-github",
+      label: "Connect GitHub so the Engineer can build",
+      intent: LU_INTENTS.connectGithub,
+      settingsHref: SETTINGS_HREF,
+    });
+  if (!vercel)
+    out.push({
+      id: "connect-vercel",
+      label: "Connect Vercel to deploy your sites",
+      intent: LU_INTENTS.connectVercel,
+      settingsHref: SETTINGS_HREF,
+    });
+  if (tasks.length === 0)
+    out.push({
+      id: "dispatch-build",
+      label: "Dispatch your first build — ask Lu to build something",
+      intent: LU_INTENTS.dispatchBuild,
+    });
+  else if (sites.length === 0)
+    out.push({ id: "ship-site", label: "Ship your first site to a preview", intent: LU_INTENTS.shipSite });
   return out;
 }
 

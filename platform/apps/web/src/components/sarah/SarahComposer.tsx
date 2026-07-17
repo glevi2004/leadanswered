@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ArrowUp } from "lucide-react";
+import { ArrowUp, Plus } from "lucide-react";
 import { useSarah } from "./sarah-context";
 import { ModelPicker } from "./ModelPicker";
 import { UsageMeter } from "./UsageMeter";
@@ -69,6 +69,9 @@ export function SarahComposer({
     showContext && currentPageLabel && currentPageLabel !== "Sarah"
       ? `${currentPageLabel}${contextEntity ? ` · ${contextEntity}` : ""}`
       : null;
+  // The model picker + usage meter live only on the main dock chat (never a scoped `onSend`
+  // surface); the meta rail also appears when we're pinned to a page's context entity.
+  const showMeta = !onSend || Boolean(contextLabel);
 
   return (
     <div className={cn("flex flex-col gap-2", className)}>
@@ -79,7 +82,7 @@ export function SarahComposer({
               key={chip}
               type="button"
               onClick={() => submit(chip)}
-              className="rounded-full border bg-background px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
+              className="gloss press rounded-full px-3 py-1 text-xs font-medium text-foreground/80"
             >
               {chip}
             </button>
@@ -91,27 +94,45 @@ export function SarahComposer({
           e.preventDefault();
           submit();
         }}
-        className="rounded-2xl border bg-background shadow-[inset_0_1px_2px_rgb(0_0_0_/_0.04)] transition-shadow focus-within:border-ring/60 focus-within:ring-2 focus-within:ring-ring/15 dark:shadow-[inset_0_1px_2px_rgb(0_0_0_/_0.28)]"
+        className="neu-socket rounded-2xl px-2.5 py-2"
       >
-        <textarea
-          ref={inputRef}
-          rows={1}
-          value={text}
-          onChange={(e) => {
-            setText(e.target.value);
-            autosize();
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              submit();
-            }
-          }}
-          placeholder={placeholder ?? `What can ${assistantName} do for you?`}
-          className="block max-h-30 w-full resize-none bg-transparent px-3.5 pb-1 pt-3 text-sm outline-none placeholder:text-muted-foreground"
-        />
-        <div className="flex items-center justify-between gap-2 px-2 pb-2">
-          <div className="flex min-w-0 items-center gap-1.5">
+        <div className="flex items-end gap-2">
+          {/* attach affordance (design board) — sits at the pill's left edge */}
+          <button
+            type="button"
+            aria-label="Attach"
+            className="gloss press mb-0.5 grid size-7 shrink-0 place-items-center rounded-full text-foreground/70"
+          >
+            <Plus className="size-3.5" />
+          </button>
+          <textarea
+            ref={inputRef}
+            rows={1}
+            value={text}
+            onChange={(e) => {
+              setText(e.target.value);
+              autosize();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                submit();
+              }
+            }}
+            placeholder={placeholder ?? `What can ${assistantName} do for you?`}
+            className="max-h-30 min-h-6 flex-1 resize-none bg-transparent py-1 text-[13.5px] text-foreground outline-none placeholder:text-muted-foreground"
+          />
+          <button
+            type="submit"
+            aria-label="Send"
+            disabled={!text.trim()}
+            className="gloss-ink press mb-0.5 grid size-7 shrink-0 place-items-center rounded-full disabled:opacity-40 disabled:shadow-none"
+          >
+            <ArrowUp className="size-4" />
+          </button>
+        </div>
+        {showMeta && (
+          <div className="mt-1.5 flex min-w-0 items-center gap-1.5 pl-1">
             {/* The Lu model picker + compute-usage meter show only on the main dock chat. */}
             {!onSend && <ModelPicker />}
             {!onSend && <UsageMeter />}
@@ -121,15 +142,7 @@ export function SarahComposer({
               </span>
             )}
           </div>
-          <button
-            type="submit"
-            aria-label="Send"
-            disabled={!text.trim()}
-            className="btn-glow flex size-7 shrink-0 items-center justify-center rounded-full disabled:opacity-40 disabled:shadow-none"
-          >
-            <ArrowUp className="size-4" />
-          </button>
-        </div>
+        )}
       </form>
     </div>
   );

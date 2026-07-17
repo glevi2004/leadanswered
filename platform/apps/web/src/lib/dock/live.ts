@@ -34,7 +34,7 @@ export interface DockArtifact {
 export interface DockApproval {
   id: string;
   taskId: string | null;
-  action: string; // publish_site
+  action: string; // publish_site | approve_plan — the PLAN GATE (propose_plan) vs the publish gate
   status: string; // pending
   createdAt?: string;
 }
@@ -168,6 +168,29 @@ export function previewUrl(payload: Record<string, unknown> | null): string | nu
   if (!payload) return null;
   const url = payload.url;
   return typeof url === "string" && url.trim() !== "" ? url : null;
+}
+
+/** The plan Lu drafted for a build — the objective, ordered steps, and acceptance criteria. */
+export interface DockPlan {
+  objective: string;
+  steps: string[];
+  acceptance: string[];
+}
+
+/**
+ * Read the plan out of a `doc` artifact payload (propose_plan writes
+ * `{ type: "plan", objective, steps, acceptance }`), or null when the payload isn't a plan.
+ * The plan-review card renders this so the owner approves it BEFORE the Engineer builds.
+ */
+export function planFromArtifact(payload: Record<string, unknown> | null): DockPlan | null {
+  if (!payload || payload.type !== "plan") return null;
+  const strings = (v: unknown): string[] =>
+    Array.isArray(v) ? v.filter((s): s is string => typeof s === "string") : [];
+  return {
+    objective: typeof payload.objective === "string" ? payload.objective : "",
+    steps: strings(payload.steps),
+    acceptance: strings(payload.acceptance),
+  };
 }
 
 /* --------------------------------- sites --------------------------------- */

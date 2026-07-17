@@ -36,6 +36,8 @@ import type { Member } from "@/lib/data/team/types";
 import { completeOnboarding } from "@/app/onboarding/actions";
 import type { OrganizationConfigInput } from "@/lib/config";
 import { ConnectionsPanel } from "@/components/settings/ConnectionsPanel";
+import { PixelLoader } from "@/components/ds/PixelLoader";
+import { DeptIcon, type Dept } from "@/components/ds/PixelIcon";
 
 /**
  * SKETCH — self-onboarding, first run (VISION-LU §3). The owner talks to Lu on
@@ -171,6 +173,23 @@ function InstagramMark({ className = "size-3" }: { className?: string }) {
       <rect x="5.5" y="5.5" width="13" height="13" rx="4" fill="none" stroke="#fff" strokeWidth="1.8" />
       <circle cx="12" cy="12" r="3.2" fill="none" stroke="#fff" strokeWidth="1.8" />
       <circle cx="16.6" cy="7.4" r="1" fill="#fff" />
+    </svg>
+  );
+}
+
+/** Lu's mark — a small pixel-glyph badge, one per Lu turn (matches the Lu chat surface). */
+function LuMark({ className }: { className?: string }) {
+  return (
+    <span className={cn("gloss-ink grid size-6 shrink-0 place-items-center rounded-md text-[10px] font-semibold text-white", className)}>Lu</span>
+  );
+}
+
+/** A quiet "you" silhouette for the owner's turn badge — no name needed. */
+function UserGlyph({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" className={className} fill="currentColor" aria-hidden>
+      <circle cx="8" cy="5.5" r="2.6" />
+      <path d="M2.5 13.5c0-3 2.4-5 5.5-5s5.5 2 5.5 5Z" />
     </svg>
   );
 }
@@ -427,18 +446,33 @@ export function OnboardingSketch() {
             <span className="size-1.5 rounded-full bg-emerald-500" /> setting you up
           </span>
         </header>
-        <div ref={threadRef} className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
-          {msgs.map((m) =>
-            m.role === "lu" ? (
-              <motion.p key={m.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="text-sm leading-relaxed text-foreground">
-                <Typewriter text={m.body} stream={m.id === typingId} onTick={scrollThread} onDone={() => setTypingId((t) => (t === m.id ? null : t))} />
-              </motion.p>
-            ) : (
-              <motion.div key={m.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex justify-end">
-                <span className="max-w-[85%] rounded-2xl bg-muted px-3 py-2 text-sm leading-relaxed text-foreground">{m.body}</span>
-              </motion.div>
-            ),
-          )}
+        <div ref={threadRef} className="flex-1 overflow-y-auto py-1">
+          {msgs.map((m) => (
+            <motion.div
+              key={m.id}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={cn("flex gap-3 px-4 py-3.5", m.role === "owner" && "bg-muted/40")}
+            >
+              {m.role === "lu" ? (
+                <LuMark />
+              ) : (
+                <span className="grid size-6 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
+                  <UserGlyph className="size-3.5" />
+                </span>
+              )}
+              <div className="min-w-0">
+                <div className="mb-0.5 text-[11px] font-semibold text-muted-foreground">{m.role === "lu" ? "Lu" : "You"}</div>
+                <div className="t-body text-[13.5px] leading-relaxed text-foreground">
+                  {m.role === "lu" ? (
+                    <Typewriter text={m.body} stream={m.id === typingId} onTick={scrollThread} onDone={() => setTypingId((t) => (t === m.id ? null : t))} />
+                  ) : (
+                    m.body
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          ))}
         </div>
         <div className="border-t px-4 py-3">
           {typingId === null ? (
@@ -1014,38 +1048,75 @@ function Welcome({ onStart }: { onStart: () => void }) {
   );
 }
 
+type StepState = "done" | "active" | "upcoming";
+type BootStep = { dept?: Dept; waiting: string; active: string; done: string };
+
+// Company profile · Team graph, then the departments come online in sequence —
+// Engineering (provisioning its sandbox) first, Design and Finance waiting behind it.
+const BOOT_STEPS: BootStep[] = [
+  { waiting: "Company profile", active: "Reading your company profile", done: "Company profile" },
+  { waiting: "Team graph", active: "Building your team graph", done: "Team graph" },
+  { dept: "engineering", waiting: "Engineering — waiting", active: "Engineering — provisioning sandbox", done: "Engineering — sandbox ready" },
+  { dept: "design", waiting: "Design — waiting", active: "Design — coming online", done: "Design — online" },
+  { dept: "finance", waiting: "Finance — waiting", active: "Finance — coming online", done: "Finance — online" },
+];
+
+function BootStepRow({ step, state }: { step: BootStep; state: StepState }) {
+  const label = state === "done" ? step.done : state === "active" ? step.active : step.waiting;
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13px]",
+        state === "active" && "neu-card-active",
+        state === "upcoming" && "neu-card-in text-muted-foreground",
+      )}
+    >
+      <span className="grid size-5 shrink-0 place-items-center">
+        {state === "done" ? (
+          <span className="grid size-5 place-items-center rounded-full bg-emerald-500 text-white">
+            <Check className="size-3" />
+          </span>
+        ) : state === "active" ? (
+          <Loader2 className="size-4 animate-spin text-foreground" />
+        ) : (
+          <span className="size-5 rounded-full border border-border/60" />
+        )}
+      </span>
+      {step.dept && <DeptIcon dept={step.dept} size={18} className={cn("shrink-0", state === "upcoming" && "opacity-50")} />}
+      <span className={cn("min-w-0 flex-1 truncate", state === "active" && "font-medium text-foreground", state === "done" && "text-foreground")}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
 function Building({ name, onDone }: { name: string; onDone: () => void }) {
-  const steps = ["Tuning Lu for your business", "Publishing your website", "Wiring Lu's email", "Claiming your line", "Setting your hours"];
-  const [done, setDone] = React.useState(0);
+  const [idx, setIdx] = React.useState(0);
   React.useEffect(() => {
-    if (done >= steps.length) {
-      const t = setTimeout(onDone, 600);
+    if (idx >= BOOT_STEPS.length) {
+      const t = setTimeout(onDone, 700);
       return () => clearTimeout(t);
     }
-    const t = setTimeout(() => setDone((d) => d + 1), 520);
+    // provisioning the Engineering sandbox is the real work — give it a beat longer.
+    const dur = BOOT_STEPS[idx].dept === "engineering" ? 1500 : idx < 2 ? 750 : 1050;
+    const t = setTimeout(() => setIdx((i) => i + 1), dur);
     return () => clearTimeout(t);
-  }, [done]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [idx]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <div className="flex h-svh flex-col items-center justify-center gap-6 px-6">
-      <div className="flex items-center gap-2 text-lg font-semibold">
-        <motion.span
-          animate={{ rotate: 360 }}
-          transition={{ repeat: Infinity, duration: 1.8, ease: "linear" }}
-          className="flex"
-        >
-          <SarahIcon className="size-5" />
-        </motion.span>
-        Building {name}…
-      </div>
-      <div className="flex w-fit flex-col gap-2.5">
-        {steps.map((s, i) => (
-          <div key={s} className="flex items-center gap-2.5 text-sm">
-            <span className={cn("flex size-5 items-center justify-center rounded-full border", i < done ? "border-emerald-500 bg-emerald-500 text-white" : "text-muted-foreground")}>
-              {i < done ? <Check className="size-3" /> : <span className="size-1.5 rounded-full bg-current" />}
-            </span>
-            <span className={i < done ? "text-foreground" : "text-muted-foreground"}>{s}</span>
+    <div className="flex h-svh flex-col items-center justify-center px-6">
+      <div className="neu-card flex w-full max-w-md flex-col gap-5 rounded-2xl bg-card p-6">
+        <div>
+          <div className="t-caption mb-2">booting up your company</div>
+          <div className="neu-inset overflow-hidden rounded-xl bg-background/40 p-3">
+            <PixelLoader rows={4} cols={26} className="mx-auto" />
           </div>
-        ))}
+          <p className="t-caption mt-2 truncate">Building {name} — Engineering · Design · Finance…</p>
+        </div>
+        <div className="flex flex-col gap-2">
+          {BOOT_STEPS.map((s, i) => (
+            <BootStepRow key={i} step={s} state={i < idx ? "done" : i === idx ? "active" : "upcoming"} />
+          ))}
+        </div>
       </div>
     </div>
   );

@@ -3,10 +3,11 @@
 import * as React from "react";
 import Link from "next/link";
 import {
-  Boxes, ChevronRight, Code2, ExternalLink, FileDiff, Headphones, Image as ImageIcon,
-  Megaphone, PenTool, Plus, Scale, Sparkles, Terminal, TrendingUp, Wallet,
+  ArrowUp, Boxes, ChevronRight, Code2, Headphones,
+  Megaphone, PenTool, Plus, Scale, Sparkles, TrendingUp, Wallet,
 } from "lucide-react";
 import { PAGES, agentById, type DeptId, type PageNode } from "@/lib/canvas/graph";
+import { PixelIcon, type PixelGlyph } from "@/components/ds/PixelIcon";
 import { useSarah } from "@/components/sarah/sarah-context";
 import { useDockData, previewUrl, taskStatusLabel, type DockArtifact, type DockTask } from "@/lib/dock/live";
 import { cn } from "@/lib/utils";
@@ -47,6 +48,42 @@ function StatusDot({ status }: { status: string }) {
   return <span className={cn("size-1.5 shrink-0 rounded-full", color)} />;
 }
 
+/** Artifact kind → pixel glyph + hue (design board: the PixelIcon file tiles). */
+const ARTIFACT_GLYPH: Record<string, { glyph: PixelGlyph; color: "blue" | "green" | "amber" | "violet" }> = {
+  site_preview: { glyph: "app", color: "blue" },
+  pr_diff: { glyph: "file", color: "green" },
+  agent_session: { glyph: "sparkle", color: "violet" },
+  image: { glyph: "chart", color: "amber" },
+};
+const artifactGlyph = (kind: string): { glyph: PixelGlyph; color: "blue" | "green" | "amber" | "violet" } =>
+  ARTIFACT_GLYPH[kind] ?? { glyph: "file", color: "blue" };
+
+/**
+ * The soft-embossed tile an artifact sits on (design board: `neu-card hover-lift press`),
+ * fronted by a pixel-art glyph for its kind — then any kind-specific body underneath.
+ */
+function ArtifactShell({
+  artifact,
+  trailing,
+  children,
+}: {
+  artifact: DockArtifact;
+  trailing?: React.ReactNode;
+  children?: React.ReactNode;
+}) {
+  const g = artifactGlyph(artifact.kind);
+  return (
+    <div className="neu-card hover-lift press flex flex-col gap-1.5 rounded-xl bg-card p-3">
+      <div className="flex items-center gap-2.5">
+        <PixelIcon glyph={g.glyph} color={g.color} size={26} className="shrink-0" />
+        <span className="min-w-0 flex-1 truncate font-medium text-foreground">{artifact.title}</span>
+        {trailing}
+      </div>
+      {children}
+    </div>
+  );
+}
+
 /** One live artifact the agent produced — a preview link, a PR diff, a session transcript, an image. */
 function ArtifactRow({ artifact }: { artifact: DockArtifact }) {
   const p = nullPayload(artifact);
@@ -54,24 +91,20 @@ function ArtifactRow({ artifact }: { artifact: DockArtifact }) {
   if (artifact.kind === "site_preview") {
     const url = previewUrl(artifact.payload);
     return (
-      <div className="rounded-lg border bg-background p-2.5">
-        <div className="flex items-center gap-2">
-          <ExternalLink className="size-3.5 shrink-0 text-muted-foreground" />
-          <span className="min-w-0 flex-1 truncate font-medium text-foreground">{artifact.title}</span>
-        </div>
+      <ArtifactShell artifact={artifact}>
         {url ? (
           <a
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-1 block truncate text-xs text-primary underline-offset-2 hover:underline"
+            className="block truncate text-xs text-primary underline-offset-2 hover:underline"
           >
             {url}
           </a>
         ) : (
-          <p className="mt-1 text-xs text-muted-foreground">Building the preview…</p>
+          <p className="text-xs text-muted-foreground">Building the preview…</p>
         )}
-      </div>
+      </ArtifactShell>
     );
   }
 
@@ -79,71 +112,60 @@ function ArtifactRow({ artifact }: { artifact: DockArtifact }) {
     const diff = str(p.diff);
     const prUrl = str(p.prUrl);
     return (
-      <div className="rounded-lg border bg-background p-2.5">
-        <div className="flex items-center gap-2">
-          <FileDiff className="size-3.5 shrink-0 text-muted-foreground" />
-          <span className="min-w-0 flex-1 truncate font-medium text-foreground">{artifact.title}</span>
-          {prUrl && (
+      <ArtifactShell
+        artifact={artifact}
+        trailing={
+          prUrl ? (
             <a href={prUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 text-xs text-primary hover:underline">
               open
             </a>
-          )}
-        </div>
+          ) : null
+        }
+      >
         {diff && (
-          <pre className="mt-1.5 max-h-32 overflow-auto rounded-md border bg-muted p-2 text-[11px] leading-snug text-muted-foreground">
+          <pre className="max-h-32 overflow-auto rounded-md border bg-muted p-2 text-[11px] leading-snug text-muted-foreground">
             {truncate(diff, 1200)}
           </pre>
         )}
-      </div>
+      </ArtifactShell>
     );
   }
 
   if (artifact.kind === "agent_session") {
     const transcript = (str(p.stdout) || str(p.stderr)).trim();
     return (
-      <div className="rounded-lg border bg-background p-2.5">
-        <div className="flex items-center gap-2">
-          <Terminal className="size-3.5 shrink-0 text-muted-foreground" />
-          <span className="min-w-0 flex-1 truncate font-medium text-foreground">{artifact.title}</span>
-        </div>
+      <ArtifactShell artifact={artifact}>
         {transcript && (
-          <pre className="mt-1.5 max-h-32 overflow-auto rounded-md border bg-muted p-2 text-[11px] leading-snug text-muted-foreground">
+          <pre className="max-h-32 overflow-auto rounded-md border bg-muted p-2 text-[11px] leading-snug text-muted-foreground">
             {truncate(transcript, 1200)}
           </pre>
         )}
-      </div>
+      </ArtifactShell>
     );
   }
 
   if (artifact.kind === "image") {
     const dataUrl = str(p.dataUrl);
     return (
-      <div className="rounded-lg border bg-background p-2.5">
-        <div className="flex items-center gap-2">
-          <ImageIcon className="size-3.5 shrink-0 text-muted-foreground" />
-          <span className="min-w-0 flex-1 truncate font-medium text-foreground">{artifact.title}</span>
-        </div>
+      <ArtifactShell artifact={artifact}>
         {dataUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={dataUrl} alt={artifact.title} className="mt-1.5 max-h-40 w-full rounded-md border object-cover" />
+          <img src={dataUrl} alt={artifact.title} className="max-h-40 w-full rounded-md border object-cover" />
         ) : (
-          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{truncate(str(p.prompt), 140)}</p>
+          <p className="line-clamp-2 text-xs text-muted-foreground">{truncate(str(p.prompt), 140)}</p>
         )}
-      </div>
+      </ArtifactShell>
     );
   }
 
-  return (
-    <div className="rounded-lg border bg-background p-2.5">
-      <p className="truncate font-medium text-foreground">{artifact.title}</p>
-    </div>
-  );
+  return <ArtifactShell artifact={artifact} />;
 }
 
 export function AgentDockPanel({ dept }: { dept: string }) {
   const agent = agentById(dept);
-  const { widgetOpen } = useSarah();
+  const { widgetOpen, sendMessage } = useSarah();
   const { tasks, artifacts, loaded } = useDockData(widgetOpen);
+  const [ask, setAsk] = React.useState("");
   if (!agent) return null;
 
   const Icon = DEPT_ICON[agent.id];
@@ -157,8 +179,18 @@ export function AgentDockPanel({ dept }: { dept: string }) {
   const working = deptTasks.find((t) => t.status === "in_progress");
   const openTasks = deptTasks.filter((t) => t.status !== "done");
 
+  // Composer → the real owner thread (sarah-context → /api/lu/chat). Lu decomposes
+  // the goal into tasks the dock is already watching; here we just hand off the text.
+  const submitAsk = (e: React.FormEvent) => {
+    e.preventDefault();
+    const text = ask.trim();
+    if (!text) return;
+    sendMessage(text);
+    setAsk("");
+  };
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4 text-sm">
+    <div className="neu-card-in flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto rounded-2xl bg-card px-4 py-4 text-sm">
       <div className="flex items-center gap-2">
         <span className="grid size-6 place-items-center rounded-md" style={accentBg}>
           <Icon className="size-4" />
@@ -257,6 +289,24 @@ export function AgentDockPanel({ dept }: { dept: string }) {
         <p className="mt-0.5 text-xs text-muted-foreground">Department knowledge shared with every agent here.</p>
         <pre className="mt-3 overflow-x-auto rounded-lg border bg-muted p-3 text-xs text-muted-foreground">{`{\n  "summary": "${agent.context}"\n}`}</pre>
       </div>
+
+      {/* Composer — ask Lu to build something (hands off to the real owner thread) */}
+      <form onSubmit={submitAsk} className="neu-socket mt-1 flex items-center gap-2 rounded-xl bg-background px-3 py-2.5">
+        <input
+          value={ask}
+          onChange={(e) => setAsk(e.target.value)}
+          placeholder="Ask Lu to build something…"
+          aria-label="Ask Lu to build something"
+          className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+        />
+        <button
+          type="submit"
+          aria-label="Send to Lu"
+          className="gloss-ink grid size-7 shrink-0 place-items-center rounded-lg text-white"
+        >
+          <ArrowUp className="size-3.5" />
+        </button>
+      </form>
     </div>
   );
 }

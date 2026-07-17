@@ -162,6 +162,51 @@ export function orchestratorTools(deps: OrchestratorToolDeps, ctx: OrchestratorC
       },
     }),
 
+    propose_plan: tool({
+      description:
+        "Draft a PLAN for an engineering build and put it in front of the owner to APPROVE before anything is built. Use this for any 'build me X / make me Y / add / change' request INSTEAD of dispatching immediately. Give a short title, a one-line objective, the ordered steps the Engineer will take, and acceptance criteria (how the owner will know it is done). This creates the engineering task (NOT building yet), writes the plan as a doc the owner can read, and stages a plan approval. When the owner approves it in the dock, the Engineer starts building automatically — you do NOT dispatch it yourself. Tell the owner you have drafted a plan for their approval, and note any missing connections.",
+      inputSchema: z.object({
+        title: z.string().describe("Short name for what you are building, e.g. 'Marketing site'"),
+        objective: z.string().describe("One line: what this delivers for the owner"),
+        steps: z.array(z.string()).describe("The ordered approach the Engineer will take (3-7 concrete steps)"),
+        acceptance: z
+          .array(z.string())
+          .describe("How we will know it is done: testable criteria (pages, flows, checks)"),
+      }),
+      execute: async ({ title, objective, steps, acceptance }) => {
+        const task = await deps.store.createTask({
+          orgId: ctx.orgId,
+          departmentKey: "engineering",
+          title,
+          body: objective,
+          status: "agent_can_do", // planned but NOT dispatched — the plan gate holds it
+          assignedBy: "lu",
+        });
+        await deps.store.addArtifact({
+          orgId: ctx.orgId,
+          taskId: task.id,
+          kind: "doc",
+          title: `Plan — ${title}`,
+          payload: { type: "plan", objective, steps, acceptance },
+        });
+        const approval = await deps.store.createApproval({
+          orgId: ctx.orgId,
+          taskId: task.id,
+          action: "approve_plan",
+        });
+        tasksCreated.push(task.id);
+        const s = await connectionStatus(deps.store, ctx.orgId);
+        return {
+          ok: true as const,
+          taskId: task.id,
+          approvalId: approval.id,
+          planned: true,
+          readyToBuild: s.github && s.vercel,
+          missingConnections: [!s.github ? "GitHub" : null, !s.vercel ? "Vercel" : null].filter(Boolean),
+        };
+      },
+    }),
+
     list_status: tool({
       description:
         "Get the current state of the org's work: total tasks with counts by status and by department, plus the roster of agents. Read this before planning so you don't duplicate work already underway, and when reporting progress back to the owner.",

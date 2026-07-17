@@ -1,5 +1,7 @@
 import type { Request, Response } from "express";
 import { confirmPublish, type EngineeringDeps } from "../agent/engineering.js";
+import { dispatchBuild } from "../agent/dispatch.js";
+import { orgHasConnections } from "../connect/status.js";
 import type { Store } from "../store/types.js";
 
 /**
@@ -59,6 +61,49 @@ export function createResolveApprovalRoute(deps: EngineeringDeps) {
     }
 
     try {
+      // The PLAN GATE: an "approve_plan" approval dispatches the build (or rejects the plan),
+      // rather than publishing. Detect it from the approval's action (needs orgId to look it up).
+      if (typeof orgId === "string" && orgId.trim() !== "") {
+        const appr = (await deps.store.listPendingApprovals(orgId)).find((a) => a.id === id);
+        if (appr?.action === "approve_plan") {
+          if (decision === "rejected") {
+            const approval = await deps.store.resolveApproval(id, "rejected", decidedBy);
+            res.status(200).json({ decision, kind: "plan", approval });
+            return;
+          }
+          const planTaskId = appr.taskId;
+          if (!planTaskId) {
+            res.status(400).json({ error: "plan approval has no task" });
+            return;
+          }
+          // Can't build without the owner's GitHub + Vercel — leave the approval so they can
+          // connect and approve again.
+          if (!(await orgHasConnections(deps.store, orgId))) {
+            res.status(200).json({ decision, kind: "plan", dispatched: false, needsConnect: true });
+            return;
+          }
+          // Drive the Engineer from the APPROVED plan (objective + steps + acceptance).
+          const task = await deps.store.getTask(planTaskId);
+          const arts = await deps.store.listArtifacts({ taskId: planTaskId });
+          const plan = arts.find(
+            (a) => a.kind === "doc" && (a.payload as { type?: unknown } | null)?.type === "plan",
+          )?.payload as { objective?: string; steps?: string[]; acceptance?: string[] } | undefined;
+          const message = plan
+            ? [
+                plan.objective ?? "",
+                plan.steps?.length ? `Approach:\n- ${plan.steps.join("\n- ")}` : "",
+                plan.acceptance?.length ? `Done when:\n- ${plan.acceptance.join("\n- ")}` : "",
+              ]
+                .filter(Boolean)
+                .join("\n\n")
+            : task?.body?.trim() || task?.title || "";
+          await deps.store.resolveApproval(id, "approved", decidedBy);
+          await dispatchBuild({ store: deps.store }, { orgId, taskId: planTaskId, message });
+          res.status(200).json({ decision, kind: "plan", dispatched: true, taskId: planTaskId });
+          return;
+        }
+      }
+
       if (decision === "rejected") {
         const approval = await deps.store.resolveApproval(id, "rejected", decidedBy);
         res.status(200).json({ decision, approval });

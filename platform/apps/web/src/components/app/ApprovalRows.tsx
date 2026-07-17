@@ -2,11 +2,9 @@
 
 import * as React from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { MessageCircleQuestion } from "lucide-react";
 import { useSarah } from "@/components/sarah/sarah-context";
-import { KIND_META } from "@/components/app/ApprovalCard";
+import { KindChip } from "@/components/app/ApprovalCard";
 import { SarahIcon } from "@/components/icons/sarah";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { OpenEscalation } from "@/components/sarah/sarah-context";
 
@@ -66,16 +64,14 @@ export function ApprovalRows({
   });
 
   return (
-    <div className="divide-y divide-border/60">
+    <div className="flex flex-col gap-2.5">
       {approvals.map((a) => {
         const editing = editingId === a.id;
         const draft = drafts[a.id] ?? a.preview;
         return (
-          <div key={a.id} {...rowProps(a.id)} className="-mx-2 cursor-pointer rounded-lg px-2 py-2.5 transition-colors hover:bg-muted/40">
+          <div key={a.id} {...rowProps(a.id)} className="neu-card-in cursor-pointer rounded-xl px-3.5 py-3 transition">
             <div className="flex items-center gap-3">
-              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${KIND_META[a.kind].chip}`}>
-                {KIND_META[a.kind].label}
-              </span>
+              <KindChip kind={a.kind} />
               <p className="min-w-0 flex-1 truncate text-sm font-medium">{a.summary}</p>
               <span className="shrink-0 text-xs text-muted-foreground">{waited(a.createdAt)}</span>
             </div>
@@ -92,32 +88,27 @@ export function ApprovalRows({
                         autoFocus
                       />
                     ) : (
-                      <p className="mt-2 pl-1 text-sm leading-relaxed text-muted-foreground">“{draft}”</p>
+                      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">“{draft}”</p>
                     )}
-                    <div className="mt-2.5 flex items-center gap-2 pb-1 pl-1">
-                      <Button
-                        size="sm"
-                        className="btn-glow h-7 px-3 text-xs"
+                    <div className="mt-2.5 flex items-center gap-1.5 pb-0.5">
+                      <button
+                        className="gloss-ink press rounded-full px-3 py-1 text-[12px] font-medium text-white"
                         onClick={() => approve(a.id, drafts[a.id] !== undefined ? drafts[a.id] : undefined)}
                       >
-                        Send it
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 px-2.5 text-xs"
+                        Approve
+                      </button>
+                      <button
+                        className="gloss press rounded-full px-3 py-1 text-[12px] font-medium text-foreground"
                         onClick={() => setEditingId(editing ? null : a.id)}
                       >
                         {editing ? "Done" : "Edit"}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 px-2.5 text-xs text-muted-foreground"
+                      </button>
+                      <button
+                        className="press rounded-full px-2.5 py-1 text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground"
                         onClick={() => decline(a.id)}
                       >
-                        No
-                      </Button>
+                        Dismiss
+                      </button>
                     </div>
                   </div>
                 </RowBody>
@@ -127,10 +118,10 @@ export function ApprovalRows({
         );
       })}
       {escalations.map((e) => (
-        <div key={e.id} {...rowProps(e.id)} className="-mx-2 cursor-pointer rounded-lg px-2 py-2.5 transition-colors hover:bg-muted/40">
+        <div key={e.id} {...rowProps(e.id)} className="neu-card-in cursor-pointer rounded-xl px-3.5 py-3 transition">
           <div className="flex items-center gap-3">
-            <span className="shrink-0 rounded-full bg-orange-500/10 px-2 py-0.5 text-[11px] font-medium text-orange-700 dark:text-orange-300">
-              <MessageCircleQuestion className="mr-1 inline size-3" />
+            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-orange-500/10 px-2 py-0.5 text-[11px] font-medium text-orange-700 dark:text-orange-300">
+              <span className="size-1.5 rounded-full bg-orange-500" />
               Question
             </span>
             <p className="min-w-0 flex-1 truncate text-sm font-medium">{e.contactName}: “{e.question}”</p>
@@ -139,11 +130,14 @@ export function ApprovalRows({
           <AnimatePresence initial={false}>
             {isOpen(e.id) && (
               <RowBody>
-                <p className="mt-2 pl-1 text-sm leading-relaxed text-muted-foreground">“{e.question}”</p>
-                <div className="mt-2.5 flex items-center gap-2 pb-1 pl-1" onClick={(ev) => ev.stopPropagation()}>
-                  <Button size="sm" variant="outline" className="h-7 gap-1.5 px-3 text-xs" onClick={() => answer(e)}>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">“{e.question}”</p>
+                <div className="mt-2.5 flex items-center gap-2 pb-0.5" onClick={(ev) => ev.stopPropagation()}>
+                  <button
+                    className="gloss press inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-medium text-foreground"
+                    onClick={() => answer(e)}
+                  >
                     <SarahIcon className="size-3.5" /> Answer via Sarah
-                  </Button>
+                  </button>
                 </div>
               </RowBody>
             )}

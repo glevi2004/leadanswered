@@ -23,11 +23,14 @@ const ACTION_LABEL: Record<string, { title: string; blurb: string }> = {
 
 export function PublishApprovals({ active }: { active: boolean }) {
   const { approvals, resolve, pending } = usePublishApprovals(active);
-  if (approvals.length === 0) return null;
+  // The plan gate (approve_plan) is rendered inline in the thread by LuBuildTracker; this
+  // card owns the publish gates only, so a pending plan doesn't double up here.
+  const publishApprovals = approvals.filter((a) => a.action !== "approve_plan");
+  if (publishApprovals.length === 0) return null;
 
   return (
     <div className="mb-3 flex flex-col gap-2">
-      {approvals.map((a) => {
+      {publishApprovals.map((a) => {
         const meta = ACTION_LABEL[a.action] ?? {
           title: a.action.replace(/_/g, " "),
           blurb: "Waiting on your approval to proceed.",

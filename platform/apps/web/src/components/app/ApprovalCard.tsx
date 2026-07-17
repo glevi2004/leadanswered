@@ -1,10 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Check, Pencil, X } from "lucide-react";
 import type { Approval, ApprovalKind } from "@/lib/data/shared";
 import { useSarah } from "@/components/sarah/sarah-context";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +23,27 @@ export const KIND_META: Record<ApprovalKind, { label: string; chip: string; dot:
 };
 
 /**
+ * Kind chip — a colored dot + label, one hue per approval kind (design board's
+ * KindChip, ported into the app on the KIND_META palette above). Shared by the
+ * approval cards and the inbox rows so the whole Lu action surface reads as one.
+ */
+export function KindChip({ kind, className }: { kind: ApprovalKind; className?: string }) {
+  const meta = KIND_META[kind];
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium",
+        meta.chip,
+        className,
+      )}
+    >
+      <span className={cn("size-1.5 rounded-full", meta.dot)} />
+      {meta.label}
+    </span>
+  );
+}
+
+/**
  * One pending hard-gate draft — the same card in the widget, Home, and /sarah
  * (00 §8). Approving is the owner's explicit yes; code sends, never the model.
  */
@@ -34,17 +53,10 @@ export function ApprovalCard({ approval, compact }: { approval: Approval; compac
   const [draft, setDraft] = React.useState(approval.preview);
 
   return (
-    <div className="card-lift rounded-2xl border bg-card p-3.5 text-card-foreground shadow-xs">
+    <div className="neu-card-in rounded-2xl px-3.5 py-3 text-card-foreground">
       <div className="flex items-center justify-between gap-2">
         <p className="truncate text-sm font-semibold">{approval.summary}</p>
-        <span
-          className={cn(
-            "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium",
-            KIND_META[approval.kind].chip,
-          )}
-        >
-          {KIND_META[approval.kind].label}
-        </span>
+        <KindChip kind={approval.kind} />
       </div>
 
       {editing ? (
@@ -61,26 +73,25 @@ export function ApprovalCard({ approval, compact }: { approval: Approval; compac
         </p>
       )}
 
-      <div className="mt-2.5 flex items-center gap-2">
-        <Button size="sm" className="btn-glow h-7 gap-1 px-3" onClick={() => approve(approval.id, draft)}>
-          <Check className="size-3.5" /> Send it
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-7 gap-1 px-2.5"
+      <div className="mt-2.5 flex items-center gap-1.5">
+        <button
+          className="gloss-ink press rounded-full px-3 py-1 text-[12px] font-medium text-white"
+          onClick={() => approve(approval.id, draft)}
+        >
+          Approve
+        </button>
+        <button
+          className="gloss press rounded-full px-3 py-1 text-[12px] font-medium text-foreground"
           onClick={() => setEditing((v) => !v)}
         >
-          <Pencil className="size-3.5" /> {editing ? "Done" : "Edit"}
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 gap-1 px-2.5 text-muted-foreground"
+          {editing ? "Done" : "Edit"}
+        </button>
+        <button
+          className="press rounded-full px-2.5 py-1 text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground"
           onClick={() => decline(approval.id)}
         >
-          <X className="size-3.5" /> No
-        </Button>
+          Dismiss
+        </button>
       </div>
     </div>
   );

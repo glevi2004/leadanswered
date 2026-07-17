@@ -2,19 +2,31 @@
 
 import * as React from "react";
 import { usePathname } from "next/navigation";
-import { ExternalLink, Hammer } from "lucide-react";
+import { ClipboardList, ExternalLink, Hammer } from "lucide-react";
 import { useSarah } from "./sarah-context";
-import { useDockData, previewUrl, taskStatusLabel, type DockTask } from "@/lib/dock/live";
+import { PlanApprovalCard } from "./PlanApprovalCard";
+import {
+  useDockData,
+  usePublishApprovals,
+  previewUrl,
+  planFromArtifact,
+  taskStatusLabel,
+  type DockTask,
+} from "@/lib/dock/live";
 import { cn } from "@/lib/utils";
 
 /**
  * The chat↔Engineer wire, rendered INSIDE the thread (cockpit Part B). When Lu creates
- * tasks and dispatches the Engineer, sarah-context records the task ids as a BuildBatch;
- * this tracker polls /api/dock/tasks + /api/dock/artifacts for those ids and shows the
- * build unfold — queued → building → preview link → needs-approval — in the same
- * conversation. The final publish gate is the PublishApprovals card (kept as-is). Lives in
- * SarahThread so it appears on every surface that renders the thread (the dock's Lu tab and
- * the full-page /sarah), always right after Lu's reply.
+ * tasks, sarah-context records the task ids as a BuildBatch; this tracker polls
+ * /api/dock/tasks + /api/dock/artifacts (and /api/dock/approvals) for those ids and shows the
+ * lifecycle unfold in the same conversation:
+ *   plan gate (PlanApprovalCard) → (owner approves → backend dispatches) → build progress
+ *   (queued → building → preview link) → publish gate (PublishApprovals card, kept as-is).
+ * The PLAN GATE comes first: when Lu calls propose_plan she stages a pending `approve_plan`
+ * approval + a `doc` plan artifact WITHOUT building; this tracker renders that plan for the
+ * owner to Approve/Reject before any build runs. Lives in SarahThread so it appears on every
+ * surface that renders the thread (the dock's Lu tab and the full-page /sarah), right after
+ * Lu's reply.
  */
 
 /** Status indicator: a spinner while working, a colored dot otherwise (mirrors the dock). */
@@ -36,7 +48,7 @@ export function StatusDot({ status }: { status: string }) {
 }
 
 export function LuBuildTracker() {
-  const { builds, activeChatId, widgetOpen } = useSarah();
+  const { builds, activeChatId, widgetOpen, sendMessage } = useSarah();
   const pathname = usePathname();
   const mine = builds.filter((b) => b.chatId === activeChatId);
 
@@ -46,6 +58,10 @@ export function LuBuildTracker() {
   const onSarahPage = pathname?.startsWith("/sarah") ?? false;
   const active = mine.length > 0 && (widgetOpen || onSarahPage);
   const { tasks, artifacts, loaded } = useDockData(active);
+  // The plan gate: /api/dock/approvals carries the pending approve_plan approvals Lu staged
+  // (propose_plan). `resolve` POSTs the owner's decision → backend dispatches (approved) or
+  // cancels (rejected). Same generic approvals hook the publish gate uses.
+  const { approvals, resolve, pending } = usePublishApprovals(active);
 
   if (mine.length === 0) return null;
 
@@ -54,25 +70,60 @@ export function LuBuildTracker() {
       {mine.map((batch) => {
         const batchIds = new Set(batch.taskIds);
         const batchTasks: DockTask[] = tasks.filter((t) => batchIds.has(t.id));
-        const hasEngineering = batchTasks.some((t) => t.departmentKey === "engineering");
-        const previews = artifacts.filter((a) => a.kind === "site_preview" && a.taskId && batchIds.has(a.taskId));
+        // Pending plan gates for THIS batch's tasks — these hold the build until approved.
+        const planApprovals = approvals.filter(
+          (a) => a.action === "approve_plan" && a.taskId != null && batchIds.has(a.taskId),
+        );
+        const plannedTaskIds = new Set(planApprovals.map((a) => a.taskId));
+        // Tasks/previews to show as build progress = everything NOT still behind a plan gate.
+        const progressTasks = batchTasks.filter((t) => !plannedTaskIds.has(t.id));
+        const hasEngineering = progressTasks.some((t) => t.departmentKey === "engineering");
+        const previews = artifacts.filter(
+          (a) => a.kind === "site_preview" && a.taskId && batchIds.has(a.taskId) && !plannedTaskIds.has(a.taskId),
+        );
         const n = batch.taskIds.length;
+        // Header reads the lifecycle: awaiting-plan vs. building.
+        const awaitingPlan = planApprovals.length > 0 && progressTasks.length === 0;
 
         return (
           <div key={batch.id} className="rounded-xl border bg-card p-3 text-sm text-card-foreground elev-1">
             <div className="flex items-center gap-2">
               <span className="grid size-6 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
-                <Hammer className="size-3.5" />
+                {awaitingPlan ? <ClipboardList className="size-3.5" /> : <Hammer className="size-3.5" />}
               </span>
               <p className="min-w-0 flex-1 font-medium text-foreground">
-                Lu created {n} {n === 1 ? "task" : "tasks"}
-                {hasEngineering ? " and dispatched the Engineer" : ""}
+                {awaitingPlan
+                  ? "Lu drafted a plan for your approval"
+                  : `Lu created ${n} ${n === 1 ? "task" : "tasks"}${hasEngineering ? " and dispatched the Engineer" : ""}`}
               </p>
             </div>
 
-            {batchTasks.length > 0 ? (
+            {/* PLAN GATE first: render Lu's plan for each held task so the owner approves before the build. */}
+            {planApprovals.length > 0 && (
+              <div className="mt-2.5 flex flex-col gap-2">
+                {planApprovals.map((a) => {
+                  const doc = artifacts.find((art) => art.kind === "doc" && art.taskId === a.taskId);
+                  return (
+                    <PlanApprovalCard
+                      key={a.id}
+                      plan={planFromArtifact(doc?.payload ?? null)}
+                      busy={pending.has(a.id)}
+                      onApprove={() => resolve(a.id, "approved")}
+                      onReject={() => resolve(a.id, "rejected")}
+                      onRequestChanges={(feedback) => {
+                        // Revise loop: cancel this plan, then ask Lu to re-plan with the feedback.
+                        void resolve(a.id, "rejected");
+                        sendMessage(`Please revise the plan: ${feedback}`);
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            )}
+
+            {progressTasks.length > 0 ? (
               <div className="mt-2.5 space-y-1.5">
-                {batchTasks.map((t) => (
+                {progressTasks.map((t) => (
                   <div key={t.id} className="flex items-center gap-2">
                     <StatusDot status={t.status} />
                     <span className="min-w-0 flex-1 truncate text-foreground">{t.title}</span>
@@ -80,11 +131,11 @@ export function LuBuildTracker() {
                   </div>
                 ))}
               </div>
-            ) : (
+            ) : planApprovals.length === 0 ? (
               <p className="mt-2 text-xs text-muted-foreground">
                 {loaded ? "Lining up the work…" : "Getting the work going…"}
               </p>
-            )}
+            ) : null}
 
             {previews.length > 0 && (
               <div className="mt-2.5 space-y-1.5">
