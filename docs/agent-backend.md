@@ -1,6 +1,9 @@
-# Lu Computer — the agent backend
+# Lu Computer — the agent backend (reference)
 
-> Part of the Lu Computer canon — see [FOUNDATION.md](../FOUNDATION.md).
+> Part of the Lu Computer canon — see [FOUNDATION.md](../FOUNDATION.md). This is the backend **reference**
+> (the tables · the model gateway · context/memory · hosting). For **how we build & run agents** — the loop,
+> ports, the Engineer, durability, and the recipe for adding an agent — see the handbook:
+> **[building-agents.md](./building-agents.md)**. Live status: [DEVELOPMENT.md](../DEVELOPMENT.md).
 
 How Lu orchestrates department agents: the runtime, the data model, the Engineering agent, sites/hosting,
 and how onboarding wires it all together. Lu is the conductor; each **department** is an agent with a space,
@@ -72,14 +75,13 @@ Agents read/write only through the **`Store` port** (`apps/api/src/store/`, `Pri
 - **Long-running tasks run async.** A department task (especially an Engineering build) runs as background
   work in `apps/api`, writing `Task.status` + `Artifact` rows as it goes; the web shows a **live task tracker**
   by reading those rows (polling now, Supabase Realtime later) — this is the dock's Tasks panel and the roadmap.
-  *This in-process background is today's demo-grade state; the scale path (the key roadmap item) is a
-  **durable worker** — a queue / durable-execution engine (Trigger.dev / Inngest) that survives redeploys and
-  crashes, and for long marathons **supervises** while the run executes inside the e2b sandbox, parking on
-  Approvals (hibernating the sandbox) and resuming. See [FOUNDATION.md §4](../FOUNDATION.md).*
-- **Lu the orchestrator** is a planning agent in `apps/api` on a stronger model (Sonnet/Opus) with tools:
-  `ask_user` (renders as a question in the Lu dock), `create_task`, `assign_to_department`, `get_status`,
-  `summarize`. Given a goal ("build my marketing site"), Lu decomposes → tasks → assigns → reports back like a
-  chief of staff. The web `/api/lu` calls this orchestrator.
+  *The **durable worker** is **built** (BullMQ — `worker.ts`/`queue.ts`); it runs in-process until
+  `REDIS_URL` activates crash-safe re-delivery. The durability model + implementation is in the handbook:
+  [building-agents.md §6](./building-agents.md).*
+- **Lu the orchestrator** is a planning agent in `apps/api` on a stronger model (Sonnet) with tools:
+  `create_task`, `assign_to_department`, `check_connections`, `dispatch_to_engineering` (agent→agent),
+  `list_status`, `ask_user` (renders as a question in the Lu dock). Given a goal ("build my marketing site"),
+  Lu decomposes → tasks → dispatches → reports back like a chief of staff. The web `/api/lu` calls it.
 - **Orchestration is recursive + multi-model.** Lu conducts the top, but an agent is a program you compose on
   the fly: it runs **any model** (`Agent.models`, via the gateway — §5b) and can itself **spawn and orchestrate
   sub-agents** (a child `Task` via `parentTaskId`), including attaching and driving a cloud terminal's pty (a
@@ -142,9 +144,8 @@ sandbox reads it.
 The runtime is provider-agnostic behind a **model gateway** (`packages/core/models.ts`): a registry + router
 spanning every provider and modality, not a hardcoded model. Two axes:
 
-- **Reasoning (the agent's brain) — any provider.** Anthropic (Claude), OpenAI (GPT), Google (Gemini),
-  **xAI (Grok)**, and any AI-SDK provider, swappable per agent (`ai` v6 +
-  `@ai-sdk/{anthropic,openai,google,xai}`).
+- **Reasoning (the agent's brain) — any provider.** Anthropic (Claude), OpenAI (GPT), Google (Gemini) are
+  wired today; **xAI (Grok)** and other AI-SDK providers are on the roadmap — swappable per agent (`ai` v6).
 - **Generation (the agent's hands) — any modality.** Agents produce assets, not just text:
   - **Image** — website **hero image**, logo, social graphics: OpenAI `gpt-image-1`, Black-Forest **Flux**,
     Ideogram, and the connected **Higgsfield MCP** (`generate_image` / `create_website`). Via AI SDK
@@ -163,7 +164,11 @@ spanning every provider and modality, not a hardcoded model. Two axes:
   fall back across providers on rate-limit/outage — all behind the picker. The owner sees simple speed/quality/
   cost hints, never a spend dashboard.
 
-### 5c. State-of-the-art foundations (first-class from day one)
+### 5c. State-of-the-art foundations (the target — mostly roadmap)
+
+> Written as the intended end-state. Live today: Langfuse telemetry, working/core memory, and model tiering
+> (see [DEVELOPMENT.md](../DEVELOPMENT.md)). Streaming-everywhere, MCP-native, the vector store, and
+> evals-as-CI-gates are roadmap, not yet built.
 
 - **Streaming everywhere.** Stream the agent's tokens + tool-calls + artifact updates live to the dock
   (`streamText` + Supabase Realtime / SSE on Task/Artifact rows) — the live task tracker feels alive, not polled.
@@ -186,6 +191,9 @@ spanning every provider and modality, not a hardcoded model. Two axes:
   Library can discover and route — a clean seam for future third-party agents.
 
 ## 6. The Engineering agent (the flagship)
+
+> **The full build spec — the 6-tool pipeline, the ports, the terminal, orchestration, and durability — is
+> the handbook: [building-agents.md](./building-agents.md).** Below is a short reference summary.
 
 The Engineer turns "build me X" into a deployed thing: it inspects a repo, spins a sandbox, opens a PR with a
 preview link, and publishes the approved change to production — real infra work.
@@ -224,7 +232,7 @@ repo Lu controls; v1 flips one input (their repo) and reuses everything.
 
 **The cloud terminal** is the interactive door to the same runtime: a websocket (`/api/terminal`) bridges an
 e2b **pty** to an **xterm.js** node on the canvas — the owner watches and types into a real coding session. See
-[canvas.md §4](./canvas.md) and [engineering-agent.md](./engineering-agent.md) for the build spec.
+[canvas.md §4](./canvas.md) and [building-agents.md §4](./building-agents.md) for the build spec.
 
 ## 7. Sites / hosting — BYO by default, two surfaces
 
@@ -296,9 +304,9 @@ Priority order lives in [ROADMAP.md](../ROADMAP.md); in brief:
   — the free-preview path and the seed of the later **managed-metered** hosting tier (the destination). Free =
   preview-only.
 - **Onboarding = a real DB org** (Supabase/Prisma write + invite-gated auth), not a cookie handoff.
-- **Model registry (§5b) = Anthropic + OpenAI + Google + xAI/Grok** (reasoning) · **gpt-image / Flux /
-  Higgsfield** (image); default per role/modality; Lu auto-escalates the model per hard task.
+- **Model registry (§5b) = Anthropic + OpenAI + Google** (reasoning; xAI/Grok roadmap) · **gpt-image**
+  (image; Flux / Higgsfield placeholder); default per role/modality; Lu auto-escalates per hard task.
 - **Agent config = the CONTRACT (§5a)**: `Agent.contract` + `ContractRevision`, company-root + per-agent;
   committed into the Engineering repo.
 - **Build order = the Engineering agent first, and dogfood it** to build the other departments (see
-  [engineering-agent.md](./engineering-agent.md)). Don't build a department ahead of a partner pulling for it.
+  [building-agents.md](./building-agents.md)). Don't build a department ahead of a partner pulling for it.

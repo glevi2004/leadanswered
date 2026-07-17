@@ -18,8 +18,9 @@ other). Boot it from a **preset** — run a business, a dev studio, your own thi
   data, hosting.
 - **[BUSINESS.md](./BUSINESS.md)** — how it makes money: positioning, pricing, unit economics.
 - **[ROADMAP.md](./ROADMAP.md)** — what's shipped and what's next.
-- **[DEVELOPMENT.md](./DEVELOPMENT.md)** — the current build plan, grounded in the code.
-- **[docs/](./docs/)** — the technical specs.
+- **[DEVELOPMENT.md](./DEVELOPMENT.md)** — the live build map & status (✅/🟡/⬜), grounded in the code.
+- **[docs/](./docs/)** — the technical specs. Start with **[building-agents.md](./docs/building-agents.md)**
+  (how we build agents) + **[canvas.md](./docs/canvas.md)** (the product surface).
 
 ## The repo
 

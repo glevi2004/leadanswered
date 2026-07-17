@@ -1,8 +1,40 @@
 # Lu Computer — Foundation
 
 The system spec of record: how Lu is built. If a decision about the build lives anywhere, it lives here.
-(Why: [MANIFESTO.md](./MANIFESTO.md) · Money: [BUSINESS.md](./BUSINESS.md) · Next:
-[ROADMAP.md](./ROADMAP.md) · Deep specs: [`docs/`](./docs/).)
+(Why: [MANIFESTO.md](./MANIFESTO.md) · Status: [DEVELOPMENT.md](./DEVELOPMENT.md) · Money:
+[BUSINESS.md](./BUSINESS.md) · Next: [ROADMAP.md](./ROADMAP.md) · Deep specs: [`docs/`](./docs/), esp.
+[building-agents](./docs/building-agents.md) (how we build agents) + [canvas](./docs/canvas.md) (the surface).)
+
+## Why now — the technical bet
+
+Code was the **first knowledge work AI mastered**, for three structural reasons: it's **verifiable** (it
+compiles or it doesn't; the test passes or it doesn't — a ground-truth signal to train against *and* to
+trust), **abundant** (every commit that fixed a bug is labelled training data), and **fast to iterate**
+(write → run → error → fix in seconds, no human in the loop). That's why agentic coding works at all.
+
+The tools that rode that curve kept the wrong **shape** — an assistant in the editor. Autocomplete → Copilot
+→ Cursor each made *you* a faster developer, but you stayed the architect, the tester, and the operator.
+Typing was always the sliver; the work is the dozen disciplines around it (architecture · data · design ·
+testing · deployment · secrets · monitoring — each a *process*).
+
+The bet: the loop **closes** once you assemble the missing pieces — **a goal** (you state intent), **a
+manager** (Lu decomposes → plans → routes), **a team** (specialist agents with real ports to *act*), and
+**verification** (the agent runs and tests its own output). The same verifiability that made code fall to AI
+is what lets the system check its own work end to end — so it can **build → test → ship**, not just type,
+with the human only at the approval gate.
+
+```mermaid
+flowchart LR
+  Goal["Goal — you state intent"] --> Mgr["Manager — Lu plans + routes"]
+  Mgr --> Team["Team — specialist agents act"]
+  Team --> V{"Verify — run + test"}
+  V -->|fails| Team
+  V -->|passes| Gate["Approval gate — you sign off"]
+  Gate --> Ship["Ship"]
+```
+
+This is why "the computer is the developer" **begins in Engineering** — the one function whose loop can
+actually close — and dogfoods outward. Everything below is how that's built.
 
 ## 1. The shape
 
@@ -41,15 +73,27 @@ Monorepo under `platform/` (pnpm workspace):
 - This is **our own** product infra — a cheap multi-tenant SaaS. What *agents build* for a customer lives
   in the **customer's own accounts** (§7), not ours.
 
+```mermaid
+flowchart TB
+  B["Owner's browser"] -->|session| W["apps/web · Next.js<br/>(Vercel)"]
+  W -->|"same-origin proxy — resolves the org"| A["apps/api · Express + worker<br/>(Railway)"]
+  B -.->|"wss:// cloud terminal"| A
+  A --> DB[("Supabase Postgres · Prisma")]
+  A -->|"dispatch a build"| E["e2b sandbox<br/>Claude Code CLI"]
+  E -->|"clone / commit / push"| GH["GitHub (customer's own)"]
+  A -->|"PR · deploy · promote"| VC["Vercel (customer's own)"]
+  VC <-->|"preview / prod builds"| GH
+```
+
 ## 3. Orchestration
 
 **Lu** is the top conductor: a goal → **Tasks** → routed to the right agent. It does not do the work
 itself.
 
 **Orchestration is recursive and multi-model.** An agent is a program you compose on the fly: it runs
-**any model** (`Agent.models`, via the gateway — Anthropic / OpenAI / Google / **xAI (Grok)**) and can
-**spawn and orchestrate sub-agents** (a child `Task` via `parentTaskId`), including attaching and driving
-a live **cloud terminal**'s pty. Connections are drawn on the canvas as **`Edge`s** between
+**any model** (`Agent.models`, via the gateway — Anthropic / OpenAI / Google today; **xAI/Grok** is on the
+roadmap, not yet in the gateway) and can **spawn and orchestrate sub-agents** (a child `Task` via
+`parentTaskId`), including attaching and driving a live **cloud terminal**'s pty. Connections are drawn on the canvas as **`Edge`s** between
 **`CanvasNode`s** (the who-conducts-whom graph). Lu runs the top; every agent can run the ones beneath it.
 
 **Departments** are the **Business preset's** unit — each department *is* its agent, rendered as its own
@@ -69,7 +113,8 @@ handler, so an overnight run survives a redeploy or crash. For long work the wor
 than executes**: the marathon (a coding agent building for hours) runs *inside the e2b sandbox* while the
 worker streams progress to the Store as **Artifacts**, parks on **Approvals** (hibernating the sandbox),
 and resumes when resolved. Persistent state is cheap DB rows; heavy compute is ephemeral + metered.
-*(Today's runs are in-process; the durable worker is the key scale item — see the roadmap.)*
+*(The durable worker is **built** — BullMQ; it runs in-process until `REDIS_URL` activates crash-safe
+durability. How it works + how to build any agent: [docs/building-agents.md](./docs/building-agents.md).)*
 
 ## 5. The Engineer (the flagship agent)
 
@@ -87,6 +132,16 @@ worker) over five **ports** — the last three provision into the **customer's o
 (merge → promote). Every step emits an **Artifact** rendered live on the canvas. The **cloud terminal**
 (ws `/api/terminal` ↔ e2b pty ↔ xterm.js) is the interactive door to the same runtime.
 
+```mermaid
+flowchart LR
+  CS["create_site"] --> RCA["run_coding_agent<br/>(e2b + Claude Code)"] --> GI["generate_image"]
+  GI --> OP["open_preview<br/>(PR + Vercel preview)"] --> RP["request_publish<br/>(stages an Approval)"]
+  RP -->|"owner approves"| CP["confirmPublish<br/>(merge → promote to prod)"]
+```
+
+> How the Engineer is built — and the repeatable recipe for adding any agent — is the handbook:
+> [docs/building-agents.md](./docs/building-agents.md).
+
 ## 6. The data model (`packages/db`)
 
 Additive tables, scalar `orgId`, no FK to `Organization`, so they compose freely: `Department`
@@ -94,6 +149,18 @@ Additive tables, scalar `orgId`, no FK to `Organization`, so they compose freely
 `Artifact` (`agent_session|pr_diff|site_preview|image|…`) · `Site` (`repoFullName`, `vercelProjectId`,
 `domain`) · `Deployment` · `Session` (sandbox/terminal) · `Approval` · `CanvasNode` / `Edge` /
 `Collection`. `Organization` + Supabase auth are the shared foundation; a `Waitlist` gates signup.
+
+```mermaid
+flowchart TD
+  Org["Organization"] --> Dept["Department (status)"]
+  Dept --> Agent["Agent (contract · models)"]
+  Agent --> Task["Task (status · parentTaskId → subtasks)"]
+  Task --> Artifact["Artifact (agent_session · pr_diff · site_preview · image)"]
+  Task --> Approval["Approval (the human gate)"]
+  Agent --> Site["Site (repo · vercelProject · domain)"] --> Deployment["Deployment (preview / prod)"]
+  Task --> Session["Session (sandbox / terminal)"]
+  Org --> Conn["GithubConnection · VercelConnection · SupabaseConnection"]
+```
 
 ## 7. Where the things agents build live
 

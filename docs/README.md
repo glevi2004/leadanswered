@@ -1,25 +1,29 @@
 # Lu Computer — technical specs
 
-The deep specs behind the canon. Start with the root [FOUNDATION.md](../FOUNDATION.md) (architecture, agents,
-data model, hosting); these docs go one level deeper.
+The deep specs behind the canon. Start at the root: [FOUNDATION.md](../FOUNDATION.md) (the architecture, with
+diagrams) + [DEVELOPMENT.md](../DEVELOPMENT.md) (the live ✅/🟡/⬜ build status). These go one level deeper.
 
-## The canvas (start here)
-- **[canvas.md](./canvas.md)** — **the unified model**: Lu + departments (each an agent's app —
-  Home/console/workplace) + resources (terminal · note · file · folder · site) joined by edges-as-grants;
-  the backend, the publish flow, the dock, the plane. The one source of truth for the product surface.
+## The product surface
+- **[canvas.md](./canvas.md)** — the unified model: Lu + departments-as-apps + resources joined by
+  **edges-as-grants**, the database console, the publish flow, the dock. The one source of truth for the surface.
 
-## Backend & agents
-- **[agent-backend.md](./agent-backend.md)** — Lu orchestrating department agents: the runtime, the data model, context/memory, the CONTRACT, the model gateway, hosting.
-- **[engineering-agent.md](./engineering-agent.md)** — the flagship Engineering agent: sandbox + Git + Vercel ports, the build tool-loop, the terminal.
-- **[engineer-activation.md](./engineer-activation.md)** — wiring the Engineer into the product: async dispatch, read routes, the publish gate, invoke/watch/approve.
-- **[durable-worker.md](./durable-worker.md)** — the durable BullMQ agent-run worker: crash-safe re-delivery, supervise-in-sandbox, fail-clean.
-- **[byo-connect.md](./byo-connect.md)** — BYO connect: each org's own GitHub / Vercel / Supabase, org-scoped ports, the dispatch gate.
+## Building & running agents
+- **[building-agents.md](./building-agents.md)** — **the handbook**: the doctrine, the agent loop, tools &
+  ports, the Engineer as the reference implementation, orchestration, durability & approvals, and the
+  repeatable **recipe for adding a new agent**. Start here to understand how anything gets built.
+- **[agent-backend.md](./agent-backend.md)** — the backend **reference**: the data model, context/memory + the
+  CONTRACT, the model gateway, hosting/BYO economics, onboarding wiring, the other departments.
+- **[byo-connect.md](./byo-connect.md)** — each org connects its own GitHub / Vercel / Supabase (token-paste
+  today; OAuth is Phase 2); org-scoped ports; the dispatch gate.
+- **[planning.md](./planning.md)** *(design — not built)* — the **plan gate**: goal → plan → owner
+  approves → dispatch, task verification ("done" = acceptance met), and the **actionable roadmap** (every dock
+  "next" is a Lu action). Defines the seams into the broader agent-workflow.
 
-## Onboarding & team
-- **[onboarding.md](./onboarding.md)** — waitlist-gated self-serve onboarding: boot up your company, real DB provisioning.
-- **[team-graph.md](./team-graph.md)** — Lu builds your org chart from a real conversation.
+## Onboarding
+- **[onboarding.md](./onboarding.md)** — waitlist-gated self-serve onboarding: boot up your company, real DB
+  provisioning, and the team step.
 
 ## Design
-- **[design-system.md](./design-system.md)** — the material-zoning + pixel-accent design system, the component catalog, and the branding-debt register.
-- **[design-depth.md](./design-depth.md)** — the depth/tactility CSS recipes (elevation, neumorphism, gloss) + the focused-site components.
-- **[design-components.md](./design-components.md)** — the per-component rollout map, by tranche.
+- **[design-system.md](./design-system.md)** — the material-zoning + pixel-accent design system: the locked
+  decisions, the component catalog, the depth/material recipes, the component rollout, and the **canonical
+  branding-debt register**.

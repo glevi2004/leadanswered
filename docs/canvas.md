@@ -3,9 +3,9 @@
 > The single authoritative model of the Lu Computer canvas: what's on it, how everything connects, how it
 > works. This **absorbs and replaces** the old `cockpit.md`, `department-as-app.md`, `canvas-tools.md`, and
 > `canvas-engine.md` — one coherent source, not fragments. (The *why*: [MANIFESTO](../MANIFESTO.md). The
-> *how the backend works*: [agent-backend](./agent-backend.md), [engineering-agent](./engineering-agent.md),
-> [durable-worker](./durable-worker.md). *Where infra lives*: [byo-connect](./byo-connect.md),
-> [FOUNDATION §7](../FOUNDATION.md). *Look*: [design-system](./design-system.md).)
+> *how the backend works*: [agent-backend](./agent-backend.md) (reference), [building-agents](./building-agents.md)
+> (how agents build). *Where infra lives*: [byo-connect](./byo-connect.md), [FOUNDATION §7](../FOUNDATION.md).
+> *Onboarding lands here*: [onboarding](./onboarding.md). *Look*: [design-system](./design-system.md).)
 
 ## The one idea
 
@@ -66,8 +66,8 @@ A top-right switcher toggles two views:
 - The **live preview** of the site(s) currently in progress (iframe — a dev URL or the Vercel preview),
   with a page/route selector.
 - A **task selector** at the top (e.g. "Engineer / Build marketing website MVP") + the task's status pill.
-- **Publish controls: Publish to Staging · Revert All · Request changes** — wired to the real two-stage
-  flow (below). One **or many** sites (the Engineer may build several).
+- **Publish controls: Publish · Revert All · Request changes** — Publish is wired to the real gate (below);
+  Revert All / Request changes are UI stubs today. One **or many** sites (the Engineer may build several).
 
 **Home = what it has shipped · Console = the backend it runs on · Workplace = what it's building now.**
 
@@ -117,14 +117,16 @@ Engineer" cross-wiring falls out naturally. Revisit per-department isolation onl
 - **Migration safety gates** (adopt cofounder's): schema changes flow through PRs, never a raw tool call; a
   lint blocks tables without RLS; a lint blocks deleting old migrations.
 
-## The publish flow — two-stage, human-gated
+## The publish flow — human-gated
 
-`sandbox → staging → production`, gated at each hop:
+`sandbox → PR preview → production`, **one approval gate** (the code today is single-gate, not a separate
+staging environment):
 1. **Build in sandbox** — the Engineer works in an isolated e2b sandbox (edits repo, runs the coding agent,
-   runs Supabase locally, verifies) — durably, via the [worker](./durable-worker.md).
-2. **Publish to Staging** — an **Approval** card; approve → lands on staging (migrations apply to staging).
-3. **Publish to Production** — the Workplace/Canvas Publish button; promotes staging → live (migrations
-   apply to prod). ("Preview" = the staging deploy; only two envs exist.)
+   verifies) — durably, via the [worker](./building-agents.md).
+2. **Open a preview** — `open_preview` opens a PR + a Vercel **preview** deploy and stages an **Approval**
+   (`request_publish`); the task moves to `needs_approval`.
+3. **Publish to Production** — the Workplace/Canvas Publish button resolves the Approval → `confirmPublish`
+   merges the PR and promotes to Vercel production. (A dedicated staging environment is a roadmap upgrade.)
 
 ## The flow — how it all interacts
 
@@ -134,7 +136,7 @@ Engineer" cross-wiring falls out naturally. Revisit per-department isolation onl
    they're its working set/library.
 3. The agent works in its **Workplace** — builds a site into the shared backend, using its connected
    terminals + library.
-4. **Publish to Staging → Production**; **Home** lists what shipped; **Console** shows the backend.
+4. **Publish** (one approval) → **Production**; **Home** lists what shipped; **Console** shows the backend.
 5. **Cross-department:** Design *owns* a site, dispatches it to Engineering; the Engineer builds it; it
    appears in Design's Home, on the shared backend.
 

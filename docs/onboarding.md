@@ -1,12 +1,12 @@
 # Lu Computer — onboarding (boot up your company)
 
-> Part of the Lu Computer canon — see [FOUNDATION.md](../FOUNDATION.md).
+> Part of the Lu Computer canon — see [FOUNDATION.md](../FOUNDATION.md) §8 (Onboarding, auth & command).
 
 Onboarding is a **waitlist-gated, self-serve** flow: the owner meets Lu, describes their business, and their
 **company boots** — a real DB Organization is provisioned with the **Engineering** department active (its agent
 online), the rest of the company as the roadmap, and the owner lands on the canvas. Lu actually **works** here
 (real conversation → real DB → handoff), not a cookie mock. Companions: [agent-backend.md](./agent-backend.md),
-[engineering-agent.md](./engineering-agent.md).
+[building-agents.md](./building-agents.md); build status in [DEVELOPMENT.md](../DEVELOPMENT.md).
 
 ## 1. The flow
 
@@ -17,7 +17,7 @@ online), the rest of the company as the roadmap, and the owner lands on the canv
 | 2 | **Links → learn your brand** | Paste site/socials → the scan. Framed: "so your agents build in your voice." Feeds the Engineering agent's context. |
 | 3 | **Your handle** | `you.lu.computer` — your free default site address (your own domain when you connect one). |
 | 4 | **Meet your Engineer** | The one live agent. A short beat: sets up its `contract`, tees the first real action ("what should we build first?"). |
-| 5 | **Team** (optional) | The real Lu team-graph conversation ([team-graph.md](./team-graph.md)). |
+| 5 | **Team** (optional) | The real Lu team-graph conversation (see [§7 The team step](#7-the-team-step)). |
 | 6 | **Building** | The real provisioning screen — the company boots. |
 | 7 | **Into the app** | Land on the canvas — your company, Engineering ready to build. |
 
@@ -48,13 +48,15 @@ The backend exists (schema, Store, orchestrator, Engineering agent — [agent-ba
    Supabase-invite infra.
 2. **Provisioning server action** — at onboarding's end, create a real **org + the Engineering Department
    (active) + the Engineering `Agent`**, seeding `Department.context` from the interview + scrape. Replaces the
-   cookie write.
+   cookie write. *(The scrape + interview depth is only **partially built** — 🟡 in
+   [DEVELOPMENT.md](../DEVELOPMENT.md): the provisioning wiring is real, but the brand-scan / interview depth is
+   still shallow.)*
 3. **Onboarding conversation → a real endpoint** — the same pattern as the team-graph route (real Claude,
    tool-calls that extract business/brand and drive provisioning).
 4. **Canvas / dock read real rows** — Department/Agent/Task from the DB (`GET /api/departments`), not static
    graph data; a real new org renders the same honest-empty home.
 5. **Wire Engineering** — "build me X" from the app → a real Task → the sandbox pipeline
-   ([engineering-agent.md](./engineering-agent.md)), streamed onto the canvas.
+   ([building-agents.md §4](./building-agents.md)), streamed onto the canvas.
 
 ## 5. Debt to clear
 
@@ -71,3 +73,25 @@ with the real Lu mark; realign or retire the fully-stale welcome page and admin 
 - **UI = minimal editorial**, motion for personality; the **pixel charging loader** is the only "thinking"
   touch. No game-UI / pixel wipes.
 - **Ending = team → building screen → the app**; the building screen runs real provisioning.
+
+## 7. The team step
+
+The optional **team step** (flow step 5) is where **Lu builds the org chart from a real conversation.** As the
+owner adds teammates by chatting with Lu, she grows a live org graph — the hierarchy *plus* what she's learned
+about each person. It's a two-panel view: **Lu chats on the left; the graph grows on the right.** She asks for
+each person conversationally (name → role → number → who they report to), infers a little, and each answer drops
+a node into the graph. The Team page later shows the finished graph and every teammate's "what Lu knows" profile.
+
+**The conversation is real.** It's a Claude Haiku chat at `apps/web/src/app/api/team/chat/route.ts` (model
+`claude-haiku-4-5`, Vercel AI SDK `streamText`), server-side so the key never ships to the client. Lu's persona
+is warm and brief — one question at a time. An **`add_teammate`** tool (function-calling) streams teammate nodes
+into the graph as she captures each person; a `set_reports_to` edge builds the hierarchy; `finish()` ends setup.
+The client's `useChat` renders the stream, and each new node **animates in** on the right panel. If
+`ANTHROPIC_API_KEY` is absent, the flow falls back to a scripted add (no crash).
+
+**Persistence is NOT yet built.** This doc's earlier team-graph notes claimed teammates "persist as real `Member`
+records … not a fixture" — that is **false today.** There is **no `Member` (or `Teammate`) model** in
+`packages/db/prisma/schema.prisma`; team data lives in a **web-side mock store**
+(`apps/web/src/lib/data/team/index.ts` — `membersStore`, `listMembersMock`, an Apex-Roofing fixture). So the
+honest framing: **the conversation is real, but the org chart it produces is not yet persisted** — a real
+`Member`/`Teammate` table (with `reportsTo` and a per-person "what Lu knows" profile) is a to-do.
