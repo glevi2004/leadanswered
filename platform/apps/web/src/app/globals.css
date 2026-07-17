@@ -147,7 +147,7 @@
   --secondary: #ebebeb;
   --secondary-foreground: #2b2b2b;
   --muted: #ebebeb;
-  --muted-foreground: #8a8a8a;
+  --muted-foreground: #6f6f6f; /* a11y: was #8a8a8a (~2.7:1) → ~4.4:1 on #f0f0f0 */
   --accent: #ebebeb;
   --accent-foreground: #2b2b2b;
   --border: #e4e4e4;
@@ -161,11 +161,12 @@
 
   /* Depth system (DESIGN-DEPTH.md) — elevation ladder + neumorphism knob.
      Light: soft grey drops, bright top bevel (light source = top). */
-  --elev-1: 0 1px 2px rgb(0 0 0 / 0.05), 0 2px 6px -2px rgb(0 0 0 / 0.08);
-  --elev-2: 0 2px 4px rgb(0 0 0 / 0.06), 0 8px 18px -6px rgb(0 0 0 / 0.12);
-  --elev-3: 0 4px 8px rgb(0 0 0 / 0.07), 0 18px 36px -10px rgb(0 0 0 / 0.16);
-  --elev-4: 0 8px 16px rgb(0 0 0 / 0.10), 0 30px 60px -14px rgb(0 0 0 / 0.22);
-  --bevel-top: inset 0 1px 0 rgb(255 255 255 / 0.75);
+  --elev-1: 0 1px 2px rgb(0 0 0 / 0.06), 0 3px 8px -3px rgb(0 0 0 / 0.10);
+  --elev-2: 0 2px 5px rgb(0 0 0 / 0.08), 0 10px 24px -6px rgb(0 0 0 / 0.16);
+  --elev-3: 0 6px 14px -2px rgb(0 0 0 / 0.12), 0 22px 48px -12px rgb(0 0 0 / 0.24);
+  --elev-4: 0 12px 28px -4px rgb(0 0 0 / 0.18), 0 40px 80px -16px rgb(0 0 0 / 0.34);
+  --bevel-top: inset 0 1px 0 rgb(255 255 255 / 0.8);
+  --edge: 0 0 0 1px rgb(0 0 0 / 0.045); /* crisp hairline rim so every raised surface has a defined edge */
   --neu-strength: 1;
 }
 .dark {
@@ -180,7 +181,7 @@
   --secondary: #28282d;
   --secondary-foreground: #f0f0f0;
   --muted: #28282d;
-  --muted-foreground: #8c8c94;
+  --muted-foreground: #9a9aa3; /* a11y: was #8c8c94 → ~5:1 on #1e1e23 */
   --accent: #2f2f35;
   --accent-foreground: #f0f0f0;
   --border: #323237;
@@ -195,11 +196,14 @@
   --sidebar-border: #323237;
 
   /* Depth system — dark: deep drops, faint top bevel so edges catch light. */
-  --elev-1: 0 1px 2px rgb(0 0 0 / 0.5), 0 6px 16px -6px rgb(0 0 0 / 0.5);
-  --elev-2: 0 2px 4px rgb(0 0 0 / 0.5), 0 10px 24px -8px rgb(0 0 0 / 0.55);
-  --elev-3: 0 4px 10px rgb(0 0 0 / 0.55), 0 22px 44px -12px rgb(0 0 0 / 0.6);
-  --elev-4: 0 10px 24px rgb(0 0 0 / 0.6), 0 36px 72px -16px rgb(0 0 0 / 0.65);
-  --bevel-top: inset 0 1px 0 rgb(255 255 255 / 0.06);
+  --elev-1: 0 1px 2px rgb(0 0 0 / 0.5), 0 4px 12px -4px rgb(0 0 0 / 0.55);
+  --elev-2: 0 2px 6px rgb(0 0 0 / 0.55), 0 12px 28px -8px rgb(0 0 0 / 0.62);
+  --elev-3: 0 6px 16px -2px rgb(0 0 0 / 0.62), 0 26px 52px -12px rgb(0 0 0 / 0.68);
+  --elev-4: 0 14px 32px -4px rgb(0 0 0 / 0.68), 0 44px 84px -16px rgb(0 0 0 / 0.74);
+  /* dark: brighter top rim (light catches the raised edge) — the primary depth cue
+     on a dark canvas where drop shadows barely read. */
+  --bevel-top: inset 0 1px 0 rgb(255 255 255 / 0.1);
+  --edge: 0 0 0 1px rgb(255 255 255 / 0.05); /* faint light rim defines edges against the dark bg */
 }
 
 /* ===== Shared patterns, monochrome edition ===== */
@@ -209,16 +213,70 @@
    tactile controls. Legacy names (.elev-btn/.elev-card/.card-lift/.btn-glow) re-point
    to the ladder so the whole app inherits the upgrade; drops + bevel flip per theme. */
 
-/* Elevation ladder */
-.elev-1 { box-shadow: var(--elev-1), var(--bevel-top); }
-.elev-2 { box-shadow: var(--elev-2), var(--bevel-top); }
-.elev-3 { box-shadow: var(--elev-3), var(--bevel-top); }
-.elev-4 { box-shadow: var(--elev-4), var(--bevel-top); }
+/* Elevation ladder — edge rim (crisp) + graduated drop + top bevel. The rim is what
+   keeps dark surfaces legible where drops wash out. */
+.elev-1 { box-shadow: var(--edge), var(--elev-1), var(--bevel-top); }
+.elev-2 { box-shadow: var(--edge), var(--elev-2), var(--bevel-top); }
+.elev-3 { box-shadow: var(--edge), var(--elev-3), var(--bevel-top); }
+.elev-4 { box-shadow: var(--edge), var(--elev-4), var(--bevel-top); }
 
 /* Legacy names, re-pointed to the ladder */
 .elev-btn { box-shadow: var(--elev-1), var(--bevel-top); }
 .elev-card { box-shadow: var(--elev-1), var(--bevel-top); }
 .elev-tile { box-shadow: var(--bevel-top), var(--elev-1); }
+
+/* =====================================================================
+   FOUNDATION v2 (DESIGN-COMPONENTS-PLAN §0) — shared token scales + states
+   so components stop hand-rolling sizes, shadows, easings. Everything below
+   is theme-aware via the existing vars.
+   ===================================================================== */
+:root {
+  /* motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.5, 1);
+  --dur-1: 0.12s;   /* taps, presses */
+  --dur-2: 0.2s;    /* hovers, toggles */
+  --dur-3: 0.32s;   /* panel / overlay entrances */
+}
+
+/* Type ramp — one scale, all-sans + mono caption. Use these instead of text-[13px]. */
+.t-display { font-size: 2.5rem;  font-weight: 700; line-height: 1.05; letter-spacing: -0.02em; }
+.t-h1      { font-size: 1.75rem; font-weight: 600; line-height: 1.15; letter-spacing: -0.015em; }
+.t-h2      { font-size: 1.25rem; font-weight: 600; line-height: 1.25; letter-spacing: -0.01em; }
+.t-title   { font-size: 0.95rem; font-weight: 600; line-height: 1.3; }
+.t-body    { font-size: 0.9rem;  font-weight: 400; line-height: 1.5; }
+.t-label   { font-size: 0.8rem;  font-weight: 500; line-height: 1.2; }
+.t-caption { font-family: var(--font-mono); font-size: 0.75rem; font-weight: 500;
+             line-height: 1.2; letter-spacing: 0.04em; text-transform: uppercase;
+             color: var(--muted-foreground); }
+.t-num     { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* Shared states — reused by every primitive. */
+.hover-lift { transition: transform var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out); }
+.hover-lift:hover { transform: translateY(-2px); box-shadow: var(--edge), var(--elev-3), var(--bevel-top); }
+.press { transition: transform var(--dur-1) var(--ease-out); }
+.press:active { transform: translateY(1px); }
+/* One canonical focus ring (the interactive blue), works on any surface. */
+.focus-ring:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--background), 0 0 0 4px #5b9bff; }
+:where(a, button, [role="button"], input, textarea, select):focus-visible {
+  outline: none; box-shadow: 0 0 0 2px var(--background), 0 0 0 4px #5b9bff;
+}
+
+/* Skeleton shimmer — the loading state, in the system's grayscale. */
+.shimmer { position: relative; overflow: hidden; background: color-mix(in oklab, var(--foreground) 6%, transparent); }
+.shimmer::after {
+  content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--foreground) 10%, transparent), transparent);
+  animation: lu-shimmer 1.4s var(--ease-out) infinite;
+}
+@keyframes lu-shimmer { to { transform: translateX(100%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .hover-lift, .press, .shimmer::after { transition: none !important; animation: none !important; }
+}
+
+/* Sonner toast — floats over content, so it lives in the elevated layer. */
+.cn-toast { box-shadow: var(--edge), var(--elev-3), var(--bevel-top) !important; }
 
 /* Neumorphism — the signature node look: a raised pillow in a recessed socket, dual
    light source (top-left light, bottom-right shade). --neu-strength scales intensity. */
@@ -261,6 +319,88 @@
 .gloss:active { box-shadow: inset 0 2px 5px rgb(0 0 0 / 0.14); transform: translateY(1px); }
 .dark .gloss:active { box-shadow: inset 0 2px 6px rgb(0 0 0 / 0.5); transform: translateY(1px); }
 
+/* NEU-CARD — the signature soft-embossed card (ref: Cofounder roadmap cards).
+   NOT a flat 1px border: a bright top bevel + faint hairline + soft drop, so every
+   card reads as a raised pillow set INTO the surface. Use on all cards + the icon
+   tiles/arrow wells inside them. Light source = top. */
+.neu-card {
+  background: var(--card);
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.05),
+    inset 0 1px 0 rgb(255 255 255 / 0.95),
+    inset 0 -1.5px 2px rgb(0 0 0 / 0.025),
+    0 1px 2px rgb(0 0 0 / 0.05),
+    0 10px 22px -14px rgb(0 0 0 / 0.14);
+}
+.dark .neu-card {
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.5),
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    inset 0 -1.5px 2px rgb(0 0 0 / 0.3),
+    0 1px 2px rgb(0 0 0 / 0.5),
+    0 10px 24px -14px rgb(0 0 0 / 0.6);
+}
+/* the focused/active card — lifts higher, whiter (ref: "Initial Idea") */
+.neu-card-active {
+  background: var(--card);
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.06),
+    inset 0 1px 0 rgb(255 255 255 / 1),
+    0 2px 4px rgb(0 0 0 / 0.06),
+    0 18px 34px -16px rgb(0 0 0 / 0.22);
+}
+.dark .neu-card-active {
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.6),
+    inset 0 1px 0 rgb(255 255 255 / 0.1),
+    0 2px 4px rgb(0 0 0 / 0.6),
+    0 18px 36px -16px rgb(0 0 0 / 0.7);
+}
+/* NEU-CARD-IN — the DE-ELEVATED card: pressed INTO the surface (inverse of
+   .neu-card). Dark inset at top, light bevel at bottom → reads sunken. Use for
+   recessed/inactive/container surfaces (inputs, wells, "not yet" items, the base a
+   raised card sits on). The elevation/de-elevation pair is the core depth duality. */
+.neu-card-in {
+  background: color-mix(in oklab, var(--card), #000 2.5%);
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.04),
+    inset 0 2px 4px rgb(0 0 0 / 0.06),
+    inset 0 -1px 0 rgb(255 255 255 / 0.7);
+}
+.dark .neu-card-in {
+  background: color-mix(in oklab, var(--card), #000 9%);
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.4),
+    inset 0 2px 5px rgb(0 0 0 / 0.45),
+    inset 0 -1px 0 rgb(255 255 255 / 0.04);
+}
+
+/* NEU-INSET — a gently recessed panel/well; cards sit "inside" it. */
+.neu-inset {
+  box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.045), inset 0 0 0 1px rgb(0 0 0 / 0.035);
+}
+.dark .neu-inset {
+  box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.4), inset 0 0 0 1px rgb(255 255 255 / 0.04);
+}
+/* CANVAS-RECESS — a full-surface inset vignette laid OVER the edge-to-edge canvas plane, so
+   the plane reads as pressed into the recessed frame (matches .neu-card-in, scaled up for the
+   large surface). pointer-events-none — purely visual, sits below the toolbar/pills. */
+.canvas-recess {
+  box-shadow: inset 0 3px 12px rgb(0 0 0 / 0.08), inset 0 -1px 0 rgb(255 255 255 / 0.5);
+}
+.dark .canvas-recess {
+  box-shadow: inset 0 3px 14px rgb(0 0 0 / 0.5), inset 0 -1px 0 rgb(255 255 255 / 0.05);
+}
+/* a small recessed chip well — for icon tiles inside cards */
+.neu-chip {
+  background: color-mix(in oklab, var(--card), #000 3%);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.06), inset 0 -1px 0 rgb(255 255 255 / 0.8), 0 0 0 1px rgb(0 0 0 / 0.03);
+}
+.dark .neu-chip {
+  background: color-mix(in oklab, var(--card), #000 8%);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.4), inset 0 -1px 0 rgb(255 255 255 / 0.04), 0 0 0 1px rgb(0 0 0 / 0.4);
+}
+
 /* Gloss INK — the charcoal/ink tactile chip (FAB, task pill); flips via --primary. */
 .gloss-ink {
   background: linear-gradient(180deg, color-mix(in oklab, var(--primary), #fff 12%), var(--primary));
@@ -279,6 +419,16 @@
   background-image:
     linear-gradient(to right, rgb(255 255 255 / 0.09) 1px, transparent 1px),
     linear-gradient(to bottom, rgb(255 255 255 / 0.09) 1px, transparent 1px);
+}
+
+/* Dotted canvas — the soft graph-paper DOT field behind roadmap/feature panels
+   (ref: Cofounder "A full roadmap" section). Subtle, editorial. */
+.canvas-dots {
+  background-image: radial-gradient(circle, rgb(0 0 0 / 0.10) 1px, transparent 1.4px);
+  background-size: 22px 22px;
+}
+.dark .canvas-dots {
+  background-image: radial-gradient(circle, rgb(255 255 255 / 0.09) 1px, transparent 1.4px);
 }
 
 /* Primary CTA (class name kept from the glow era to avoid churn): ink slab,
@@ -434,4 +584,97 @@
 [data-slot="sidebar-wrapper"][data-resizing="true"] [data-slot="sidebar-gap"],
 [data-slot="sidebar-wrapper"][data-resizing="true"] [data-slot="sidebar-container"] {
   transition: none;
+}
+
+/* =====================================================================
+   GLASS — the "Apple" material zone (Lu design system, 2026-07-15).
+   Neumorphism/gloss = tactile hardware you press (nodes, buttons, meters).
+   GLASS = floating panels that hover ABOVE the hardware: top-nav pills,
+   command bar, popovers, the Lu dock. Frosted + translucent, never pressed.
+   ===================================================================== */
+.glass {
+  background: color-mix(in oklab, var(--card) 62%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(1.7);
+  backdrop-filter: blur(18px) saturate(1.7);
+  border: 1px solid color-mix(in oklab, #fff 55%, transparent);
+  box-shadow: var(--elev-2), inset 0 1px 0 rgb(255 255 255 / 0.55);
+}
+.dark .glass {
+  background: color-mix(in oklab, var(--card) 52%, transparent);
+  border: 1px solid color-mix(in oklab, #fff 12%, transparent);
+  box-shadow: var(--elev-2), inset 0 1px 0 rgb(255 255 255 / 0.08);
+}
+/* Ink glass — the dark frosted variant (dark command bar over bright canvas). */
+.glass-ink {
+  background: color-mix(in oklab, #1b1b20 66%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
+  color: #f4f4f6;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  box-shadow: var(--elev-3), inset 0 1px 0 rgb(255 255 255 / 0.14);
+}
+/* A frosted pane sized to sit over pixel-art hero scenes (marketing/hero). */
+.glass-hero {
+  background: color-mix(in oklab, #ffffff 34%, transparent);
+  -webkit-backdrop-filter: blur(10px) saturate(1.4);
+  backdrop-filter: blur(10px) saturate(1.4);
+  border: 1px solid rgb(255 255 255 / 0.45);
+  box-shadow: 0 8px 30px -10px rgb(0 0 0 / 0.35), inset 0 1px 0 rgb(255 255 255 / 0.6);
+}
+
+/* =====================================================================
+   PIXEL LAYER — pixel is an ACCENT, never the chrome. It appears only in:
+   segmented meters (JS), mono numerals, pixel-art icons (crisp SVG), and
+   decorative hero/dither textures. These helpers keep pixel art crisp and
+   provide the retro checker/dither wash used behind hero art.
+   ===================================================================== */
+.pixelated {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+.pixel-crisp {
+  shape-rendering: crispEdges;
+}
+/* Retro checker wash (subtle) — decorative texture behind hero blocks. */
+.pixel-checker {
+  background-image:
+    linear-gradient(45deg, color-mix(in oklab, var(--foreground) 6%, transparent) 25%, transparent 25%),
+    linear-gradient(-45deg, color-mix(in oklab, var(--foreground) 6%, transparent) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, color-mix(in oklab, var(--foreground) 6%, transparent) 75%),
+    linear-gradient(-45deg, transparent 75%, color-mix(in oklab, var(--foreground) 6%, transparent) 75%);
+  background-size: 8px 8px;
+  background-position: 0 0, 0 4px, 4px -4px, -4px 0;
+}
+/* Ordered-dither wash (Browserbase-style) — a soft dot matrix that fades color. */
+.pixel-dither {
+  background-image: radial-gradient(color-mix(in oklab, var(--foreground) 32%, transparent) 1px, transparent 1.4px);
+  background-size: 4px 4px;
+}
+
+/* Marching-ants dash for "agent working" connectors (kept here for reuse). */
+@keyframes lu-dash { to { stroke-dashoffset: -16; } }
+
+/* =====================================================================
+   FLOWING PIXEL MOTION — Lu's motion language (loaders + voice/activity).
+   The same green→amber→red pixel vocabulary, now in motion: a travelling
+   opacity wave (loaders) and bottom-anchored rising pixel columns (voice).
+   ===================================================================== */
+@keyframes pixel-flow { 0%, 100% { opacity: 0.16; } 45% { opacity: 1; } }
+/* pixel-march — BINARY on/off band (no fade). Duplicate stops = instant snaps, so
+   a cell is either lit or dark; staggered delay marches the lit band across. */
+@keyframes pixel-march {
+  0%, 15% { opacity: 0.14; }
+  15.01%, 30% { opacity: 1; }
+  30.01%, 100% { opacity: 0.14; }
+}
+/* pixel-rise — animate height; pair with steps(N) so the column grows one pixel
+   block at a time (discrete equalizer), never a smooth stretch. */
+@keyframes pixel-rise { from { height: var(--minh, 26%); } to { height: var(--maxh, 100%); } }
+/* Ambient scene motion (interactive pixel hero). */
+@keyframes pix-drift { 0% { transform: translateX(-4px); } 100% { transform: translateX(10px); } }
+@keyframes pix-sway { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+@keyframes pix-twinkle { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
+@keyframes pix-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+@media (prefers-reduced-motion: reduce) {
+  [class*="pixel-"], [style*="pixel-"], .pix-anim { animation: none !important; }
 }

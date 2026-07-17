@@ -849,24 +849,25 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
           contentStyle={{ width: 0, height: 0, overflow: "visible" }}
         >
           <div className="relative" style={{ opacity: ready ? 1 : 0, transition: "opacity .25s" }}>
-            {/* edges — idle structure (ring · spokes · dots) uses the --border token (text-border)
-                at near-full alpha (the /dev/design OrgGraph recipe) so it reads as a clear-but-quiet
-                hairline on the recessed canvas instead of washed-out foreground. selected → SELECT_RING
-                and working → the agent accent still override per-line below. */}
-            <svg width={1} height={1} className="text-border" style={{ position: "absolute", left: 0, top: 0, overflow: "visible" }}>
-              <circle cx={0} cy={0} r={ORBIT_R} fill="none" stroke="currentColor" strokeOpacity={0.65} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+            {/* edges — idle structure (ring · spokes · dots) is drawn in FOREGROUND (currentColor),
+                which is high-contrast in both themes (near-black on light, near-white on dark), at a
+                moderate alpha + slightly heavier non-scaling stroke so it reads clearly at overview
+                zoom yet stays quiet. NOTE: do NOT use the --border token here — it's ~#e4e4e4 in light
+                mode and vanishes on the canvas. selected → SELECT_RING and working → accent override below. */}
+            <svg width={1} height={1} style={{ position: "absolute", left: 0, top: 0, overflow: "visible" }}>
+              <circle cx={0} cy={0} r={ORBIT_R} fill="none" stroke="currentColor" strokeOpacity={0.3} strokeWidth={1.75} vectorEffect="non-scaling-stroke" />
               {agents.map((a) => {
                 const ap = pos[a.id]; if (!ap) return null;
                 const on = selection.has(a.id);
                 const isWorking = working.includes(a.id);
                 const app = isAppDept(a.id);
                 const stroke = on ? SELECT_RING : isWorking ? `rgb(${a.accent})` : "currentColor";
-                const op = on ? 0.95 : isWorking ? 0.6 : 1;
+                const op = on ? 0.95 : isWorking ? 0.65 : 0.55;
                 // a spoke down to a child frame (page/sheet) — dashed, with a dot at its edge
                 const childEdge = (x2: number, y2: number, key: string, r = 4) => (
                   <g key={key}>
-                    <line x1={ap.x} y1={ap.y} x2={x2} y2={y2} stroke={on ? SELECT_RING : "currentColor"} strokeOpacity={on ? 0.9 : 0.72} strokeWidth={1.25} strokeLinecap="round" strokeDasharray="5 6" vectorEffect="non-scaling-stroke" />
-                    <circle cx={x2} cy={y2} r={r} fill="currentColor" opacity={0.75} />
+                    <line x1={ap.x} y1={ap.y} x2={x2} y2={y2} stroke={on ? SELECT_RING : "currentColor"} strokeOpacity={on ? 0.9 : 0.42} strokeWidth={1.5} strokeLinecap="round" strokeDasharray="5 6" vectorEffect="non-scaling-stroke" />
+                    <circle cx={x2} cy={y2} r={r} fill="currentColor" opacity={0.45} />
                   </g>
                 );
                 return (
@@ -875,11 +876,11 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                         SOLID line (the reference); other pills keep the dashed radial spoke. */}
                     <line
                       x1={0} y1={0} x2={ap.x} y2={ap.y}
-                      stroke={stroke} strokeOpacity={op} strokeWidth={1.5} strokeLinecap="round"
+                      stroke={stroke} strokeOpacity={op} strokeWidth={2} strokeLinecap="round"
                       strokeDasharray={isWorking && !on ? "5 7" : undefined} vectorEffect="non-scaling-stroke"
                       style={isWorking && !on ? { animation: "lu-dash 1s linear infinite" } : undefined}
                     />
-                    <circle cx={ap.x} cy={ap.y} r={5} fill="currentColor" opacity={0.85} />
+                    <circle cx={ap.x} cy={ap.y} r={5} fill="currentColor" opacity={0.5} />
                     {app ? (
                       // an app dept: DASHED spokes fan DOWN from the pill to its two depth-cards
                       (["deptcard", "workcard"] as const).map((k) => {
@@ -889,8 +890,8 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                         const x2 = cp.x, y2 = cp.y - DESK_CARD_H / 2; // end at the card's top edge
                         return (
                           <g key={deptCardId(a.id, k)}>
-                            <line x1={ap.x} y1={y1} x2={x2} y2={y2} stroke={on ? SELECT_RING : "currentColor"} strokeOpacity={on ? 0.9 : 0.8} strokeWidth={1.5} strokeLinecap="round" strokeDasharray="6 6" vectorEffect="non-scaling-stroke" />
-                            <circle cx={x2} cy={y2} r={5} fill="currentColor" opacity={0.8} />
+                            <line x1={ap.x} y1={y1} x2={x2} y2={y2} stroke={on ? SELECT_RING : "currentColor"} strokeOpacity={on ? 0.9 : 0.5} strokeWidth={1.75} strokeLinecap="round" strokeDasharray="6 6" vectorEffect="non-scaling-stroke" />
+                            <circle cx={x2} cy={y2} r={5} fill="currentColor" opacity={0.5} />
                           </g>
                         );
                       })
@@ -934,8 +935,8 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                 const originX = wc.x + DESK_CARD_W / 2;
                 return (
                   <g key={`site-edge-${site.id}`}>
-                    <line x1={originX} y1={wc.y} x2={x - SITE_W / 2} y2={y} stroke="currentColor" strokeOpacity={0.72} strokeWidth={1.25} strokeLinecap="round" strokeDasharray="5 6" vectorEffect="non-scaling-stroke" />
-                    <circle cx={x - SITE_W / 2} cy={y} r={4} fill="currentColor" opacity={0.75} />
+                    <line x1={originX} y1={wc.y} x2={x - SITE_W / 2} y2={y} stroke="currentColor" strokeOpacity={0.42} strokeWidth={1.5} strokeLinecap="round" strokeDasharray="5 6" vectorEffect="non-scaling-stroke" />
+                    <circle cx={x - SITE_W / 2} cy={y} r={4} fill="currentColor" opacity={0.45} />
                   </g>
                 );
               })}

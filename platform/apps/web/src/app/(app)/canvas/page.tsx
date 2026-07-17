@@ -42,8 +42,11 @@ export default async function CanvasPage() {
   const organization = await requireOrganization();
   const departments = await loadDepartments(organization.id);
   return (
-    <div className="-m-4 -mb-24 flex h-[calc(100svh-2rem)] flex-col overflow-hidden sm:-m-6">
+    <div className="relative -m-4 -mb-24 flex h-[calc(100svh-2rem)] flex-col overflow-hidden sm:-m-6">
       <CompanyCanvas orgId={organization.id} departments={departments} />
+      {/* recessed-well vignette: the plane paints edge-to-edge and would hide the frame's inset
+          shadow, so we lay it on top (below the z-20+ toolbar/pills) to keep the sunken look. */}
+      <div className="canvas-recess pointer-events-none absolute inset-0 z-[6]" />
     </div>
   );
 }
