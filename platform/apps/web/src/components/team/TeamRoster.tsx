@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { type DeptId } from "@/lib/canvas/graph";
-import { teamProfiles, type TeammateProfile } from "@/lib/canvas/team";
 import { PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,9 +69,20 @@ const initialsOf = (name: string) =>
 
 const firstName = (name: string) => name.trim().split(/\s+/)[0] || "They";
 
-export function TeamRoster({ demo = false }: { demo?: boolean }) {
-  // Real orgs start with no teammates (honest-empty); the sample roster is demo-only.
-  const [members, setMembers] = React.useState<TeammateProfile[]>(() => (demo ? [...teamProfiles] : []));
+/** A teammate on the roster — a person attached to the department whose agent they work with. */
+type TeammateProfile = {
+  id: string;
+  dept: DeptId;
+  name: string;
+  role: string;
+  initials: string;
+  tint: string;
+  handsOff: string;
+};
+
+export function TeamRoster() {
+  // The roster is honest-empty; teammates are added locally until persistence lands.
+  const [members, setMembers] = React.useState<TeammateProfile[]>([]);
   const [addOpen, setAddOpen] = React.useState(false);
   const [addName, setAddName] = React.useState("");
   const [addRole, setAddRole] = React.useState("");

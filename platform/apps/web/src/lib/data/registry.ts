@@ -124,7 +124,9 @@ export const MODULES: Record<SurfaceKey, SurfaceEntry> = {
     label: "Team",
     route: "/team",
     group: "business",
-    defaultStatus: "coming_soon",
+    // Every org gets the fixed nav honest-empty — /team renders live (empty until members exist)
+    // rather than gated, now that the demoProfile:"new" override that forced this is gone.
+    defaultStatus: "live",
     sarahChips: ["Add someone to the team", "What can Danny ask you?", "Who gets booking texts?"],
     promise: "Your crew can text Sarah too, with the permissions you set.",
   },

@@ -79,8 +79,8 @@ export const APP_CARD_NODES: { id: string; dept: DeptId; kind: DeptCardKind }[] 
 /** World size of ONE depth-card node — a desktop-window proportion (landscape monitor). */
 export const DESK_CARD_W = 1200;
 export const DESK_CARD_H = 760;
-const CARD_GAP = 160; // horizontal gap between the two cards
-const CARD_DROP = 720; // vertical drop from the pill center down to the card-row center
+const CARD_GAP = 200; // horizontal gap between the two cards
+const CARD_DROP = 1000; // vertical drop from the pill center down to the card-row center
 
 /* ------------------------------ sheets ------------------------------ */
 // Spreadsheet nodes — a department can keep editable tables (a Finance cash-flow, etc.)
@@ -92,23 +92,13 @@ export const SHEETS: SheetMeta[] = [
 ];
 export const sheetById = (id: string): SheetMeta | undefined => SHEETS.find((s) => s.id === id);
 
-/* ------------------------------ teammates ------------------------------ */
-// Human teammates on the graph — a person attached to the department they work with
-// (a CFO next to Finance, an engineer next to Engineering). Game-like nodes: avatar +
-// name + role. Rich profile lives in `team.ts`.
-export interface TeammateMeta { id: string; dept: DeptId; name: string; role: string; initials: string; }
-export const TEAMMATES: TeammateMeta[] = [
-  { id: "tm-cfo", dept: "finance", name: "Marina", role: "CFO", initials: "M" },
-  { id: "tm-eng", dept: "engineering", name: "Dev", role: "Engineer", initials: "D" },
-  { id: "tm-design", dept: "design", name: "Sol", role: "Designer", initials: "S" },
-];
-export const teammateById = (id: string): TeammateMeta | undefined => TEAMMATES.find((t) => t.id === id);
-
 /* ------------------------------ default layout ------------------------------ */
 
-export const ORBIT_R = 780; // agent orbit radius
-const OUT_DIST = 720; // frames sit this far OUTWARD from the agent (clear of the pill)
-const PAGE_GAP = 350; // horizontal spacing between an agent's frames (they form a row)
+// The board scaled up with the frames (page/site/sheet grew ~3x): a bigger ring, frames pushed
+// further out, and a wider row-gap so two ~900-wide frames sit side by side without overlapping.
+export const ORBIT_R = 1275; // agent orbit radius (ring 15% tighter than the old 1500 — depts follow)
+const OUT_DIST = 1400; // frames sit this far OUTWARD from the agent (clear of the pill)
+const PAGE_GAP = 1080; // horizontal spacing between an agent's frames (they form a row)
 
 const rad = (d: number) => (d * Math.PI) / 180;
 
@@ -132,14 +122,6 @@ export function defaultPositions(): Positions {
       pos[id] = { x: cx + (i - (n - 1) / 2) * PAGE_GAP, y: cy };
     });
   }
-  // teammates sit between Lu and their department agent, offset to the side
-  for (const t of TEAMMATES) {
-    const a = agentById(t.dept);
-    if (!a) continue;
-    const ux = Math.cos(rad(a.angle)), uy = Math.sin(rad(a.angle));
-    const tx = -uy, ty = ux;
-    pos[t.id] = { x: ux * (ORBIT_R * 0.45) + tx * 190, y: uy * (ORBIT_R * 0.45) + ty * 190 };
-  }
   // an app dept's two depth-cards hang BELOW its pill, side by side (Department | Workplace),
   // centered under the pill so the dashed spokes fan straight down to them.
   for (const dept of APP_DEPTS) {
@@ -155,7 +137,7 @@ export function defaultPositions(): Positions {
 
 /* ------------------------------ persistence ------------------------------ */
 
-const LAYOUT_KEY = "lu_canvas_layout_v8"; // bumped: Lu → dept pill → two depth-cards tree layout
+const LAYOUT_KEY = "lu_canvas_layout_v10"; // bumped: tighter ring (ORBIT_R 1500→1275) + 2× Lu — v9 layouts placed depts on the old wider ring
 
 export function loadPositions(): Positions {
   const base = defaultPositions();

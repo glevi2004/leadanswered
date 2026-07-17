@@ -40,7 +40,7 @@ export function SitePreviewNode({
 
   const frameStyle = { left: x - w / 2, top: y - h / 2, width: w, height: h } as const;
   const shell =
-    `${DRAG_CLASS} absolute overflow-hidden rounded-[10px] border border-black/5 bg-card elev-3 dark:border-white/10`;
+    `${DRAG_CLASS} absolute overflow-hidden rounded-[16px] border border-black/5 bg-card elev-3 dark:border-white/10`;
 
   // BUILDING — repo exists, no deployment URL yet (status building / preview-pending)
   if (!url) {

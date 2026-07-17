@@ -1,6 +1,5 @@
 import { currentUser, isAdminEmail } from "@/lib/auth";
 import { getOrganizationByOwnerEmail } from "@/lib/organizations";
-import { resolveInjectedOrg } from "@/lib/data/org-profile";
 
 /**
  * SERVER-ONLY seam between the web app and the Lu Computer agent backend (apps/api).
@@ -17,14 +16,9 @@ export const API_BASE = (process.env.API_PUBLIC_URL ?? "http://localhost:3000").
  * Resolve the signed-in owner's organization id for a Next API route. Mirrors
  * `requireOrganization()` (dashboard-auth) but NON-redirecting: returns null instead
  * of throwing a redirect, so a dock proxy can answer with an empty payload rather than
- * bouncing an XHR to /sign-in. In development an injected demo profile (`la_org`) wins,
- * matching what the pages render.
+ * bouncing an XHR to /sign-in.
  */
 export async function currentOrgId(): Promise<string | null> {
-  if (process.env.NODE_ENV === "development") {
-    const injected = await resolveInjectedOrg();
-    if (injected?.id) return String(injected.id);
-  }
   const user = await currentUser();
   if (!user) return null;
   if (isAdminEmail(user.email)) return null;

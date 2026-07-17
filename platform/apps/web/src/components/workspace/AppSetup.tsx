@@ -7,8 +7,6 @@ import { getAgentPreset } from "@/lib/workspace/agent-presets";
 import { AgentComingToLife } from "@/components/workspace/AppSetupPanel";
 import { SarahIcon } from "@/components/icons/sarah";
 import { Button } from "@/components/ui/button";
-import { patchOnboardedProfile } from "@/lib/org-cookie";
-import type { ModuleStatus } from "@/lib/data/shared";
 
 /**
  * The Lu-guided, two-panel agent HIRE — the same class as TeamSetup, not a card
@@ -61,9 +59,6 @@ export function AgentHire({
       if (hiring) return;
       setHiring(true);
       if (closer) setMessages((m) => [...m, { role: "assistant", content: closer }]);
-      patchOnboardedProfile({
-        modules: { [agentId]: "live" } as Partial<Record<AgentId, ModuleStatus>>,
-      });
       window.setTimeout(() => onDone?.(agentId), closer ? 1200 : 600);
     },
     [agentId, hiring, onDone],

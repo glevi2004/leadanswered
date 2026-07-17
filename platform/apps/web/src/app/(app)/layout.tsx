@@ -6,15 +6,14 @@ import { Toaster } from "@/components/ui/sonner";
 import { SarahProvider } from "@/components/sarah/sarah-context";
 import { SarahDock, SarahTrigger, SarahWidget } from "@/components/sarah/SarahWidget";
 import { SidebarResizer } from "@/components/app/SidebarResizer";
-import { isDemoMode, resolveModuleStatus } from "@/lib/data/gating";
+import { resolveModuleStatus } from "@/lib/data/gating";
 import { MODULE_KEYS } from "@/lib/data/registry";
 import type { ModuleKey, ModuleStatus } from "@/lib/data/shared";
-import { APEX, APEX_ACTIONS, APEX_APPROVALS, APEX_ESCALATIONS, APEX_PAST_CHATS, APEX_THREAD } from "@/lib/data/fixtures/apex";
 
 /**
  * The OS shell (00 §2–§3): sidebar with unlabeled clusters + the global Sarah
- * widget on every page. Demo mode swaps in the Apex Roofing fixtures; real
- * accounts start honest-empty until each module's backend lands.
+ * widget on every page. Every account renders from its real org, honest-empty
+ * until each module's backend lands.
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const organization = await requireOrganization();
@@ -23,16 +22,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const sidebarWidth = savedWidth >= 192 && savedWidth <= 336 ? `${savedWidth}px` : undefined;
   // « collapse state persists via the kit's own cookie (toggleSidebar writes it).
   const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false";
-  const demo = await isDemoMode();
 
   const statuses = Object.fromEntries(
-    MODULE_KEYS.map((key) => [key, resolveModuleStatus(organization, key, demo)]),
+    MODULE_KEYS.map((key) => [key, resolveModuleStatus(organization, key)]),
   ) as Record<ModuleKey, ModuleStatus>;
 
-  const ownerName = demo ? APEX.ownerName : ((organization.name as string)?.split(" ")[0] ?? "there");
+  const ownerName = (organization.name as string)?.split(" ")[0] ?? "there";
   const assistantName = (organization.sarahName as string) || "Lu";
-  // Real orgs start with no open escalations until the messaging backend lands.
-  const escalations = demo ? APEX_ESCALATIONS : [];
 
   const welcome = [
     {
@@ -46,29 +42,28 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <SarahProvider
-      key={demo ? "demo" : "real"} // remount the client state when the demo toggle flips
-      demo={demo}
-      isNewOrg={organization.demoProfile === "new"}
       ownerName={ownerName}
       assistantName={assistantName}
-      initialMessages={demo ? APEX_THREAD : welcome}
-      initialApprovals={demo ? APEX_APPROVALS : []}
-      initialActions={demo ? APEX_ACTIONS : []}
-      initialEscalations={escalations}
-      initialPastChats={demo ? APEX_PAST_CHATS : []}
+      initialMessages={welcome}
+      initialApprovals={[]}
+      initialActions={[]}
+      initialEscalations={[]}
+      initialPastChats={[]}
     >
       <SidebarProvider
         defaultOpen={sidebarOpen}
         style={sidebarWidth ? ({ "--sidebar-width": sidebarWidth } as React.CSSProperties) : undefined}
       >
         <AppSidebar
-          companyName={demo ? APEX.companyName : organization.companyName}
+          companyName={organization.companyName}
           statuses={statuses}
-          demo={demo}
         />
         <SidebarResizer />
-        {/* The rounded frame: fixed to the viewport on desktop, content scrolls inside it. */}
-        <SidebarInset className="md:peer-data-[variant=inset]:rounded-2xl md:peer-data-[variant=inset]:border md:h-[calc(100svh-1rem)] md:overflow-hidden">
+        {/* The rounded frame: fixed to the viewport on desktop, content scrolls inside it.
+            Recessed (neu-card-in) — a sunken well the raised nodes/cards sit IN, not a raised
+            panel floating above the shell. The unlayered .neu-card-in bg + inset shadow win over
+            the base component's raised shadow-sm, so no border/shadow utilities are needed. */}
+        <SidebarInset className="neu-card-in md:peer-data-[variant=inset]:rounded-2xl md:h-[calc(100svh-1rem)] md:overflow-hidden">
           {/* Mobile only: a real bar (drawer trigger needs a home; toggles live in the drawer). */}
           <header className="flex h-12 shrink-0 items-center justify-between gap-2 px-4 md:hidden">
             <SidebarTrigger />

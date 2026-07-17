@@ -20,7 +20,6 @@ import {
 import { MODULES, NAV_CLUSTERS } from "@/lib/data/registry";
 import type { ModuleKey, ModuleStatus, SurfaceKey } from "@/lib/data/shared";
 import { useSarah } from "@/components/sarah/sarah-context";
-import { DemoToggle } from "@/components/app/DemoToggle";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { DashboardIcon, type IconState } from "@/components/icons/dashboard";
 import { SarahIcon } from "@/components/icons/sarah";
@@ -68,11 +67,9 @@ const KIWI_ICONS: Record<SurfaceKey, React.ComponentType<{ state?: IconState; cl
 export function AppSidebar({
   companyName,
   statuses,
-  demo,
 }: {
   companyName: string;
   statuses: Record<ModuleKey, ModuleStatus>;
-  demo: boolean;
 }) {
   const pathname = usePathname();
   const { pendingCount } = useSarah();
@@ -155,8 +152,7 @@ export function AppSidebar({
 
       <SidebarFooter>
         {/* utility toggles live here, above Settings (Levi 2026-07-12); hidden on the icon rail */}
-        <div className="flex items-center justify-between gap-1.5 px-2 pb-1 group-data-[collapsible=icon]:hidden">
-          <DemoToggle demo={demo} />
+        <div className="flex items-center justify-end gap-1.5 px-2 pb-1 group-data-[collapsible=icon]:hidden">
           <ThemeToggle />
         </div>
         <SidebarMenu>

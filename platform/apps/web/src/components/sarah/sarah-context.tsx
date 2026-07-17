@@ -1,21 +1,18 @@
 "use client";
 
 import * as React from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { toast } from "sonner";
 import type { Approval, SarahAction, SarahMessage } from "@/lib/data/shared";
 import { MODULES, surfaceForPath } from "@/lib/data/registry";
-import { scriptedReply } from "@/lib/data/fixtures/apex";
 import { DEFAULT_LU_MODEL } from "@/lib/lu-models";
-import { patchOnboardedProfile } from "@/lib/org-cookie";
 import { CAPABILITIES } from "@/lib/workspace/capabilities";
 import type { CapabilityKey } from "@/lib/workspace/capabilities";
 
 /**
  * The one owner conversation, shared by the widget and /sarah (00 §3: three
- * surfaces, one thread). Demo mode runs on fixtures with scripted replies;
- * real mode starts honest-empty — in-app turns land when POST /sarah/turn ships
- * (02-sarah §5); until then the composer says so instead of faking Sarah.
+ * surfaces, one thread). Every org talks to the REAL Lu (/api/lu/chat); the thread
+ * starts honest-empty with a greeting.
  *
  * Escalations live here too (drift fix 2026-07-12): the pending badge is
  * approvals + open escalations on EVERY surface — sidebar, launcher, /sarah
@@ -66,7 +63,6 @@ export interface Clarification {
 }
 
 interface SarahState {
-  demo: boolean;
   ownerName: string;
   /** the org's chosen name for the assistant (default "Lu") — for conversational copy */
   assistantName: string;
@@ -130,8 +126,6 @@ let idCounter = 0;
 const nextId = () => `local_${++idCounter}`;
 
 export function SarahProvider({
-  demo,
-  isNewOrg = false,
   ownerName,
   assistantName = "Lu",
   initialMessages,
@@ -141,9 +135,6 @@ export function SarahProvider({
   initialPastChats = [],
   children,
 }: {
-  demo: boolean;
-  /** the freshly-onboarded "New" org — its ONE assistant is a real Lu (talks + installs) */
-  isNewOrg?: boolean;
   ownerName: string;
   assistantName?: string;
   initialMessages: SarahMessage[];
@@ -154,7 +145,6 @@ export function SarahProvider({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [chats, setChats] = React.useState<SarahChat[]>(() => [
     {
       id: "chat_main",
@@ -253,22 +243,13 @@ export function SarahProvider({
           { id: nextId(), at: new Date().toISOString(), module: "core" as const, summary: `Answered ${esc.contactName}'s question — passed along in Sarah's words`, contactId: esc.contactId },
           ...list,
         ]);
-        if (demo) {
-          setTyping(true);
-          window.setTimeout(() => {
-            setTyping(false);
-            appendTo(chatId, { id: nextId(), at: new Date().toISOString(), role: "sarah", body: `Got it — I'll pass that along to ${esc.contactName.split(" ")[0]} in my words and let you know what they say.`, via: "app" });
-          }, 800);
-        }
         return;
       }
 
-      // The onboarded "New" demo AND every real (non-demo) org share ONE real assistant: this
-      // widget talks to /api/lu/chat, which (server-side, from the session org) drives the REAL
-      // Lu orchestrator on apps/api — she decomposes the goal into Task rows and dispatches
-      // engineering builds; the dock then watches them. Only the scripted Mature demo keeps canned
-      // replies below.
-      if (isNewOrg || !demo) {
+      // Every org shares ONE real assistant: this widget talks to /api/lu/chat, which
+      // (server-side, from the session org) drives the REAL Lu orchestrator on apps/api — she
+      // decomposes the goal into Task rows and dispatches engineering builds; the dock watches them.
+      {
         const prior = chatsRef.current.find((c) => c.id === chatId)?.messages ?? [];
         const thread = [...prior, ownerMsg].map((m) => ({
           role: m.role === "owner" ? ("user" as const) : ("assistant" as const),
@@ -338,16 +319,8 @@ export function SarahProvider({
           });
         return;
       }
-
-      // Only the scripted Mature demo reaches here (real + New already returned above).
-      setTyping(true);
-      const reply = scriptedReply(text);
-      window.setTimeout(() => {
-        setTyping(false);
-        appendTo(chatId, { id: nextId(), at: new Date().toISOString(), role: "sarah", body: reply, via: "app" });
-      }, 900 + Math.random() * 600);
     },
-    [demo, isNewOrg, router, appendTo, assistantName],
+    [appendTo],
   );
 
   const resolveApproval = React.useCallback(
@@ -407,7 +380,6 @@ export function SarahProvider({
   const chips = surface ? MODULES[surface].sarahChips : MODULES.home.sarahChips;
 
   const value: SarahState = {
-    demo,
     ownerName,
     assistantName,
     messages,

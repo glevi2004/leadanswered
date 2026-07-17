@@ -3,11 +3,9 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { TransformWrapper, TransformComponent, type ReactZoomPanPinchRef } from "react-zoom-pan-pinch";
-import {
-  ArrowUpRight, Bell, Boxes, Check, ChevronDown, Code2, Headphones, Megaphone, PenTool,
-  Scale, TrendingUp, Undo2, Wallet,
-} from "lucide-react";
+import { ArrowUpRight, Bell, Check, ChevronDown, Grid3x3, Undo2 } from "lucide-react";
 import { SarahIcon } from "@/components/icons/sarah";
+import { DeptIcon, PixelIcon, type Dept } from "@/components/ds/PixelIcon";
 import {
   AGENTS, PAGES, SHEETS, loadPositions, savePositions, clearPositions,
   defaultPositions, agentById, ORBIT_R, isAppDept, APP_CARD_NODES,
@@ -45,34 +43,37 @@ const kindForType = (type: string): EdgeKind => (type === "terminal" ? "uses" : 
  * Everything visual is still ours — RZPP renders no chrome.
  */
 
-const DEPT_ICON: Record<DeptId, React.ComponentType<{ className?: string }>> = {
-  support: Headphones, operations: Boxes, finance: Wallet, legal: Scale,
-  engineering: Code2, design: PenTool, marketing: Megaphone, sales: TrendingUp,
+/** canvas DeptId → the design-system pixel-icon Dept (only `operations` differs → `ops`). */
+const DS_DEPT: Record<DeptId, Dept> = {
+  support: "support", operations: "ops", finance: "finance", legal: "legal",
+  engineering: "engineering", design: "design", marketing: "marketing", sales: "sales",
 };
 
-// node geometry (world units at z=1) — small frames showing a SHRUNK full-page miniature
-const CARD_W = 320;
-const CARD_H = 210;
-const IFRAME_W = 1024;                    // page rendered at desktop width...
+// node geometry (world units at z=1) — desktop-window frames, ~75% of a department depth-card
+// (DESK_CARD_W = 1200) so a page/site/sheet reads at the same scale as the dept cards, not tiny.
+const CARD_W = 900;
+const CARD_H = 590;
+const IFRAME_W = 1280;                    // page rendered at desktop width...
 const IFRAME_SCALE = CARD_W / IFRAME_W;   // ...then scaled down so the whole layout fits
 const IFRAME_H = Math.round(CARD_H / IFRAME_SCALE);
-const SHEET_W = 300;
-const SHEET_H = 200;
-const SHEET_INNER_W = 840;
+const SHEET_W = 880;
+const SHEET_H = 560;
+const SHEET_INNER_W = 1100;
 const SHEET_SCALE = SHEET_W / SHEET_INNER_W;
 const SHEET_INNER_H = Math.round(SHEET_H / SHEET_SCALE);
-const SEL_PAD = 8;    // breathing room around a frame (selection-box offset) — tight, hugs the frame
+const SEL_PAD = 12;   // breathing room around a frame (selection-box offset) — hugs the frame
 const CLICK_Z = 3.2;  // zoom cap when you click a site — frame nearly fills the viewport
+// frames use rounded-[16px] — ~1.7% of a 900px frame's width, matching the dept cards' rounded-[20px]
 
 // live SITE-PREVIEW frames (real Site rows) — a column next to the Engineering agent
-const SITE_W = 380;
-const SITE_H = 260;
-const SITE_VGAP = 90;     // vertical gap between stacked site frames
-const SITE_OUT = 140;     // clearance gap between the department node's right edge and the column
+const SITE_W = 1000;
+const SITE_H = 640;
+const SITE_VGAP = 200;    // vertical gap between stacked site frames
+const SITE_OUT = 300;     // clearance gap between the department node's right edge and the column
 
-const MIN_Z = 0.18;   // floor: the whole board still fits, but you can't shrink it to a dot
+const MIN_Z = 0.09;   // floor: the whole (larger) board still fits, but you can't shrink it to a dot
 const MAX_Z = 3.2;
-const INIT_Z = 0.26;  // overview
+const INIT_Z = 0.14;  // overview
 const GRID = 26;      // grid = a FIXED lattice: each square is always GRID world units (scales with zoom, never re-sizes)
 const ZOOM_SENS = 0.0015; // multiplicative wheel zoom (gentle — the proven feel; RZPP's additive wheel was violent)
 const SELECT_RING = "#5b9bff";
@@ -89,7 +90,7 @@ const isDeptCardId = (id: string): boolean => APP_CARD_IDS.has(id);
 
 // pages/sheets/cards carry a real w/h; the pill nodes don't, so we approximate their world
 // half-extents for marquee intersection (generous enough to feel right, not pixel-exact).
-const NODE_HALF = { lu: { hw: 130, hh: 74 }, agent: { hw: 150, hh: 62 } };
+const NODE_HALF = { lu: { hw: 260, hh: 148 }, agent: { hw: 150, hh: 62 } };
 /** a node's world-space AABB {x0,y0,x1,y1}, or null if it has no position */
 function worldBox(id: string, positions: Positions): { x0: number; y0: number; x1: number; y1: number } | null {
   const p = positions[id];
@@ -107,11 +108,10 @@ type TF = { scale: number; positionX: number; positionY: number };
 
 /** Off-screen stand-in for a live frame (so we don't keep 16 iframes mounted). */
 function FramePlaceholder({ label, dept }: { label: string; dept: DeptId }) {
-  const Icon = DEPT_ICON[dept];
   const a = agentById(dept);
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-card text-muted-foreground">
-      <Icon className="size-8" />
+      <DeptIcon dept={DS_DEPT[dept]} size={36} />
       <span className="text-sm" style={{ color: a ? `rgb(${a.accent})` : undefined }}>{label}</span>
     </div>
   );
@@ -185,6 +185,7 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
   const [selection, setSelection] = React.useState<Set<string>>(() => new Set<string>(["lu"]));
   const sel = selection.size === 1 ? ([...selection][0] as string) : ""; // focused single id ("" when 0 or many)
   const [tool, setTool] = React.useState<CanvasTool>("hand");
+  const [gridOn, setGridOn] = React.useState(true);   // grid-lines visibility (persisted in localStorage)
   const [visible, setVisible] = React.useState<Set<string>>(() => new Set(FRAME_IDS));
   const posRef = React.useRef<Positions>(pos);
   posRef.current = pos;
@@ -334,6 +335,7 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
 
   React.useEffect(() => {
     setPos(loadPositions());
+    try { const g = window.localStorage.getItem("lu_canvas_grid"); if (g !== null) setGridOn(g === "1"); } catch { /* noop */ }
     const blockPageZoom = (e: WheelEvent) => { if (e.ctrlKey) e.preventDefault(); }; // no browser pinch-zoom
     document.addEventListener("wheel", blockPageZoom, { passive: false });
     return () => {
@@ -551,20 +553,37 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
     setReady(true);
   }, [syncGrid, recomputeVisible, positionOverlay]);
 
-  /** fly the camera so a node's center sits in the middle of the viewport at `scale`.
-   *  every node's true world-center is exactly pos[id], so we drive setTransform directly
-   *  (precise for translate-centered pills too — unlike zoomToElement's offset math). */
-  const flyToNode = React.useCallback((nodeId: string, scale: number) => {
+  /** fly the camera so a WORLD center sits in the middle of the viewport at `scale`. */
+  const flyToCenter = React.useCallback((cx: number, cy: number, scale: number) => {
     // deferred a beat so any dock open/close has taken its width before we center
     if (goT.current) window.clearTimeout(goT.current);
     goT.current = window.setTimeout(() => {
       goT.current = null;
-      const el = wrapRef.current, api = apiRef.current, p = posRef.current[nodeId];
-      if (!el || !api || !p) return;
+      const el = wrapRef.current, api = apiRef.current;
+      if (!el || !api) return;
       const z = Math.min(MAX_Z, Math.max(MIN_Z, scale));
-      api.setTransform(el.clientWidth / 2 - p.x * z, el.clientHeight / 2 - p.y * z, z, 480, "easeOut");
+      api.setTransform(el.clientWidth / 2 - cx * z, el.clientHeight / 2 - cy * z, z, 480, "easeOut");
     }, 70);
   }, []);
+
+  /** fly the camera so a node's center sits in the middle of the viewport at `scale`.
+   *  every node's true world-center is exactly pos[id], so we drive setTransform directly
+   *  (precise for translate-centered pills too — unlike zoomToElement's offset math). */
+  const flyToNode = React.useCallback((nodeId: string, scale: number) => {
+    const p = posRef.current[nodeId];
+    if (p) flyToCenter(p.x, p.y, scale);
+  }, [flyToCenter]);
+
+  /** double-click a composable resource node → fit it into the frame. Resource nodes live in
+   *  the graph (top-left x/y + w/h), not the `pos` map, so we center on their box + fit-zoom. */
+  const zoomToResource = React.useCallback((n: CanvasNode) => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const { w, h } = nodeDims(n);
+    setSelection(new Set<string>([n.id]));
+    const z = Math.min(MAX_Z, (el.clientWidth * 0.82) / w, (el.clientHeight * 0.82) / h);
+    flyToCenter(n.x + w / 2, n.y + h / 2, z);
+  }, [flyToCenter]);
 
   /* ------------ click behavior (unchanged from before) ------------ */
 
@@ -650,6 +669,14 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
   const resetLayout = () => {
     clearPositions();
     setPos(defaultPositions());
+  };
+
+  const toggleGrid = () => {
+    setGridOn((v) => {
+      const next = !v;
+      try { window.localStorage.setItem("lu_canvas_grid", next ? "1" : "0"); } catch { /* noop */ }
+      return next;
+    });
   };
 
   const working = workingDepts();
@@ -799,7 +826,7 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
       <div
         ref={gridRef}
         className="canvas-grid pointer-events-none absolute inset-0"
-        style={{ opacity: ready ? 1 : 0, transition: "opacity .25s" }}
+        style={{ opacity: ready && gridOn ? 1 : 0, transition: "opacity .25s" }}
       />
 
       <TransformWrapper
@@ -822,21 +849,24 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
           contentStyle={{ width: 0, height: 0, overflow: "visible" }}
         >
           <div className="relative" style={{ opacity: ready ? 1 : 0, transition: "opacity .25s" }}>
-            {/* edges */}
-            <svg width={1} height={1} style={{ position: "absolute", left: 0, top: 0, overflow: "visible" }}>
-              <circle cx={0} cy={0} r={ORBIT_R} fill="none" stroke="currentColor" strokeOpacity={0.12} strokeWidth={1} vectorEffect="non-scaling-stroke" />
+            {/* edges — idle structure (ring · spokes · dots) uses the --border token (text-border)
+                at near-full alpha (the /dev/design OrgGraph recipe) so it reads as a clear-but-quiet
+                hairline on the recessed canvas instead of washed-out foreground. selected → SELECT_RING
+                and working → the agent accent still override per-line below. */}
+            <svg width={1} height={1} className="text-border" style={{ position: "absolute", left: 0, top: 0, overflow: "visible" }}>
+              <circle cx={0} cy={0} r={ORBIT_R} fill="none" stroke="currentColor" strokeOpacity={0.65} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
               {agents.map((a) => {
                 const ap = pos[a.id]; if (!ap) return null;
                 const on = selection.has(a.id);
                 const isWorking = working.includes(a.id);
                 const app = isAppDept(a.id);
                 const stroke = on ? SELECT_RING : isWorking ? `rgb(${a.accent})` : "currentColor";
-                const op = on ? 0.9 : isWorking ? 0.55 : 0.34;
+                const op = on ? 0.95 : isWorking ? 0.6 : 1;
                 // a spoke down to a child frame (page/sheet) — dashed, with a dot at its edge
                 const childEdge = (x2: number, y2: number, key: string, r = 4) => (
                   <g key={key}>
-                    <line x1={ap.x} y1={ap.y} x2={x2} y2={y2} stroke={on ? SELECT_RING : "currentColor"} strokeOpacity={on ? 0.6 : 0.32} strokeWidth={1.25} strokeDasharray="5 7" vectorEffect="non-scaling-stroke" />
-                    <circle cx={x2} cy={y2} r={r} fill="currentColor" opacity={0.3} />
+                    <line x1={ap.x} y1={ap.y} x2={x2} y2={y2} stroke={on ? SELECT_RING : "currentColor"} strokeOpacity={on ? 0.9 : 0.72} strokeWidth={1.25} strokeLinecap="round" strokeDasharray="5 6" vectorEffect="non-scaling-stroke" />
+                    <circle cx={x2} cy={y2} r={r} fill="currentColor" opacity={0.75} />
                   </g>
                 );
                 return (
@@ -845,11 +875,11 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                         SOLID line (the reference); other pills keep the dashed radial spoke. */}
                     <line
                       x1={0} y1={0} x2={ap.x} y2={ap.y}
-                      stroke={stroke} strokeOpacity={op} strokeWidth={app ? 1.5 : 1.25}
-                      strokeDasharray={app ? undefined : "5 7"} vectorEffect="non-scaling-stroke"
+                      stroke={stroke} strokeOpacity={op} strokeWidth={1.5} strokeLinecap="round"
+                      strokeDasharray={isWorking && !on ? "5 7" : undefined} vectorEffect="non-scaling-stroke"
                       style={isWorking && !on ? { animation: "lu-dash 1s linear infinite" } : undefined}
                     />
-                    <circle cx={ap.x} cy={ap.y} r={5} fill="currentColor" opacity={0.32} />
+                    <circle cx={ap.x} cy={ap.y} r={5} fill="currentColor" opacity={0.85} />
                     {app ? (
                       // an app dept: DASHED spokes fan DOWN from the pill to its two depth-cards
                       (["deptcard", "workcard"] as const).map((k) => {
@@ -859,8 +889,8 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                         const x2 = cp.x, y2 = cp.y - DESK_CARD_H / 2; // end at the card's top edge
                         return (
                           <g key={deptCardId(a.id, k)}>
-                            <line x1={ap.x} y1={y1} x2={x2} y2={y2} stroke={on ? SELECT_RING : "currentColor"} strokeOpacity={on ? 0.6 : 0.34} strokeWidth={1.5} strokeDasharray="6 7" vectorEffect="non-scaling-stroke" />
-                            <circle cx={x2} cy={y2} r={5} fill="currentColor" opacity={0.32} />
+                            <line x1={ap.x} y1={y1} x2={x2} y2={y2} stroke={on ? SELECT_RING : "currentColor"} strokeOpacity={on ? 0.9 : 0.8} strokeWidth={1.5} strokeLinecap="round" strokeDasharray="6 6" vectorEffect="non-scaling-stroke" />
+                            <circle cx={x2} cy={y2} r={5} fill="currentColor" opacity={0.8} />
                           </g>
                         );
                       })
@@ -888,7 +918,7 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                   <rect
                     key={`selbox-${sid}`}
                     x={sp.x - w / 2 - SEL_PAD} y={sp.y - h / 2 - SEL_PAD}
-                    width={w + 2 * SEL_PAD} height={h + 2 * SEL_PAD} rx={10}
+                    width={w + 2 * SEL_PAD} height={h + 2 * SEL_PAD} rx={20}
                     fill="none" stroke={SELECT_RING} strokeWidth={1.75} strokeDasharray="7 6"
                     vectorEffect="non-scaling-stroke"
                   />
@@ -904,8 +934,8 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                 const originX = wc.x + DESK_CARD_W / 2;
                 return (
                   <g key={`site-edge-${site.id}`}>
-                    <line x1={originX} y1={wc.y} x2={x - SITE_W / 2} y2={y} stroke="currentColor" strokeOpacity={0.32} strokeWidth={1.25} strokeDasharray="5 7" vectorEffect="non-scaling-stroke" />
-                    <circle cx={x - SITE_W / 2} cy={y} r={4} fill="currentColor" opacity={0.3} />
+                    <line x1={originX} y1={wc.y} x2={x - SITE_W / 2} y2={y} stroke="currentColor" strokeOpacity={0.72} strokeWidth={1.25} strokeLinecap="round" strokeDasharray="5 6" vectorEffect="non-scaling-stroke" />
+                    <circle cx={x - SITE_W / 2} cy={y} r={4} fill="currentColor" opacity={0.75} />
                   </g>
                 );
               })}
@@ -973,6 +1003,7 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                 onContent={graph.setNodeContent}
                 onConnectStart={startConnect}
                 onOpenTerminal={() => openTerminal("claude_code")}
+                onZoomTo={zoomToResource}
               />
             ))}
 
@@ -983,7 +1014,7 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                 <div
                   key={pg.id}
                   data-node={pg.id}
-                  className={`${DRAG_CLASS} absolute cursor-pointer overflow-hidden rounded-[10px] border border-black/5 bg-card elev-3 dark:border-white/10`}
+                  className={`${DRAG_CLASS} absolute cursor-pointer overflow-hidden rounded-[16px] border border-black/5 bg-card elev-3 dark:border-white/10`}
                   style={{ left: p.x - CARD_W / 2, top: p.y - CARD_H / 2, width: CARD_W, height: CARD_H }}
                   {...nodeDrag(pg.id)}
                 >
@@ -1010,7 +1041,7 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                 <div
                   key={s.id}
                   data-node={s.id}
-                  className={`${DRAG_CLASS} absolute cursor-pointer overflow-hidden rounded-[10px] border border-black/5 bg-card elev-3 dark:border-white/10`}
+                  className={`${DRAG_CLASS} absolute cursor-pointer overflow-hidden rounded-[16px] border border-black/5 bg-card elev-3 dark:border-white/10`}
                   style={{ left: p.x - SHEET_W / 2, top: p.y - SHEET_H / 2, width: SHEET_W, height: SHEET_H }}
                   {...nodeDrag(s.id)}
                 >
@@ -1057,7 +1088,6 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
               const p = pos[a.id]; if (!p) return null;
               const on = selection.has(a.id);
               const app = isAppDept(a.id);
-              const Icon = DEPT_ICON[a.id];
               const badge = agentBadge(a.id);
               return (
                 <div
@@ -1089,8 +1119,8 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                   >
                     <div className={`neu-raise flex items-center gap-4 rounded-[2.05rem] px-9 py-5 ${a.active ? "" : "opacity-40"}`}>
                       {a.active && (
-                        <span className="grid size-9 place-items-center" style={{ color: `rgb(${a.accent})` }}>
-                          <Icon className="size-8" />
+                        <span className="grid size-9 place-items-center">
+                          <DeptIcon dept={DS_DEPT[a.id]} size={34} />
                         </span>
                       )}
                       <span className={`text-[2rem] font-medium ${a.active ? "text-foreground" : "text-muted-foreground"}`}>{a.label}</span>
@@ -1115,12 +1145,12 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
             {/* Lu — center */}
             <div data-node="lu" className={`${DRAG_CLASS} absolute cursor-pointer`} style={{ left: 0, top: 0 }} {...nodeDrag("lu")}>
               <div
-                className="neu-socket -translate-x-1/2 -translate-y-1/2 rounded-[3rem] p-2.5 transition-shadow"
-                style={{ boxShadow: selection.has("lu") ? `0 0 0 5px var(--card), 0 0 0 10px ${SELECT_RING}, 0 0 0 26px ${SELECT_HALO}` : undefined }}
+                className="neu-socket -translate-x-1/2 -translate-y-1/2 rounded-[6rem] p-5 transition-shadow"
+                style={{ boxShadow: selection.has("lu") ? `0 0 0 10px var(--card), 0 0 0 20px ${SELECT_RING}, 0 0 0 52px ${SELECT_HALO}` : undefined }}
               >
-                <div className="neu-raise flex items-center gap-4 rounded-[2.4rem] px-12 py-8">
-                  <SarahIcon className="size-11 text-foreground" />
-                  <span className="text-5xl font-semibold tracking-tight text-foreground">Lu</span>
+                <div className="neu-raise flex items-center gap-8 rounded-[4.8rem] px-24 py-16">
+                  <PixelIcon glyph="sparkle" color="blue" size={88} />
+                  <span className="text-8xl font-semibold tracking-tight text-foreground">Lu</span>
                 </div>
               </div>
             </div>
@@ -1140,6 +1170,7 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                 onContent={graph.setNodeContent}
                 onConnectStart={startConnect}
                 onOpenTerminal={() => openTerminal("claude_code")}
+                onZoomTo={zoomToResource}
               />
             ))}
 
@@ -1258,15 +1289,26 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
         </div>
       )}
 
-      {/* reset layout */}
-      <button
-        type="button"
-        onClick={resetLayout}
-        title="Reset layout"
-        className="absolute bottom-4 left-4 z-20 grid size-9 place-items-center rounded-xl border bg-card text-muted-foreground elev-btn transition-colors hover:text-foreground"
-      >
-        <Undo2 className="size-4" />
-      </button>
+      {/* bottom-left view controls: grid on/off + reset layout */}
+      <div className="absolute bottom-4 left-4 z-20 flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={toggleGrid}
+          title={gridOn ? "Hide grid" : "Show grid"}
+          aria-pressed={gridOn}
+          className={`grid size-9 place-items-center rounded-xl border bg-card elev-btn transition-colors hover:text-foreground ${gridOn ? "text-foreground" : "text-muted-foreground"}`}
+        >
+          <Grid3x3 className="size-4" />
+        </button>
+        <button
+          type="button"
+          onClick={resetLayout}
+          title="Reset layout"
+          className="grid size-9 place-items-center rounded-xl border bg-card text-muted-foreground elev-btn transition-colors hover:text-foreground"
+        >
+          <Undo2 className="size-4" />
+        </button>
+      </div>
 
       {/* edge legend — what a connection GRANTS (only once the graph has any) */}
       {graph.edges.length > 0 && (

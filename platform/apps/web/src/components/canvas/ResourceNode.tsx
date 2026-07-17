@@ -22,13 +22,16 @@ import type { CanvasNode, CanvasNodeType } from "@/lib/canvas/api";
  * spoke reads as part of an agent's working set at a glance.
  */
 
-/** Default world dimensions per type (also the edge-anchor box until a node is resized). */
+/** Default world dimensions per type (also the edge-anchor box until a node is resized).
+ *  Sized to ~75-90% of a department depth-card (DESK_CARD_W = 1200) so a note/site/terminal
+ *  reads at the same scale as the dept cards — not as a tiny chip. `agent` stays small: it's an
+ *  invisible position-carrier for edge anchoring, never rendered as a card. */
 export const DEFAULT_NODE_DIMS: Record<CanvasNodeType, { w: number; h: number }> = {
-  note: { w: 260, h: 168 },
-  file: { w: 210, h: 104 },
-  site: { w: 340, h: 234 },
-  folder: { w: 440, h: 300 },
-  terminal: { w: 250, h: 138 },
+  note: { w: 760, h: 520 },
+  file: { w: 520, h: 320 },
+  site: { w: 1000, h: 640 },
+  folder: { w: 1100, h: 720 },
+  terminal: { w: 900, h: 560 },
   agent: { w: 300, h: 120 },
 };
 
@@ -45,6 +48,8 @@ export function nodeCenter(node: CanvasNode): { x: number; y: number } {
 
 const DRAG_CLASS = "lu-node";
 const SITE_IFRAME_W = 1280;
+const HEADER_H = 24;   // h-6 top drag bar
+const FOOTER_H = 20;   // h-5 bottom drag bar (both drag + double-click to frame)
 // the capability-grant color a node's edge takes (matches EDGE_COLOR in CompanyCanvas): a
 // terminal is a tool the agent USES (amber); everything else is context it READS (blue).
 const READS = "#5b9bff";
@@ -62,6 +67,7 @@ export function ResourceNode({
   onContent,
   onConnectStart,
   onOpenTerminal,
+  onZoomTo,
 }: {
   node: CanvasNode;
   getScale: () => number;
@@ -76,6 +82,8 @@ export function ResourceNode({
   onContent: (id: string, content: string) => void;
   onConnectStart: (id: string, e: React.PointerEvent) => void;
   onOpenTerminal: (id: string) => void;
+  /** double-click any drag surface (top bar / bottom bar / folder edge) → fit into frame */
+  onZoomTo?: (node: CanvasNode) => void;
 }) {
   const drag = React.useRef<{ sx: number; sy: number; ox: number; oy: number; moved: boolean } | null>(null);
   const { w, h } = nodeDims(node);
@@ -103,6 +111,30 @@ export function ResourceNode({
     if (d && !d.moved) onSelect(node.id);
   };
 
+  // every drag surface (top bar, bottom bar, folder edges) carries the SAME handlers: press to
+  // drag, double-click to fit the node into the frame. Spread with {...gripHandlers}.
+  const gripHandlers = {
+    onPointerDown: onGripDown,
+    onPointerMove: onGripMove,
+    onPointerUp: onGripUp,
+    onDoubleClick: () => onZoomTo?.(node),
+  };
+  // a control that lives INSIDE a drag surface (delete/toggle/upload button, an input): swallow
+  // the double-click so grabbing/editing it never also flies the camera.
+  const stopDbl = (e: React.MouseEvent) => e.stopPropagation();
+
+  // the bottom drag bar — mirrors the header so a node is grabbable (and framable) from top OR
+  // bottom, not just the thin top strip.
+  const footer = (
+    <div
+      className="flex h-5 shrink-0 cursor-grab items-center justify-center border-t border-black/5 bg-black/[0.03] active:cursor-grabbing dark:border-white/10"
+      title="Drag to move · double-click to frame"
+      {...gripHandlers}
+    >
+      <div className="h-1 w-10 rounded-full bg-foreground/15" />
+    </div>
+  );
+
   // the connect handle — a small plug on the right edge; drag it to an agent to grant it this
   // node. Solid + a check once connected, so a wired spoke reads as "part of the working set".
   const connectHandle = (
@@ -122,13 +154,13 @@ export function ResourceNode({
     </button>
   );
 
-  // shared grip header (drag + optional extra action + delete)
+  // shared grip header — the WHOLE bar drags (press anywhere) + double-click frames it. Optional
+  // extra action + delete sit at the right and swallow the double-click so they don't also fly.
   const header = (title: React.ReactNode, extra?: React.ReactNode) => (
     <div
       className="flex h-6 shrink-0 cursor-grab items-center gap-1 border-b border-black/5 bg-black/[0.03] px-1.5 active:cursor-grabbing dark:border-white/10"
-      onPointerDown={onGripDown}
-      onPointerMove={onGripMove}
-      onPointerUp={onGripUp}
+      title="Drag to move · double-click to frame"
+      {...gripHandlers}
     >
       <GripVertical className="size-3.5 shrink-0 opacity-40" />
       <span className="min-w-0 flex-1 truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{title}</span>
@@ -137,6 +169,7 @@ export function ResourceNode({
         type="button"
         aria-label="Delete"
         onPointerDown={(e) => e.stopPropagation()}
+        onDoubleClick={stopDbl}
         onClick={() => onDelete(node.id)}
         className="grid size-4 shrink-0 place-items-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-black/10 hover:text-foreground group-hover:opacity-100 dark:hover:bg-white/10"
       >
@@ -150,21 +183,40 @@ export function ResourceNode({
     return (
       <div
         data-node={node.id}
-        className={`${DRAG_CLASS} group absolute rounded-2xl border-2 border-dashed border-[#5b9bff]/40 bg-[#5b9bff]/[0.04] ${selected ? "border-[#5b9bff]" : ""}`}
+        className={`${DRAG_CLASS} group absolute rounded-[20px] border-2 border-dashed border-[#5b9bff]/40 bg-[#5b9bff]/[0.04] ${selected ? "border-[#5b9bff]" : ""}`}
         style={{ left: node.x, top: node.y, width: w, height: h }}
       >
+        {/* draggable FRAME edges — grab anywhere on the border (top/bottom/left/right) to move the
+            whole library, or double-click an edge to fit it. Members float above these strips, so
+            grabbing a member inside the boundary still moves just that member. */}
+        {(["top", "bottom"] as const).map((edge) => (
+          <div
+            key={edge}
+            className={`absolute inset-x-0 ${edge === "top" ? "top-0" : "bottom-0"} h-7 cursor-grab active:cursor-grabbing`}
+            title="Drag to move · double-click to frame"
+            {...gripHandlers}
+          />
+        ))}
+        {(["left", "right"] as const).map((edge) => (
+          <div
+            key={edge}
+            className={`absolute inset-y-0 ${edge === "left" ? "left-0" : "right-0"} w-7 cursor-grab active:cursor-grabbing`}
+            title="Drag to move · double-click to frame"
+            {...gripHandlers}
+          />
+        ))}
         {/* label tab (drag handle) top-left, sits above members */}
         <div
-          className="absolute -top-3 left-3 flex cursor-grab items-center gap-1.5 rounded-full border bg-card px-2.5 py-1 text-xs font-medium elev-2 active:cursor-grabbing"
-          onPointerDown={onGripDown}
-          onPointerMove={onGripMove}
-          onPointerUp={onGripUp}
+          className="absolute -top-3 left-3 z-10 flex cursor-grab items-center gap-1.5 rounded-full border bg-card px-2.5 py-1 text-xs font-medium elev-2 active:cursor-grabbing"
+          title="Drag to move · double-click to frame"
+          {...gripHandlers}
         >
           <FolderOpen className="size-3.5 text-[#5b9bff]" />
           <input
             value={node.content ?? "Library"}
             onChange={(e) => onContent(node.id, e.target.value)}
             onPointerDown={(e) => e.stopPropagation()}
+            onDoubleClick={stopDbl}
             className="w-24 bg-transparent text-foreground outline-none"
             spellCheck={false}
           />
@@ -174,6 +226,7 @@ export function ResourceNode({
             type="button"
             aria-label="Delete folder"
             onPointerDown={(e) => e.stopPropagation()}
+            onDoubleClick={stopDbl}
             onClick={() => onDelete(node.id)}
             className="grid size-4 place-items-center rounded text-muted-foreground hover:bg-black/10 hover:text-foreground dark:hover:bg-white/10"
           >
@@ -203,13 +256,14 @@ export function ResourceNode({
       try { return src ? new URL(src).host : "site"; } catch { return url || "site"; }
     })();
     const scale = w / SITE_IFRAME_W;
-    const innerH = Math.round((h - 24) / scale);
+    const innerH = Math.round((h - HEADER_H - FOOTER_H) / scale);
     title = (
       <input
         value={url}
         placeholder="paste a URL…"
         onChange={(e) => onContent(node.id, e.target.value)}
         onPointerDown={(e) => e.stopPropagation()}
+        onDoubleClick={stopDbl}
         className="w-full bg-transparent text-[11px] normal-case tracking-normal text-foreground outline-none placeholder:text-muted-foreground/60"
         spellCheck={false}
       />
@@ -237,9 +291,9 @@ export function ResourceNode({
       </div>
     );
   } else if (node.type === "note") {
-    return <NoteCard node={node} ring={ring} header={header} connectHandle={connectHandle} onContent={onContent} />;
+    return <NoteCard node={node} ring={ring} header={header} footer={footer} connectHandle={connectHandle} onContent={onContent} />;
   } else if (node.type === "file") {
-    return <FileCard node={node} ring={ring} header={header} connectHandle={connectHandle} onContent={onContent} />;
+    return <FileCard node={node} ring={ring} header={header} footer={footer} connectHandle={connectHandle} onContent={onContent} />;
   } else {
     // terminal — "hand the agent a machine": open a live session; connect = the agent drives it
     title = "Terminal";
@@ -267,9 +321,10 @@ export function ResourceNode({
       className={`${DRAG_CLASS} group absolute`}
       style={{ left: node.x, top: node.y, width: w, height: h }}
     >
-      <div className={`flex h-full w-full flex-col overflow-hidden rounded-[10px] border border-black/10 bg-card text-foreground elev-3 dark:border-white/10 ${ring}`}>
+      <div className={`flex h-full w-full flex-col overflow-hidden rounded-[16px] border border-black/10 bg-card text-foreground elev-3 dark:border-white/10 ${ring}`}>
         {header(title)}
         {body}
+        {footer}
       </div>
       {connectHandle}
     </div>
@@ -281,11 +336,12 @@ export function ResourceNode({
    VIEW mode (reuses the dependency-free renderer from MarkdownNote). A fresh,
    empty note opens in edit mode so you can type immediately. */
 function NoteCard({
-  node, ring, header, connectHandle, onContent,
+  node, ring, header, footer, connectHandle, onContent,
 }: {
   node: CanvasNode;
   ring: string;
   header: (title: React.ReactNode, extra?: React.ReactNode) => React.ReactNode;
+  footer: React.ReactNode;
   connectHandle: React.ReactNode;
   onContent: (id: string, content: string) => void;
 }) {
@@ -298,6 +354,7 @@ function NoteCard({
       aria-label={editing ? "Preview" : "Edit"}
       title={editing ? "Preview" : "Edit"}
       onPointerDown={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
       onClick={() => setEditing((v) => !v)}
       className="grid size-4 shrink-0 place-items-center rounded text-muted-foreground hover:bg-black/10 hover:text-foreground dark:hover:bg-white/10"
     >
@@ -307,7 +364,7 @@ function NoteCard({
   return (
     <div data-node={node.id} className="lu-node group absolute" style={{ left: node.x, top: node.y, width: w, height: h }}>
       <style>{`.lu-note-md{font-size:12px;line-height:1.5}.lu-note-md h1{font-size:15px;font-weight:600;margin:1px 0 5px}.lu-note-md h2{font-size:13px;font-weight:600;margin:1px 0 4px}.lu-note-md h3{font-size:12px;font-weight:600;margin:1px 0 3px}.lu-note-md p{margin:0 0 5px}.lu-note-md ul,.lu-note-md ol{margin:0 0 5px;padding-left:16px}.lu-note-md li{margin:1px 0}.lu-note-md a{color:#2563eb;text-decoration:underline}.lu-note-md code{background:rgba(0,0,0,0.06);border-radius:4px;padding:0 4px;font-family:var(--font-mono,monospace);font-size:11px}.lu-note-md strong{font-weight:600}`}</style>
-      <div className={`flex h-full w-full flex-col overflow-hidden rounded-[10px] border border-black/10 bg-card text-foreground elev-3 dark:border-white/10 ${ring}`}>
+      <div className={`flex h-full w-full flex-col overflow-hidden rounded-[16px] border border-black/10 bg-card text-foreground elev-3 dark:border-white/10 ${ring}`}>
         {header("Note", toggle)}
         {editing ? (
           <textarea
@@ -327,6 +384,7 @@ function NoteCard({
             dangerouslySetInnerHTML={{ __html: html }}
           />
         )}
+        {footer}
       </div>
       {connectHandle}
     </div>
@@ -338,11 +396,12 @@ function NoteCard({
    shows a live thumbnail (an object URL for the session — the name persists as
    the node's content; a real Artifact upload lands later). */
 function FileCard({
-  node, ring, header, connectHandle, onContent,
+  node, ring, header, footer, connectHandle, onContent,
 }: {
   node: CanvasNode;
   ring: string;
   header: (title: React.ReactNode, extra?: React.ReactNode) => React.ReactNode;
+  footer: React.ReactNode;
   connectHandle: React.ReactNode;
   onContent: (id: string, content: string) => void;
 }) {
@@ -363,6 +422,7 @@ function FileCard({
       aria-label="Upload a file"
       title="Upload a file"
       onPointerDown={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
       onClick={() => inputRef.current?.click()}
       className="grid size-4 shrink-0 place-items-center rounded text-muted-foreground hover:bg-black/10 hover:text-foreground dark:hover:bg-white/10"
     >
@@ -371,7 +431,7 @@ function FileCard({
   );
   return (
     <div data-node={node.id} className="lu-node group absolute" style={{ left: node.x, top: node.y, width: w, height: h }}>
-      <div className={`flex h-full w-full flex-col overflow-hidden rounded-[10px] border border-black/10 bg-card text-foreground elev-3 dark:border-white/10 ${ring}`}>
+      <div className={`flex h-full w-full flex-col overflow-hidden rounded-[16px] border border-black/10 bg-card text-foreground elev-3 dark:border-white/10 ${ring}`}>
         {header("File", upload)}
         <input ref={inputRef} type="file" className="hidden" onChange={pick} />
         <div className="flex min-h-0 flex-1 items-center gap-2.5 px-3">
@@ -394,10 +454,12 @@ function FileCard({
             placeholder="file name…"
             onChange={(e) => onContent(node.id, e.target.value)}
             onPointerDown={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
             className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/50"
             spellCheck={false}
           />
         </div>
+        {footer}
       </div>
       {connectHandle}
     </div>

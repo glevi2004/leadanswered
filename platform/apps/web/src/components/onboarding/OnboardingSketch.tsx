@@ -31,8 +31,6 @@ import { SarahIcon } from "@/components/icons/sarah";
 import type { AvailabilityWindow } from "@/lib/onboarding-state";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { writeOnboardedProfile } from "@/lib/org-cookie";
-import type { OrgProfile } from "@/lib/data/org-profile";
 import { TeamSetup } from "@/components/team/TeamSetup";
 import type { Member } from "@/lib/data/team/types";
 import { completeOnboarding } from "@/app/onboarding/actions";
@@ -177,50 +175,7 @@ function InstagramMark({ className = "size-3" }: { className?: string }) {
   );
 }
 
-/** DEV-only: fill every field so you can jump straight to any step and it renders. */
-const DEV_DEFAULTS: Workspace = {
-  trade: "Design agency",
-  website: "northstardesign.com",
-  facebook: "facebook.com/northstardesign",
-  instagram: "@northstardesign",
-  gaveLinks: true,
-  name: "Northstar Design",
-  handle: "northstardesign",
-  assistantName: "Lu",
-  emailSent: true,
-  line: LINE,
-  ownerCell: "(617) 555-0142",
-  textSent: true,
-  hours: "Mon–Sat 9–7",
-  gcal: true,
-};
-const DEV_STEPS: StepKey[] = ["trade", "links", "learning", "handle", "assistant", "site", "email", "phone", "sms", "hours", "gcal", "team"];
-
-/** DEV-only skip bar (this is a dev harness) — jump to any step or phase. */
-function DevBar({ phase, step, onStep, onPhase }: { phase: Phase; step: StepKey; onStep: (s: StepKey) => void; onPhase: (p: Phase) => void }) {
-  const pill = "shrink-0 rounded-full px-2 py-0.5 capitalize text-muted-foreground transition-colors hover:bg-muted hover:text-foreground";
-  const on = "bg-foreground text-background";
-  return (
-    <div className="fixed left-1/2 top-2 z-50 flex max-w-[96vw] -translate-x-1/2 items-center gap-0.5 overflow-x-auto rounded-full border bg-card/95 px-2 py-1 text-[10px] shadow-md backdrop-blur">
-      <span className="shrink-0 pr-1 font-semibold uppercase tracking-wide text-muted-foreground/70">dev · skip to</span>
-      <button type="button" onClick={() => onPhase("welcome")} className={cn(pill, phase === "welcome" && on)}>welcome</button>
-      {DEV_STEPS.map((s) => (
-        <button key={s} type="button" onClick={() => onStep(s)} className={cn(pill, phase === "chat" && step === s && on)}>
-          {s}
-        </button>
-      ))}
-      <button type="button" onClick={() => onPhase("building")} className={cn(pill, phase === "building" && on)}>building</button>
-      <button type="button" onClick={() => onPhase("ready")} className={cn(pill, phase === "ready" && on)}>ready</button>
-    </div>
-  );
-}
-
-/**
- * @param dev DEV preview mode (/dev/onboarding): finish writes the cookie mock (no real
- *   backend/session) and the skip bar is shown. Default (real /onboarding route): finish
- *   persists to the real backend via `completeOnboarding`.
- */
-export function OnboardingSketch({ dev = false }: { dev?: boolean } = {}) {
+export function OnboardingSketch() {
   const [phase, setPhase] = React.useState<Phase>("welcome");
   const [step, setStep] = React.useState<StepKey>("trade");
   const [ws, setWs] = React.useState<Workspace>({});
@@ -229,7 +184,7 @@ export function OnboardingSketch({ dev = false }: { dev?: boolean } = {}) {
   const [avail, setAvail] = React.useState<Set<string>>(new Set());
   const [gcalStatus, setGcalStatus] = React.useState<GcalStatus>("idle");
   const [history, setHistory] = React.useState<Snapshot[]>([]);
-  const [teamMembers, setTeamMembers] = React.useState<Member[]>([]);
+  const [, setTeamMembers] = React.useState<Member[]>([]);
   const [submitting, setSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
   const pushHistory = () => setHistory((h) => [...h, { step, ws, msgs, avail, gcalStatus }]);
@@ -395,31 +350,7 @@ export function OnboardingSketch({ dev = false }: { dev?: boolean } = {}) {
   });
 
   const openWorkspace = async () => {
-    if (dev) {
-      // DEV preview — cookie mock, so /dev/onboarding works with no real backend or session.
-      const teammates = teamMembers.filter((m) => m.roleKey !== "owner");
-      const profile: OrgProfile = {
-        id: "org_new",
-        companyName: ws.name || "Your Company",
-        sarahName: ws.assistantName || "Lu",
-        projectTypes: ws.trade ? [ws.trade] : [],
-        standingAvailability: { timezone: "America/New_York", windows: windowsFromAvail(avail) },
-        twilioNumber: ws.line || "(844) 415-7642",
-        ownerCell: ws.ownerCell,
-        siteHandle: ws.handle ? `${ws.handle}.lu.computer` : undefined,
-        assistantEmail: ws.handle ? `${ws.handle}@lu.computer` : undefined,
-        gcalConnected: !!ws.gcal,
-        // Fixed nav — every new org gets the same surfaces, honest-empty.
-        modules: { crm: "live", schedule: "live", money: "live", team: "live", agents: "live", sites: "live" },
-        setupSteps: { assistant: true, hours: avail.size > 0, google: !!ws.gcal, ...(teammates.length ? { team: true } : {}) },
-        seedMembers: teammates,
-      };
-      writeOnboardedProfile(profile);
-      window.location.href = "/home";
-      return;
-    }
-
-    // REAL — persist config (flips onboardingComplete=true) + boot departments, then open /home.
+    // Persist config (flips onboardingComplete=true) + boot departments, then open /home.
     setSubmitError(null);
     setSubmitting(true);
     try {
@@ -436,44 +367,24 @@ export function OnboardingSketch({ dev = false }: { dev?: boolean } = {}) {
     }
   };
 
-  const jumpToStep = (s: StepKey) => {
-    setPhase("chat");
-    setWs((w) => ({ ...DEV_DEFAULTS, ...w }));
-    setMsgs([]);
-    setTypingId(null);
-    setHistory([]);
-    setAvail((a) => (["hours", "gcal", "team"].includes(s) && a.size === 0 ? presetSet("Mon–Sat 9–7") : a));
-    setGcalStatus(["gcal", "team"].includes(s) ? "connected" : "idle");
-    setStep(s);
-  };
-  const jumpToPhase = (p: Phase) => {
-    setWs((w) => ({ ...DEV_DEFAULTS, ...w }));
-    setPhase(p);
-  };
-  // The skip bar is a DEV harness only — never shown on the real /onboarding route.
-  const devBar = dev ? <DevBar phase={phase} step={step} onStep={jumpToStep} onPhase={jumpToPhase} /> : null;
-
-  if (phase === "welcome") return (<>{devBar}<Welcome onStart={start} /></>);
-  if (phase === "building") return (<>{devBar}<Building name={ws.name ?? "your business"} onDone={() => setPhase("ready")} /></>);
-  if (phase === "ready") return (<>{devBar}<Ready ws={ws} onOpenWorkspace={openWorkspace} submitting={submitting} error={submitError} /></>);
+  if (phase === "welcome") return <Welcome onStart={start} />;
+  if (phase === "building") return <Building name={ws.name ?? "your business"} onDone={() => setPhase("ready")} />;
+  if (phase === "ready") return <Ready ws={ws} onOpenWorkspace={openWorkspace} submitting={submitting} error={submitError} />;
 
   // last step — Lu builds your team graph with you (same experience as the Team page)
   if (step === "team")
     return (
-      <>
-        {devBar}
-        <div className="mx-auto h-svh w-full max-w-6xl p-4 sm:p-6">
-          <TeamSetup
-            ownerName="You"
-            onMembersChange={setTeamMembers}
-            onDone={finishTeam}
-            onSkip={finishTeam}
-            doneLabel="Build my workspace"
-            skipLabel="Skip — add my team later"
-            className="h-full"
-          />
-        </div>
-      </>
+      <div className="mx-auto h-svh w-full max-w-6xl p-4 sm:p-6">
+        <TeamSetup
+          ownerName="You"
+          onMembersChange={setTeamMembers}
+          onDone={finishTeam}
+          onSkip={finishTeam}
+          doneLabel="Build my workspace"
+          skipLabel="Skip — add my team later"
+          className="h-full"
+        />
+      </div>
     );
 
   const hint =
@@ -507,7 +418,6 @@ export function OnboardingSketch({ dev = false }: { dev?: boolean } = {}) {
 
   return (
     <div className="mx-auto flex h-svh w-full max-w-6xl gap-4 p-4 sm:p-6">
-      {devBar}
       {/* LEFT — Lu's conversation */}
       <div className="flex w-full max-w-md shrink-0 flex-col overflow-hidden rounded-3xl border bg-card">
         <header className="flex items-center gap-2 border-b px-4 py-3">
