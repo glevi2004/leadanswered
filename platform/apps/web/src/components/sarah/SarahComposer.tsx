@@ -3,6 +3,7 @@
 import * as React from "react";
 import { ArrowUp } from "lucide-react";
 import { useSarah } from "./sarah-context";
+import { ModelPicker } from "./ModelPicker";
 import { cn } from "@/lib/utils";
 
 /**
@@ -109,13 +110,15 @@ export function SarahComposer({
           className="block max-h-30 w-full resize-none bg-transparent px-3.5 pb-1 pt-3 text-sm outline-none placeholder:text-muted-foreground"
         />
         <div className="flex items-center justify-between gap-2 px-2 pb-2">
-          {contextLabel ? (
-            <span className="max-w-52 truncate rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-              On: {contextLabel}
-            </span>
-          ) : (
-            <span />
-          )}
+          <div className="flex min-w-0 items-center gap-1.5">
+            {/* The Lu model picker shows only on the main dock chat (no onSend override). */}
+            {!onSend && <ModelPicker />}
+            {contextLabel && (
+              <span className="max-w-40 truncate rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                On: {contextLabel}
+              </span>
+            )}
+          </div>
           <button
             type="submit"
             aria-label="Send"

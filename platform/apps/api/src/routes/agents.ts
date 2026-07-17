@@ -32,6 +32,8 @@ export function createLuRoute(deps: OrchestratorDeps) {
     const orgId = b.orgId ?? b.org_id;
     const message = b.message;
     const history = b.history;
+    const modelId =
+      typeof b.modelId === "string" && b.modelId.trim() ? b.modelId.trim() : undefined;
 
     if (!isFilled(orgId) || !isFilled(message)) {
       res.status(400).json({ error: "orgId and message are required" });
@@ -43,6 +45,7 @@ export function createLuRoute(deps: OrchestratorDeps) {
         orgId,
         message,
         history: history as OrchestratorMessage[] | undefined,
+        modelId,
       });
       res.status(200).json({
         reply: result.reply,

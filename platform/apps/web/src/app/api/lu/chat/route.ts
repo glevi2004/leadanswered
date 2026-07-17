@@ -36,8 +36,12 @@ export async function POST(req: Request) {
   if (!orgId) return Response.json({ error: "no_org" }, { status: 401 });
 
   let messages: ChatMessage[];
+  let modelId: string | undefined;
   try {
-    ({ messages } = (await req.json()) as { messages: ChatMessage[] });
+    const body = (await req.json()) as { messages: ChatMessage[]; modelId?: string };
+    messages = body.messages;
+    modelId =
+      typeof body.modelId === "string" && body.modelId.trim() ? body.modelId.trim() : undefined;
   } catch {
     return Response.json({ error: "bad_request" }, { status: 400 });
   }
@@ -55,7 +59,7 @@ export async function POST(req: Request) {
     const res = await fetch(`${API_BASE}/api/lu`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ orgId, message, history }),
+      body: JSON.stringify({ orgId, message, history, modelId }),
     });
     if (!res.ok) throw new Error(`lu route ${res.status}`);
     const data = (await res.json()) as Partial<LuResult>;

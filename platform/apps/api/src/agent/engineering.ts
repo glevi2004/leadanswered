@@ -81,6 +81,8 @@ export interface EngineeringInput {
   history?: EngineeringMessage[];
   /** The Task this run executes, if any — flipped to `needs_approval` at the preview/publish gate. */
   taskId?: string;
+  /** Optional model id override (e.g. from Task.model / Agent.models) — defaults to the coding-tier pick. */
+  modelId?: string;
 }
 
 export interface EngineeringResult {
@@ -121,7 +123,7 @@ export async function runEngineering(
   deps: EngineeringDeps,
   input: EngineeringInput,
 ): Promise<EngineeringResult> {
-  const model = deps.model ?? getModel(recommendModel("coding", "text").id);
+  const model = deps.model ?? getModel(input.modelId ?? recommendModel("coding", "text").id);
   const ctx: EngineeringContext = {
     orgId: input.orgId,
     taskId: input.taskId,

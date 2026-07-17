@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import type { Approval, SarahAction, SarahMessage } from "@/lib/data/shared";
 import { MODULES, surfaceForPath } from "@/lib/data/registry";
 import { scriptedReply } from "@/lib/data/fixtures/apex";
+import { DEFAULT_LU_MODEL } from "@/lib/lu-models";
 import { patchOnboardedProfile } from "@/lib/org-cookie";
 import { CAPABILITIES } from "@/lib/workspace/capabilities";
 import type { CapabilityKey } from "@/lib/workspace/capabilities";
@@ -97,6 +98,9 @@ interface SarahState {
   /** the active dock tab (Home · Lu · Company · Tasks · Library) — lifted so any tab can navigate */
   dockTab: DockTab;
   setDockTab: (tab: DockTab) => void;
+  /** the model powering Lu this conversation (dock picker) — posted to /api/lu/chat as modelId */
+  selectedModel: string;
+  setSelectedModel: (id: string) => void;
   /** clarifying questions Lu raised (ask_user) — surfaced on Home until answered/dismissed */
   clarifications: Clarification[];
   dismissClarification: (id: string) => void;
@@ -166,6 +170,11 @@ export function SarahProvider({
   // to POST without re-creating the callback on every keystroke-driven render.
   const chatsRef = React.useRef(chats);
   chatsRef.current = chats;
+  // The model powering Lu (dock picker). A ref mirrors it so sendMessage reads the latest
+  // choice without re-creating the callback on every change.
+  const [selectedModel, setSelectedModel] = React.useState<string>(DEFAULT_LU_MODEL);
+  const selectedModelRef = React.useRef(selectedModel);
+  selectedModelRef.current = selectedModel;
   const messages = (chats.find((c) => c.id === activeChatId) ?? chats[0]).messages;
 
   /** append into a specific chat (timers may land after a switch); first owner message titles a "New chat" */
@@ -272,7 +281,7 @@ export function SarahProvider({
         fetch("/api/lu/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: thread }),
+          body: JSON.stringify({ messages: thread, modelId: selectedModelRef.current }),
         })
           .then(async (res) => {
             if (!res.ok) throw new Error(String(res.status));
@@ -424,6 +433,8 @@ export function SarahProvider({
     setSelectedAgent,
     dockTab,
     setDockTab,
+    selectedModel,
+    setSelectedModel,
     clarifications,
     dismissClarification: (id) => setClarifications((prev) => prev.filter((c) => c.id !== id)),
     sendMessage,

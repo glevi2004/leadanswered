@@ -37,6 +37,8 @@ export interface OrchestratorInput {
   message: string;
   /** Prior turns of this Lu conversation, if any. */
   history?: OrchestratorMessage[];
+  /** Optional model id (from the dock model picker) — overrides the default orchestration-tier pick. */
+  modelId?: string;
 }
 
 export interface OrchestratorResult {
@@ -76,7 +78,8 @@ export async function runOrchestrator(
   deps: OrchestratorDeps,
   input: OrchestratorInput,
 ): Promise<OrchestratorResult> {
-  const model = deps.model ?? getModel(recommendModel("orchestrator", "text").id);
+  const model =
+    deps.model ?? getModel(input.modelId ?? recommendModel("orchestrator", "text").id);
   const ctx: OrchestratorContext = { orgId: input.orgId, tasksCreated: [], actions: [] };
   const tools = orchestratorTools({ store: deps.store }, ctx);
   const system = systemPrompt();
