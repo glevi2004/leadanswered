@@ -7,6 +7,7 @@ import {
 import { type EngineeringDeps } from "../agent/engineering.js";
 import { dispatchBuild } from "../agent/dispatch.js";
 import { orgHasConnections } from "../connect/status.js";
+import { enqueueConsolidation } from "../queue.js";
 
 /** True for a present, non-blank string field (missing/blank → 400, like the other routes). */
 function isFilled(value: unknown): value is string {
@@ -66,6 +67,8 @@ export function createLuRoute(deps: OrchestratorDeps) {
         void deps.store
           .appendMessage({ threadId, orgId, role: "assistant", content: result.reply })
           .catch(() => {});
+        // Kick a background consolidation (sleep-time compute) — deduped per org, best-effort.
+        void enqueueConsolidation(orgId).catch(() => {});
       }
       res.status(200).json({
         reply: result.reply,

@@ -2,7 +2,15 @@ import { Worker, type Job } from "bullmq";
 import { pathToFileURL } from "node:url";
 import { runEngineering } from "./agent/engineering.js";
 import type { Store } from "./store/types.js";
-import { ENGINEERING_QUEUE, redisConnection, useRedis, type EngineeringJob } from "./queue.js";
+import {
+  ENGINEERING_QUEUE,
+  MEMORY_QUEUE,
+  redisConnection,
+  useRedis,
+  type EngineeringJob,
+  type MemoryJob,
+} from "./queue.js";
+import { consolidateOrgMemory } from "./agent/consolidation.js";
 
 /**
  * The durable Engineering worker (FOUNDATION §4, DEVELOPMENT Phase 0). It consumes the
@@ -55,6 +63,35 @@ export function startEngineeringWorker(store: Store): Worker<EngineeringJob> | n
   return worker;
 }
 
+/**
+ * The sleep-time memory-consolidation worker (plan Pillar 3). Consumes the
+ * `memory-consolidation` queue and folds an org's recent conversation into a compact core
+ * memory (consolidation.ts). Cheap + best-effort — a failure is logged, never fatal.
+ */
+export function startMemoryWorker(store: Store): Worker<MemoryJob> | null {
+  if (!useRedis()) return null;
+
+  const worker = new Worker<MemoryJob>(
+    MEMORY_QUEUE,
+    async (job: Job<MemoryJob>) => {
+      await consolidateOrgMemory(store, job.data.orgId);
+    },
+    {
+      connection: redisConnection(),
+      concurrency: Number(process.env.MEMORY_CONCURRENCY ?? 2),
+      lockDuration: 120_000,
+    },
+  );
+
+  worker.on("failed", (job, err) =>
+    console.error(`[worker] memory job ${job?.id} failed:`, err?.message),
+  );
+  worker.on("error", (err) => console.error("[worker] memory error:", err));
+
+  console.log("[worker] memory-consolidation worker started");
+  return worker;
+}
+
 /** Standalone entry: `node dist/worker.js` / `tsx src/worker.ts` runs a dedicated worker process. */
 async function main(): Promise<void> {
   if (!useRedis()) {
@@ -64,6 +101,7 @@ async function main(): Promise<void> {
   const { buildStore } = await import("./app.js");
   const store = await buildStore();
   startEngineeringWorker(store);
+  startMemoryWorker(store);
   console.log("[worker] standalone worker running.");
 }
 

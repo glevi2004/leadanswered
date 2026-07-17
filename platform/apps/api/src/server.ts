@@ -3,7 +3,7 @@ import { buildStore, createApp } from "./app.js";
 import { assertEnv, env, useE2b, usePostgres, useVercel } from "./env.js";
 import { startTelemetry } from "./telemetry.js";
 import { attachTerminalWs } from "./routes/terminal.js";
-import { startEngineeringWorker } from "./worker.js";
+import { startEngineeringWorker, startMemoryWorker } from "./worker.js";
 import { useRedis } from "./queue.js";
 import { recommendModel } from "@leadanswered/core";
 
@@ -25,6 +25,7 @@ async function main(): Promise<void> {
   // The durable Engineering worker rides in-process (no-op without REDIS_URL); it can be
   // split to a dedicated process later via `node dist/worker.js`.
   startEngineeringWorker(store);
+  startMemoryWorker(store);
 
   server.listen(env.PORT, () => {
     console.log(`[api] listening on http://localhost:${env.PORT}`);

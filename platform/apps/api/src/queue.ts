@@ -68,3 +68,46 @@ export async function enqueueEngineering(job: EngineeringJob): Promise<boolean> 
   });
   return true;
 }
+
+// ─── Memory consolidation ("sleep-time compute", plan Pillar 3) ───────────────
+
+export const MEMORY_QUEUE = "memory-consolidation";
+
+/** The payload of one memory-consolidation job. */
+export interface MemoryJob {
+  orgId: string;
+}
+
+let memQueue: Queue<MemoryJob> | null = null;
+
+/** The shared memory-consolidation queue (lazily created). `null` when Redis is off. */
+export function memoryQueue(): Queue<MemoryJob> | null {
+  if (!useRedis()) return null;
+  if (!memQueue) {
+    memQueue = new Queue<MemoryJob>(MEMORY_QUEUE, { connection: redisConnection() });
+  }
+  return memQueue;
+}
+
+/**
+ * Enqueue a background consolidation of an org's conversation into core memory. `jobId` is
+ * per-org so only ONE consolidation is pending per org at a time, and `removeOnComplete.age`
+ * keeps a finished job around ~1h so re-enqueues within the hour dedupe (bounds the cadence /
+ * cost). Returns false when Redis is off (consolidation is skipped locally).
+ */
+export async function enqueueConsolidation(orgId: string): Promise<boolean> {
+  const q = memoryQueue();
+  if (!q) return false;
+  await q.add(
+    "consolidate",
+    { orgId },
+    {
+      jobId: `consolidate:${orgId}`,
+      attempts: 2,
+      backoff: { type: "exponential", delay: 30_000 },
+      removeOnComplete: { age: 3_600, count: 100 },
+      removeOnFail: { age: 86_400 },
+    },
+  );
+  return true;
+}
