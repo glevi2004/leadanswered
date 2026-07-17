@@ -6,6 +6,7 @@ import {
   type OrchestratorAction,
   type OrchestratorContext,
 } from "./orchestratorTools.js";
+import { meterLlm } from "./metering.js";
 
 /**
  * Lu the ORCHESTRATOR (AGENTS-BACKEND §3) — the one planning brain of the Lu
@@ -78,8 +79,8 @@ export async function runOrchestrator(
   deps: OrchestratorDeps,
   input: OrchestratorInput,
 ): Promise<OrchestratorResult> {
-  const model =
-    deps.model ?? getModel(input.modelId ?? recommendModel("orchestrator", "text").id);
+  const modelId = input.modelId ?? recommendModel("orchestrator", "text").id;
+  const model = deps.model ?? getModel(modelId);
   const ctx: OrchestratorContext = { orgId: input.orgId, tasksCreated: [], actions: [] };
   const tools = orchestratorTools({ store: deps.store }, ctx);
   const system = systemPrompt();
@@ -104,6 +105,7 @@ export async function runOrchestrator(
     stopWhen: stepCountIs(8), // bound the plan→delegate loop per turn
     experimental_telemetry: { isEnabled: true, functionId: "lu-orchestrator-turn", metadata: meta },
   });
+  void meterLlm(deps.store, input.orgId, modelId, result.usage);
 
   let reply = result.text.trim();
   // Like runner.ts: a turn that ends on a tool call (e.g. create_task) can leave
@@ -118,6 +120,7 @@ export async function runOrchestrator(
       toolChoice: "none",
       experimental_telemetry: { isEnabled: true, functionId: "lu-orchestrator-closing", metadata: meta },
     });
+    void meterLlm(deps.store, input.orgId, modelId, followup.usage);
     reply = followup.text.trim();
   }
 

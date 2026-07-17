@@ -5,6 +5,7 @@ import type { ArtifactRecord, CanvasNodeRecord, Store } from "../store/types.js"
 import { getSandbox, type Sandbox } from "../sandbox/index.js";
 import { getGit, getGitForOrg, type Git } from "../git/index.js";
 import { getDeploy, getDeployForOrg, type Deploy, type PreviewDeployment } from "../deploy/index.js";
+import { meterSandbox } from "./metering.js";
 
 /**
  * The ENGINEERING agent's toolkit (AGENTS-BACKEND §6, ENGINEERING-AGENT §5). The
@@ -354,6 +355,8 @@ export function engineeringTools(deps: EngineeringToolDeps, ctx: EngineeringCont
       execute: async ({ repoFullName, prompt, agentKind }) => {
         // Scoped clone/push token for this repo's org (v0: the authed gh user).
         const token = await withTimeout("installationToken", STEP_TIMEOUT_MS, d.git.installationToken());
+        // Meter the sandbox wall-clock (plan Pillar 2): time from spawn to kill.
+        const sandboxStartedMs = Date.now();
         // Give the sandbox a lifetime that outlasts the coding step (+buffer) so it can't die mid-build.
         const { id } = await d.sandbox.spawn({
           repo: repoFullName,
@@ -410,6 +413,7 @@ export function engineeringTools(deps: EngineeringToolDeps, ctx: EngineeringCont
         } finally {
           // Ephemeral: release the sandbox after a headless run (isolation + cost). Best-effort.
           await d.sandbox.kill(id).catch(() => {});
+          void meterSandbox(d.store, ctx.orgId, (Date.now() - sandboxStartedMs) / 1000, { taskId });
         }
       },
     }),

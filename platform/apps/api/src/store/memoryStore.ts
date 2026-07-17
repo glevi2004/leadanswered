@@ -39,6 +39,7 @@ import type {
   VercelConnectionInput,
   VercelConnectionRecord,
 } from "./types.js";
+import type { CreateUsageEventInput, UsageEventRecord, UsageSummary } from "./types.js";
 import { decryptTokenSafe, encryptToken } from "../crypto/tokens.js";
 
 /** Internal encrypted-at-rest row shapes (mirrors PrismaStore: token ciphertext only). */
@@ -82,6 +83,7 @@ export class MemoryStore implements Store {
   private sites = new Map<string, SiteRecord>();
   private deployments = new Map<string, DeploymentRecord>();
   private sessions = new Map<string, SessionRecord>();
+  private usageEvents: UsageEventRecord[] = [];
   private approvals = new Map<string, ApprovalRecord>();
   private canvasNodes = new Map<string, CanvasNodeRecord>();
   private edges = new Map<string, EdgeRecord>();
@@ -341,6 +343,8 @@ export class MemoryStore implements Store {
       repo: input.repo ?? null,
       status: input.status ?? "starting",
       transcript: input.transcript ?? null,
+      startedAt: input.startedAt ?? null,
+      endedAt: null,
       createdAt: ts,
       updatedAt: ts,
     };
@@ -586,5 +590,38 @@ export class MemoryStore implements Store {
 
   async deleteSupabaseConnection(orgId: string): Promise<void> {
     this.supabaseConnections.delete(orgId);
+  }
+
+  // --- Metering (agent compute → the usage bucket) ---
+  async createUsageEvent(input: CreateUsageEventInput): Promise<UsageEventRecord> {
+    const rec: UsageEventRecord = {
+      id: randomUUID(),
+      orgId: input.orgId,
+      at: this.now().toISOString(),
+      kind: input.kind,
+      model: input.model ?? null,
+      inputTokens: input.inputTokens ?? null,
+      outputTokens: input.outputTokens ?? null,
+      sandboxSeconds: input.sandboxSeconds ?? null,
+      costMicros: input.costMicros,
+      taskId: input.taskId ?? null,
+      agentId: input.agentId ?? null,
+    };
+    this.usageEvents.push(rec);
+    return rec;
+  }
+
+  async sumUsageSince(orgId: string, sinceISO: string): Promise<UsageSummary> {
+    const since = new Date(sinceISO).getTime();
+    const rows = this.usageEvents.filter(
+      (e) => e.orgId === orgId && new Date(e.at).getTime() >= since,
+    );
+    return {
+      costMicros: rows.reduce((s, e) => s + e.costMicros, 0),
+      inputTokens: rows.reduce((s, e) => s + (e.inputTokens ?? 0), 0),
+      outputTokens: rows.reduce((s, e) => s + (e.outputTokens ?? 0), 0),
+      sandboxSeconds: rows.reduce((s, e) => s + (e.sandboxSeconds ?? 0), 0),
+      events: rows.length,
+    };
   }
 }

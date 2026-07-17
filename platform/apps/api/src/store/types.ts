@@ -190,6 +190,8 @@ export interface SessionRecord {
   repo: string | null;
   status: string;
   transcript: string | null;
+  startedAt?: string | null;
+  endedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -200,12 +202,15 @@ export interface CreateSessionInput {
   repo?: string | null;
   status?: string;
   transcript?: string | null;
+  startedAt?: string | null;
 }
 export type SessionPatch = Partial<{
   sandboxId: string | null;
   repo: string | null;
   status: string;
   transcript: string | null;
+  startedAt: string | null;
+  endedAt: string | null;
 }>;
 
 /** Generalized human-in-the-loop gate (extends the SMS hard-gate). Feeds "Needs you". */
@@ -352,6 +357,40 @@ export interface SupabaseConnectionInput {
   managementToken?: string;
 }
 
+/** A metered agent-compute event (plan Pillar 2 — the usage bucket). */
+export interface UsageEventRecord {
+  id: string;
+  orgId: string;
+  at: string;
+  kind: "llm" | "sandbox";
+  model: string | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  sandboxSeconds: number | null;
+  costMicros: number;
+  taskId: string | null;
+  agentId: string | null;
+}
+export interface CreateUsageEventInput {
+  orgId: string;
+  kind: "llm" | "sandbox";
+  model?: string | null;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  sandboxSeconds?: number | null;
+  costMicros: number;
+  taskId?: string | null;
+  agentId?: string | null;
+}
+/** Aggregated agent-compute for an org over a period (drives the bucket + overage). */
+export interface UsageSummary {
+  costMicros: number;
+  inputTokens: number;
+  outputTokens: number;
+  sandboxSeconds: number;
+  events: number;
+}
+
 /** Persistence port. Implemented by MemoryStore (demo/tests) and PrismaStore (production). */
 export interface Store {
   // ─── Lu Computer agent backend (AGENTS-BACKEND.md §2/§3) ───────────────────
@@ -433,4 +472,10 @@ export interface Store {
   upsertSupabaseConnection(orgId: string, input: SupabaseConnectionInput): Promise<SupabaseConnectionRecord>;
   /** Remove the org's Supabase connection (idempotent). */
   deleteSupabaseConnection(orgId: string): Promise<void>;
+
+  // --- Metering (agent compute → the usage bucket, plan Pillar 2) ---
+  /** Record one metered LLM call or sandbox run. Best-effort caller; never on the hot path. */
+  createUsageEvent(input: CreateUsageEventInput): Promise<UsageEventRecord>;
+  /** Sum an org's metered compute since an ISO timestamp (the period start). */
+  sumUsageSince(orgId: string, sinceISO: string): Promise<UsageSummary>;
 }

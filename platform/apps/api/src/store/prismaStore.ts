@@ -39,6 +39,7 @@ import type {
   VercelConnectionInput,
   VercelConnectionRecord,
 } from "./types.js";
+import type { CreateUsageEventInput, UsageEventRecord, UsageSummary } from "./types.js";
 import { decryptTokenSafe, encryptToken } from "../crypto/tokens.js";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -142,6 +143,8 @@ function mapSession(r: any): SessionRecord {
     repo: r.repo ?? null,
     status: r.status,
     transcript: r.transcript ?? null,
+    startedAt: r.startedAt ? iso(r.startedAt) : null,
+    endedAt: r.endedAt ? iso(r.endedAt) : null,
     createdAt: iso(r.createdAt),
     updatedAt: iso(r.updatedAt),
   };
@@ -479,6 +482,7 @@ export class PrismaStore implements Store {
         repo: input.repo ?? null,
         status: input.status as any,
         transcript: input.transcript ?? null,
+        startedAt: input.startedAt ? new Date(input.startedAt) : null,
       },
     });
     return mapSession(s);
@@ -497,6 +501,8 @@ export class PrismaStore implements Store {
         repo: patch.repo,
         status: patch.status as any,
         transcript: patch.transcript,
+        startedAt: typeof patch.startedAt === "string" ? new Date(patch.startedAt) : patch.startedAt,
+        endedAt: typeof patch.endedAt === "string" ? new Date(patch.endedAt) : patch.endedAt,
       },
     });
     return mapSession(s);
@@ -713,5 +719,50 @@ export class PrismaStore implements Store {
 
   async deleteSupabaseConnection(orgId: string): Promise<void> {
     await this.db.supabaseConnection.deleteMany({ where: { orgId } });
+  }
+
+  // --- Metering (agent compute → the usage bucket) ---
+  async createUsageEvent(input: CreateUsageEventInput): Promise<UsageEventRecord> {
+    const e = await this.db.usageEvent.create({
+      data: {
+        orgId: input.orgId,
+        kind: input.kind as any,
+        model: input.model ?? null,
+        inputTokens: input.inputTokens ?? null,
+        outputTokens: input.outputTokens ?? null,
+        sandboxSeconds: input.sandboxSeconds ?? null,
+        costMicros: input.costMicros,
+        taskId: input.taskId ?? null,
+        agentId: input.agentId ?? null,
+      },
+    });
+    return {
+      id: e.id,
+      orgId: e.orgId,
+      at: e.at.toISOString(),
+      kind: e.kind as "llm" | "sandbox",
+      model: e.model ?? null,
+      inputTokens: e.inputTokens ?? null,
+      outputTokens: e.outputTokens ?? null,
+      sandboxSeconds: e.sandboxSeconds ?? null,
+      costMicros: e.costMicros,
+      taskId: e.taskId ?? null,
+      agentId: e.agentId ?? null,
+    };
+  }
+
+  async sumUsageSince(orgId: string, sinceISO: string): Promise<UsageSummary> {
+    const agg = await this.db.usageEvent.aggregate({
+      where: { orgId, at: { gte: new Date(sinceISO) } },
+      _sum: { costMicros: true, inputTokens: true, outputTokens: true, sandboxSeconds: true },
+      _count: true,
+    });
+    return {
+      costMicros: agg._sum.costMicros ?? 0,
+      inputTokens: agg._sum.inputTokens ?? 0,
+      outputTokens: agg._sum.outputTokens ?? 0,
+      sandboxSeconds: agg._sum.sandboxSeconds ?? 0,
+      events: agg._count ?? 0,
+    };
   }
 }

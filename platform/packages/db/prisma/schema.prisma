@@ -307,6 +307,9 @@ model Session {
   repo       String?
   status     SessionStatus @default(starting)
   transcript String?       @db.Text
+  // Agent-compute metering (plan Pillar 2): wall-clock the sandbox ran, for the usage bucket.
+  startedAt  DateTime?
+  endedAt    DateTime?
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
 
@@ -422,4 +425,34 @@ model Collection {
 
   @@index([orgId])
   @@index([agentId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Metering — "agent compute" usage bucket (plan Pillar 2). Every LLM call and
+// sandbox run is metered per org; costMicros (USD millionths) comes from the core
+// price table. Aggregated per period to enforce the bucket + bill overage.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum UsageKind {
+  llm
+  sandbox
+}
+
+/// One agent-compute meter event, org-scoped. `llm` rows carry token counts + model;
+/// `sandbox` rows carry wall-clock seconds. `costMicros` = USD millionths (int, exact).
+model UsageEvent {
+  id             String    @id @default(cuid())
+  orgId          String
+  at             DateTime  @default(now())
+  kind           UsageKind
+  model          String?
+  inputTokens    Int?
+  outputTokens   Int?
+  sandboxSeconds Int?
+  costMicros     Int       @default(0)
+  taskId         String?
+  agentId        String?
+
+  @@index([orgId])
+  @@index([orgId, at])
 }

@@ -17,6 +17,7 @@ import {
   type EngineeringContext,
   type EngineeringToolDeps,
 } from "./engineeringTools.js";
+import { meterLlm } from "./metering.js";
 
 /**
  * Absolute ceiling on ONE Engineering turn (model latency + every tool step). A hard
@@ -123,7 +124,8 @@ export async function runEngineering(
   deps: EngineeringDeps,
   input: EngineeringInput,
 ): Promise<EngineeringResult> {
-  const model = deps.model ?? getModel(input.modelId ?? recommendModel("coding", "text").id);
+  const modelId = input.modelId ?? recommendModel("coding", "text").id;
+  const model = deps.model ?? getModel(modelId);
   const ctx: EngineeringContext = {
     orgId: input.orgId,
     taskId: input.taskId,
@@ -161,6 +163,7 @@ export async function runEngineering(
     timeout: { totalMs: ENGINEERING_TURN_TIMEOUT_MS }, // ultimate ceiling — the turn can never hang
     experimental_telemetry: { isEnabled: true, functionId: "lu-engineering-turn", metadata: meta },
   });
+  void meterLlm(deps.store, input.orgId, modelId, result.usage, { taskId: input.taskId });
 
   // Fail clean: a tool that threw (e.g. a coding-step TIMEOUT) was swallowed into a tool-error
   // part, so re-throw here to end the run and let the Task go to `failed`.
@@ -184,6 +187,7 @@ export async function runEngineering(
       timeout: { totalMs: 120_000 }, // a plain closing reply — keep it short and bounded
       experimental_telemetry: { isEnabled: true, functionId: "lu-engineering-closing", metadata: meta },
     });
+    void meterLlm(deps.store, input.orgId, modelId, followup.usage, { taskId: input.taskId });
     reply = followup.text.trim();
   }
 
