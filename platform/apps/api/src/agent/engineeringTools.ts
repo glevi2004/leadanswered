@@ -199,6 +199,9 @@ export function renderEnvFile(): string {
   return lines.join("\n") + "\n";
 }
 
+/** The in-sandbox coding model, pinned so the largest cost center is deterministic + meterable. */
+const CODING_MODEL = "sonnet";
+
 /**
  * The EXACT command run inside the sandbox to drive the chosen coding agent. The
  * key is referenced as an env var (`$ANTHROPIC_API_KEY` — sourced from ENV_FILE),
@@ -210,7 +213,7 @@ function buildAgentCommand(agentKind: "claude_code" | "codex" | "shell", prompt:
     return [
       load,
       `command -v claude >/dev/null 2>&1 || npm i -g @anthropic-ai/claude-code`,
-      `cd ${REPO_DIR} && ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" claude -p "${shDq(prompt)}" --permission-mode acceptEdits`,
+      `cd ${REPO_DIR} && ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" claude --model ${CODING_MODEL} -p "${shDq(prompt)}" --permission-mode acceptEdits`,
     ].join("\n");
   }
   if (agentKind === "codex") {

@@ -5,6 +5,7 @@ import { startTelemetry } from "./telemetry.js";
 import { attachTerminalWs } from "./routes/terminal.js";
 import { startEngineeringWorker } from "./worker.js";
 import { useRedis } from "./queue.js";
+import { recommendModel } from "@leadanswered/core";
 
 async function main(): Promise<void> {
   assertEnv();
@@ -31,7 +32,7 @@ async function main(): Promise<void> {
     console.log(`[api] POST /api/engineering  — dispatch the Engineer (async → 202 { taskId })`);
     console.log(`[api] WS   /api/terminal     — cloud terminal (sandbox PTY bridge)`);
     console.log(
-      `[api] model: ${env.AI_PROVIDER}/${env.AI_MODEL} | store: ${usePostgres() ? "postgres" : "in-memory"} | worker: ${useRedis() ? "bullmq" : "in-process"} | e2b: ${useE2b() ? "on" : "off"} | vercel: ${useVercel() ? "on" : "off"}`,
+      `[api] models: lu=${recommendModel("orchestrator", "text").id} engineer=${recommendModel("coding", "text").id} | store: ${usePostgres() ? "postgres" : "in-memory"} | worker: ${useRedis() ? "bullmq" : "in-process"} | e2b: ${useE2b() ? "on" : "off"} | vercel: ${useVercel() ? "on" : "off"}`,
     );
   });
 }

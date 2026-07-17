@@ -76,7 +76,7 @@ export async function runOrchestrator(
   deps: OrchestratorDeps,
   input: OrchestratorInput,
 ): Promise<OrchestratorResult> {
-  const model = deps.model ?? getModel(recommendModel("orchestration", "text").id);
+  const model = deps.model ?? getModel(recommendModel("orchestrator", "text").id);
   const ctx: OrchestratorContext = { orgId: input.orgId, tasksCreated: [], actions: [] };
   const tools = orchestratorTools({ store: deps.store }, ctx);
   const system = systemPrompt();

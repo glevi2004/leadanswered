@@ -299,13 +299,11 @@ export function recommendModel(
 }
 
 function recommendTextModel(role: string): ModelRecommendation {
-  // Orchestration + hard engineering → the strongest reasoning model.
+  // Hard engineering / coding → the strongest reasoning model. Lu's orchestration
+  // now defaults to the balanced tier below (cost); the owner can upgrade her to
+  // Opus via the model picker.
   if (
     matches(role, [
-      "orchestrator",
-      "lu",
-      "planner",
-      "planning",
       "engineering",
       "engineer",
       "coding",
@@ -318,7 +316,7 @@ function recommendTextModel(role: string): ModelRecommendation {
     return {
       id: ID.opus,
       rationale:
-        "Orchestration and coding come out best on the strongest reasoning model (§5b/§3).",
+        "Hard engineering and coding come out best on the strongest reasoning model (§5b/§3).",
     };
   }
 
