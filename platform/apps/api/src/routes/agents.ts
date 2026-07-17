@@ -31,7 +31,6 @@ export function createLuRoute(deps: OrchestratorDeps) {
     const b = req.body ?? {};
     const orgId = b.orgId ?? b.org_id;
     const message = b.message;
-    const history = b.history;
     const modelId =
       typeof b.modelId === "string" && b.modelId.trim() ? b.modelId.trim() : undefined;
 
@@ -41,12 +40,33 @@ export function createLuRoute(deps: OrchestratorDeps) {
     }
 
     try {
+      // Working memory (plan Pillar 3): Lu's history comes from the PERSISTED thread, not the
+      // client — so she keeps context across sessions/reloads. Falls back to client history if the
+      // store hiccups; persisting the reply is best-effort and never blocks the turn.
+      let history = (b.history as OrchestratorMessage[] | undefined) ?? [];
+      let threadId: string | null = null;
+      try {
+        const thread = await deps.store.getOrCreateMainThread(orgId);
+        threadId = thread.id;
+        const prior = await deps.store.listRecentMessages(thread.id, 20);
+        if (prior.length) history = prior.map((m) => ({ role: m.role, content: m.content }));
+        await deps.store.appendMessage({ threadId: thread.id, orgId, role: "user", content: message });
+      } catch (memErr) {
+        console.error("[/api/lu] thread memory unavailable, using client history:", memErr);
+      }
+
       const result = await runOrchestrator(deps, {
         orgId,
         message,
-        history: history as OrchestratorMessage[] | undefined,
+        history,
         modelId,
       });
+
+      if (threadId) {
+        void deps.store
+          .appendMessage({ threadId, orgId, role: "assistant", content: result.reply })
+          .catch(() => {});
+      }
       res.status(200).json({
         reply: result.reply,
         tasksCreated: result.tasksCreated,

@@ -456,3 +456,37 @@ model UsageEvent {
   @@index([orgId])
   @@index([orgId, at])
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Memory — Tier 1: working memory (plan Pillar 3). The Lu conversation persisted
+// server-side so Lu keeps context across sessions (today it is client-only + lost
+// on reload). Tiers 2/3 (core + long-term Memory) build on this.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A persisted Lu conversation thread (org-scoped). v0: one "main" thread per org.
+model Thread {
+  id        String    @id @default(cuid())
+  orgId     String
+  title     String    @default("")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  messages  Message[]
+
+  @@index([orgId])
+}
+
+/// One turn in a Thread. `role` = user | assistant. Ordered by createdAt.
+model Message {
+  id        String   @id @default(cuid())
+  threadId  String
+  orgId     String
+  role      String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  thread    Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId])
+  @@index([orgId])
+}

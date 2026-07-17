@@ -39,7 +39,13 @@ import type {
   VercelConnectionInput,
   VercelConnectionRecord,
 } from "./types.js";
-import type { CreateUsageEventInput, UsageEventRecord, UsageSummary } from "./types.js";
+import type {
+  CreateUsageEventInput,
+  MessageRecord,
+  ThreadRecord,
+  UsageEventRecord,
+  UsageSummary,
+} from "./types.js";
 import { decryptTokenSafe, encryptToken } from "../crypto/tokens.js";
 
 /** Internal encrypted-at-rest row shapes (mirrors PrismaStore: token ciphertext only). */
@@ -84,6 +90,8 @@ export class MemoryStore implements Store {
   private deployments = new Map<string, DeploymentRecord>();
   private sessions = new Map<string, SessionRecord>();
   private usageEvents: UsageEventRecord[] = [];
+  private threads = new Map<string, ThreadRecord>();
+  private threadMessages: MessageRecord[] = [];
   private approvals = new Map<string, ApprovalRecord>();
   private canvasNodes = new Map<string, CanvasNodeRecord>();
   private edges = new Map<string, EdgeRecord>();
@@ -623,5 +631,38 @@ export class MemoryStore implements Store {
       sandboxSeconds: rows.reduce((s, e) => s + (e.sandboxSeconds ?? 0), 0),
       events: rows.length,
     };
+  }
+
+  // --- Memory: working (persisted conversation) ---
+  async getOrCreateMainThread(orgId: string): Promise<ThreadRecord> {
+    for (const t of this.threads.values()) if (t.orgId === orgId) return t;
+    const ts = this.now().toISOString();
+    const rec: ThreadRecord = { id: randomUUID(), orgId, title: "", createdAt: ts, updatedAt: ts };
+    this.threads.set(rec.id, rec);
+    return rec;
+  }
+
+  async appendMessage(input: {
+    threadId: string;
+    orgId: string;
+    role: "user" | "assistant";
+    content: string;
+  }): Promise<MessageRecord> {
+    const rec: MessageRecord = {
+      id: randomUUID(),
+      threadId: input.threadId,
+      orgId: input.orgId,
+      role: input.role,
+      content: input.content,
+      createdAt: this.now().toISOString(),
+    };
+    this.threadMessages.push(rec);
+    const t = this.threads.get(input.threadId);
+    if (t) t.updatedAt = rec.createdAt;
+    return rec;
+  }
+
+  async listRecentMessages(threadId: string, limit: number): Promise<MessageRecord[]> {
+    return this.threadMessages.filter((m) => m.threadId === threadId).slice(-limit);
   }
 }

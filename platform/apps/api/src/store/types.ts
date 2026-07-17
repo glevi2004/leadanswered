@@ -391,6 +391,24 @@ export interface UsageSummary {
   events: number;
 }
 
+/** A persisted Lu conversation thread (plan Pillar 3 — working memory). */
+export interface ThreadRecord {
+  id: string;
+  orgId: string;
+  title: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+/** One persisted turn in a Thread. */
+export interface MessageRecord {
+  id: string;
+  threadId: string;
+  orgId: string;
+  role: "user" | "assistant";
+  content: string;
+  createdAt?: string;
+}
+
 /** Persistence port. Implemented by MemoryStore (demo/tests) and PrismaStore (production). */
 export interface Store {
   // ─── Lu Computer agent backend (AGENTS-BACKEND.md §2/§3) ───────────────────
@@ -478,4 +496,17 @@ export interface Store {
   createUsageEvent(input: CreateUsageEventInput): Promise<UsageEventRecord>;
   /** Sum an org's metered compute since an ISO timestamp (the period start). */
   sumUsageSince(orgId: string, sinceISO: string): Promise<UsageSummary>;
+
+  // --- Memory: working (persisted conversation, plan Pillar 3) ---
+  /** The org's single main Lu thread — created on first use. */
+  getOrCreateMainThread(orgId: string): Promise<ThreadRecord>;
+  /** Append a turn to a thread (and bump its updatedAt). */
+  appendMessage(input: {
+    threadId: string;
+    orgId: string;
+    role: "user" | "assistant";
+    content: string;
+  }): Promise<MessageRecord>;
+  /** The most recent `limit` messages of a thread, oldest-first (for prompt history). */
+  listRecentMessages(threadId: string, limit: number): Promise<MessageRecord[]>;
 }

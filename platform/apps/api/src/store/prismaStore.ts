@@ -39,7 +39,13 @@ import type {
   VercelConnectionInput,
   VercelConnectionRecord,
 } from "./types.js";
-import type { CreateUsageEventInput, UsageEventRecord, UsageSummary } from "./types.js";
+import type {
+  CreateUsageEventInput,
+  MessageRecord,
+  ThreadRecord,
+  UsageEventRecord,
+  UsageSummary,
+} from "./types.js";
 import { decryptTokenSafe, encryptToken } from "../crypto/tokens.js";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -764,5 +770,64 @@ export class PrismaStore implements Store {
       sandboxSeconds: agg._sum.sandboxSeconds ?? 0,
       events: agg._count ?? 0,
     };
+  }
+
+  // --- Memory: working (persisted conversation) ---
+  async getOrCreateMainThread(orgId: string): Promise<ThreadRecord> {
+    const existing = await this.db.thread.findFirst({
+      where: { orgId },
+      orderBy: { createdAt: "asc" },
+    });
+    const t = existing ?? (await this.db.thread.create({ data: { orgId, title: "" } }));
+    return {
+      id: t.id,
+      orgId: t.orgId,
+      title: t.title,
+      createdAt: iso(t.createdAt),
+      updatedAt: iso(t.updatedAt),
+    };
+  }
+
+  async appendMessage(input: {
+    threadId: string;
+    orgId: string;
+    role: "user" | "assistant";
+    content: string;
+  }): Promise<MessageRecord> {
+    const m = await this.db.message.create({
+      data: {
+        threadId: input.threadId,
+        orgId: input.orgId,
+        role: input.role,
+        content: input.content,
+      },
+    });
+    await this.db.thread
+      .update({ where: { id: input.threadId }, data: { updatedAt: new Date() } })
+      .catch(() => {});
+    return {
+      id: m.id,
+      threadId: m.threadId,
+      orgId: m.orgId,
+      role: m.role as "user" | "assistant",
+      content: m.content,
+      createdAt: iso(m.createdAt),
+    };
+  }
+
+  async listRecentMessages(threadId: string, limit: number): Promise<MessageRecord[]> {
+    const rows = await this.db.message.findMany({
+      where: { threadId },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+    });
+    return rows.reverse().map((m) => ({
+      id: m.id,
+      threadId: m.threadId,
+      orgId: m.orgId,
+      role: m.role as "user" | "assistant",
+      content: m.content,
+      createdAt: iso(m.createdAt),
+    }));
   }
 }
