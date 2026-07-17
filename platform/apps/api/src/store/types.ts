@@ -409,6 +409,25 @@ export interface MessageRecord {
   createdAt?: string;
 }
 
+/** Durable org knowledge for Lu (plan Pillar 3, Tiers 2/3 — core + long-term memory). */
+export interface MemoryRecord {
+  id: string;
+  orgId: string;
+  tier: "core" | "longterm";
+  key: string | null;
+  content: string;
+  source: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+export interface UpsertMemoryInput {
+  orgId: string;
+  tier: "core" | "longterm";
+  key?: string | null;
+  content: string;
+  source?: string;
+}
+
 /** Persistence port. Implemented by MemoryStore (demo/tests) and PrismaStore (production). */
 export interface Store {
   // ─── Lu Computer agent backend (AGENTS-BACKEND.md §2/§3) ───────────────────
@@ -509,4 +528,10 @@ export interface Store {
   }): Promise<MessageRecord>;
   /** The most recent `limit` messages of a thread, oldest-first (for prompt history). */
   listRecentMessages(threadId: string, limit: number): Promise<MessageRecord[]>;
+
+  // --- Memory: core + long-term (plan Pillar 3, Tiers 2/3) ---
+  /** Upsert a memory: with a `key`, replace the existing (orgId,tier,key); else insert new. */
+  upsertMemory(input: UpsertMemoryInput): Promise<MemoryRecord>;
+  /** The org's memories for a tier, newest-first. */
+  listMemory(orgId: string, tier: "core" | "longterm"): Promise<MemoryRecord[]>;
 }

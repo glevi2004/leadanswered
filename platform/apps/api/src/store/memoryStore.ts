@@ -41,8 +41,10 @@ import type {
 } from "./types.js";
 import type {
   CreateUsageEventInput,
+  MemoryRecord,
   MessageRecord,
   ThreadRecord,
+  UpsertMemoryInput,
   UsageEventRecord,
   UsageSummary,
 } from "./types.js";
@@ -92,6 +94,7 @@ export class MemoryStore implements Store {
   private usageEvents: UsageEventRecord[] = [];
   private threads = new Map<string, ThreadRecord>();
   private threadMessages: MessageRecord[] = [];
+  private memories: MemoryRecord[] = [];
   private approvals = new Map<string, ApprovalRecord>();
   private canvasNodes = new Map<string, CanvasNodeRecord>();
   private edges = new Map<string, EdgeRecord>();
@@ -664,5 +667,39 @@ export class MemoryStore implements Store {
 
   async listRecentMessages(threadId: string, limit: number): Promise<MessageRecord[]> {
     return this.threadMessages.filter((m) => m.threadId === threadId).slice(-limit);
+  }
+
+  // --- Memory: core + long-term ---
+  async upsertMemory(input: UpsertMemoryInput): Promise<MemoryRecord> {
+    const ts = this.now().toISOString();
+    if (input.key) {
+      const existing = this.memories.find(
+        (m) => m.orgId === input.orgId && m.tier === input.tier && m.key === input.key,
+      );
+      if (existing) {
+        existing.content = input.content;
+        existing.source = input.source ?? existing.source;
+        existing.updatedAt = ts;
+        return existing;
+      }
+    }
+    const rec: MemoryRecord = {
+      id: randomUUID(),
+      orgId: input.orgId,
+      tier: input.tier,
+      key: input.key ?? null,
+      content: input.content,
+      source: input.source ?? "",
+      createdAt: ts,
+      updatedAt: ts,
+    };
+    this.memories.push(rec);
+    return rec;
+  }
+
+  async listMemory(orgId: string, tier: "core" | "longterm"): Promise<MemoryRecord[]> {
+    return this.memories
+      .filter((m) => m.orgId === orgId && m.tier === tier)
+      .sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""));
   }
 }

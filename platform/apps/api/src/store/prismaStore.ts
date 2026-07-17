@@ -41,8 +41,10 @@ import type {
 } from "./types.js";
 import type {
   CreateUsageEventInput,
+  MemoryRecord,
   MessageRecord,
   ThreadRecord,
+  UpsertMemoryInput,
   UsageEventRecord,
   UsageSummary,
 } from "./types.js";
@@ -828,6 +830,67 @@ export class PrismaStore implements Store {
       role: m.role as "user" | "assistant",
       content: m.content,
       createdAt: iso(m.createdAt),
+    }));
+  }
+
+  // --- Memory: core + long-term ---
+  async upsertMemory(input: UpsertMemoryInput): Promise<MemoryRecord> {
+    let row;
+    if (input.key) {
+      const existing = await this.db.memory.findFirst({
+        where: { orgId: input.orgId, tier: input.tier as any, key: input.key },
+      });
+      row = existing
+        ? await this.db.memory.update({
+            where: { id: existing.id },
+            data: { content: input.content, source: input.source ?? "" },
+          })
+        : await this.db.memory.create({
+            data: {
+              orgId: input.orgId,
+              tier: input.tier as any,
+              key: input.key,
+              content: input.content,
+              source: input.source ?? "",
+            },
+          });
+    } else {
+      row = await this.db.memory.create({
+        data: {
+          orgId: input.orgId,
+          tier: input.tier as any,
+          key: null,
+          content: input.content,
+          source: input.source ?? "",
+        },
+      });
+    }
+    return {
+      id: row.id,
+      orgId: row.orgId,
+      tier: row.tier as "core" | "longterm",
+      key: row.key ?? null,
+      content: row.content,
+      source: row.source,
+      createdAt: iso(row.createdAt),
+      updatedAt: iso(row.updatedAt),
+    };
+  }
+
+  async listMemory(orgId: string, tier: "core" | "longterm"): Promise<MemoryRecord[]> {
+    const rows = await this.db.memory.findMany({
+      where: { orgId, tier: tier as any },
+      orderBy: { updatedAt: "desc" },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      orgId: r.orgId,
+      tier: r.tier as "core" | "longterm",
+      key: r.key ?? null,
+      content: r.content,
+      source: r.source,
+      createdAt: iso(r.createdAt),
+      updatedAt: iso(r.updatedAt),
     }));
   }
 }

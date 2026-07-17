@@ -115,6 +115,18 @@ export async function provisionDepartments(
     status: "idle",
   });
 
+  // Seed Lu's CORE memory (plan Pillar 3) so she knows the business from her very first turn —
+  // not just the Engineering department/agent (which the orchestrator never reads).
+  if (business) {
+    await store.upsertMemory({
+      orgId,
+      tier: "core",
+      key: "business",
+      content: `Business: ${business}`,
+      source: "onboarding",
+    });
+  }
+
   const departments = await store.listDepartments(orgId);
   return { departments, engineeringAgent };
 }

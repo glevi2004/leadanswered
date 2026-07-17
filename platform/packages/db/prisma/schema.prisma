@@ -490,3 +490,26 @@ model Message {
   @@index([threadId])
   @@index([orgId])
 }
+
+enum MemoryTier {
+  core
+  longterm
+}
+
+/// Durable org knowledge Lu draws on (plan Pillar 3, Tiers 2/3). `core` = compact "what Lu knows
+/// about you + how she has worked" injected into her system prompt every turn; `longterm` = durable
+/// facts (roadmaps, prefs, integrations) retrieved as needed. `key` lets a fact be upserted in place;
+/// `source` records where it came from (onboarding | consolidation | user | ...).
+model Memory {
+  id        String     @id @default(cuid())
+  orgId     String
+  tier      MemoryTier @default(core)
+  key       String?
+  content   String     @db.Text
+  source    String     @default("")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([orgId])
+  @@index([orgId, tier])
+}

@@ -7,6 +7,7 @@ import {
   type OrchestratorContext,
 } from "./orchestratorTools.js";
 import { meterLlm } from "./metering.js";
+import { resolveOrgMemory } from "./orgMemory.js";
 
 /**
  * Lu the ORCHESTRATOR (AGENTS-BACKEND §3) — the one planning brain of the Lu
@@ -83,7 +84,10 @@ export async function runOrchestrator(
   const model = deps.model ?? getModel(modelId);
   const ctx: OrchestratorContext = { orgId: input.orgId, tasksCreated: [], actions: [] };
   const tools = orchestratorTools({ store: deps.store }, ctx);
-  const system = systemPrompt();
+  // Core/long-term memory injection (plan Pillar 3): prepend what Lu knows about this business so
+  // she has context from turn one. Best-effort — "" when there is nothing (or on any failure).
+  const memory = await resolveOrgMemory(deps.store, input.orgId);
+  const system = memory ? `${systemPrompt()}\n\n${memory}` : systemPrompt();
 
   const messages = [
     ...(input.history ?? []),
