@@ -177,9 +177,28 @@ fed by the same data:
    Approve = merge-to-prod-DB. Never buried in a transcript.
 6. *Railway* — a fourth provider row in the connect panel + deploy target shown on the project page.
 
+**The canvas + the Engineering department app (the workspace leg):**
+- **Agents visibly RUN.** `Agent.status` (working/idle) is real now — the Engineer's canvas node
+  pulses/spins while a build runs, captioned with the latest journal event ("coding finished on
+  grovebox-site…"). Lu's node shows her phase during a turn. The agent-updates pill keeps its
+  Review click-through. No more roster that always says idle.
+- **Department Home** = the Projects list (Lu-built sites + imported repos, one list — same source
+  as Company→Projects); each row → the project page (repo · Vercel · repo profile · build history).
+- **Department Workplace** = EXECUTES, not just views: task selector rows open the Task Detail;
+  the preview iframe stays; **Request changes becomes REAL** (prefills the composer with the build
+  context and jumps to Lu — kills the Soon label); Publish stays gated; Retry appears for failed
+  builds. Revert-all stays Soon until a rollback endpoint exists.
+- **Database console** = wire the four write actions whose backend endpoints already exist
+  (generate/rotate secret key · new bucket · add redirect URL · add user) behind confirm dialogs —
+  they've been disabled-with-Soon since the audit; the api routes are live.
+- **"Watch the build" (later, deluxe):** attach the canvas terminal to the BUILD's sandbox pty so
+  you can literally watch the coding agent type — today build sandboxes and terminal sandboxes are
+  separate; needs an attach path on the Sandbox port. Tracked, not step-0.
+
 **Kill-list (the current mess this replaces):** the chat build tracker's ad-hoc fragments grow into
 the Card; Home stays to-do-only (done); the Tasks tab becomes Rows that open the Page; the
-department Workplace's task selector links to the Page instead of duplicating it.
+department Workplace's task selector links to the Page instead of duplicating it; the always-idle
+agent roster and the decorative canvas states go live or go away.
 
 ## §8 — Build order (slots into harness-spec P1)
 

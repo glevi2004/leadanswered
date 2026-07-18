@@ -146,6 +146,12 @@ capability without UI.
   panel: plan · acceptance checklist w/ verdicts · events timeline · diff · preview · approvals ·
   Retry/Request-changes); Tasks tab + Home rows + workplace selector all click through to it. Ships
   FIRST — every later step renders into it.
+- [ ] ⬜ **0b. The workspace goes LIVE** (§8b canvas/department leg) — agent nodes pulse while
+  `Agent.status=working` + latest-event caption (the status is real now, the UI never reads it);
+  Workplace **Request changes becomes real** (prefill composer w/ build context → Lu) + Retry on
+  failed builds; department Home = the unified Projects list; console's four existing write
+  endpoints get their buttons (confirm dialogs). Later, deluxe: attach the canvas terminal to the
+  BUILD sandbox's pty ("watch the coding agent type") — needs an attach path on the Sandbox port.
 
 - [ ] ⬜ **1. GitHub sandbox-token downscoping + branch protection** — mint the sandbox a per-task token (ONE repo, `contents:write` only, 1h — GitHub's mint API takes `repositories` + `permissions`); full-perm token stays server-side (create repo, gated merge). Protect `main` at repo creation (block force-push/deletion, no required reviews so the gated merge still works). Non-negotiable before Lu edits repos we care about ([harness-spec](./docs/harness-spec.md) §3).
 - [ ] ⬜ **2. Existing-project import + REPO PROFILES** — point Lu at an EXISTING repo (the App install scopes which) + link its existing Vercel project; plus a per-repo profile (setup/install commands · typecheck/test commands · env needs) so the sandbox can build a real monorepo — Devin's "environment snapshot", our per-Site record. The rest of the pipeline is repo-agnostic already.
