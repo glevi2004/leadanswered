@@ -109,6 +109,19 @@ export async function finishSignup(input: {
     console.error("[finishSignup] context seed error:", e);
   }
 
+  // LU SPEAKS FIRST (roadmap Chapter 0): fire the kickoff turn so her personalized opener
+  // is already in the thread when the canvas loads. Idempotent server-side (empty-thread
+  // check) and best-effort — the dock's empty-thread fallback re-fires it if this misses.
+  try {
+    await fetch(`${API_BASE}/api/lu/kickoff`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...PROXY_HEADERS },
+      body: JSON.stringify({ orgId: organization.id }),
+    });
+  } catch (e) {
+    console.error("[finishSignup] kickoff error:", e);
+  }
+
   return {};
 }
 

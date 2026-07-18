@@ -3,7 +3,7 @@
 import * as React from "react";
 import { usePathname } from "next/navigation";
 import { toast } from "sonner";
-import type { Approval, SarahAction, SarahMessage } from "@/lib/data/shared";
+import type { Approval, SarahAction, SarahChoices, SarahMessage } from "@/lib/data/shared";
 import { MODULES, surfaceForPath } from "@/lib/data/registry";
 import { DEFAULT_LU_MODEL } from "@/lib/lu-models";
 import { CAPABILITIES } from "@/lib/workspace/capabilities";
@@ -100,6 +100,9 @@ interface SarahState {
   /** clarifying questions Lu raised (ask_user) — surfaced on Home until answered/dismissed */
   clarifications: Clarification[];
   dismissClarification: (id: string) => void;
+  /** THE OPEN FRONTIER (roadmap P1): the latest Lu message's unanswered choices — the one
+   *  source for the thread's chips AND Home's next-moves. Null when nothing is offered. */
+  openChoices: (SarahChoices & { messageId: string }) | null;
   sendMessage: (body: string) => void;
   /** Apollo-style "New chat": a fresh conversation; approvals/escalations untouched */
   startNewChat: () => void;
@@ -126,6 +129,22 @@ export function useSarah(): SarahState {
 
 let idCounter = 0;
 const nextId = () => `local_${++idCounter}`;
+
+/** Parse a persisted `Message.meta.choices` payload into SarahChoices (defensive), or null. */
+function choicesFromMeta(meta: Record<string, unknown> | null | undefined): SarahChoices | null {
+  const c = meta?.choices;
+  if (!c || typeof c !== "object") return null;
+  const cc = c as Record<string, unknown>;
+  const options = Array.isArray(cc.options)
+    ? cc.options.filter((o): o is string => typeof o === "string" && o.trim() !== "")
+    : [];
+  if (options.length === 0) return null;
+  return {
+    options,
+    ...(typeof cc.question === "string" ? { question: cc.question } : {}),
+    ...(typeof cc.recommended === "number" ? { recommended: Math.trunc(cc.recommended) } : {}),
+  };
+}
 
 export function SarahProvider({
   ownerName,
@@ -207,40 +226,61 @@ export function SarahProvider({
     if (hydratedRef.current) return;
     hydratedRef.current = true;
     let alive = true;
+
+    type ServerMsg = {
+      id: string;
+      role: string;
+      content: string;
+      createdAt?: string;
+      meta?: Record<string, unknown> | null;
+    };
+    const fetchHistory = async (): Promise<ServerMsg[]> => {
+      const res = await fetch("/api/lu/history", { cache: "no-store" });
+      if (!res.ok) return [];
+      const data = (await res.json()) as { messages?: ServerMsg[] };
+      return Array.isArray(data.messages) ? data.messages : [];
+    };
+    const adopt = (msgs: ServerMsg[]) => {
+      for (const m of msgs) seenServerIds.current.add(m.id);
+      const mapped: SarahMessage[] = msgs.map((m) => ({
+        id: `srv_${m.id}`,
+        at: m.createdAt ?? new Date().toISOString(),
+        role: m.role === "user" ? ("owner" as const) : ("sarah" as const),
+        body: m.content,
+        via: "app" as const,
+        // Persisted structure (roadmap P1): cards + choice chips survive reload.
+        ...(m.meta?.card === "connect" ? { card: "connect" as const } : {}),
+        ...(choicesFromMeta(m.meta) ? { choices: choicesFromMeta(m.meta)! } : {}),
+      }));
+      setChats((cs) =>
+        cs.map((c) =>
+          c.id === "chat_main" && !c.messages.some((m) => m.role === "owner")
+            ? {
+                ...c,
+                messages: mapped,
+                title: mapped.find((x) => x.role === "owner")?.body.slice(0, 24) ?? c.title,
+              }
+            : c,
+        ),
+      );
+    };
+
     (async () => {
       try {
-        const res = await fetch("/api/lu/history", { cache: "no-store" });
-        if (!res.ok || !alive) return;
-        const data = (await res.json()) as {
-          messages?: {
-            id: string;
-            role: string;
-            content: string;
-            createdAt?: string;
-            meta?: Record<string, unknown> | null;
-          }[];
-        };
-        const msgs = Array.isArray(data.messages) ? data.messages : [];
+        let msgs = await fetchHistory();
+        if (!alive) return;
+        // LU SPEAKS FIRST (roadmap Chapter 0): an empty thread means the owner has never
+        // been greeted — fire the server-side kickoff (idempotent there) and re-read.
+        if (msgs.length === 0) {
+          try {
+            const kick = await fetch("/api/lu/kickoff", { method: "POST" });
+            if (kick.ok) msgs = await fetchHistory();
+          } catch {
+            /* the empty-state copy remains as the fallback */
+          }
+        }
         if (!alive || msgs.length === 0) return;
-        for (const m of msgs) seenServerIds.current.add(m.id);
-        const mapped: SarahMessage[] = msgs.map((m) => ({
-          id: `srv_${m.id}`,
-          at: m.createdAt ?? new Date().toISOString(),
-          role: m.role === "user" ? ("owner" as const) : ("sarah" as const),
-          body: m.content,
-          via: "app" as const,
-        }));
-        setChats((cs) =>
-          cs.map((c) =>
-            c.id === "chat_main" && !c.messages.some((m) => m.role === "owner")
-              ? {
-                  ...c,
-                  messages: mapped,
-                  title: mapped.find((x) => x.role === "owner")?.body.slice(0, 24) ?? c.title,
-                }
-              : c,
-          ),
-        );
+        adopt(msgs);
       } catch {
         /* keep the greeting — hydration is best-effort */
       }
@@ -333,6 +373,8 @@ export function SarahProvider({
               role: "sarah",
               body: m.content,
               via: "app",
+              ...(m.meta.card === "connect" ? { card: "connect" as const } : {}),
+              ...(choicesFromMeta(m.meta) ? { choices: choicesFromMeta(m.meta)! } : {}),
             });
           }
         }
@@ -432,6 +474,27 @@ export function SarahProvider({
               data.actions.some(
                 (a) => !!a && typeof a === "object" && (a as { type?: unknown }).type === "show_connect",
               );
+            // MOVES (roadmap P1): an ask_user with options becomes tappable chips ON the
+            // message (the server persisted the same shape in meta — reload agrees).
+            const askWithOptions = Array.isArray(data.actions)
+              ? (data.actions.find(
+                  (a) =>
+                    !!a &&
+                    typeof a === "object" &&
+                    (a as { type?: unknown }).type === "ask_user" &&
+                    Array.isArray((a as { options?: unknown }).options) &&
+                    ((a as { options?: unknown[] }).options?.length ?? 0) > 0,
+                ) as { question: string; options: string[]; recommended?: number } | undefined)
+              : undefined;
+            const choices: SarahChoices | undefined = askWithOptions
+              ? {
+                  question: askWithOptions.question,
+                  options: askWithOptions.options,
+                  ...(typeof askWithOptions.recommended === "number"
+                    ? { recommended: askWithOptions.recommended }
+                    : {}),
+                }
+              : undefined;
             if (data.reply?.trim()) {
               appendTo(chatId, {
                 id: nextId(),
@@ -440,6 +503,7 @@ export function SarahProvider({
                 body: data.reply.trim(),
                 via: "app",
                 ...(showConnect ? { card: "connect" as const } : {}),
+                ...(choices ? { choices } : {}),
               });
             } else if (showConnect) {
               appendTo(chatId, {
@@ -459,15 +523,18 @@ export function SarahProvider({
               // shows queued → building → preview → needs-approval, ending at PublishApprovals.
               setBuilds((prev) => [...prev, { id: nextId(), chatId, at: new Date().toISOString(), taskIds }]);
             }
-            // ask_user questions come back inline (non-blocking) — surface them on Home as
-            // "Needs clarification" until the owner answers or dismisses them.
+            // ask_user WITHOUT options still surfaces on Home as "Needs clarification"
+            // (option questions are fully handled by the chips on the message + Home's
+            // openChoices — don't double-render them).
             const asks = Array.isArray(data.actions)
               ? data.actions.filter(
                   (a): a is { type: string; question: string; options?: string[] } =>
                     !!a &&
                     typeof a === "object" &&
                     (a as { type?: unknown }).type === "ask_user" &&
-                    typeof (a as { question?: unknown }).question === "string",
+                    typeof (a as { question?: unknown }).question === "string" &&
+                    !(Array.isArray((a as { options?: unknown }).options) &&
+                      ((a as { options?: unknown[] }).options?.length ?? 0) > 0),
                 )
               : [];
             if (asks.length > 0) {
@@ -547,6 +614,14 @@ export function SarahProvider({
   const surface = surfaceForPath(pathname ?? "");
   const chips = surface ? MODULES[surface].sarahChips : MODULES.home.sarahChips;
 
+  // The open frontier: the ACTIVE chat's last message, when it's a Lu turn carrying
+  // choices — an owner reply (typed or tapped) after it closes the offer.
+  const lastMsg = messages.at(-1);
+  const openChoices =
+    lastMsg && lastMsg.role === "sarah" && lastMsg.choices
+      ? { ...lastMsg.choices, messageId: lastMsg.id }
+      : null;
+
   const value: SarahState = {
     ownerName,
     assistantName,
@@ -577,6 +652,7 @@ export function SarahProvider({
     setSelectedModel,
     clarifications,
     dismissClarification: (id) => setClarifications((prev) => prev.filter((c) => c.id !== id)),
+    openChoices,
     sendMessage,
     startNewChat,
     approve: (id, editedPreview) => resolveApproval(id, "approved", editedPreview),

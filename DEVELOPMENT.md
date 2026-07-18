@@ -53,6 +53,13 @@ real, persistent objects in the conversation.
 exactly once, reload-safe); a question's chips render under her message, a tap sends it, and the
 chosen chip survives reload; Home shows the same moves.
 
+**Status (2026-07-18): BUILT — verifies with the P2 fresh-org pass.** `meta.choices` persisted on
+assistant turns (`metaFromActions` in routes/agents.ts; `ask_user` gained `recommended`); hydration +
+live-merge map meta → chips/cards; `SarahThread`'s ChoiceBar (tappable on the latest turn, chosen-
+highlight history on older ones); Home renders the same `openChoices` frontier; `POST /api/lu/kickoff`
+(thread-empty idempotent, real personalized turn, `meta.source=system kind=kickoff`) fired from
+finishSignup + the dock's empty-thread fallback; the MOVES RULE added to Lu's prompt.
+
 ## NEXT (the P-pipeline + the standing unblock)
 
 1. **P2 — the interview tree via prompt engineering.** `skills/onboarding.md` rewritten as roadmap

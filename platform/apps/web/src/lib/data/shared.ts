@@ -56,9 +56,21 @@ export interface Approval {
   status: "pending" | "approved" | "declined" | "expired";
 }
 
+/** MOVES on a Lu turn (roadmap P1 — the choice chips): a question + 2-4 tappable options,
+ * one optionally Recommended. Persisted server-side in `Message.meta.choices`, so chips
+ * survive reload; the LATEST Lu message renders them interactive, older turns show the
+ * chosen option. */
+export interface SarahChoices {
+  question?: string;
+  options: string[];
+  /** 0-based index of the option Lu recommends (rendered as the primary chip). */
+  recommended?: number;
+}
+
 /** One message in THE owner conversation (SMS + widget + /sarah are one thread).
  * `card` attaches a structured UI card to a Lu turn (docs/product.md — Lu→UI actions):
- * "connect" renders the inline connect form under her message. */
+ * "connect" renders the inline connect form under her message; `choices` renders the
+ * tappable move chips. */
 export interface SarahMessage {
   id: string;
   at: string; // ISO
@@ -66,5 +78,6 @@ export interface SarahMessage {
   body: string;
   via: "sms" | "app";
   card?: "connect";
+  choices?: SarahChoices;
 }
 

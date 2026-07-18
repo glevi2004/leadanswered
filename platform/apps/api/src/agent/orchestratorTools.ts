@@ -34,7 +34,7 @@ export interface OrchestratorToolDeps {
  * rendered inline as part of Lu's reply.
  */
 export type OrchestratorAction =
-  | { type: "ask_user"; question: string; options?: string[] }
+  | { type: "ask_user"; question: string; options?: string[]; recommended?: number }
   | { type: "show_connect" };
 
 /**
@@ -386,15 +386,25 @@ export function orchestratorTools(deps: OrchestratorToolDeps, ctx: OrchestratorC
         options: z
           .array(z.string())
           .optional()
-          .describe("2-5 suggested answers, if it's a choice — rendered as buttons in the Lu dock"),
+          .describe("2-4 suggested answers, if it's a choice — rendered as tappable chips under your reply"),
+        recommended: z
+          .number()
+          .int()
+          .optional()
+          .describe("0-based index of the option YOU recommend (rendered as the primary chip) — set it whenever you have a view"),
       }),
-      execute: async ({ question, options }) => {
-        actions.push({ type: "ask_user", question, ...(options ? { options } : {}) });
+      execute: async ({ question, options, recommended }) => {
+        actions.push({
+          type: "ask_user",
+          question,
+          ...(options ? { options } : {}),
+          ...(typeof recommended === "number" ? { recommended } : {}),
+        });
         await recordEvent(deps.store, {
           orgId: ctx.orgId,
           kind: "question_asked",
           message: question,
-          payload: options ? { options } : undefined,
+          payload: options ? { options, ...(typeof recommended === "number" ? { recommended } : {}) } : undefined,
         });
         return { asked: true as const, question };
       },

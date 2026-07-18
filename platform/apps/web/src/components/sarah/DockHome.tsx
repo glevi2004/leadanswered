@@ -15,8 +15,10 @@ import { useConnectStatus, suggestNext } from "./dock-data";
  * no task list, no inline panels here: one surface, one job.
  */
 export function DockHome() {
-  const { ownerName, widgetOpen, clarifications, dismissClarification, setDockTab, sendMessage, openWidget } =
-    useSarah();
+  const {
+    ownerName, widgetOpen, clarifications, dismissClarification, openChoices,
+    setDockTab, sendMessage, openWidget,
+  } = useSarah();
   const { tasks, loaded } = useDockData(widgetOpen);
   const { sites } = useSites(widgetOpen);
   const { github, vercel, supabase, loaded: connectLoaded } = useConnectStatus(widgetOpen);
@@ -40,7 +42,42 @@ export function DockHome() {
       <h2 className="text-lg font-semibold text-foreground">Good day, {ownerName}</h2>
       <p className="mt-1 text-sm text-muted-foreground">Here&rsquo;s what to do next.</p>
 
-      {/* Needs clarification — Lu's non-blocking questions (ask_user); options answer in one click. */}
+      {/* THE OPEN FRONTIER (roadmap P1): the same moves the chat's chips show — Lu's
+          latest unanswered question, one tap to answer. One frontier, two surfaces. */}
+      {openChoices && (
+        <div className="mt-4 rounded-xl border border-primary/30 bg-primary/[0.05] p-3">
+          <div className="flex items-start gap-2">
+            <MessageCircleQuestion className="mt-0.5 size-4 shrink-0 text-primary" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-primary">Lu is asking</p>
+              {openChoices.question && (
+                <p className="mt-0.5 text-sm text-foreground">{openChoices.question}</p>
+              )}
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {openChoices.options.map((o, i) => (
+                  <button
+                    key={o}
+                    type="button"
+                    onClick={() => {
+                      sendMessage(o);
+                      setDockTab("lu");
+                    }}
+                    className={
+                      openChoices.recommended === i
+                        ? "rounded-full border border-transparent bg-primary px-2.5 py-0.5 text-xs font-medium text-primary-foreground"
+                        : "rounded-full border bg-background px-2.5 py-0.5 text-xs text-foreground transition-colors hover:bg-muted"
+                    }
+                  >
+                    {o}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Needs clarification — Lu's optionless questions (ask_user); answered in the chat. */}
       {clarifications.length > 0 && (
         <div className="mt-4 space-y-2">
           {clarifications.map((c) => (

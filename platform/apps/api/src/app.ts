@@ -8,7 +8,7 @@ import {
   createSeedContextRoute,
   createOnboardingStatusRoute,
 } from "./routes/onboarding.js";
-import { createLuRoute, createEngineeringRoute } from "./routes/agents.js";
+import { createLuRoute, createLuKickoffRoute, createEngineeringRoute } from "./routes/agents.js";
 import {
   createListTasksRoute,
   createListArtifactsRoute,
@@ -120,6 +120,7 @@ export async function createApp(overrides: BuildDeps = {}): Promise<Express> {
 
   // Lu Computer — the agents over HTTP: the Lu orchestrator + the (async) Engineering agent.
   app.post("/api/lu", createLuRoute(deps));
+  app.post("/api/lu/kickoff", createLuKickoffRoute(deps));
   app.post("/api/engineering", createEngineeringRoute(deps));
 
   // Lu Computer — read routes the canvas polls to WATCH the Engineer work.

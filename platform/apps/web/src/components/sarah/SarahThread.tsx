@@ -1,13 +1,75 @@
 "use client";
 
 import * as React from "react";
-import type { SarahMessage } from "@/lib/data/shared";
+import { Sparkles } from "lucide-react";
+import type { SarahChoices, SarahMessage } from "@/lib/data/shared";
 import { LuBuildTracker } from "./LuBuildTracker";
 import { LuOnboardingTracker } from "./LuOnboardingTracker";
 import { LuDocsTracker } from "./LuDocsTracker";
 import { ConnectCard } from "./ConnectCard";
 import { useSarah } from "./sarah-context";
 import { cn } from "@/lib/utils";
+
+/**
+ * THE CHOICE BAR (roadmap P1 — moves live on the message). Under the LATEST Lu turn the
+ * chips are tappable — one primary (Recommended) — and a tap sends that option as the
+ * owner's message; the composer stays live (chips are an offer, not a cage). On OLDER
+ * turns the chips render muted, with the option the owner actually picked highlighted —
+ * the dialogue-history feel. Persisted in `Message.meta.choices`, so all of this is
+ * reload-safe.
+ */
+function ChoiceBar({
+  choices,
+  live,
+  chosen,
+  onPick,
+}: {
+  choices: SarahChoices;
+  live: boolean;
+  /** the owner's reply text that answered this turn (older turns) — highlights a match */
+  chosen?: string;
+  onPick: (option: string) => void;
+}) {
+  return (
+    <div className="mt-2 flex flex-wrap gap-1.5">
+      {choices.options.map((o, i) => {
+        const isRec = choices.recommended === i;
+        const isChosen = !live && chosen !== undefined && chosen.trim() === o.trim();
+        if (live) {
+          return (
+            <button
+              key={o}
+              type="button"
+              onClick={() => onPick(o)}
+              className={cn(
+                "flex items-center gap-1 rounded-full border px-3 py-1.5 text-[12.5px] font-medium transition-colors",
+                isRec
+                  ? "btn-glow border-transparent bg-primary text-primary-foreground"
+                  : "bg-background text-foreground hover:bg-muted",
+              )}
+            >
+              {isRec && <Sparkles className="size-3" />}
+              {o}
+            </button>
+          );
+        }
+        return (
+          <span
+            key={o}
+            className={cn(
+              "rounded-full border px-3 py-1 text-[11.5px]",
+              isChosen
+                ? "border-primary/40 bg-primary/10 font-medium text-primary"
+                : "text-muted-foreground/60",
+            )}
+          >
+            {o}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
 
 /** Lu's mark — the small pixel-glyph badge (NOT the big neu circle). One per Lu turn. */
 function LuMark({ label, className }: { label: string; className?: string }) {
@@ -45,17 +107,18 @@ export function SarahThread({
   typing: boolean;
   className?: string;
 }) {
-  const { assistantName, ownerName } = useSarah();
+  const { assistantName, ownerName, sendMessage } = useSarah();
   const endRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [messages.length, typing]);
 
   const initials = ownerInitials(ownerName);
+  const lastId = messages.at(-1)?.id;
 
   return (
     <div className={cn("flex flex-col gap-2", className)}>
-      {messages.map((m) => {
+      {messages.map((m, idx) => {
         const mine = m.role === "owner";
         return mine ? (
           <div key={m.id} className="flex gap-3 rounded-xl bg-muted/50 px-3.5 py-3">
@@ -83,6 +146,15 @@ export function SarahThread({
                   className="mt-2.5"
                   title="Connect your accounts"
                   subtitle="Builds land in your own GitHub and Vercel; Supabase is optional, for apps with a database."
+                />
+              )}
+              {/* The moves — tappable on the latest turn, history on older ones. */}
+              {m.choices && (
+                <ChoiceBar
+                  choices={m.choices}
+                  live={m.id === lastId && !typing}
+                  chosen={messages[idx + 1]?.role === "owner" ? messages[idx + 1].body : undefined}
+                  onPick={sendMessage}
                 />
               )}
             </div>

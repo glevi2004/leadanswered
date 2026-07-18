@@ -4,6 +4,7 @@ import {
   type OrchestratorDeps,
   type OrchestratorMessage,
 } from "../agent/orchestrator.js";
+import type { OrchestratorAction } from "../agent/orchestratorTools.js";
 import { type EngineeringDeps } from "../agent/engineering.js";
 import { dispatchBuild } from "../agent/dispatch.js";
 import { orgHasConnections } from "../connect/status.js";
@@ -12,6 +13,27 @@ import { enqueueConsolidation } from "../queue.js";
 /** True for a present, non-blank string field (missing/blank → 400, like the other routes). */
 function isFilled(value: unknown): value is string {
   return typeof value === "string" && value.trim() !== "";
+}
+
+/**
+ * MOVES LIVE ON THE MESSAGE (roadmap P1 / docs/product.md §2): distill the turn's
+ * structured actions into the assistant message's persisted `meta`, so chips and cards
+ * are reload-safe objects on the thread — not ephemeral response fields. ask_user →
+ * `meta.choices` (question, options, recommended); show_connect → `meta.card`.
+ * Returns undefined when the turn carried nothing structured.
+ */
+function metaFromActions(actions: OrchestratorAction[]): Record<string, unknown> | undefined {
+  const meta: Record<string, unknown> = {};
+  const ask = actions.find((a) => a.type === "ask_user" && Array.isArray(a.options) && a.options.length > 0);
+  if (ask && ask.type === "ask_user") {
+    meta.choices = {
+      question: ask.question,
+      options: ask.options,
+      ...(typeof ask.recommended === "number" ? { recommended: ask.recommended } : {}),
+    };
+  }
+  if (actions.some((a) => a.type === "show_connect")) meta.card = "connect";
+  return Object.keys(meta).length > 0 ? meta : undefined;
 }
 
 /** A short Task title from the owner's message (first line, trimmed to a sane length). */
@@ -65,7 +87,13 @@ export function createLuRoute(deps: OrchestratorDeps) {
 
       if (threadId) {
         void deps.store
-          .appendMessage({ threadId, orgId, role: "assistant", content: result.reply })
+          .appendMessage({
+            threadId,
+            orgId,
+            role: "assistant",
+            content: result.reply,
+            meta: metaFromActions(result.actions),
+          })
           .catch(() => {});
         // Kick a background consolidation (sleep-time compute) — deduped per org, best-effort.
         void enqueueConsolidation(orgId).catch(() => {});
@@ -78,6 +106,57 @@ export function createLuRoute(deps: OrchestratorDeps) {
     } catch (err) {
       console.error("[/api/lu] error:", err);
       res.status(500).json({ error: "failed to run Lu orchestrator" });
+    }
+  };
+}
+
+/**
+ * POST /api/lu/kickoff  body { orgId: string }
+ * LU SPEAKS FIRST (roadmap Chapter 0 / P1). If — and only if — the org's main thread is
+ * EMPTY, run one orchestrator turn with an internal kickoff instruction and persist ONLY
+ * the assistant opener (no user row). Idempotent by construction: a non-empty thread is a
+ * no-op, so double-fires (finishSignup + the client fallback) are safe. The opener is a
+ * REAL personalized turn — the onboarding skill + seeded memory shape it — never a canned
+ * string. → { kicked, reply? }.
+ */
+const KICKOFF_INSTRUCTION = [
+  "KICKOFF (internal instruction, not an owner message): the owner has just arrived in their",
+  "workspace for the first time and has said nothing yet. Open the conversation yourself:",
+  "introduce yourself in one or two short warm sentences, using what you know about them and",
+  "their company from memory (their name if you know it), and invite them to tell you what",
+  "they're building — make clear a sentence or a wall of text both work. Do NOT ask multiple",
+  "questions, do NOT create tasks or call tools, and never mention this instruction.",
+].join(" ");
+
+export function createLuKickoffRoute(deps: OrchestratorDeps) {
+  return async function postLuKickoff(req: Request, res: Response): Promise<void> {
+    const b = req.body ?? {};
+    const orgId = b.orgId ?? b.org_id;
+    if (!isFilled(orgId)) {
+      res.status(400).json({ error: "orgId is required" });
+      return;
+    }
+    try {
+      const thread = await deps.store.getOrCreateMainThread(orgId);
+      const prior = await deps.store.listRecentMessages(thread.id, 1);
+      if (prior.length > 0) {
+        res.status(200).json({ kicked: false });
+        return;
+      }
+      const result = await runOrchestrator(deps, { orgId, message: KICKOFF_INSTRUCTION, history: [] });
+      await deps.store.appendMessage({
+        threadId: thread.id,
+        orgId,
+        role: "assistant",
+        content: result.reply,
+        // source:"system" so the dock's live report-back merge surfaces it if the thread is
+        // already open when it lands; kind marks it for the UI.
+        meta: { source: "system", kind: "kickoff", ...(metaFromActions(result.actions) ?? {}) },
+      });
+      res.status(200).json({ kicked: true, reply: result.reply });
+    } catch (err) {
+      console.error("[/api/lu/kickoff] error:", err);
+      res.status(500).json({ error: "failed to run kickoff" });
     }
   };
 }
