@@ -2,7 +2,7 @@ import { currentOrgId, proxyGet } from "@/lib/dock/backend";
 
 /**
  * GET /api/lu/history — same-origin proxy to apps/api `GET /api/lu/history?orgId=`.
- * The persisted Lu conversation (docs/product.md §4 — thread rehydration): the dock
+ * The persisted Lu conversation (docs/product.md §0 — thread rehydration): the dock
  * reads this on load so a reload shows the real thread — including system report-back
  * messages (build finished, published, failed) — instead of a fresh greeting.
  * → { threadId, messages }.

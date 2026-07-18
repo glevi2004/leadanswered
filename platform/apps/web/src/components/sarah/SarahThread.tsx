@@ -4,6 +4,7 @@ import * as React from "react";
 import type { SarahMessage } from "@/lib/data/shared";
 import { LuBuildTracker } from "./LuBuildTracker";
 import { LuOnboardingTracker } from "./LuOnboardingTracker";
+import { LuDocsTracker } from "./LuDocsTracker";
 import { ConnectCard } from "./ConnectCard";
 import { useSarah } from "./sarah-context";
 import { cn } from "@/lib/utils";
@@ -98,9 +99,10 @@ export function SarahThread({
           </div>
         </div>
       )}
-      {/* The Phase-2 onboarding wire + the chat↔Engineer wire: both unfold in the thread. */}
+      {/* The onboarding wire + the doc gate + the chat↔Engineer wire: all unfold in the thread. */}
       <div className="pb-1">
         <LuOnboardingTracker />
+        <LuDocsTracker />
         <LuBuildTracker />
       </div>
       <div ref={endRef} />

@@ -1,7 +1,7 @@
 import { createSign } from "node:crypto";
 
 /**
- * GitHub App auth (docs/system.md �6 Phase 2 — "connect through THEIR apps"): the server
+ * GitHub App auth (docs/system.md §6 Phase 2 — "connect through THEIR apps"): the server
  * authenticates AS the "Lu Computer" App (an RS256 JWT from GITHUB_APP_PRIVATE_KEY) and mints
  * **installation access tokens** — 1-hour, scoped to the repos the owner chose at install.
  * This is what `installationToken()` was always named for: sandboxes stop receiving a

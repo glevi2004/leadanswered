@@ -1,7 +1,7 @@
 import type { Store } from "../store/types.js";
 
 /**
- * BYO-connect status + the dispatch gate (docs/system.md �6 §"Gate Engineer
+ * BYO-connect status + the dispatch gate (docs/system.md §6 §"Gate Engineer
  * dispatch"). An org is "connected" for a provider when it has a stored,
  * usable token — a GitHub `userToken` / a Vercel `accessToken`. The Engineer is
  * only dispatchable once BOTH are connected (the customer builds into THEIR own
@@ -19,7 +19,7 @@ export interface ConnectStatus {
 }
 
 /** Whether the org has a usable GitHub / Vercel / Supabase connection (GET /api/connect/status).
- *  Supabase = the company's one shared, Engineering-anchored project (docs/product.md �4 §"the backend");
+ *  Supabase = the company's one shared, Engineering-anchored project (docs/product.md §4 §"the backend");
  *  connected once a project ref + service key are stored (Management token is optional). */
 export async function connectionStatus(store: Store, orgId: string): Promise<ConnectStatus> {
   const [gh, vc, sb] = await Promise.all([

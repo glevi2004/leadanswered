@@ -165,7 +165,7 @@ export function orchestratorTools(deps: OrchestratorToolDeps, ctx: OrchestratorC
           return { ok: false as const, reason: "not_an_engineering_task" };
         }
         // BYO connect gate: don't dispatch until the org connected its OWN GitHub + Vercel
-        // (docs/system.md �6). Lu should tell the owner to connect, then retry.
+        // (docs/system.md §6). Lu should tell the owner to connect, then retry.
         if (!(await orgHasConnections(deps.store, ctx.orgId))) {
           return { ok: false as const, reason: "not_connected" as const };
         }
@@ -235,6 +235,47 @@ export function orchestratorTools(deps: OrchestratorToolDeps, ctx: OrchestratorC
           readyToBuild: s.github && s.vercel,
           missingConnections: [!s.github ? "GitHub" : null, !s.vercel ? "Vercel" : null].filter(Boolean),
         };
+      },
+    }),
+
+    draft_doc: tool({
+      description:
+        "Write a company DOCUMENT for the owner — system architecture, a strategy doc, a spec, or a working note. It renders as a card in this chat and lives in the owner's Library from then on. Give a clear title and concise, well-structured markdown (use ## section headings). docType 'architecture' stages an approval the owner resolves before you build against it; other types are informational. To REVISE a doc, call this again with the same docType and title — the newest version replaces the old in the Library.",
+      inputSchema: z.object({
+        title: z.string().describe("The document title, e.g. 'System Architecture'"),
+        docType: z
+          .enum(["architecture", "strategy", "spec", "note"])
+          .describe("architecture = the build blueprint (staged for approval); strategy/spec/note = informational"),
+        markdown: z.string().describe("The document body as markdown (## headings, lists, short paragraphs)"),
+      }),
+      execute: async ({ title, docType, markdown }) => {
+        const gated = docType === "architecture";
+        if (gated) {
+          // Exactly one live doc gate (the revise loop) — supersede any prior pending one.
+          const pending = await deps.store.listPendingApprovals(ctx.orgId);
+          for (const a of pending) {
+            if (a.action === "approve_doc") await deps.store.resolveApproval(a.id, "rejected", "system");
+          }
+        }
+        const artifact = await deps.store.addArtifact({
+          orgId: ctx.orgId,
+          kind: "doc",
+          title,
+          payload: { type: docType, title, markdown, gated },
+        });
+        let approvalId: string | undefined;
+        if (gated) {
+          const approval = await deps.store.createApproval({ orgId: ctx.orgId, action: "approve_doc" });
+          approvalId = approval.id;
+          void notifySlackApproval(ctx.orgId, "approve_doc", title, approval.id);
+        }
+        await recordEvent(deps.store, {
+          orgId: ctx.orgId,
+          kind: "doc_drafted",
+          message: `Doc drafted: ${title} (${docType})`,
+          payload: { artifactId: artifact.id, docType, gated },
+        });
+        return { ok: true as const, artifactId: artifact.id, ...(approvalId ? { approvalId, awaitingApproval: true } : {}), inLibrary: true };
       },
     }),
 

@@ -30,7 +30,7 @@
 | **Contract** | identity file — role, duties, boundaries (Always / Ask-first / Never), voice, knowledge; compiles into the system prompt | `Agent.contract` + `ContractRevision`; assembled in `packages/core` |
 | **Model** | reasoning + generation models, per-agent, swappable | `Agent.models` via the gateway |
 | **Tools** | its real actions — deterministic, idempotent, port-backed bodies | `apps/api/src/agent/*Tools.ts` |
-| **Skills** | a markdown playbook for a kind of work, injected when it applies | `apps/api/src/agent/skills/` (registry; onboarding is the first — today a TS-embedded string; making them real `.md` files is on the TODO) |
+| **Skills** | a markdown playbook for a kind of work, injected when it applies | `apps/api/src/agent/skills/*.md` — real files (frontmatter name/description + procedure), loaded from disk; adding a skill = adding a file. `onboarding.md` is the first |
 | **Department** | the operating area grouping the agent + its work | `Department` row (`key`, `status`) |
 
 A turn: contract → `generateText` with tools → the model calls tools → each body does a real thing through
@@ -41,7 +41,7 @@ a port and returns the authoritative result → loop until `stopWhen` → persis
 **The journal** — `AgentEvent { orgId, taskId?, kind, message, payload }` (`agent/journal.ts`). Kinds:
 `plan_proposed/approved/rejected`, `build_dispatched`, `coding_finished`, `preview_ready`,
 `verify_passed/failed`, `publish_requested`, `published`, `build_failed`, `question_asked`,
-`departments_activated`, `project_imported`, `migration_applied`.
+`departments_activated`, `project_imported`, `migration_applied`, `doc_drafted/approved/rejected`.
 
 **The situational block** (`agent/situational.ts`) — assembled every orchestrator turn and injected after
 org memory: connections (✓/✗), open tasks, approvals awaiting the owner, the last 8 events. Bounded
@@ -62,8 +62,14 @@ truth.
 (`orchestratorTools.ts`): `create_task`, `assign_to_department`, `check_connections`,
 `show_connect_form` (pushes the connect card into the chat), `propose_plan`, `dispatch_to_engineering`,
 `spawn_agent` (ordered children via `parentTaskId` + `needs_earlier`), `list_status` (real rows),
-`ask_user`. During onboarding-mode (org with no active department) the toolkit swaps to `ask_user` +
+`draft_doc` (a company document → Library; `architecture` stages an `approve_doc` gate), `ask_user`.
+During onboarding-mode (org with no active department) the toolkit swaps to `ask_user` +
 `propose_decisions` + `draft_business_plan` (`onboardingTools.ts`).
+
+**The setup playbook** — `skills/onboarding.md` stays injected until the company ships its first build:
+`agent/setup.ts` derives the five-stage COMPANY SETUP progress from live state (departments → connections
+→ approved architecture doc → engineering task done) and the orchestrator appends the playbook + a stage
+line to Lu's prompt while incomplete.
 
 **The plan gate** — Lu plans before building. `propose_plan` writes a plan `doc` artifact
 `{objective, steps[], acceptance[]}` + `Task.acceptance`, and stages an `approve_plan` Approval. Nothing
@@ -164,7 +170,7 @@ Org-scoped, additive (scalar `orgId`): `Organization` · `Waitlist` · `Departme
 `ContractRevision` · `Task` (`status`, `parentTaskId`, `acceptance`) · `Artifact` (`doc | note | file |
 image | site_preview | pr_diff | agent_session`) · `Site` (`kind`, `repoFullName`, `vercelProjectId`,
 `setupCommand`, `testCommand`) · `Deployment` · `Session` · `Approval` (`approve_plan | request_publish |
-run_migration | activate_departments`) · `Thread`/`Message` · `AgentEvent` · `Memory` · `UsageEvent` /
+run_migration | approve_doc | activate_departments`) · `Thread`/`Message` · `AgentEvent` · `Memory` · `UsageEvent` /
 `Subscription` · `GithubConnection`/`VercelConnection`/`SupabaseConnection` · `CanvasNode`/`Edge`/
 `Collection`.
 

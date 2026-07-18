@@ -40,6 +40,14 @@ too early (at department activation), and the Business Plan is never seen again 
 the Business Plan is findable in the Library after a reload; dropping a new `.md` into `skills/` registers
 it with zero code changes.
 
+**Status (2026-07-18): BUILT — awaiting the live walkthrough.** Skills load from real `.md` files
+(drop-in registration verified in dev AND against the compiled dist); the five-stage playbook +
+COMPANY SETUP stage line are injected until the org ships; `draft_doc` + the `approve_doc` gate exist;
+the Library ships as preview cards (dock Library tab) + rows (Company) + a **Notion-style viewer** at
+`/doc/[id]` (outline sidebar from headings, last-updated, Ask-Lu-to-revise, the approve gate inline) +
+the chat card for a doc awaiting approval. Remaining before this checks off: the fresh-org live
+walkthrough (sign-up → shipped first build, driven by the playbook).
+
 ## NEXT
 
 1. **Design-partner unblock** — GitHub App public · Vercel Integration public/unlisted · regenerate the

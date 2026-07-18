@@ -113,7 +113,7 @@ export function TeamRoster() {
     ]);
     setAddOpen(false);
     resetForm();
-    // UI honesty (docs/product.md §7): teammates are NOT persisted yet — say so plainly
+    // UI honesty (docs/product.md §0): teammates are NOT persisted yet — say so plainly
     // instead of claiming they joined and appear on the graph.
     toast.info(`${firstName(name)} added — for this session only.`, {
       description: "Saving teammates to your org is coming soon; this list resets on reload.",

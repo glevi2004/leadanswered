@@ -1,6 +1,6 @@
 /**
  * Supabase console client — the read-mirror + a few key actions behind the department's
- * Database-view (docs/product.md �4 §"the hub" / §"the backend"). It talks to TWO surfaces:
+ * Database-view (docs/product.md §4 §"the hub" / §"the backend"). It talks to TWO surfaces:
  *
  *   1. the Supabase **Management API** (https://api.supabase.com, `Authorization: Bearer <mgmt token>`)
  *      for project-level reads: SQL query, migrations, auth config, api-keys, advisors, logs.

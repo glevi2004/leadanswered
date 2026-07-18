@@ -3,7 +3,7 @@ import { env } from "../env.js";
 
 /**
  * AES-256-GCM token encryption for secrets stored at rest — the BYO-connect
- * per-org GitHub / Vercel tokens (docs/system.md �6) and any other stored
+ * per-org GitHub / Vercel tokens (docs/system.md §6) and any other stored
  * provider secret (the Google-calendar OAuth tokens use the SAME key).
  *
  * Key = `CALENDAR_TOKEN_KEY` (the AES key that already guards the calendar

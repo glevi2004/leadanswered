@@ -192,7 +192,44 @@ export function createResolveApprovalRoute(deps: EngineeringDeps) {
           return;
         }
 
-        // The ACTIVATE gate (docs/product.md �5 Phase 2): "Accept & activate departments" on the
+        // The DOC gate (skills/onboarding.md stage 4): an `approve_doc` approval locks in a
+        // gated company document (the architecture doc). No side effects beyond the journal —
+        // approving it unblocks the playbook's next stage; rejecting sends Lu back to re-draft.
+        if (appr?.action === "approve_doc") {
+          const arts = await deps.store.listArtifacts({ orgId });
+          const doc = arts
+            .filter((a) => a.kind === "doc" && (a.payload as { gated?: unknown } | null)?.gated === true)
+            .at(-1);
+          const title = doc?.title ?? "the document";
+          if (decision === "rejected") {
+            const approval = await deps.store.resolveApproval(id, "rejected", decidedBy);
+            await recordEvent(deps.store, {
+              orgId,
+              kind: "doc_rejected",
+              message: `Doc rejected: ${title} — the owner wants changes`,
+              payload: doc ? { artifactId: doc.id } : undefined,
+            });
+            res.status(200).json({ decision, kind: "doc", approval });
+            return;
+          }
+          await deps.store.resolveApproval(id, "approved", decidedBy);
+          await recordEvent(deps.store, {
+            orgId,
+            kind: "doc_approved",
+            message: `Doc approved: ${title}`,
+            payload: doc ? { artifactId: doc.id } : undefined,
+          });
+          await postToThread(
+            deps.store,
+            orgId,
+            `"${title}" is locked in — it lives in your Library. Ask me any time and I'll revise it.`,
+            { kind: "doc_approved", ...(doc ? { artifactId: doc.id } : {}) },
+          );
+          res.status(200).json({ decision, kind: "doc", approved: true, artifactId: doc?.id });
+          return;
+        }
+
+        // The ACTIVATE gate (docs/product.md §5 Phase 2): "Accept & activate departments" on the
         // Business Plan. Approving boots the company's departments (Engineering active + agent) and
         // ends onboarding-mode; rejecting just supersedes the gate.
         if (appr?.action === "activate_departments") {

@@ -134,7 +134,7 @@ export async function createApp(overrides: BuildDeps = {}): Promise<Express> {
   // Lu Computer — the owner's Publish button closes the approval gate (→ confirmPublish).
   app.post("/api/approvals/:id/resolve", createResolveApprovalRoute(deps));
 
-  // BYO connect — token-paste per-org GitHub / Vercel / Supabase connections (docs/system.md �6).
+  // BYO connect — token-paste per-org GitHub / Vercel / Supabase connections (docs/system.md §6).
   app.post("/api/connect/github", createConnectGithubRoute(deps));
   app.post("/api/connect/vercel", createConnectVercelRoute(deps));
   app.post("/api/connect/supabase", createConnectSupabaseRoute(deps));
@@ -149,7 +149,7 @@ export async function createApp(overrides: BuildDeps = {}): Promise<Express> {
   app.post("/api/projects/import", createImportProjectRoute(deps));
   app.post("/api/projects/profile", createUpdateProfileRoute(deps));
 
-  // Lu Computer — the console proxy (docs/product.md �4 §"the hub"): the department's Database-view
+  // Lu Computer — the console proxy (docs/product.md §4 §"the hub"): the department's Database-view
   // mirrors the company's one shared Supabase project (Management API + project APIs). Honest-empty
   // when unconnected; the service key is brokered and never leaves the server.
   app.get("/api/console/overview", createConsoleOverviewRoute(deps));

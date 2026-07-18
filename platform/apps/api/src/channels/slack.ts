@@ -69,12 +69,12 @@ export async function notifySlack(orgId: string, text: string, blocks?: unknown[
 
 /** An approval as Slack buttons — value carries the approvalId; action_id carries the decision. */
 export function approvalBlocks(
-  kind: "approve_plan" | "publish_site",
+  kind: "approve_plan" | "publish_site" | "approve_doc",
   title: string,
   approvalId: string,
 ): unknown[] {
-  const label = kind === "approve_plan" ? "Plan awaiting your approval" : "Ready to publish";
-  const yes = kind === "approve_plan" ? "Approve plan" : "Publish";
+  const label = kind === "approve_plan" ? "Plan awaiting your approval" : kind === "approve_doc" ? "Doc awaiting your approval" : "Ready to publish";
+  const yes = kind === "approve_plan" ? "Approve plan" : kind === "approve_doc" ? "Approve doc" : "Publish";
   return [
     { type: "section", text: { type: "mrkdwn", text: `*${label}:* ${title}` } },
     {
@@ -102,11 +102,11 @@ export function approvalBlocks(
 /** Post an approval (plan/publish) with buttons to the channel — only for the mapped org. */
 export async function notifySlackApproval(
   orgId: string,
-  kind: "approve_plan" | "publish_site",
+  kind: "approve_plan" | "publish_site" | "approve_doc",
   title: string,
   approvalId: string,
 ): Promise<void> {
   if (!slackConfigured() || !slackChannel() || orgId !== slackOrgId()) return;
-  const label = kind === "approve_plan" ? "Plan awaiting your approval" : "Ready to publish";
+  const label = kind === "approve_plan" ? "Plan awaiting your approval" : kind === "approve_doc" ? "Doc awaiting your approval" : "Ready to publish";
   await postSlack(slackChannel(), `${label}: ${title}`, { blocks: approvalBlocks(kind, title, approvalId) });
 }

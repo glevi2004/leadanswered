@@ -171,7 +171,7 @@ export function useOnboardingMode(active: boolean): boolean {
   return onboarding;
 }
 
-/** One row of the org's journal (docs/product.md §1) — what activity lines derive from. */
+/** One row of the org's journal (docs/system.md §2) — what activity lines derive from. */
 export interface DockEvent {
   id: string;
   taskId: string | null;
@@ -301,6 +301,121 @@ export function businessPlanFromArtifact(payload: Record<string, unknown> | null
     values,
     summary: typeof payload.summary === "string" ? payload.summary : undefined,
   };
+}
+
+/* ------------------------------ the Library ------------------------------ */
+
+/**
+ * One company document in the LIBRARY (docs/product.md §3 — "docs become the Library").
+ * All Library surfaces (dock cards, the Company list, the /doc viewer) render THIS shape;
+ * every doc-typed artifact payload is normalized into markdown here so the Notion-style
+ * viewer and the card previews share one rendering path. `sql` is set for migrations
+ * (rendered as a code block instead of markdown).
+ */
+export interface LibraryDoc {
+  id: string;
+  title: string;
+  /** business_plan | onboarding_decisions | architecture | strategy | spec | note | migration */
+  type: string;
+  /** Human label for the type chip. */
+  typeLabel: string;
+  markdown: string;
+  sql?: string;
+  /** true when this doc is gated behind an `approve_doc` approval (the architecture doc). */
+  gated: boolean;
+  createdAt?: string;
+}
+
+const GENERIC_DOC_TYPES = new Set(["architecture", "strategy", "spec", "note"]);
+
+function docTypeLabel(type: string): string {
+  switch (type) {
+    case "business_plan":
+      return "Business Plan";
+    case "onboarding_decisions":
+      return "Decisions";
+    case "architecture":
+      return "Architecture";
+    case "migration":
+      return "Migration";
+    default:
+      return type.charAt(0).toUpperCase() + type.slice(1);
+  }
+}
+
+/** Normalize one doc artifact into a LibraryDoc, or null when it isn't a Library doc. */
+export function libraryDocFromArtifact(a: DockArtifact): LibraryDoc | null {
+  if (a.kind !== "doc") return null;
+  const p = a.payload;
+  const type = typeof p?.type === "string" ? p.type : "";
+  if (type === "business_plan") {
+    const plan = businessPlanFromArtifact(p);
+    if (!plan) return null;
+    const md = [
+      plan.summary ? `## Summary\n\n${plan.summary}` : "",
+      "## Business Classification",
+      [
+        plan.classification.companyType && `- **Company Type** — ${plan.classification.companyType}`,
+        plan.classification.industry && `- **Industry** — ${plan.classification.industry}`,
+        plan.classification.userType && `- **User Type** — ${plan.classification.userType}`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      plan.values.length ? `## Company Values\n\n${plan.values.map((v) => `- ${v}`).join("\n")}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+    return { id: a.id, title: a.title || "Business Plan", type, typeLabel: docTypeLabel(type), markdown: md, gated: false, createdAt: a.createdAt };
+  }
+  if (type === "onboarding_decisions") {
+    const d = decisionsFromArtifact(p);
+    if (!d) return null;
+    const md = d.decisions
+      .map((dec, i) => {
+        const opts = dec.options
+          .map((o, j) => `- ${o.label}${j === dec.recommended ? " **(recommended)**" : ""}${o.detail ? ` — ${o.detail}` : ""}`)
+          .join("\n");
+        return `## ${i + 1}. ${dec.question}\n\n${opts}`;
+      })
+      .join("\n\n");
+    return { id: a.id, title: a.title || "Decisions", type, typeLabel: docTypeLabel(type), markdown: md, gated: false, createdAt: a.createdAt };
+  }
+  if (type === "migration") {
+    const sql = typeof p?.sql === "string" ? p.sql : "";
+    if (!sql) return null;
+    const title = typeof p?.title === "string" && p.title ? p.title : a.title || "Migration";
+    return { id: a.id, title, type, typeLabel: docTypeLabel(type), markdown: "", sql, gated: false, createdAt: a.createdAt };
+  }
+  if (GENERIC_DOC_TYPES.has(type)) {
+    const md = typeof p?.markdown === "string" ? p.markdown : "";
+    if (!md) return null;
+    const title = typeof p?.title === "string" && p.title ? p.title : a.title || docTypeLabel(type);
+    return { id: a.id, title, type, typeLabel: docTypeLabel(type), markdown: md, gated: p?.gated === true, createdAt: a.createdAt };
+  }
+  return null;
+}
+
+/**
+ * The org's Library documents, newest first, deduped so revisions REPLACE older versions:
+ * one Business Plan, one Decisions doc, one generic doc per type+title; every migration kept.
+ */
+export function libraryDocs(artifacts: DockArtifact[]): LibraryDoc[] {
+  const all = artifacts.map(libraryDocFromArtifact).filter((d): d is LibraryDoc => d !== null);
+  const seen = new Set<string>();
+  const out: LibraryDoc[] = [];
+  // artifacts arrive append-ordered → walk newest-first and keep the first of each identity.
+  for (const d of [...all].reverse()) {
+    const key =
+      d.type === "business_plan" || d.type === "onboarding_decisions"
+        ? d.type
+        : d.type === "migration"
+          ? `migration:${d.id}`
+          : `${d.type}:${d.title.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(d);
+  }
+  return out;
 }
 
 /* ------------------------------ render helpers ------------------------------ */

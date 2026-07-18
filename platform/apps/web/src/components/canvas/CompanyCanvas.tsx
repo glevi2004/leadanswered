@@ -1237,7 +1237,7 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
               </div>
               {/* action bar — below the frame. Not wired on the canvas yet (the REAL publish gate
                   lives in the department Workplace card) — so these say Soon instead of doing
-                  nothing (docs/product.md §7). */}
+                  nothing (docs/product.md §0). */}
               <div className="pointer-events-auto absolute left-1/2 top-full mt-3 -translate-x-1/2 whitespace-nowrap">
                 <div className="gloss flex items-center gap-0.5 rounded-full p-0.5 text-[10px]">
                   <button type="button" disabled title="Publish from the department Workplace — canvas control coming soon" className="gloss-ink flex cursor-not-allowed items-center gap-1 rounded-full px-2.5 py-0.5 font-medium opacity-60">

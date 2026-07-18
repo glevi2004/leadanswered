@@ -161,7 +161,7 @@ export function createListApprovalsRoute(deps: ReadRouteDeps) {
 
 /**
  * GET /api/lu/history?orgId=...&limit=...
- * The persisted Lu conversation (docs/product.md §4 — thread rehydration): the org's main
+ * The persisted Lu conversation (docs/product.md §0 — thread rehydration): the org's main
  * thread + its most recent messages, oldest-first, including report-back messages' `meta`.
  * The web reads this on load so a reload shows the real conversation, not a fresh greeting.
  */
@@ -184,7 +184,7 @@ export function createLuHistoryRoute(deps: ReadRouteDeps) {
 
 /**
  * GET /api/events?orgId=...&limit=...
- * The org's journal (docs/product.md §1), newest-first — what the chat derives its
+ * The org's journal (docs/system.md §2), newest-first — what the chat derives its
  * phase states from and what activity feeds render. → { events }.
  */
 export function createListEventsRoute(deps: ReadRouteDeps) {

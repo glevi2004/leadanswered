@@ -5,13 +5,15 @@ import { toast } from "sonner";
 import { ClipboardCopy, File, FileText, Folder, LayoutGrid, List, Search } from "lucide-react";
 import { useSarah } from "./sarah-context";
 import { useCanvasGraph, type CanvasNode } from "@/lib/canvas/api";
+import { OrgDocsList } from "@/components/library/OrgDocs";
 import { cn } from "@/lib/utils";
 
 /**
- * Library — every file the org keeps (canvas.md §"the dock"): the canvas Library, i.e. the
- * `Collection`s (folders) + `note`/`file` nodes from `/api/canvas`. Grid/list toggle, search,
- * and the "bring over ChatGPT/Claude context" import affordance (a copy-prompt button). Honest-
- * empty when the canvas has nothing yet — never a fixture.
+ * Library — everything the company keeps (docs/product.md §3). Two halves:
+ *   DOCUMENTS — the company docs Lu writes (Business Plan, Architecture, decisions,
+ *   migrations), as preview cards that open the Notion-style viewer at /doc/[id];
+ *   FILES — the canvas `Collection`s (folders) + `note`/`file` nodes from `/api/canvas`.
+ * Grid/list toggle + search apply to the files; honest-empty everywhere — never a fixture.
  */
 
 const IMPORT_PROMPT =
@@ -76,8 +78,14 @@ export function DockLibrary() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4">
+      {/* DOCUMENTS — the company docs, preview cards → the /doc viewer */}
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Documents</p>
+      <OrgDocsList active={widgetOpen} variant="cards" className="mt-2" />
+
+      {/* FILES — the canvas library */}
+      <p className="mt-5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Files</p>
       {/* Search + view toggle */}
-      <div className="flex items-center gap-2">
+      <div className="mt-2 flex items-center gap-2">
         <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border bg-background px-2.5 py-1.5">
           <Search className="size-3.5 shrink-0 text-muted-foreground" />
           <input

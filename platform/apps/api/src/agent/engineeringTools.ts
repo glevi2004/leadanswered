@@ -91,7 +91,7 @@ export function resolveEngineeringDeps(deps: EngineeringToolDeps): ResolvedEngin
 }
 
 /**
- * ORG-SCOPED variant (BYO connect — docs/system.md �6 §"Port swap"). Resolves the
+ * ORG-SCOPED variant (BYO connect — docs/system.md §6 §"Port swap"). Resolves the
  * Git + Deploy ports to the ORG's OWN connection token when `orgId` is given and a
  * connection exists (else env fallback). Explicitly-passed ports (tests) still win.
  * `runEngineering` calls this with `ctx.orgId` and hands the resolved deps to

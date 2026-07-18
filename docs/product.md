@@ -43,6 +43,7 @@ Lu's turns are plain text; structured turns attach a card (`Message.card` / doc 
 | **decisions** | onboarding (`propose_decisions`) | multiple-choice cards, one option Recommended, "Decide all" |
 | **business plan** | onboarding (`draft_business_plan`) | the plan doc + **Accept & activate departments** |
 | **plan** | `propose_plan` | objective · steps · acceptance + Approve / Request changes / Reject |
+| **doc** | `draft_doc` staged a gated doc (architecture) | preview + Approve / Ask for changes + open in the Library |
 | **build tracker** | a build is running | the Card size of the Build (§1) |
 | **question** | `ask_user` | options as real buttons; clicking sends that option as your message |
 
@@ -60,9 +61,11 @@ Tabs: **Home · Lu · Company · Tasks · Library**.
 - **Company** — connections panel (install-first), **Projects** (Lu-built sites + imported repos, one
   list; import picker reads the App-granted repos; per-repo setup/test commands), agents.
 - **Tasks** — all tasks as Rows → the task page.
-- **Library** — today lists only canvas notes/files/folders. **Known gap:** company documents (the
-  Business Plan, decisions, migrations) are stored as artifacts but surface nowhere after their chat
-  moment — the Library must become the home of org docs (on the TODO, with skills-as-files).
+- **Library** — two halves: **Documents** (the company docs Lu writes — Business Plan, Architecture,
+  decisions, migrations) as preview cards, and **Files** (canvas notes/files/folders). Every document
+  opens the **Notion-style viewer** at `/doc/[id]`: big title, an outline sidebar built from the
+  headings, last-updated, the rendered doc at reading scale, **Ask Lu to revise** (prefills the
+  composer), and — for a gated doc — the Approve gate inline. Revisions replace the doc in place.
 
 ## §4 — The canvas
 
@@ -92,10 +95,11 @@ so `reads`-edges inject nothing for user content. The contract (on the TODO): cr
    Lu runs her onboarding **skill** with a swapped toolkit: you describe the company → **decision cards**
    → the **Business Plan** doc → **Accept & activate departments** boots the company (Engineering active).
 
-**The direction (agreed 2026-07-18, on the TODO):** onboarding shouldn't end at activation — the playbook
-extends to *connect your stack* (Lu drives the connect cards), *system architecture* (a Library doc), and
-*first build*, so onboarding ends when the owner has **shipped something**. The playbook itself becomes a
-real `.md` skill file, and its outputs land in the Library.
+**The full playbook (built 2026-07-18):** onboarding doesn't end at activation — the skill
+(`skills/onboarding.md`, a real markdown file) runs five stages: learn the company → Business Plan →
+*connect your stack* (Lu drives the connect cards) → *system architecture* (a gated Library doc) →
+*first build*. Lu's prompt carries a COMPANY SETUP stage line derived from live state, so she resumes
+mid-setup after any reload; the playbook stops applying the moment the first build publishes.
 
 Entry remains waitlist-gated self-serve: join → admin accepts → invite email → set password → sign-up.
 

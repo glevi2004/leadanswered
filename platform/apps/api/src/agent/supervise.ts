@@ -2,7 +2,7 @@ import type { Store, TaskRecord } from "../store/types.js";
 import { postToThread, recordEvent } from "./journal.js";
 
 /**
- * SUPERVISION (docs/system.md §5, DEVELOPMENT "spawn/supervise") — the loop that
+ * SUPERVISION (docs/system.md §3, DEVELOPMENT "spawn/supervise") — the loop that
  * makes `parentTaskId` real. Lu's `spawn_agent` creates ORDERED children under a parent
  * task; whenever a child's run ends (worker completion, in-process completion, publish,
  * or failure), this advances the parent:

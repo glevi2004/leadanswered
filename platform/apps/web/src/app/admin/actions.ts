@@ -43,7 +43,7 @@ export async function createOrganizationAction(
       return { error: "Company and owner email are required." };
     }
 
-    // Create the shell only. SELF-SERVE model (docs/product.md �5): the admin's one job is
+    // Create the shell only. SELF-SERVE model (docs/product.md §5): the admin's one job is
     // sending the invite (from the org page) — the owner sets a password and Lu onboards
     // them in the workspace. There is no admin-led onboarding step anymore.
     await createOrganizationShell({ companyName, slug, twilioNumber, ownerEmail });

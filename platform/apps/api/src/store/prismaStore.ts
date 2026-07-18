@@ -888,7 +888,7 @@ export class PrismaStore implements Store {
     }));
   }
 
-  // --- The event journal (docs/product.md §1) ---
+  // --- The event journal (docs/system.md §2) ---
   async addAgentEvent(input: AddAgentEventInput): Promise<AgentEventRecord> {
     const e = await this.db.agentEvent.create({
       data: {

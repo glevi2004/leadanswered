@@ -2,7 +2,7 @@ import { requireOrganization } from "@/lib/dashboard-auth";
 import { TaskDetail } from "@/components/task/TaskDetail";
 
 /**
- * /task/[id] — the Task Detail page (docs/product.md §8b; ladder step 0): the one hub every
+ * /task/[id] — the Task Detail page (docs/system.md §2; ladder step 0): the one hub every
  * task row and chat card clicks through to. Auth-gated; data comes from the same live dock
  * proxies the rest of the app polls, so the page is reload-safe and always current.
  */

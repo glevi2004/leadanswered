@@ -65,10 +65,10 @@ export function LuBuildTracker() {
   // (propose_plan). `resolve` POSTs the owner's decision → backend dispatches (approved) or
   // cancels (rejected). Same generic approvals hook the publish gate uses.
   const { approvals, resolve, pending } = usePublishApprovals(active);
-  // The journal (docs/product.md §1): the latest event per batch renders as a live activity
+  // The journal (docs/system.md §2): the latest event per batch renders as a live activity
   // line — the owner sees PROCESS (coding finished → preview ready → verifying), not a spinner.
   const events = useAgentEvents(active);
-  // THE DEAD-END FIX (docs/product.md §7): approving a plan with GitHub/Vercel missing used
+  // THE DEAD-END FIX (docs/product.md §0): approving a plan with GitHub/Vercel missing used
   // to silently no-op (the backend returns needsConnect and the approval stays pending, with
   // nothing on screen). Now the connect FORM renders inline, right above the plan card.
   const conn = useConnectStatus(active);
@@ -170,7 +170,7 @@ export function LuBuildTracker() {
               </p>
             ) : null}
 
-            {/* Deep links (docs/product.md §7): the rich detail was buried in the canvas —
+            {/* Deep links (docs/product.md §0): the rich detail was buried in the canvas —
                 give the chat one-click doors to the PR and the workplace. */}
             {progressTasks.length > 0 && (() => {
               const prUrl = (artifacts

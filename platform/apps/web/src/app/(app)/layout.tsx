@@ -30,7 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const ownerName = (organization.name as string)?.split(" ")[0] ?? "there";
   const assistantName = (organization.sarahName as string) || "Lu";
 
-  // NO seeded greeting (docs/product.md §7): the thread is the REAL persisted conversation
+  // NO seeded greeting (docs/product.md §0): the thread is the REAL persisted conversation
   // (rehydrated client-side); an empty thread shows the honest empty state — onboarding's
   // "Tell me more about your company", or the build prompt. A template message pretending to
   // be Lu contradicted onboarding-mode and rendered stale copy.

@@ -287,7 +287,7 @@ export function AgentDockPanel({ dept }: { dept: string }) {
       </div>
 
       {/* Context — the department's real context string, shown as-is (no fake JSON dressing;
-          docs/product.md §7: never render mock as real). */}
+          docs/product.md §0: never render mock as real). */}
       <div className="rounded-xl border bg-card p-4 elev-1">
         <p className="font-medium text-foreground">Context</p>
         <p className="mt-0.5 text-xs text-muted-foreground">Department knowledge shared with every agent here.</p>

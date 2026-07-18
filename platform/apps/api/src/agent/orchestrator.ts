@@ -11,6 +11,7 @@ import { resolveOrgMemory } from "./orgMemory.js";
 import { resolveSituation } from "./situational.js";
 import { onboardingTools } from "./onboardingTools.js";
 import { getSkill } from "./skills/index.js";
+import { resolveSetupProgress } from "./setup.js";
 
 /**
  * Lu the ORCHESTRATOR (AGENTS-BACKEND §3) — the one planning brain of the Lu
@@ -68,6 +69,7 @@ function systemPrompt(): string {
     "2) For anything the Engineer should BUILD (a site, app, tool, integration, or a change), draft a PLAN first: call propose_plan with a short title, a one-line objective, the ordered steps you will take, and acceptance criteria (how the owner will know it is done). This creates the engineering task WITHOUT building yet, writes the plan for the owner to read, and stages a plan approval. Do this INSTEAD of building immediately.",
     "3) After propose_plan, tell the owner you have drafted a plan for them to approve. Do NOT call dispatch_to_engineering yourself: when the owner APPROVES the plan in the dock, the Engineer starts building automatically. If propose_plan reports missing connections, tell the owner to connect their GitHub and Vercel so the build can run once they approve. Only call dispatch_to_engineering directly if the owner EXPLICITLY says to skip the plan and build now.",
     "4) Use list_status to see what is already underway before proposing more.",
+    "COMPANY DOCUMENTS: when the owner needs a written doc (system architecture, a strategy doc, a spec), call draft_doc — it renders as a card in this chat and lands in their Library. An architecture doc stages an approval; to revise any doc, call draft_doc again (the newest version replaces the old in the Library).",
     "For a BIG approved goal with several distinct deliverables (e.g. a site plus an admin panel plus an API), split it with spawn_agent: one ordered sub-task per deliverable under the approved plan's task. The system runs them in sequence, supervises the cascade, and reports progress back into this conversation — you don't babysit it.",
     "5) Report back plainly, like a capable chief of staff: what you understood, the plan you drafted, and anything you asked the owner.",
     "Keep replies short and plain, like a capable chief of staff talking to the owner. Never use em-dashes.",
@@ -98,29 +100,35 @@ export async function runOrchestrator(
   const model = deps.model ?? getModel(modelId);
   const ctx: OrchestratorContext = { orgId: input.orgId, tasksCreated: [], actions: [] };
   const allTools = orchestratorTools({ store: deps.store }, ctx);
-  // Onboarding-mode (docs/product.md �5 Phase 2): a brand-new org has no ACTIVE department yet.
-  // While onboarding, Lu runs the onboarding SKILL and gets only the onboarding toolkit (+ ask_user),
-  // so she interviews, decides, and drafts the Business Plan instead of trying to build.
-  const departments = await deps.store.listDepartments(input.orgId);
-  const onboarding = !departments.some((d) => d.status === "active");
+  // COMPANY SETUP (skills/onboarding.md — the five-stage playbook). The skill stays
+  // injected until the company has SHIPPED its first build: before departments activate
+  // Lu gets only the interview toolkit; after, she keeps the full toolkit but the playbook
+  // + a stage line keep steering (connect the stack → architecture doc → first build).
+  const setup = await resolveSetupProgress(deps.store, input.orgId);
   // Core/long-term memory injection (plan Pillar 3): prepend what Lu knows about this business so
   // she has context from turn one. Best-effort — "" when there is nothing (or on any failure).
   const memory = await resolveOrgMemory(deps.store, input.orgId);
-  // The situational block (docs/product.md §2): live connections + open tasks + pending
+  // The situational block (docs/system.md §2): live connections + open tasks + pending
   // approvals + recent journal events, every turn — Lu is never blind to the state of the world.
   const situation = await resolveSituation(deps.store, input.orgId);
 
   let tools: ToolSet;
   let base: string;
-  if (onboarding) {
-    const skill = getSkill("onboarding");
+  const skill = setup.complete ? null : getSkill("onboarding");
+  if (!setup.activated) {
     base = skill ? onboardingSystemPrompt(skill.procedure) : systemPrompt();
     tools = { ask_user: allTools.ask_user, ...onboardingTools({ store: deps.store }, { orgId: input.orgId }) };
   } else {
-    base = systemPrompt();
+    base = skill
+      ? [
+          systemPrompt(),
+          "COMPANY SETUP PLAYBOOK — this company is still being set up. Follow the playbook below (at the stage the COMPANY SETUP line reports) until setup is complete:",
+          skill.procedure,
+        ].join("\n\n")
+      : systemPrompt();
     tools = allTools;
   }
-  const system = [base, memory, situation].filter(Boolean).join("\n\n");
+  const system = [base, memory, situation, setup.line].filter(Boolean).join("\n\n");
 
   const messages = [
     ...(input.history ?? []),

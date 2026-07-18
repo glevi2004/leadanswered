@@ -197,7 +197,7 @@ export function SarahProvider({
   const [composerPrefill, setComposerPrefill] = React.useState<string | null>(null);
   const answeringEscalation = React.useRef<OpenEscalation | null>(null);
 
-  // THREAD REHYDRATION (docs/product.md §4): the server persists the whole Lu conversation
+  // THREAD REHYDRATION (docs/product.md §0): the server persists the whole Lu conversation
   // (Thread/Message rows) but the client used to start every load from a fresh greeting — a
   // reload wiped the visible thread while Lu still remembered. On mount, read the persisted
   // thread once and adopt it as the main chat (only if the owner hasn't typed yet this session).
@@ -299,7 +299,7 @@ export function SarahProvider({
     return () => window.removeEventListener("keydown", onKey);
   }, [widgetOpen, persistOpen]);
 
-  // LIVE REPORT-BACK (docs/product.md §3): while the dock is open, gently poll the persisted
+  // LIVE REPORT-BACK (docs/system.md §2): while the dock is open, gently poll the persisted
   // thread and append NEW system-authored messages (preview ready, published, build failed —
   // written server-side by the journal) into the visible chat. This is how work "reports back"
   // into the conversation without the owner having to ask.
@@ -348,7 +348,7 @@ export function SarahProvider({
     };
   }, [widgetOpen, appendTo]);
 
-  // THE HONEST BADGE (docs/product.md §4/§7): the "needs you" number counts SERVER truth —
+  // THE HONEST BADGE (docs/product.md §0): the "needs you" number counts SERVER truth —
   // real pending approvals (plan gates, publish gates) polled cheaply even while the dock is
   // closed — instead of a local array that started empty and lied.
   const [serverPendingCount, setServerPendingCount] = React.useState(0);

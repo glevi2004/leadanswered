@@ -140,7 +140,7 @@ export interface OnboardingContextInput {
 
 /**
  * Seed Lu's CORE memory from the Phase-1 sign-up answers WITHOUT activating any department
- * (docs/product.md �5 — provisioning is split: Phase 1 seeds context, "Accept & activate"
+ * (docs/product.md §5 — provisioning is split: Phase 1 seeds context, "Accept & activate"
  * boots the departments). So Lu opens the in-workspace onboarding already knowing who the
  * founder is + the company name + stage, and learns what they're building in the conversation.
  */

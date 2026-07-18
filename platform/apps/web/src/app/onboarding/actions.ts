@@ -55,7 +55,7 @@ export async function completeOnboarding(
 }
 
 /**
- * Finish Phase-1 sign-up (docs/product.md �5): the 5-screen static flow. Persists a minimal
+ * Finish Phase-1 sign-up (docs/product.md §5): the 5-screen static flow. Persists a minimal
  * honest-empty config (which flips `onboardingComplete=true`), then seeds Lu's memory with the
  * sign-up answers via the backend — WITHOUT activating any department. The real onboarding is
  * Phase 2 (Lu onboards the founder in the workspace); accepting her Business Plan activates the

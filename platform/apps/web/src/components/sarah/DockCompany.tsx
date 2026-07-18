@@ -9,6 +9,7 @@ import { useSarah } from "./sarah-context";
 import { useDockData, useSites } from "@/lib/dock/live";
 import { deriveAgents, importantLinks, useConnectStatus } from "./dock-data";
 import { ConnectionsPanel } from "@/components/settings/ConnectionsPanel";
+import { OrgDocsList } from "@/components/library/OrgDocs";
 import { cn } from "@/lib/utils";
 
 /**
@@ -34,7 +35,7 @@ export function DockCompany() {
         <p className="font-medium text-foreground">Stack</p>
         <p className="mt-0.5 text-xs text-muted-foreground">The rails your company runs on.</p>
         <div className="mt-3 space-y-1">
-          {/* UI honesty (docs/product.md §7): Domain/Email/Payment have no data source yet —
+          {/* UI honesty (docs/product.md §0): Domain/Email/Payment have no data source yet —
               they say Soon, not a "Setup" chip pretending there's a flow behind it. */}
           <StackRow icon={Globe} label="Domain" connected={false} soon />
           <StackRow icon={Mail} label="Email" connected={false} soon />
@@ -50,6 +51,13 @@ export function DockCompany() {
 
       {/* Projects — Lu-built sites + imported repos, one list (ladder step 2 / §8b). */}
       <ProjectsCard sites={sites} />
+
+      {/* Documents — the company docs (docs/product.md §3); rows → the /doc viewer. */}
+      <div className="rounded-xl border bg-card p-4 elev-1">
+        <p className="font-medium text-foreground">Documents</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">What Lu has written for the company.</p>
+        <OrgDocsList active={widgetOpen} variant="rows" className="mt-3" />
+      </div>
 
       {/* Important links */}
       <div className="rounded-xl border bg-card p-4 elev-1">

@@ -311,7 +311,7 @@ export interface CreateCollectionInput {
   name: string;
 }
 
-// ─── BYO connect (docs/system.md �6) — per-org provider connections ─────────
+// ─── BYO connect (docs/system.md §6) — per-org provider connections ─────────
 // One row per org per provider. Tokens are ENCRYPTED at rest (AES-256-GCM); the
 // getters return the DECRYPTED token to callers (or null if none / undecryptable).
 
@@ -351,7 +351,7 @@ export interface VercelConnectionInput {
 
 /**
  * An org's Supabase connection — the company's one shared, Engineering-anchored managed project
- * (docs/product.md �4 §"the backend"). `serviceKey` / `managementToken` are the DECRYPTED tokens (or
+ * (docs/product.md §4 §"the backend"). `serviceKey` / `managementToken` are the DECRYPTED tokens (or
  * null if none / undecryptable). Secrets are brokered — the console never returns these to the client.
  */
 export interface SupabaseConnectionRecord {
@@ -434,7 +434,7 @@ export interface ThreadRecord {
   updatedAt?: string;
 }
 /** One persisted turn in a Thread. `meta` marks system-authored report-back messages
- * (docs/product.md §3) so the UI can render them as event cards. */
+ * (docs/system.md §2) so the UI can render them as event cards. */
 export interface MessageRecord {
   id: string;
   threadId: string;

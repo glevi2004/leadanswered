@@ -20,7 +20,7 @@ export function getDeploy(): Deploy {
 }
 
 /**
- * Org-scoped Deploy (BYO connect — docs/system.md �6). When `orgId` is given AND the
+ * Org-scoped Deploy (BYO connect — docs/system.md §6). When `orgId` is given AND the
  * org has a stored Vercel connection with an access token, return a `VercelDeploy`
  * bound to THAT token (+ team scope), so the Engineer deploys into the org's OWN
  * Vercel. Otherwise fall back to the env-based `getDeploy()` (dogfood path — unchanged).

@@ -114,7 +114,7 @@ export function createEngineeringRoute(deps: EngineeringDeps) {
     }
 
     // BYO connect gate: the customer build path requires the org's OWN GitHub + Vercel
-    // (docs/system.md �6). Not connected → do NOT dispatch; the UI prompts to connect.
+    // (docs/system.md §6). Not connected → do NOT dispatch; the UI prompts to connect.
     // (The env-token fallback stays for platform dogfooding via non-gated internal calls.)
     if (!(await orgHasConnections(deps.store, orgId))) {
       res.status(412).json({ error: "connect GitHub and Vercel before building", needsConnect: true });
