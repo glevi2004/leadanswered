@@ -98,9 +98,9 @@ the model gateway; **journal** ≈ Artifact/Message rows (until `TaskEvent`); **
   `engineeringTools.ts:296-308`)
 
 **To build**
-- [ ] **P0 — turn durability ON**: provision Redis on Railway and set `REDIS_URL`. The entire durable path is
-  built but inactive; today prod builds are in-process fire-and-forget and a deploy mid-build loses the run and
-  strands the task `in_progress` (`dispatch.ts:15-49`). Cheapest, highest-leverage item in this spec.
+- [x] **P0 — durability ON** *(confirmed live 2026-07-18)*: Redis + `REDIS_URL` were already provisioned on
+  Railway; the 2026-07-18 deploy log shows the engineering worker (concurrency 3) and the
+  memory-consolidation worker both started. Builds survive redeploys.
 - [ ] **P1 — stuck-task reaper**: sweep tasks `in_progress` beyond a deadline back to `failed` (or re-enqueue)
   so crashes don't strand state.
 - [ ] **P2 — prebuilt E2B template** with Claude Code / Codex preinstalled (`SpawnOpts.template` exists,
