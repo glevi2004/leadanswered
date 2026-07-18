@@ -61,11 +61,13 @@ Tabs: **Home · Lu · Company · Tasks · Library**.
 - **Company** — connections panel (install-first), **Projects** (Lu-built sites + imported repos, one
   list; import picker reads the App-granted repos; per-repo setup/test commands), agents.
 - **Tasks** — all tasks as Rows → the task page.
-- **Library** — two halves: **Documents** (the company docs Lu writes — Business Plan, Architecture,
-  decisions, migrations) as preview cards, and **Files** (canvas notes/files/folders). Every document
-  opens the **Notion-style viewer** at `/doc/[id]`: big title, an outline sidebar built from the
-  headings, last-updated, the rendered doc at reading scale, **Ask Lu to revise** (prefills the
-  composer), and — for a gated doc — the Approve gate inline. Revisions replace the doc in place.
+- **Library** — two halves: **Documents** (the company docs Lu writes) filed into **folders** —
+  *General* (Business Plan, decisions, strategy) + one per live department (*Engineering*:
+  architecture, specs, migrations; the other departments' folders arrive with them) — as preview
+  cards; and **Files** (canvas notes/files/folders). Every document opens the **Notion-style
+  viewer** at `/doc/[id]`: big title, an outline sidebar built from the headings, last-updated, the
+  rendered doc at reading scale, **Ask Lu to revise** (prefills the composer), and — for a gated
+  doc — the Approve gate inline. Revisions replace the doc in place.
 
 ## §4 — The canvas
 

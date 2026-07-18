@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { FileText } from "lucide-react";
+import { ChevronDown, FileText, Folder } from "lucide-react";
 import { renderMarkdown } from "@/components/canvas/MarkdownNote";
 import { useDockData, libraryDocs, type LibraryDoc } from "@/lib/dock/live";
 import { cn } from "@/lib/utils";
@@ -10,10 +10,18 @@ import { cn } from "@/lib/utils";
 /**
  * The org's DOCUMENTS (docs/product.md §3 — the Library's other half): the Business Plan,
  * the Architecture doc, decisions, migrations — everything Lu writes for the company,
- * pulled from the same doc artifacts every other surface reads. Two renderings:
- *   cards (the Library tab — cofounder-style preview cards) · rows (the Company tab).
- * Every one clicks through to the Notion-style viewer at /doc/[id].
+ * pulled from the same doc artifacts every other surface reads. Docs file into FOLDERS
+ * (cofounder-style): **General** (company docs) + one per live department — Engineering
+ * today; sales/marketing/design/support/operations/finance/legal come with their
+ * departments. Two renderings: cards-in-folders (the Library tab) · flat rows (Company).
+ * Every doc clicks through to the Notion-style viewer at /doc/[id].
  */
+
+/** The folders shown today, in order — always rendered, honest-empty when empty. */
+const FOLDERS: Array<{ key: string; label: string }> = [
+  { key: "general", label: "General" },
+  { key: "engineering", label: "Engineering" },
+];
 
 /** A scoped mini-stylesheet for the card PREVIEW (a shrunken render of the doc). */
 export const DOC_PREVIEW_CSS = `
@@ -89,10 +97,44 @@ function DocRow({ doc }: { doc: LibraryDoc }) {
   );
 }
 
+/** One collapsible FOLDER (the Library tab) — header (name + count) over its doc cards. */
+function DocFolder({ label, docs, loaded }: { label: string; docs: LibraryDoc[]; loaded: boolean }) {
+  const [open, setOpen] = React.useState(true);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-2 rounded-lg px-1 py-1.5 text-left transition-colors hover:bg-muted/60"
+      >
+        <ChevronDown className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform", !open && "-rotate-90")} />
+        <Folder className="size-4 shrink-0 text-muted-foreground" />
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{label}</span>
+        <span className="shrink-0 text-xs text-muted-foreground">
+          {docs.length} {docs.length === 1 ? "file" : "files"}
+        </span>
+      </button>
+      {open && (
+        <div className="mt-1.5 space-y-3 pl-2">
+          {docs.length > 0 ? (
+            docs.map((d) => <DocCard key={d.id} doc={d} />)
+          ) : (
+            <p className="pb-1 pl-4 text-xs text-muted-foreground">
+              {loaded ? "Empty — documents file here as Lu writes them." : "Loading…"}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * The documents list. `active` gates the poll (pass the surface-visible signal);
- * `variant`: "cards" (Library tab) | "rows" (Company tab). Honest-empty before the
- * company has any docs — the Business Plan is the first one onboarding creates.
+ * `variant`: "cards" (the Library tab — folders of preview cards) | "rows" (the Company
+ * tab — a flat compact list). Honest-empty before the company has any docs — the
+ * Business Plan is the first one onboarding creates.
  */
 export function OrgDocsList({
   active,
@@ -106,19 +148,29 @@ export function OrgDocsList({
   const { artifacts, loaded } = useDockData(active);
   const docs = React.useMemo(() => libraryDocs(artifacts), [artifacts]);
 
-  if (docs.length === 0) {
+  if (variant === "rows") {
+    if (docs.length === 0) {
+      return (
+        <p className={cn("text-xs text-muted-foreground", className)}>
+          {loaded ? "No documents yet — the Business Plan lands here when Lu drafts it." : "Loading documents…"}
+        </p>
+      );
+    }
     return (
-      <p className={cn("text-xs text-muted-foreground", className)}>
-        {loaded
-          ? "No documents yet — the Business Plan lands here when Lu drafts it."
-          : "Loading documents…"}
-      </p>
+      <div className={cn("space-y-2", className)}>
+        {docs.map((d) => (
+          <DocRow key={d.id} doc={d} />
+        ))}
+      </div>
     );
   }
+
   return (
-    <div className={cn(variant === "cards" ? "space-y-3" : "space-y-2", className)}>
+    <div className={cn("space-y-2", className)}>
       <style>{DOC_PREVIEW_CSS}</style>
-      {docs.map((d) => (variant === "cards" ? <DocCard key={d.id} doc={d} /> : <DocRow key={d.id} doc={d} />))}
+      {FOLDERS.map((f) => (
+        <DocFolder key={f.key} label={f.label} loaded={loaded} docs={docs.filter((d) => d.folder === f.key)} />
+      ))}
     </div>
   );
 }

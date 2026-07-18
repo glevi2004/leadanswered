@@ -319,6 +319,8 @@ export interface LibraryDoc {
   type: string;
   /** Human label for the type chip. */
   typeLabel: string;
+  /** The Library folder this doc files under — "general" (company docs) or a department key. */
+  folder: string;
   markdown: string;
   sql?: string;
   /** true when this doc is gated behind an `approve_doc` approval (the architecture doc). */
@@ -327,6 +329,12 @@ export interface LibraryDoc {
 }
 
 const GENERIC_DOC_TYPES = new Set(["architecture", "strategy", "spec", "note"]);
+
+/** Folder assignment (docs/product.md §3): company-level docs → General; build docs →
+ *  Engineering. Later departments get their own folders as they produce docs. */
+function docFolder(type: string): string {
+  return type === "architecture" || type === "spec" || type === "migration" ? "engineering" : "general";
+}
 
 function docTypeLabel(type: string): string {
   switch (type) {
@@ -365,7 +373,7 @@ export function libraryDocFromArtifact(a: DockArtifact): LibraryDoc | null {
     ]
       .filter(Boolean)
       .join("\n\n");
-    return { id: a.id, title: a.title || "Business Plan", type, typeLabel: docTypeLabel(type), markdown: md, gated: false, createdAt: a.createdAt };
+    return { id: a.id, title: a.title || "Business Plan", type, typeLabel: docTypeLabel(type), folder: docFolder(type), markdown: md, gated: false, createdAt: a.createdAt };
   }
   if (type === "onboarding_decisions") {
     const d = decisionsFromArtifact(p);
@@ -378,19 +386,19 @@ export function libraryDocFromArtifact(a: DockArtifact): LibraryDoc | null {
         return `## ${i + 1}. ${dec.question}\n\n${opts}`;
       })
       .join("\n\n");
-    return { id: a.id, title: a.title || "Decisions", type, typeLabel: docTypeLabel(type), markdown: md, gated: false, createdAt: a.createdAt };
+    return { id: a.id, title: a.title || "Decisions", type, typeLabel: docTypeLabel(type), folder: docFolder(type), markdown: md, gated: false, createdAt: a.createdAt };
   }
   if (type === "migration") {
     const sql = typeof p?.sql === "string" ? p.sql : "";
     if (!sql) return null;
     const title = typeof p?.title === "string" && p.title ? p.title : a.title || "Migration";
-    return { id: a.id, title, type, typeLabel: docTypeLabel(type), markdown: "", sql, gated: false, createdAt: a.createdAt };
+    return { id: a.id, title, type, typeLabel: docTypeLabel(type), folder: docFolder(type), markdown: "", sql, gated: false, createdAt: a.createdAt };
   }
   if (GENERIC_DOC_TYPES.has(type)) {
     const md = typeof p?.markdown === "string" ? p.markdown : "";
     if (!md) return null;
     const title = typeof p?.title === "string" && p.title ? p.title : a.title || docTypeLabel(type);
-    return { id: a.id, title, type, typeLabel: docTypeLabel(type), markdown: md, gated: p?.gated === true, createdAt: a.createdAt };
+    return { id: a.id, title, type, typeLabel: docTypeLabel(type), folder: docFolder(type), markdown: md, gated: p?.gated === true, createdAt: a.createdAt };
   }
   return null;
 }
