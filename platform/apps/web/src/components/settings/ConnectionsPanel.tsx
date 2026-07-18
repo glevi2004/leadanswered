@@ -79,6 +79,10 @@ interface ProviderDef {
   tokenUrl: string;
   /** Ordered fields shown on the connect form. The first is auto-focused. */
   fields: Field[];
+  /** Phase-2 install flow (byo-connect): when set, the PRIMARY affordance is this install
+   * link (the provider's own consent/install screen) and token-paste demotes to a fallback. */
+  installHref?: string;
+  installLabel?: string;
 }
 
 const PROVIDERS: ProviderDef[] = [
@@ -94,6 +98,8 @@ const PROVIDERS: ProviderDef[] = [
     ),
     tokenUrl: "https://github.com/settings/tokens/new?scopes=repo&description=Lu",
     fields: [{ payloadKey: "token", kind: "primary", label: "personal access token", placeholder: "ghp_…", required: true }],
+    installHref: "/api/connect/github/start",
+    installLabel: "Install the GitHub App",
   },
   {
     key: "vercel",
@@ -279,6 +285,12 @@ function ProviderRow({
           <Button variant="ghost" size="sm" onClick={onDisconnect} disabled={busy}>
             {busy ? <Loader2 className="size-3.5 animate-spin" /> : "Disconnect"}
           </Button>
+        ) : provider.installHref ? (
+          // Phase-2 install (byo-connect): the provider's OWN consent screen is the primary
+          // path — one click, no tokens to hunt down. Paste stays as the quiet fallback below.
+          <Button size="sm" nativeButton={false} render={<a href={provider.installHref} />}>
+            <Plug className="size-3.5" /> {provider.installLabel ?? `Connect ${provider.label}`}
+          </Button>
         ) : (
           <Button variant={open ? "ghost" : "outline"} size="sm" onClick={onToggle} disabled={busy}>
             {open ? (
@@ -293,6 +305,17 @@ function ProviderRow({
           </Button>
         )}
       </div>
+
+      {/* The paste fallback toggle, only for install-first providers. */}
+      {!loading && !connected && provider.installHref && (
+        <button
+          type="button"
+          onClick={onToggle}
+          className="mt-1.5 pl-12 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+        >
+          {open ? "Hide token paste" : "…or paste a token instead"}
+        </button>
+      )}
 
       {open && !connected && (
         <form onSubmit={submit} className="mt-3 flex flex-col gap-2 pl-12">

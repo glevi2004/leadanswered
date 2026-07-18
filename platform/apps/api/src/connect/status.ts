@@ -25,7 +25,8 @@ export async function connectionStatus(store: Store, orgId: string): Promise<Con
     store.getSupabaseConnection(orgId),
   ]);
   return {
-    github: !!gh?.userToken,
+    // GitHub: an App installation (Phase 2 — installationId, tokens minted per run) OR a pasted PAT.
+    github: !!(gh?.installationId || gh?.userToken),
     vercel: !!vc?.accessToken,
     supabase: !!(sb?.projectRef && sb?.serviceKey),
   };

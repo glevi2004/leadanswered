@@ -48,15 +48,21 @@ export class OctokitGit implements Git {
   private readonly token: string;
   /** BYO mode: never consult GITHUB_OWNER — new repos belong to the token's own account. */
   private readonly ignoreEnvOwner: boolean;
+  /** App-install mode: the installation's account owns new repos (installation tokens can't `GET /user`). */
+  private readonly defaultOwner: string | undefined;
   /** Memoised authenticated login (`GET /user`) — only fetched when no owner is otherwise given. */
   private authLogin: string | undefined;
 
-  constructor(token: string = process.env.GITHUB_TOKEN ?? "", opts?: { ignoreEnvOwner?: boolean }) {
+  constructor(
+    token: string = process.env.GITHUB_TOKEN ?? "",
+    opts?: { ignoreEnvOwner?: boolean; defaultOwner?: string },
+  ) {
     if (!token) {
       throw new Error("GITHUB_TOKEN is not set — cannot use the Octokit Git adapter.");
     }
     this.token = token;
     this.ignoreEnvOwner = opts?.ignoreEnvOwner ?? false;
+    this.defaultOwner = opts?.defaultOwner;
     this.octokit = new Octokit({ auth: token });
   }
 
@@ -68,6 +74,7 @@ export class OctokitGit implements Git {
    */
   private async resolveOwner(org?: string): Promise<string> {
     if (org) return org;
+    if (this.defaultOwner) return this.defaultOwner;
     if (!this.ignoreEnvOwner && process.env.GITHUB_OWNER) return process.env.GITHUB_OWNER;
     if (!this.authLogin) {
       try {

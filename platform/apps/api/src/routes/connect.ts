@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { Octokit } from "@octokit/rest";
 import type { Store } from "../store/types.js";
 import { connectionStatus } from "../connect/status.js";
+import { getInstallationAccount, githubAppConfigured, mintInstallationToken } from "../git/githubApp.js";
 
 /**
  * BYO connect — token-paste MVP (docs/byo-connect.md). Each org connects its OWN
@@ -49,9 +50,33 @@ export function createConnectGithubRoute(deps: ConnectDeps) {
     const b = req.body ?? {};
     const orgId = b.orgId ?? b.org_id;
     const token = b.token;
+    const installationId = b.installationId ?? b.installation_id;
+
+    // GITHUB APP PATH (byo-connect Phase 2): the install callback posts { installationId }.
+    // Verify by minting an installation token (proves the App really is installed there),
+    // resolve the install's account, and store — no PAT involved, ever.
+    if (isFilled(orgId) && isFilled(installationId)) {
+      if (!githubAppConfigured()) {
+        res.status(400).json({ ok: false, error: "GitHub App is not configured on the server" });
+        return;
+      }
+      try {
+        await mintInstallationToken(String(installationId).trim());
+        const account = await getInstallationAccount(String(installationId).trim());
+        await deps.store.upsertGithubConnection(orgId, {
+          installationId: String(installationId).trim(),
+          login: account?.login,
+        });
+        res.status(200).json({ ok: true, login: account?.login ?? null, via: "github_app" });
+      } catch (err) {
+        console.warn("[/api/connect/github] installation verification failed:", (err as Error).message);
+        res.status(400).json({ ok: false, error: "GitHub App installation could not be verified" });
+      }
+      return;
+    }
 
     if (!isFilled(orgId) || !isFilled(token)) {
-      res.status(400).json({ ok: false, error: "orgId and token are required" });
+      res.status(400).json({ ok: false, error: "orgId and token (or installationId) are required" });
       return;
     }
 

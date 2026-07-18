@@ -1,5 +1,6 @@
 import { GhCliGit } from "./github.js";
 import { OctokitGit } from "./octokit.js";
+import { githubAppConfigured, mintInstallationToken } from "./githubApp.js";
 import type { Git } from "./types.js";
 import type { Store } from "../store/types.js";
 
@@ -42,8 +43,19 @@ export function getGit(): Git {
 export async function getGitForOrg(store: Store, orgId?: string): Promise<Git> {
   if (orgId) {
     const conn = await store.getGithubConnection(orgId);
-    // BYO: `ignoreEnvOwner` so the customer's repos land in the CUSTOMER's own account —
-    // GITHUB_OWNER only ever applies to the platform's dogfood token below.
+    // BEST: the GitHub App install (byo-connect Phase 2) — mint a 1-hour, repo-scoped
+    // installation token per run. `defaultOwner` = the install's account (installation
+    // tokens can't `GET /user`), so new repos land exactly where the owner installed.
+    if (conn?.installationId && githubAppConfigured()) {
+      try {
+        const token = await mintInstallationToken(conn.installationId);
+        return new OctokitGit(token, { ignoreEnvOwner: true, defaultOwner: conn.login ?? undefined });
+      } catch (err) {
+        console.error(`[git] installation-token mint failed for org ${orgId} (falling back):`, err);
+      }
+    }
+    // FALLBACK: the pasted PAT. `ignoreEnvOwner` so the customer's repos land in the
+    // CUSTOMER's own account — GITHUB_OWNER only ever applies to the dogfood token below.
     if (conn?.userToken) return new OctokitGit(conn.userToken, { ignoreEnvOwner: true });
   }
   return getGit();
