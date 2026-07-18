@@ -134,6 +134,53 @@ locally-computed badges when server truth exists.** Known items to label or wire
 Request changes (stubs), Supabase console write buttons (label exists — keep), team page (mock data),
 `/home` staleness, non-interactive ask_user chips (§5 wires them).
 
+## §8b — THE DEV-LOOP UI (added 2026-07-18; the surface for the dogfood ladder)
+
+**The organizing rule — one object, three sizes.** The UI's mess came from every surface inventing
+its own fragment of a build. From now on there is ONE renderable object — **the Build** (a task +
+its plan, events, artifacts, approvals, all server rows) — rendered at exactly three sizes, always
+fed by the same data:
+
+1. **Card** (inline in the chat) — the live, interactive telling of one build.
+2. **Row** (Home · Tasks tab · canvas badges) — status dot · title · phase · one-line latest event.
+3. **Page** (the Task Detail — NEW, the missing hub) — everything, at `/task/[id]` and as a dock
+   panel: the plan (objective · steps · acceptance as a CHECKLIST with per-criterion verify
+   verdicts + screenshot thumbnails), the events timeline (the journal, human-readable), the PR
+   diff, the live preview iframe, pending approvals with buttons, and the actions (Retry ·
+   Request changes → prefills the composer · Open PR · Open preview).
+
+**Every row and card clicks through to the Page.** No more "the detail exists but is buried."
+
+**The chat (the spine) — what a build looks like in the thread:**
+- Lu's turns: plain text (already shipped). Structured turns attach CARDS (the `SarahMessage.card`
+  pattern — connect was the first): `plan` (approve/revise/reject), `import` (pick a repo — step 2),
+  `migration` (the SQL diff + preview-branch/approve gate — step 5), `verify` (the acceptance
+  checklist verdict), `publish` (the gate).
+- While a build runs, its ONE chat card progresses in place: `planning → awaiting your approval →
+  building (live activity line from the journal) → PR + preview → verifying (criteria check off) →
+  needs you (Publish) → live (URL)`. Phase label replaces the bare typing dots (§4). The card is
+  server-derived, so reload-safe.
+- Report-backs (§3) keep landing as thread messages between cards — the conversation stays the log.
+
+**Per ladder step, what appears:**
+1. *Downscoping* — invisible, except the Task Detail's event timeline shows "sandbox token: repo-scoped, 1h".
+2. *Import existing* — Company tab gains **Projects**: imported repos + Lu-built sites as one list
+   (each → its project page: repo · Vercel link · REPO PROFILE editor (setup/test commands, env) ·
+   builds history). In chat, "work on my X repo" → Lu answers with the **import card** (repo picker
+   from the App install → auto-detected profile → confirm). Canvas: a project node per imported repo.
+3. *Verification* — the acceptance checklist becomes REAL UI: per criterion ✓/✗ + evidence
+   (screenshot thumbnail, test output tail) in the verify card + Task Detail. No more prose verdicts.
+4. *Slack* — mirror, not a fork: the same Build renders as Slack messages (plan → Approve/Request
+   changes buttons · report-backs · Publish button), threaded per build; the dock thread shows a
+   small "also in #channel" marker. One conversation, two clients.
+5. *Migration gate* — the **migration card**: the SQL/schema diff, target shown as `preview branch`,
+   Approve = merge-to-prod-DB. Never buried in a transcript.
+6. *Railway* — a fourth provider row in the connect panel + deploy target shown on the project page.
+
+**Kill-list (the current mess this replaces):** the chat build tracker's ad-hoc fragments grow into
+the Card; Home stays to-do-only (done); the Tasks tab becomes Rows that open the Page; the
+department Workplace's task selector links to the Page instead of duplicating it.
+
 ## §8 — Build order (slots into harness-spec P1)
 
 1. [x] `AgentEvent` migration + store methods + event writes + row hygiene (`done`, agent status) — §1

@@ -138,6 +138,14 @@ sequenceDiagram
 ### THE DOGFOOD LADDER — "development runs through Lu, from Slack" *(agreed 2026-07-18, in order)*
 The end state: DM Lu in Slack → plan → Approve button → she clones the REAL repo, builds on `lu/build`,
 PR + typecheck/tests + preview → Slack report with buttons → Publish → merge → Railway/Vercel deploy.
+**The UI for every step is specced in [docs/workflow.md §8b](./docs/workflow.md)** — the rule is ONE
+object (the Build) at three sizes (chat Card · list Row · the NEW Task Detail Page), every row/card
+clicking through to the Page; each ladder step ships its backend + its §8b surface together, never
+capability without UI.
+- [ ] ⬜ **0. The Task Detail Page + Build card/row unification** — the §8b hub (`/task/[id]` + dock
+  panel: plan · acceptance checklist w/ verdicts · events timeline · diff · preview · approvals ·
+  Retry/Request-changes); Tasks tab + Home rows + workplace selector all click through to it. Ships
+  FIRST — every later step renders into it.
 
 - [ ] ⬜ **1. GitHub sandbox-token downscoping + branch protection** — mint the sandbox a per-task token (ONE repo, `contents:write` only, 1h — GitHub's mint API takes `repositories` + `permissions`); full-perm token stays server-side (create repo, gated merge). Protect `main` at repo creation (block force-push/deletion, no required reviews so the gated merge still works). Non-negotiable before Lu edits repos we care about ([harness-spec](./docs/harness-spec.md) §3).
 - [ ] ⬜ **2. Existing-project import + REPO PROFILES** — point Lu at an EXISTING repo (the App install scopes which) + link its existing Vercel project; plus a per-repo profile (setup/install commands · typecheck/test commands · env needs) so the sandbox can build a real monorepo — Devin's "environment snapshot", our per-Site record. The rest of the pipeline is repo-agnostic already.
