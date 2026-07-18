@@ -53,15 +53,46 @@ build that needs a DB is Phase 2.
 - **The raw PAT is injected into the e2b sandbox** as `GITHUB_TOKEN` (`apps/api/src/sandbox/e2b.ts`) — no
   scoped, short-lived installation token yet.
 
-## Phase 2 — real OAuth (not built)
+## Phase 2 — connect through THEIR apps (spec'd 2026-07-18, not built)
 
-The roadmap target (nothing below is built): replace paste-a-token with proper installs, keeping the same
-store shape + org-scoped ports so **only the connect routes change**.
+Replace paste-a-token with each provider's real install flow. The store shape + org-scoped ports stay;
+what changes: the connect routes (each gains `/start` + `/callback`), the ConnectCard rows (buttons →
+provider consent screens, token-paste kept behind a "paste a token instead" fallback link), and GitHub's
+token minting. The dock card's 15s status poll flips rows to Connected when the popup closes.
 
-- **GitHub App** — an installable App (user-to-server OAuth during install + minted **installation tokens**
-  for repo ops, in place of the raw PAT). Register at github.com/settings/apps/new; env
-  `GITHUB_APP_ID` / `GITHUB_APP_CLIENT_ID` / `GITHUB_APP_CLIENT_SECRET` / `GITHUB_APP_PRIVATE_KEY`.
-- **Vercel Integration** — an OAuth Integration (vercel.com/integrations/console); env
-  `VERCEL_CLIENT_ID` / `VERCEL_CLIENT_SECRET`.
-- **Supabase** — **Management-API OAuth** in place of the pasted management token / service key, plus wiring
-  the brokered secret into the build pipeline (the console-only → build-capable step).
+**GitHub — a GitHub App** *(build first: also the security win — harness-spec §3 P1)*
+- Register the "Lu Computer" App once (repo permissions: **Contents R/W · Pull requests R/W ·
+  Administration R/W** for repo creation; webhook off for now; public app, direct install link — no
+  marketplace listing needed).
+- Flow: Connect → `github.com/apps/{slug}/installations/new` → the owner picks account + repos →
+  redirect back with `installation_id` → stored in the **existing** `GithubConnection.installationId`.
+- Tokens: the server mints **installation access tokens** (App JWT from `GITHUB_APP_PRIVATE_KEY` →
+  `POST /app/installations/{id}/access_tokens`) — **1-hour, repo-scoped**. `installationToken()` in the
+  Git port finally does what its name says; sandboxes stop receiving a forever-PAT. Repos are created
+  in the installed account (the template is public, so `createUsingTemplate` works).
+- Env: `GITHUB_APP_ID` / `GITHUB_APP_SLUG` / `GITHUB_APP_PRIVATE_KEY` (+ client id/secret only if we
+  also want user-level OAuth during install).
+
+**Vercel — an Integration**
+- Create in the Integrations Console; keep it **unlisted** (direct install URL). Scopes: projects +
+  deployments + domains.
+- Flow: Connect → Vercel's install screen (they pick the team) → redirect with `code` +
+  `configurationId` + `teamId` → exchange at `api.vercel.com/v2/oauth/access_token` (client id/secret)
+  → store in the existing `VercelConnection.accessToken/teamId`. Tokens live until the owner removes
+  the integration. The Deploy port is unchanged.
+- Env: `VERCEL_CLIENT_ID` / `VERCEL_CLIENT_SECRET` / `VERCEL_REDIRECT_URI`.
+
+**Supabase — an OAuth app (Management API)**
+- Register in the Supabase dashboard (org settings → OAuth Apps). Authorization-code flow:
+  `api.supabase.com/v1/oauth/authorize` → owner approves org access → callback `code` → exchange at
+  `/v1/oauth/token` → **access token + refresh token** (these EXPIRE — unlike the other two).
+- Post-connect: list their projects via the Management API and let the owner PICK one (replaces pasting
+  a project ref); fetch the project's keys on demand (`GET /v1/projects/{ref}/api-keys`) instead of
+  storing a pasted service key.
+- Schema: two additive columns on `SupabaseConnection` (`refreshToken`, `expiresAt`) + a refresh step in
+  the console/broker path.
+- Env: `SUPABASE_OAUTH_CLIENT_ID` / `SUPABASE_OAUTH_CLIENT_SECRET` / `SUPABASE_OAUTH_REDIRECT_URI`.
+
+**Prerequisites only the owner-of-the-platform can do:** the three registrations (GitHub App · Vercel
+Integration · Supabase OAuth app) — ~10 min of dashboard forms each, producing the client ids/secrets
+above. Everything else is code. Build order: **GitHub App → Vercel → Supabase**.
