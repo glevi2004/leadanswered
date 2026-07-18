@@ -169,6 +169,8 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 const CODING_TIMEOUT_MS = Number(process.env.CODING_TIMEOUT_MS) || 600_000;
 /** Bound for the shorter git/network/sandbox steps (clone-token, writeFiles, PR, deploy). Default 2 min. */
 const STEP_TIMEOUT_MS = Number(process.env.ENGINEERING_STEP_TIMEOUT_MS) || 120_000;
+/** Verification's test-run budget (ladder step 3) — monorepo installs + typecheck take minutes. */
+const VERIFY_TEST_TIMEOUT_MS = Number(process.env.VERIFY_TEST_TIMEOUT_MS) || 480_000;
 
 /**
  * Reject if `work` outlives `ms` — so no unbounded external await (git / deploy / sandbox
@@ -635,14 +637,87 @@ export function engineeringTools(deps: EngineeringToolDeps, ctx: EngineeringCont
         const previewUrl = previewPayload?.url ?? "";
         const diff = (diffPayload?.diff ?? "").slice(0, 8_000);
         const transcript = (sessionPayload?.stdout || sessionPayload?.stderr || "").slice(0, 3_000);
+
+        // 2b) EMPIRICAL checks (ladder step 3 — harness-spec §2 P1): the judge stops trusting
+        // text alone. (a) FETCH the live preview — HTTP status + rendered text become evidence;
+        // (b) if the project has a repo-profile test command, RUN it against the build branch in
+        // a fresh sandbox. Failed checks are a HARD gate below, regardless of the judge.
+        const checks: { name: string; ok: boolean; detail: string }[] = [];
+        let fetchedPreview = "";
+        if (previewUrl) {
+          try {
+            const ctrl = new AbortController();
+            const to = setTimeout(() => ctrl.abort(), 20_000);
+            const resp = await fetch(previewUrl, { signal: ctrl.signal, redirect: "follow" });
+            clearTimeout(to);
+            const raw = await resp.text();
+            fetchedPreview = raw.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 1_500);
+            checks.push({
+              name: "preview_http",
+              ok: resp.ok && fetchedPreview.length > 0,
+              detail: `HTTP ${resp.status}; ${fetchedPreview.slice(0, 200) || "(empty page)"}`,
+            });
+          } catch (err) {
+            checks.push({ name: "preview_http", ok: false, detail: `fetch failed: ${(err as Error).message}` });
+          }
+        }
+        const repoFromArts = arts
+          .map((a) => (a.payload as { repoFullName?: string } | null)?.repoFullName)
+          .find((r): r is string => typeof r === "string" && r.includes("/"));
+        const testSite = repoFromArts
+          ? (await d.store.listSites(ctx.orgId)).find((s) => s.repoFullName === repoFromArts && s.testCommand)
+          : undefined;
+        if (testSite?.testCommand && repoFromArts) {
+          const testToken = await d.git.sandboxToken(repoFromArts).catch(() => null);
+          if (testToken) {
+            const startedMs = Date.now();
+            const sb = await d.sandbox.spawn({
+              repo: repoFromArts,
+              token: testToken,
+              timeoutMs: VERIFY_TEST_TIMEOUT_MS + 120_000,
+            });
+            try {
+              await d.sandbox.exec(
+                sb.id,
+                `cd ${REPO_DIR} && git fetch origin ${BUILD_BRANCH} && git checkout ${BUILD_BRANCH}`,
+                { timeoutMs: STEP_TIMEOUT_MS },
+              );
+              if (testSite.setupCommand) {
+                await d.sandbox.exec(sb.id, `cd ${REPO_DIR} && ${testSite.setupCommand}`, {
+                  timeoutMs: VERIFY_TEST_TIMEOUT_MS,
+                });
+              }
+              const t = await d.sandbox.exec(sb.id, `cd ${REPO_DIR} && ${testSite.testCommand}`, {
+                timeoutMs: VERIFY_TEST_TIMEOUT_MS,
+              });
+              checks.push({
+                name: "tests",
+                ok: t.exitCode === 0,
+                detail: `\`${testSite.testCommand}\` exit ${t.exitCode}: ${(t.stdout || t.stderr).slice(-800)}`,
+              });
+            } catch (err) {
+              checks.push({ name: "tests", ok: false, detail: `test run failed: ${(err as Error).message}` });
+            } finally {
+              await d.sandbox.kill(sb.id).catch(() => {});
+              void meterSandbox(d.store, ctx.orgId, (Date.now() - startedMs) / 1000, { taskId });
+            }
+          }
+        }
+
         const evidence = [
           `Preview URL: ${previewUrl || "(none yet)"} (status ${previewPayload?.status ?? "unknown"})`,
+          fetchedPreview ? `Live page text (FETCHED from the preview):\n${fetchedPreview}` : "",
+          checks.length > 0
+            ? `Empirical checks:\n${checks.map((c) => `- ${c.name}: ${c.ok ? "PASS" : "FAIL"} — ${c.detail.slice(0, 300)}`).join("\n")}`
+            : "",
           `Coding agent exit code: ${sessionPayload?.exitCode ?? "unknown"}`,
           "PR diff (truncated):",
           diff || "(no diff artifact)",
           "Coding transcript (truncated):",
           transcript || "(no transcript)",
-        ].join("\n");
+        ]
+          .filter(Boolean)
+          .join("\n");
 
         // 3) Judge each criterion via the model gateway. Strict reviewer — evidence must show it done.
         const modelId = recommendModel("orchestrator", "text").id;
@@ -668,7 +743,14 @@ export function engineeringTools(deps: EngineeringToolDeps, ctx: EngineeringCont
         });
         void meterLlm(d.store, ctx.orgId, modelId, result.usage, { taskId });
 
-        const { pass, unmet, notes } = result.object;
+        let { pass, unmet, notes } = result.object;
+        // THE HARD GATE (ladder step 3): a failed empirical check overrides the judge — a build
+        // whose preview 404s or whose tests fail is NOT done, however plausible the diff reads.
+        const failedChecks = checks.filter((c) => !c.ok);
+        if (failedChecks.length > 0) {
+          pass = false;
+          unmet = [...unmet, ...failedChecks.map((c) => `${c.name} failed: ${c.detail.slice(0, 200)}`)];
+        }
 
         // 4) Record the verdict as a doc Artifact so the dock shows the acceptance check.
         const verdict = await d.store.addArtifact({
@@ -676,7 +758,7 @@ export function engineeringTools(deps: EngineeringToolDeps, ctx: EngineeringCont
           taskId,
           kind: "doc",
           title: `Acceptance check — ${pass ? "passed" : "needs work"}`,
-          payload: { type: "acceptance", pass, unmet, notes },
+          payload: { type: "acceptance", pass, unmet, notes, checks },
         });
         artifacts.push(verdict);
         await recordEvent(d.store, {
