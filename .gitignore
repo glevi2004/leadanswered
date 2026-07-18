@@ -23,3 +23,5 @@ clients/*
 # Agent tooling (local)
 .claude/
 .agents/
+.vercel
+.env*
