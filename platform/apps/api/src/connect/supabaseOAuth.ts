@@ -1,7 +1,7 @@
 import type { Store } from "../store/types.js";
 
 /**
- * Supabase Management-API OAuth (docs/byo-connect.md Phase 2 — "connect through THEIR apps").
+ * Supabase Management-API OAuth (docs/system.md �6 Phase 2 — "connect through THEIR apps").
  * The owner authorizes the "Lu Computer" OAuth app against their Supabase org; we exchange the
  * code for a management access token + refresh token (the mgmt token EXPIRES, unlike GitHub/
  * Vercel), list their projects, and fetch the chosen project's service_role key on demand.

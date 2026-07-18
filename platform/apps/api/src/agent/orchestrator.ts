@@ -98,7 +98,7 @@ export async function runOrchestrator(
   const model = deps.model ?? getModel(modelId);
   const ctx: OrchestratorContext = { orgId: input.orgId, tasksCreated: [], actions: [] };
   const allTools = orchestratorTools({ store: deps.store }, ctx);
-  // Onboarding-mode (docs/onboarding.md Phase 2): a brand-new org has no ACTIVE department yet.
+  // Onboarding-mode (docs/product.md �5 Phase 2): a brand-new org has no ACTIVE department yet.
   // While onboarding, Lu runs the onboarding SKILL and gets only the onboarding toolkit (+ ask_user),
   // so she interviews, decides, and drafts the Business Plan instead of trying to build.
   const departments = await deps.store.listDepartments(input.orgId);
@@ -106,7 +106,7 @@ export async function runOrchestrator(
   // Core/long-term memory injection (plan Pillar 3): prepend what Lu knows about this business so
   // she has context from turn one. Best-effort — "" when there is nothing (or on any failure).
   const memory = await resolveOrgMemory(deps.store, input.orgId);
-  // The situational block (docs/workflow.md §2): live connections + open tasks + pending
+  // The situational block (docs/product.md §2): live connections + open tasks + pending
   // approvals + recent journal events, every turn — Lu is never blind to the state of the world.
   const situation = await resolveSituation(deps.store, input.orgId);
 

@@ -87,7 +87,7 @@ export default async function ManageOrganizationPage({
         </CardContent>
       </Card>
 
-      {/* Invite — the ONLY admin step (self-serve model, docs/onboarding.md): the owner sets a
+      {/* Invite — the ONLY admin step (self-serve model, docs/product.md �5): the owner sets a
           password from the invite and onboards THEMSELVES with Lu in the workspace. */}
       <Card className="mt-6">
         <CardHeader>

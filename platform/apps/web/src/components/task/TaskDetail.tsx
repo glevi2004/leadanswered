@@ -26,7 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 
 /**
- * THE TASK DETAIL — the §8b hub (docs/workflow.md; DEVELOPMENT ladder step 0): ONE page that
+ * THE TASK DETAIL — the §8b hub (docs/product.md; DEVELOPMENT ladder step 0): ONE page that
  * holds everything about a Build — the plan, the acceptance checklist with verify verdicts,
  * the events timeline (the journal, human-readable), the PR, the live preview, pending
  * approvals with their buttons, and the actions (Retry · Request changes). Every task row and

@@ -13,7 +13,7 @@ import {
 } from "../connect/supabaseOAuth.js";
 
 /**
- * BYO connect — token-paste MVP (docs/byo-connect.md). Each org connects its OWN
+ * BYO connect — token-paste MVP (docs/system.md �6). Each org connects its OWN
  * GitHub + Vercel by pasting a personal access token; we VERIFY it against the
  * provider, then store it ENCRYPTED (the store getters decrypt on read). The
  * Engineer later builds into THEIR accounts using these per-org tokens.
@@ -210,7 +210,7 @@ export function createConnectVercelRoute(deps: ConnectDeps) {
 
 /**
  * POST /api/connect/supabase  { orgId, projectRef, serviceKey, managementToken? }
- * The company's ONE shared, Engineering-anchored managed project (docs/canvas.md §"the backend").
+ * The company's ONE shared, Engineering-anchored managed project (docs/product.md �4 §"the backend").
  * Verify the creds with a lightweight call, then upsert the SupabaseConnection (serviceKey +
  * managementToken encrypted at rest). Verification prefers the Management API (GET /v1/projects/{ref})
  * when a management token is supplied; otherwise it checks the service key against the project's

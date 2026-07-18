@@ -35,7 +35,7 @@ export function getGit(): Git {
 }
 
 /**
- * Org-scoped Git (BYO connect — docs/byo-connect.md). When `orgId` is given AND the
+ * Org-scoped Git (BYO connect — docs/system.md �6). When `orgId` is given AND the
  * org has a stored GitHub connection with a usable token, return an `OctokitGit`
  * bound to THAT token, so the Engineer builds into the org's OWN GitHub. Otherwise
  * fall back to the env-based `getGit()` (the platform's dogfood path — unchanged).

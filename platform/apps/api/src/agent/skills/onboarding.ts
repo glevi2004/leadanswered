@@ -1,7 +1,7 @@
 import type { Skill } from "./types.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// The ONBOARDING skill — Lu's procedure for a brand-new company (docs/onboarding.md
+// The ONBOARDING skill — Lu's procedure for a brand-new company (docs/product.md �5
 // Phase 2). Runs in the workspace right after sign-up, before any department is
 // active. Lu interviews the founder, makes a few decisions with them, drafts a
 // Business Plan, and the owner's "Accept & activate departments" boots the company.

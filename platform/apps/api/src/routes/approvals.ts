@@ -192,7 +192,7 @@ export function createResolveApprovalRoute(deps: EngineeringDeps) {
           return;
         }
 
-        // The ACTIVATE gate (docs/onboarding.md Phase 2): "Accept & activate departments" on the
+        // The ACTIVATE gate (docs/product.md §5 Phase 2): "Accept & activate departments" on the
         // Business Plan. Approving boots the company's departments (Engineering active + agent) and
         // ends onboarding-mode; rejecting just supersedes the gate.
         if (appr?.action === "activate_departments") {

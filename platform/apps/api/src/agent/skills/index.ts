@@ -2,7 +2,7 @@ import type { Skill } from "./types.js";
 import { onboardingSkill } from "./onboarding.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Skill registry (docs/onboarding.md). The reusable-procedure system: any agent can
+// Skill registry (docs/product.md �5). The reusable-procedure system: any agent can
 // LOAD a skill by name and follow its `procedure`. Onboarding is the first skill;
 // add more by writing a module and registering it here.
 // ─────────────────────────────────────────────────────────────────────────────

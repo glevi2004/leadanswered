@@ -311,7 +311,7 @@ export interface CreateCollectionInput {
   name: string;
 }
 
-// ─── BYO connect (docs/byo-connect.md) — per-org provider connections ─────────
+// ─── BYO connect (docs/system.md �6) — per-org provider connections ─────────
 // One row per org per provider. Tokens are ENCRYPTED at rest (AES-256-GCM); the
 // getters return the DECRYPTED token to callers (or null if none / undecryptable).
 
@@ -351,7 +351,7 @@ export interface VercelConnectionInput {
 
 /**
  * An org's Supabase connection — the company's one shared, Engineering-anchored managed project
- * (docs/canvas.md §"the backend"). `serviceKey` / `managementToken` are the DECRYPTED tokens (or
+ * (docs/product.md �4 §"the backend"). `serviceKey` / `managementToken` are the DECRYPTED tokens (or
  * null if none / undecryptable). Secrets are brokered — the console never returns these to the client.
  */
 export interface SupabaseConnectionRecord {
@@ -434,7 +434,7 @@ export interface ThreadRecord {
   updatedAt?: string;
 }
 /** One persisted turn in a Thread. `meta` marks system-authored report-back messages
- * (docs/workflow.md §3) so the UI can render them as event cards. */
+ * (docs/product.md §3) so the UI can render them as event cards. */
 export interface MessageRecord {
   id: string;
   threadId: string;
@@ -445,7 +445,7 @@ export interface MessageRecord {
   createdAt?: string;
 }
 
-/** One row in the event journal — the flow layer's spine (docs/workflow.md §1). */
+/** One row in the event journal — the flow layer's spine (docs/product.md §1). */
 export interface AgentEventRecord {
   id: string;
   orgId: string;
@@ -588,7 +588,7 @@ export interface Store {
   /** The most recent `limit` messages of a thread, oldest-first (for prompt history). */
   listRecentMessages(threadId: string, limit: number): Promise<MessageRecord[]>;
 
-  // --- The event journal (docs/workflow.md §1) ---
+  // --- The event journal (docs/product.md §1) ---
   /** Append one journal event. Best-effort callers — never let this fail a run. */
   addAgentEvent(input: AddAgentEventInput): Promise<AgentEventRecord>;
   /** The org's most recent events, newest-first. */

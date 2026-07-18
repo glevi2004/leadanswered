@@ -91,7 +91,7 @@ export function resolveEngineeringDeps(deps: EngineeringToolDeps): ResolvedEngin
 }
 
 /**
- * ORG-SCOPED variant (BYO connect — docs/byo-connect.md §"Port swap"). Resolves the
+ * ORG-SCOPED variant (BYO connect — docs/system.md �6 §"Port swap"). Resolves the
  * Git + Deploy ports to the ORG's OWN connection token when `orgId` is given and a
  * connection exists (else env fallback). Explicitly-passed ports (tests) still win.
  * `runEngineering` calls this with `ctx.orgId` and hands the resolved deps to
@@ -867,7 +867,7 @@ export function engineeringTools(deps: EngineeringToolDeps, ctx: EngineeringCont
         const site = await d.store.getSite(siteId);
         if (!site) return { status: "error" as const, reason: "site_not_found" as const };
 
-        // THE PUBLISH CODE-GATE (harness-spec §2 P0, docs/workflow.md): if the task's plan has
+        // THE PUBLISH CODE-GATE (harness-spec §2 P0, docs/product.md): if the task's plan has
         // acceptance criteria, publishing may only be REQUESTED once the latest acceptance
         // check passed. Previously this rule lived only in the system prompt — the model was
         // trusted to obey it. Now it is enforced here, in code.

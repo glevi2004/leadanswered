@@ -2,7 +2,7 @@ import type { AddAgentEventInput, Store } from "../store/types.js";
 import { notifySlack } from "../channels/slack.js";
 
 /**
- * The flow layer's write path (docs/workflow.md §1/§3). Two best-effort helpers:
+ * The flow layer's write path (docs/product.md §1/§3). Two best-effort helpers:
  * `recordEvent` appends to the AgentEvent journal (the spine every surface and
  * Lu's situational block read); `postToThread` appends a system-authored
  * assistant message to the org's main Lu thread (the report-back that makes the

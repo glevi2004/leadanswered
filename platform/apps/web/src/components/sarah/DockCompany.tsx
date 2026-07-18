@@ -34,7 +34,7 @@ export function DockCompany() {
         <p className="font-medium text-foreground">Stack</p>
         <p className="mt-0.5 text-xs text-muted-foreground">The rails your company runs on.</p>
         <div className="mt-3 space-y-1">
-          {/* UI honesty (docs/workflow.md §7): Domain/Email/Payment have no data source yet —
+          {/* UI honesty (docs/product.md §7): Domain/Email/Payment have no data source yet —
               they say Soon, not a "Setup" chip pretending there's a flow behind it. */}
           <StackRow icon={Globe} label="Domain" connected={false} soon />
           <StackRow icon={Mail} label="Email" connected={false} soon />

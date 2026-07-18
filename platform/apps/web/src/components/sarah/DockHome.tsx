@@ -59,7 +59,7 @@ export function DockHome() {
                           key={o}
                           type="button"
                           onClick={() => {
-                            // Answering IS one click (docs/workflow.md §5): send the option as the
+                            // Answering IS one click (docs/product.md §5): send the option as the
                             // owner's reply, jump to the Lu thread, and clear the card.
                             sendMessage(o);
                             setDockTab("lu");

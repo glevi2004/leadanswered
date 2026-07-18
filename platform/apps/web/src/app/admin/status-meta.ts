@@ -3,7 +3,7 @@ import type { AccountStatus } from "@/lib/organizations";
 export type Variant = "default" | "secondary" | "destructive" | "outline";
 
 /**
- * Account lifecycle (DERIVED) — the SELF-SERVE model (docs/onboarding.md): the admin sends
+ * Account lifecycle (DERIVED) — the SELF-SERVE model (docs/product.md �5): the admin sends
  * the invite (or accepts from the waitlist, which invites automatically); the owner sets a
  * password and onboards THEMSELVES with Lu in the workspace. Informational only.
  */

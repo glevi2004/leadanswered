@@ -2,7 +2,7 @@ import type { Store } from "../store/types.js";
 import { connectionStatus } from "../connect/status.js";
 
 /**
- * The SITUATIONAL BLOCK (docs/workflow.md §2) — the live state injected into every
+ * The SITUATIONAL BLOCK (docs/product.md §2) — the live state injected into every
  * orchestrator turn so Lu is never blind: connections, open tasks (real rows, not
  * counts), what's awaiting the owner, and the most recent journal events. Before
  * this, Lu's only non-conversation context was a prose memory summary; she could

@@ -5,7 +5,7 @@ import { ConnectionsPanel } from "@/components/settings/ConnectionsPanel";
 import { cn } from "@/lib/utils";
 
 /**
- * The REAL connect form, in the dock (docs/workflow.md §7 — surfaces drive real actions):
+ * The REAL connect form, in the dock (docs/product.md §7 — surfaces drive real actions):
  * wraps the same ConnectionsPanel Settings uses (token paste → /api/connect/*, live status,
  * disconnect) in a dock-sized card. Rendered wherever connecting is the actual next step —
  * Home's roadmap, the Company stack, and INLINE IN THE CHAT when a plan is waiting on

@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Skills — reusable procedures an agent can LOAD and follow (docs/onboarding.md).
+// Skills — reusable procedures an agent can LOAD and follow (docs/product.md �5).
 // A skill is a named markdown procedure: when an agent is running a skill, its
 // `procedure` is injected into that agent's system prompt so the model follows the
 // steps. This is the general mechanism ("Lu's onboarding file" is the first skill);

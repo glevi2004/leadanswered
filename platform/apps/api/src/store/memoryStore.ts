@@ -713,7 +713,7 @@ export class MemoryStore implements Store {
     return this.threadMessages.filter((m) => m.threadId === threadId).slice(-limit);
   }
 
-  // --- The event journal (docs/workflow.md §1) ---
+  // --- The event journal (docs/product.md §1) ---
   private agentEvents: AgentEventRecord[] = [];
 
   async addAgentEvent(input: AddAgentEventInput): Promise<AgentEventRecord> {

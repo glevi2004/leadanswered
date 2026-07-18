@@ -97,7 +97,7 @@ export function SarahComposer({
         className="neu-socket rounded-2xl px-2.5 py-2"
       >
         <div className="flex items-end gap-2">
-          {/* attach affordance — not wired yet, so it says so (docs/workflow.md §7) */}
+          {/* attach affordance — not wired yet, so it says so (docs/product.md §7) */}
           <button
             type="button"
             aria-label="Attach (coming soon)"

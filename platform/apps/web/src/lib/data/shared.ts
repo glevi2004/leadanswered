@@ -57,7 +57,7 @@ export interface Approval {
 }
 
 /** One message in THE owner conversation (SMS + widget + /sarah are one thread).
- * `card` attaches a structured UI card to a Lu turn (docs/workflow.md — Lu→UI actions):
+ * `card` attaches a structured UI card to a Lu turn (docs/product.md — Lu→UI actions):
  * "connect" renders the inline connect form under her message. */
 export interface SarahMessage {
   id: string;

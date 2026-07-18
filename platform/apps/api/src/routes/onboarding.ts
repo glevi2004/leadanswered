@@ -40,7 +40,7 @@ export function createProvisionRoute(deps: DepartmentRouteDeps) {
 
 /**
  * POST /api/onboarding/context  body { orgId, companyName?, ownerName?, role?, ideaStage? }
- * Phase-1 sign-up finisher (docs/onboarding.md): seed Lu's memory from the sign-up answers
+ * Phase-1 sign-up finisher (docs/product.md �5): seed Lu's memory from the sign-up answers
  * WITHOUT activating any department — the in-workspace Lu onboarding (Phase 2) does that on
  * "Accept & activate departments". → { ok: true }.
  */
@@ -70,7 +70,7 @@ export function createSeedContextRoute(deps: DepartmentRouteDeps) {
 
 /**
  * GET /api/onboarding/status?orgId=...
- * Whether the org is still in the in-workspace onboarding (docs/onboarding.md Phase 2) — true
+ * Whether the org is still in the in-workspace onboarding (docs/product.md �5 Phase 2) — true
  * until its departments have been activated. Derived: `active` = NO department is `active` yet.
  * → { active: boolean }.
  */

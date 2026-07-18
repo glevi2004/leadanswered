@@ -3,7 +3,7 @@ import type { Store } from "../store/types.js";
 import { consoleForOrg, type SupabaseConsole } from "../console/supabase.js";
 
 /**
- * The console proxy (docs/canvas.md §"the hub" — the department's Database-view). Each endpoint
+ * The console proxy (docs/product.md �4 §"the hub" — the department's Database-view). Each endpoint
  * MIRRORS the company's one shared, Engineering-anchored Supabase project via the Management API +
  * the project's own APIs (see console/supabase.ts). All routes are org-scoped (`?orgId=`), return
  * normalized JSON, and are **honest-empty** when the org has no Supabase connection — never a crash.

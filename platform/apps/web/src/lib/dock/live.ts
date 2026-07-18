@@ -171,7 +171,7 @@ export function useOnboardingMode(active: boolean): boolean {
   return onboarding;
 }
 
-/** One row of the org's journal (docs/workflow.md §1) — what activity lines derive from. */
+/** One row of the org's journal (docs/product.md §1) — what activity lines derive from. */
 export interface DockEvent {
   id: string;
   taskId: string | null;

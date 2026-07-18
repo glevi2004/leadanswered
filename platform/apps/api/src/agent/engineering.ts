@@ -172,7 +172,7 @@ export async function runEngineering(
     ...(input.taskId ? { taskId: input.taskId } : {}),
   };
 
-  // Agent status (docs/workflow.md §1 row hygiene): the Engineer shows `working` for the
+  // Agent status (docs/product.md §1 row hygiene): the Engineer shows `working` for the
   // duration of the run, `idle` after — so rosters and the canvas stop lying.
   const engineerAgent = await deps.store
     .getAgentByDepartment(input.orgId, "engineering")
@@ -296,7 +296,7 @@ export async function confirmPublish(
     prNumber: preview.prNumber,
     status: "READY",
   });
-  // 5) Resolve the Approval — and close the loop (docs/workflow.md §1/§3): the task goes
+  // 5) Resolve the Approval — and close the loop (docs/product.md §1/§3): the task goes
   // to `done` (previously nothing ever wrote `done`), the journal records `published`,
   // and Lu's thread gets the report-back.
   const approval = await d.store.resolveApproval(approvalId, "approved", "owner");

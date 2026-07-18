@@ -29,7 +29,7 @@ export interface OrchestratorToolDeps {
 }
 
 /**
- * A structured Lu→UI action riding the turn's response (docs/workflow.md — the chat renders
+ * A structured Lu→UI action riding the turn's response (docs/product.md — the chat renders
  * these as real UI, not text): a non-blocking question (option buttons), or the connect form
  * rendered inline as part of Lu's reply.
  */
@@ -165,7 +165,7 @@ export function orchestratorTools(deps: OrchestratorToolDeps, ctx: OrchestratorC
           return { ok: false as const, reason: "not_an_engineering_task" };
         }
         // BYO connect gate: don't dispatch until the org connected its OWN GitHub + Vercel
-        // (docs/byo-connect.md). Lu should tell the owner to connect, then retry.
+        // (docs/system.md �6). Lu should tell the owner to connect, then retry.
         if (!(await orgHasConnections(deps.store, ctx.orgId))) {
           return { ok: false as const, reason: "not_connected" as const };
         }
