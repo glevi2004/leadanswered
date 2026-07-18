@@ -131,9 +131,15 @@ sequenceDiagram
 - [ ] 🟡 **Onboarding polish** — suppress the generic dock welcome during onboarding; live end-to-end pass; optionally trim the legacy config schema to the builder shape.
 
 ### Platform / infra / security  *(gates external users)*
-- [ ] ⬜ **API auth** — `apps/api` trusts a **client-supplied `orgId`** with no shared secret → any caller can act as any org (cross-tenant). **Hard blocker before real customers.**
+- [x] **API auth** *(shipped 2026-07-18)* — `/api/*` requires the `x-lu-proxy-secret` header (`API_PROXY_SECRET` set on Railway + Vercel; every server-side web fetch sends it; smoke-tested: no-header → 401). Was the cross-tenant blocker.
 - [ ] 🟡 **Terminal secret exposure** — the cloud terminal seeds the platform's GitHub/Anthropic keys into a user-reachable shell *(security review)*.
 - [ ] ⬜ **Supabase RLS in migrations** — RLS exists only as hand-applied prod state, not reproducible from the repo.
+
+### Before a real DESIGN PARTNER connects  *(the "external users" checklist, 2026-07-18)*
+- [ ] ⬜ **Make the GitHub App public** — currently "Only on this account" (app settings → Advanced → Make public), else a partner can't install it.
+- [ ] ⬜ **Make the Vercel Integration public/unlisted** — same: a partner needs to be able to install it.
+- [ ] ⬜ **Regenerate the two OAuth secrets that passed through chat** — the Vercel Integration client secret + the Supabase OAuth client secret (rotate in each console → new value via a local file → swap the Railway/local env). (The Supabase OAuth app is already installable by any Supabase org — nothing to flip there.)
+- [ ] 🟡 **Terminal secret exposure** (above) — must land before non-owners get a terminal.
 
 ### The company — the other departments
 - [x] **Engineering** — the flagship, operational.
