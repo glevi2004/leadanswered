@@ -27,6 +27,7 @@ import {
   createDisconnectVercelRoute,
   createDisconnectSupabaseRoute,
   createConnectStatusRoute,
+  createSupabaseProjectsRoute,
 } from "./routes/connect.js";
 import {
   createConsoleOverviewRoute,
@@ -126,6 +127,7 @@ export async function createApp(overrides: BuildDeps = {}): Promise<Express> {
   app.delete("/api/connect/vercel", createDisconnectVercelRoute(deps));
   app.delete("/api/connect/supabase", createDisconnectSupabaseRoute(deps));
   app.get("/api/connect/status", createConnectStatusRoute(deps));
+  app.get("/api/connect/supabase/projects", createSupabaseProjectsRoute(deps));
 
   // Lu Computer — the console proxy (docs/canvas.md §"the hub"): the department's Database-view
   // mirrors the company's one shared Supabase project (Management API + project APIs). Honest-empty

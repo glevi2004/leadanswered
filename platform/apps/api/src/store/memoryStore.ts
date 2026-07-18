@@ -73,8 +73,10 @@ interface StoredVercelConnection {
 interface StoredSupabaseConnection {
   orgId: string;
   projectRef: string;
-  serviceKeyEnc: string;
+  serviceKeyEnc: string | null;
   managementTokenEnc: string | null;
+  refreshTokenEnc: string | null;
+  expiresAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -569,8 +571,10 @@ export class MemoryStore implements Store {
     return {
       orgId: r.orgId,
       projectRef: r.projectRef,
-      serviceKey: decryptTokenSafe(r.serviceKeyEnc),
+      serviceKey: r.serviceKeyEnc ? decryptTokenSafe(r.serviceKeyEnc) : null,
       managementToken: decryptTokenSafe(r.managementTokenEnc),
+      refreshToken: decryptTokenSafe(r.refreshTokenEnc),
+      expiresAt: r.expiresAt,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
     };
@@ -588,21 +592,27 @@ export class MemoryStore implements Store {
     const ts = this.now().toISOString();
     const existing = this.supabaseConnections.get(orgId);
     const projectRef = input.projectRef ?? existing?.projectRef;
-    let serviceKeyEnc: string;
-    if (input.serviceKey !== undefined) serviceKeyEnc = encryptToken(input.serviceKey);
-    else if (existing) serviceKeyEnc = existing.serviceKeyEnc;
-    else throw new Error("upsertSupabaseConnection: serviceKey is required to create a connection");
-    if (projectRef === undefined) {
-      throw new Error("upsertSupabaseConnection: projectRef is required to create a connection");
+    const serviceKeyEnc =
+      input.serviceKey !== undefined ? encryptToken(input.serviceKey) : existing?.serviceKeyEnc ?? null;
+    const managementTokenEnc =
+      input.managementToken !== undefined
+        ? encryptToken(input.managementToken)
+        : existing?.managementTokenEnc ?? null;
+    if (projectRef === undefined || (serviceKeyEnc === null && managementTokenEnc === null)) {
+      throw new Error(
+        "upsertSupabaseConnection: projectRef and (serviceKey or managementToken) are required to create a connection",
+      );
     }
     const rec: StoredSupabaseConnection = {
       orgId,
       projectRef,
       serviceKeyEnc,
-      managementTokenEnc:
-        input.managementToken !== undefined
-          ? encryptToken(input.managementToken)
-          : existing?.managementTokenEnc ?? null,
+      managementTokenEnc,
+      refreshTokenEnc:
+        input.refreshToken !== undefined
+          ? encryptToken(input.refreshToken)
+          : existing?.refreshTokenEnc ?? null,
+      expiresAt: input.expiresAt !== undefined ? input.expiresAt : existing?.expiresAt ?? null,
       createdAt: existing?.createdAt ?? ts,
       updatedAt: ts,
     };

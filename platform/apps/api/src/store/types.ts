@@ -349,16 +349,24 @@ export interface SupabaseConnectionRecord {
   projectRef: string;
   serviceKey: string | null;
   managementToken: string | null;
+  /** OAuth refresh token (DECRYPTED) — re-mints the mgmt token when it expires. Null for paste. */
+  refreshToken: string | null;
+  /** ISO expiry of the current mgmt token (OAuth); null for a pasted connection. */
+  expiresAt: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
-/** Upsert patch for a Supabase connection — `projectRef` + `serviceKey` are required on first create. */
+/** Upsert patch — create needs a projectRef plus at least one of serviceKey / managementToken. */
 export interface SupabaseConnectionInput {
   projectRef?: string;
   /** The project service_role key (plaintext in → encrypted at rest). */
   serviceKey?: string;
   /** The Supabase Management API token — PAT or OAuth (plaintext in → encrypted at rest). */
   managementToken?: string;
+  /** The OAuth refresh token (plaintext in → encrypted at rest). */
+  refreshToken?: string;
+  /** ISO expiry of the mgmt token just issued. */
+  expiresAt?: string | null;
 }
 
 /** A metered agent-compute event (plan Pillar 2 — the usage bucket). */

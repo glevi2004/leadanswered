@@ -360,8 +360,14 @@ model SupabaseConnection {
   id              String   @id @default(cuid())
   orgId           String
   projectRef      String
-  serviceKey      String
+  /// Nullable since byo-connect Phase 2: an OAuth connection may exist (management + refresh
+  /// tokens) before a project is picked / its service key fetched.
+  serviceKey      String?
   managementToken String?
+  /// OAuth (Management API) — the Supabase OAuth mgmt token EXPIRES; `refreshToken` re-mints it,
+  /// `expiresAt` is when the current mgmt token dies. Null for a pasted (non-OAuth) connection.
+  refreshToken    String?
+  expiresAt       DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

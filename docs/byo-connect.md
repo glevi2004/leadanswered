@@ -89,7 +89,13 @@ design partner connects. Original design notes:
   the integration. The Deploy port is unchanged.
 - Env: `VERCEL_CLIENT_ID` / `VERCEL_CLIENT_SECRET` / `VERCEL_REDIRECT_URI`.
 
-**Supabase — an OAuth app (Management API)**
+**Supabase — an OAuth app (Management API)** ✅ *(BUILT 2026-07-18 — dormant until the OAuth app is registered + env set)*:
+`connect/supabaseOAuth.ts` (authorize URL · code exchange · refresh · list projects · fetch service key ·
+`validManagementToken` auto-refreshes); `SupabaseConnection` gained `refreshToken`/`expiresAt` + nullable
+`serviceKey` (migration `20260718140000`); connect route handles `{code}` (exchange → auto-select if one
+project) and `{projectRef}` (select → fetch key); web `/api/connect/supabase/{start,callback,projects}`;
+ConnectionsPanel leads with "Connect Supabase" and shows a project picker when authorized-but-unpicked.
+Env: `SUPABASE_OAUTH_CLIENT_ID` (api+web) · `SUPABASE_OAUTH_CLIENT_SECRET` (api). Original design notes:
 - Register in the Supabase dashboard (org settings → OAuth Apps). Authorization-code flow:
   `api.supabase.com/v1/oauth/authorize` → owner approves org access → callback `code` → exchange at
   `/v1/oauth/token` → **access token + refresh token** (these EXPIRE — unlike the other two).

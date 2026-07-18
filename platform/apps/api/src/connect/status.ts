@@ -12,7 +12,10 @@ import type { Store } from "../store/types.js";
 export interface ConnectStatus {
   github: boolean;
   vercel: boolean;
+  /** Fully wired: a project is selected and its service key is stored (console + build ready). */
   supabase: boolean;
+  /** OAuth-authorized (mgmt token present) but maybe no project picked yet — drives the picker. */
+  supabaseAuthorized: boolean;
 }
 
 /** Whether the org has a usable GitHub / Vercel / Supabase connection (GET /api/connect/status).
@@ -29,6 +32,7 @@ export async function connectionStatus(store: Store, orgId: string): Promise<Con
     github: !!(gh?.installationId || gh?.userToken),
     vercel: !!vc?.accessToken,
     supabase: !!(sb?.projectRef && sb?.serviceKey),
+    supabaseAuthorized: !!sb?.managementToken,
   };
 }
 

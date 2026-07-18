@@ -243,6 +243,8 @@ function mapSupabaseConnection(r: any): SupabaseConnectionRecord {
     projectRef: r.projectRef,
     serviceKey: decryptTokenSafe(r.serviceKey),
     managementToken: decryptTokenSafe(r.managementToken),
+    refreshToken: decryptTokenSafe(r.refreshToken),
+    expiresAt: r.expiresAt ? iso(r.expiresAt) ?? null : null,
     createdAt: iso(r.createdAt),
     updatedAt: iso(r.updatedAt),
   };
@@ -712,6 +714,10 @@ export class PrismaStore implements Store {
     const encService = input.serviceKey !== undefined ? encryptToken(input.serviceKey) : undefined;
     const encMgmt =
       input.managementToken !== undefined ? encryptToken(input.managementToken) : undefined;
+    const encRefresh =
+      input.refreshToken !== undefined ? encryptToken(input.refreshToken) : undefined;
+    const expiresAt =
+      input.expiresAt !== undefined ? (input.expiresAt ? new Date(input.expiresAt) : null) : undefined;
     const existing = await this.db.supabaseConnection.findFirst({ where: { orgId } });
     if (existing) {
       const r = await this.db.supabaseConnection.update({
@@ -719,22 +725,28 @@ export class PrismaStore implements Store {
         data: {
           projectRef: input.projectRef ?? undefined,
           serviceKey: encService, // undefined → left unchanged
-          managementToken: encMgmt, // undefined → left unchanged
+          managementToken: encMgmt,
+          refreshToken: encRefresh,
+          expiresAt, // undefined → unchanged; null → cleared
         },
       });
       return mapSupabaseConnection(r);
     }
-    if (input.projectRef === undefined || encService === undefined) {
+    // Create needs a projectRef (may be "" for an OAuth connection with no project picked yet)
+    // plus at least one credential — the service key (paste) OR a management token (OAuth).
+    if (input.projectRef === undefined || (encService === undefined && encMgmt === undefined)) {
       throw new Error(
-        "upsertSupabaseConnection: projectRef and serviceKey are required to create a connection",
+        "upsertSupabaseConnection: projectRef and (serviceKey or managementToken) are required to create a connection",
       );
     }
     const r = await this.db.supabaseConnection.create({
       data: {
         orgId,
         projectRef: input.projectRef,
-        serviceKey: encService,
+        serviceKey: encService ?? null,
         managementToken: encMgmt ?? null,
+        refreshToken: encRefresh ?? null,
+        expiresAt: expiresAt ?? null,
       },
     });
     return mapSupabaseConnection(r);

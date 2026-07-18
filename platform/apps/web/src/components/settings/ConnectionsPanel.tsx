@@ -29,6 +29,14 @@ interface Status {
   github: boolean;
   vercel: boolean;
   supabase: boolean;
+  /** OAuth-authorized but maybe no project picked yet → show the project picker. */
+  supabaseAuthorized: boolean;
+}
+
+interface SupabaseProject {
+  ref: string;
+  name: string;
+  status: string;
 }
 
 /** GitHub octocat mark — lucide dropped brand icons (see FacebookMark in OnboardingSketch). */
@@ -129,6 +137,8 @@ const PROVIDERS: ProviderDef[] = [
       { payloadKey: "projectRef", kind: "text", label: "Project ref", placeholder: "Project ref (e.g. abcdwxyzmnop…)", required: true },
       { payloadKey: "serviceKey", kind: "primary", label: "service-role key", placeholder: "service_role key (eyJ…)", required: true },
     ],
+    installHref: "/api/connect/supabase/start",
+    installLabel: "Connect Supabase",
   },
 ];
 
@@ -147,9 +157,10 @@ export function ConnectionsPanel({ className }: { className?: string }) {
         github: Boolean(data.github),
         vercel: Boolean(data.vercel),
         supabase: Boolean(data.supabase),
+        supabaseAuthorized: Boolean(data.supabaseAuthorized),
       });
     } catch {
-      setStatus({ github: false, vercel: false, supabase: false });
+      setStatus({ github: false, vercel: false, supabase: false, supabaseAuthorized: false });
     }
   }, []);
 
@@ -207,6 +218,7 @@ export function ConnectionsPanel({ className }: { className?: string }) {
           key={p.key}
           provider={p}
           connected={status?.[p.key] ?? false}
+          needsProjectPick={p.key === "supabase" && !!status?.supabaseAuthorized && !status?.supabase}
           login={logins[p.key]}
           loading={status === null}
           busy={busy === p.key}
@@ -227,6 +239,7 @@ export function ConnectionsPanel({ className }: { className?: string }) {
 function ProviderRow({
   provider,
   connected,
+  needsProjectPick = false,
   login,
   loading,
   busy,
@@ -238,6 +251,7 @@ function ProviderRow({
 }: {
   provider: ProviderDef;
   connected: boolean;
+  needsProjectPick?: boolean;
   login?: string;
   loading: boolean;
   busy: boolean;
@@ -277,6 +291,8 @@ function ProviderRow({
             <p className="flex items-center gap-1 text-xs text-emerald-700 dark:text-emerald-400">
               <Check className="size-3.5" /> Connected{login ? ` · ${login}` : ""}
             </p>
+          ) : needsProjectPick ? (
+            <p className="text-xs text-muted-foreground">Authorized — choose a project</p>
           ) : (
             <p className="text-xs text-muted-foreground">Not connected</p>
           )}
@@ -284,6 +300,10 @@ function ProviderRow({
         {loading ? (
           <Loader2 className="size-4 animate-spin text-muted-foreground" />
         ) : connected ? (
+          <Button variant="ghost" size="sm" onClick={onDisconnect} disabled={busy}>
+            {busy ? <Loader2 className="size-3.5 animate-spin" /> : "Disconnect"}
+          </Button>
+        ) : needsProjectPick ? (
           <Button variant="ghost" size="sm" onClick={onDisconnect} disabled={busy}>
             {busy ? <Loader2 className="size-3.5 animate-spin" /> : "Disconnect"}
           </Button>
@@ -308,8 +328,13 @@ function ProviderRow({
         )}
       </div>
 
+      {/* OAuth-authorized but no project chosen yet → pick one (fetches the org's projects). */}
+      {!loading && !connected && needsProjectPick && (
+        <SupabaseProjectPicker busy={busy} onPick={(ref) => onConnect({ projectRef: ref })} />
+      )}
+
       {/* The paste fallback toggle, only for install-first providers. */}
-      {!loading && !connected && provider.installHref && (
+      {!loading && !connected && !needsProjectPick && provider.installHref && (
         <button
           type="button"
           onClick={onToggle}
@@ -376,6 +401,62 @@ function ProviderRow({
       )}
 
       {error && (!open || connected) && <p className="mt-2 pl-12 text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+/**
+ * The Supabase project picker (byo-connect Phase 2): shown when the org is OAuth-authorized but
+ * hasn't selected a project. Lists the org's projects (via the management token, server-side) and
+ * on pick posts the ref — the api fetches that project's service key with the stored token.
+ */
+function SupabaseProjectPicker({ busy, onPick }: { busy: boolean; onPick: (ref: string) => void }) {
+  const [projects, setProjects] = React.useState<SupabaseProject[] | null>(null);
+  const [ref, setRef] = React.useState("");
+
+  React.useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/connect/supabase/projects", { cache: "no-store" });
+        const data = (await res.json()) as { projects?: SupabaseProject[] };
+        if (alive) setProjects(Array.isArray(data.projects) ? data.projects : []);
+      } catch {
+        if (alive) setProjects([]);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (projects === null) {
+    return <p className="mt-2 pl-12 text-xs text-muted-foreground">Loading your projects…</p>;
+  }
+  if (projects.length === 0) {
+    return (
+      <p className="mt-2 pl-12 text-xs text-muted-foreground">
+        No projects found in the connected Supabase org. Create one in Supabase, then reconnect.
+      </p>
+    );
+  }
+  return (
+    <div className="mt-3 flex items-center gap-2 pl-12">
+      <select
+        value={ref}
+        onChange={(e) => setRef(e.target.value)}
+        className="h-9 flex-1 rounded-md border border-input bg-transparent px-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+      >
+        <option value="">Choose a project…</option>
+        {projects.map((p) => (
+          <option key={p.ref} value={p.ref}>
+            {p.name} {p.status === "ACTIVE_HEALTHY" ? "" : `(${p.status.toLowerCase()})`}
+          </option>
+        ))}
+      </select>
+      <Button size="sm" disabled={!ref || busy} onClick={() => ref && onPick(ref)}>
+        {busy ? <Loader2 className="size-3.5 animate-spin" /> : "Use project"}
+      </Button>
     </div>
   );
 }

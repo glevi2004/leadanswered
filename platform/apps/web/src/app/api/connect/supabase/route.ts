@@ -30,13 +30,14 @@ export async function POST(req: Request) {
     return Response.json({ error: "bad_request" }, { status: 400 });
   }
   if (!projectRef) return Response.json({ error: "A Supabase project ref is required." }, { status: 400 });
-  if (!serviceKey) return Response.json({ error: "A Supabase service-role key is required." }, { status: 400 });
+  // serviceKey optional: an OAuth-connected org can SELECT a project (projectRef only) and the
+  // api fetches the key via the stored management token. Paste path still sends both.
 
   try {
     const res = await fetch(`${API_BASE}/api/connect/supabase`, {
       method: "POST",
       headers: { "content-type": "application/json", ...PROXY_HEADERS },
-      body: JSON.stringify({ orgId, projectRef, serviceKey }),
+      body: JSON.stringify({ orgId, projectRef, ...(serviceKey ? { serviceKey } : {}) }),
     });
     const data = await res.json().catch(() => ({}));
     return Response.json(data, { status: res.status });

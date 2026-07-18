@@ -3,6 +3,14 @@ import { Octokit } from "@octokit/rest";
 import type { Store } from "../store/types.js";
 import { connectionStatus } from "../connect/status.js";
 import { getInstallationAccount, githubAppConfigured, mintInstallationToken } from "../git/githubApp.js";
+import {
+  exchangeCode,
+  expiryFromNow,
+  fetchServiceKey,
+  listProjects,
+  supabaseOAuthConfigured,
+  validManagementToken,
+} from "../connect/supabaseOAuth.js";
 
 /**
  * BYO connect — token-paste MVP (docs/byo-connect.md). Each org connects its OWN
@@ -215,6 +223,63 @@ export function createConnectSupabaseRoute(deps: ConnectDeps) {
     const projectRef = b.projectRef ?? b.project_ref;
     const serviceKey = b.serviceKey ?? b.service_key;
     const managementToken = b.managementToken ?? b.management_token ?? b.accessToken ?? b.access_token;
+    const code = b.code;
+
+    // OAUTH PATH (byo-connect Phase 2): the install callback posts { code }. Exchange it for a
+    // management + refresh token, store them, list projects, and auto-select if there is exactly
+    // one (fetch its service key). Multiple/zero → store the token and return the list for a picker.
+    if (isFilled(orgId) && isFilled(code)) {
+      if (!supabaseOAuthConfigured()) {
+        res.status(400).json({ ok: false, error: "Supabase OAuth is not configured on the server" });
+        return;
+      }
+      try {
+        const t = await exchangeCode(String(code).trim());
+        // Store the OAuth tokens first (projectRef "" placeholder until one is chosen).
+        await deps.store.upsertSupabaseConnection(orgId, {
+          projectRef: "",
+          managementToken: t.access_token,
+          refreshToken: t.refresh_token,
+          expiresAt: expiryFromNow(t.expires_in),
+        });
+        const projects = await listProjects(t.access_token);
+        if (projects.length === 1) {
+          const key = await fetchServiceKey(t.access_token, projects[0].ref);
+          await deps.store.upsertSupabaseConnection(orgId, {
+            projectRef: projects[0].ref,
+            ...(key ? { serviceKey: key } : {}),
+          });
+          res.status(200).json({ ok: true, connected: true, project: projects[0] });
+          return;
+        }
+        res.status(200).json({ ok: true, connected: false, needsProject: true, projects });
+      } catch (err) {
+        console.warn("[/api/connect/supabase] OAuth exchange failed:", (err as Error).message);
+        res.status(400).json({ ok: false, error: "Supabase authorization could not be completed" });
+      }
+      return;
+    }
+
+    // SELECT-PROJECT PATH: the org is already OAuth-connected (mgmt token stored) and the owner
+    // picked a project — fetch its service key with the (refreshed) mgmt token and store both.
+    if (isFilled(orgId) && isFilled(projectRef) && !isFilled(serviceKey)) {
+      const mgmt = await validManagementToken(deps.store, orgId);
+      if (mgmt) {
+        try {
+          const key = await fetchServiceKey(mgmt, projectRef.trim());
+          await deps.store.upsertSupabaseConnection(orgId, {
+            projectRef: projectRef.trim(),
+            ...(key ? { serviceKey: key } : {}),
+          });
+          res.status(200).json({ ok: true, connected: Boolean(key), project: { ref: projectRef.trim() } });
+        } catch (err) {
+          console.warn("[/api/connect/supabase] select-project failed:", (err as Error).message);
+          res.status(400).json({ ok: false, error: "could not read that project's keys" });
+        }
+        return;
+      }
+      // No mgmt token → fall through to the paste requirement below.
+    }
 
     if (!isFilled(orgId) || !isFilled(projectRef) || !isFilled(serviceKey)) {
       res.status(400).json({ ok: false, error: "orgId, projectRef and serviceKey are required" });
@@ -324,6 +389,28 @@ export function createDisconnectSupabaseRoute(deps: ConnectDeps) {
 }
 
 /** GET /api/connect/status?orgId= → { github:boolean, vercel:boolean, supabase:boolean }. */
+/** GET /api/connect/supabase/projects?orgId=  → { projects } for the OAuth project picker. */
+export function createSupabaseProjectsRoute(deps: ConnectDeps) {
+  return async function getSupabaseProjects(req: Request, res: Response): Promise<void> {
+    const orgId = req.query.orgId ?? req.query.org_id;
+    if (!isFilled(orgId)) {
+      res.status(400).json({ error: "orgId is required" });
+      return;
+    }
+    try {
+      const mgmt = await validManagementToken(deps.store, orgId);
+      if (!mgmt) {
+        res.status(200).json({ projects: [] });
+        return;
+      }
+      res.status(200).json({ projects: await listProjects(mgmt) });
+    } catch (err) {
+      console.error("[/api/connect/supabase/projects] error:", err);
+      res.status(200).json({ projects: [] });
+    }
+  };
+}
+
 export function createConnectStatusRoute(deps: ConnectDeps) {
   return async function getConnectStatus(req: Request, res: Response): Promise<void> {
     const orgId = req.query.orgId ?? req.query.org_id;
