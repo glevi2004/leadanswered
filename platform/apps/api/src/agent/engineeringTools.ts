@@ -7,6 +7,7 @@ import { getGit, getGitForOrg, type Git } from "../git/index.js";
 import { getDeploy, getDeployForOrg, type Deploy, type PreviewDeployment } from "../deploy/index.js";
 import { meterLlm, meterSandbox } from "./metering.js";
 import { postToThread, recordEvent } from "./journal.js";
+import { notifySlackApproval } from "../channels/slack.js";
 
 /**
  * The ENGINEERING agent's toolkit (AGENTS-BACKEND §6, ENGINEERING-AGENT §5). The
@@ -833,6 +834,8 @@ export function engineeringTools(deps: EngineeringToolDeps, ctx: EngineeringCont
           message: `Publish requested for ${site.repoFullName ?? siteId} — awaiting owner approval`,
           payload: { siteId, approvalId: approval.id },
         });
+        // Slack (ladder step 4): the publish gate as buttons in the channel.
+        void notifySlackApproval(ctx.orgId, "publish_site", site.repoFullName ?? siteId, approval.id);
         return { status: "needs_approval" as const, approvalId: approval.id };
       },
     }),

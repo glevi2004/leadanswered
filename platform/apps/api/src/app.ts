@@ -19,6 +19,7 @@ import {
   createListEventsRoute,
 } from "./routes/reads.js";
 import { createResolveApprovalRoute } from "./routes/approvals.js";
+import { createSlackEventsRoute, createSlackInteractiveRoute } from "./routes/slack.js";
 import {
   createConnectGithubRoute,
   createConnectVercelRoute,
@@ -79,6 +80,12 @@ export async function createApp(overrides: BuildDeps = {}): Promise<Express> {
   const deps = { store, now: overrides.now };
 
   const app = express();
+
+  // SLACK (ladder step 4) — registered BEFORE the json middleware because Slack's signature
+  // covers the raw bytes; their own signature check is their auth (exempted from proxy auth).
+  app.post("/api/slack/events", express.raw({ type: "*/*" }), createSlackEventsRoute());
+  app.post("/api/slack/interactive", express.raw({ type: "*/*" }), createSlackInteractiveRoute());
+
   app.use(express.json());
 
   app.get("/health", (_req, res) => {
@@ -94,6 +101,9 @@ export async function createApp(overrides: BuildDeps = {}): Promise<Express> {
   const proxySecret = process.env.API_PROXY_SECRET;
   if (proxySecret) {
     app.use("/api", (req, res, next) => {
+      // Slack routes authenticate with Slack's own request signature (and are mounted above
+      // the json middleware anyway) — never gate them on the proxy secret.
+      if (req.path.startsWith("/slack/")) return next();
       if (req.headers["x-lu-proxy-secret"] === proxySecret) return next();
       res.status(401).json({ error: "unauthorized" });
     });

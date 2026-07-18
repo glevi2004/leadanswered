@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { Store } from "../store/types.js";
 import { dispatchBuild } from "./dispatch.js";
 import { recordEvent } from "./journal.js";
+import { notifySlackApproval } from "../channels/slack.js";
 import { orgHasConnections, connectionStatus } from "../connect/status.js";
 import { usageThisPeriod } from "../billing/usage.js";
 
@@ -223,6 +224,8 @@ export function orchestratorTools(deps: OrchestratorToolDeps, ctx: OrchestratorC
           message: `Plan proposed: ${title}`,
           payload: { objective, steps, acceptance },
         });
+        // Slack (ladder step 4): the plan gate as buttons in the channel.
+        void notifySlackApproval(ctx.orgId, "approve_plan", title, approval.id);
         const s = await connectionStatus(deps.store, ctx.orgId);
         return {
           ok: true as const,

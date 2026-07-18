@@ -1,4 +1,5 @@
 import type { AddAgentEventInput, Store } from "../store/types.js";
+import { notifySlack } from "../channels/slack.js";
 
 /**
  * The flow layer's write path (docs/workflow.md §1/§3). Two best-effort helpers:
@@ -35,4 +36,7 @@ export async function postToThread(
   } catch (err) {
     console.error("[journal] postToThread failed:", err);
   }
+  // Slack mirror (ladder step 4): report-backs land in the channel too — one conversation,
+  // two clients. Best-effort and dormant until Slack env is configured.
+  void notifySlack(orgId, content);
 }
