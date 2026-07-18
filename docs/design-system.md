@@ -1,6 +1,6 @@
 # Lu Computer — Design System
 
-> Part of the Lu Computer canon — see [FOUNDATION.md](../FOUNDATION.md).
+> Part of the Lu Computer canon — see [COMPANY.md](../COMPANY.md).
 
 **North star:** an editorial, Cofounder-flavored **org canvas rendered as pressable game-console hardware** — a
 monochrome light/dark base where color appears only as soft-tint chips, **pixel used as an accent** (meters,
@@ -140,7 +140,7 @@ Segmented control (neu-socket + gloss), tactile `Toggle` (glossy knob), raised-p
 
 The product renamed **Lead Answered → Lu Computer** (lu.computer); the assistant persona **Sarah → Lu**; the
 vertical **roofing/contractor → any service business**; "kiwi" dropped. Newer layers already use "Lu"; drift is
-concentrated in three older layers (also tracked in [ROADMAP.md](../ROADMAP.md)).
+concentrated in three older layers (also tracked in [DEVELOPMENT.md](../DEVELOPMENT.md)).
 
 **HIGH — user-visible (fix first):**
 - **"Lead Answered" brand** still shipped: `layout.tsx` (app title + old tagline), ~15 page `<title>`s (all

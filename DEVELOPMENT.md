@@ -1,202 +1,85 @@
-# Lu Computer — Build Map & Status
+# DEVELOPMENT — the TODO
 
-> The one place that answers **"where are we, and what's left?"** Grounded in the actual code
-> (re-verified 2026-07-17). Companion to the spec — [paper.md](./paper.md) = *the theory*,
-> [FOUNDATION.md](./FOUNDATION.md) = *what it is*, [docs/harness-spec.md](./docs/harness-spec.md) =
-> *paper → substrates, the phased implementation checklist*, [ROADMAP.md](./ROADMAP.md) = *the product
-> order*, [MANIFESTO.md](./MANIFESTO.md) = *why*. Deep dives: [docs/building-agents.md](./docs/building-agents.md)
-> (how agents are built) · [docs/canvas.md](./docs/canvas.md) (the surface) ·
-> [docs/agent-backend.md](./docs/agent-backend.md) (reference). **This is a living checklist: check the
-> boxes as we ship.**
+> The one file that answers **"what are we doing next?"** Everything else: [paper.md](./paper.md) (theory)
+> · [COMPANY.md](./COMPANY.md) (why/what/money) · [docs/system.md](./docs/system.md) (the machine) ·
+> [docs/product.md](./docs/product.md) (the experience) · [docs/design-system.md](./docs/design-system.md)
+> (the look).
 
-Legend: **✅ built & working** · **🟡 built but partial/fragile** · **⬜ not built yet**
+## How we work
 
----
-
-## 1. The system at a glance
-
-```mermaid
-flowchart TB
-  subgraph owner[" "]
-    B["Owner's browser"]
-  end
-  subgraph ours["Our infra (cheap, multi-tenant SaaS)"]
-    W["apps/web — Next.js<br/>onboarding · canvas · dock<br/>(Vercel)"]
-    A["apps/api — Express + worker<br/>the agent runtime<br/>(Railway)"]
-    DB[("Supabase Postgres<br/>via Prisma")]
-  end
-  subgraph metered["Metered compute (per task, ephemeral)"]
-    E["e2b sandbox<br/>Claude Code CLI"]
-  end
-  subgraph byo["Customer's OWN accounts (BYO)"]
-    GH["GitHub"]
-    VC["Vercel"]
-    SB[("Supabase")]
-  end
-  B -->|"session, same-origin"| W
-  W -->|"proxy — resolves the org server-side"| A
-  B -.->|"wss:// cloud terminal"| A
-  A --> DB
-  A -->|"dispatch a build"| E
-  E -->|"clone / commit / push"| GH
-  A -->|"open PR · deploy · promote"| VC
-  VC <-->|"preview & prod builds"| GH
-  A -.->|"DB console (read-mostly)"| SB
-```
-
-## 2. "Build me a website" — the end-to-end flow
-
-```mermaid
-sequenceDiagram
-  actor You
-  participant Lu as Lu · orchestrator (Sonnet)
-  participant Eng as Engineer (Opus)
-  participant Box as e2b sandbox
-  participant GH as GitHub
-  participant VC as Vercel
-
-  You->>Lu: "build me a website"
-  Lu->>Lu: create_task + dispatch_to_engineering
-  Note over Lu,Eng: agent→agent · GATE: GitHub + Vercel must be connected
-  Lu->>Eng: run build (via worker)
-  Eng->>GH: create_site — repo from starter template
-  Eng->>Box: run_coding_agent — Claude Code writes the site
-  Box->>GH: commit + push branch
-  Eng->>GH: open PR
-  Eng->>VC: create project + preview deploy
-  Eng-->>You: task → needs_approval (preview link + PR diff)
-  You->>Eng: Publish ✅ (approval)
-  Eng->>GH: merge PR
-  Eng->>VC: promote to production
-  Note over You,VC: site is live
-```
+- **NOW holds exactly one task**, defined by the outcomes it must produce — observable results, not
+  intentions — and "done when" checks we verify before touching anything else.
+- **NEXT holds at most 5**, each with a one-line outcome. **LATER** is a parking lot; no detail allowed.
+- Nothing gets built that isn't the NOW task. Finishing NOW = verify its outcomes, update the docs it
+  touched, promote one thing from NEXT.
+- Always check the code before claiming status — docs describe the repo, the repo doesn't describe the docs.
 
 ---
 
-## 3. The build tracker
+## NOW — Skills become files; docs become the Library
 
-### Runtime & orchestration
-- [x] **Lu orchestrator** — real Sonnet tool-loop; persists the thread; tools: `create_task`, `dispatch_to_engineering`, `check_connections`, `ask_user`. `apps/api/src/agent/orchestrator.ts`
-- [x] **Agent→agent dispatch** — Lu dispatches the Engineer *inside the runtime* (the old hard-coded web hand-off is gone). `agent/dispatch.ts`, `agent/orchestratorTools.ts`
-- [x] **Planning — the plan gate** *(built 2026-07-17)* — Lu now **plans first**: `propose_plan` drafts a plan (a `doc` artifact — objective · steps · acceptance) and stages an **`approve_plan`** gate *instead of* building; the plan renders as a review card in the chat (`LuBuildTracker` + `PlanApprovalCard`), and **approving it dispatches the Engineer using the plan as its brief** (`routes/approvals.ts` branches the resolve on the action). The **actionable roadmap** ships too — every dock "next" (Connect GitHub, etc.) fires a Lu intent, not a dead link (`DockHome`/`dock-data`). Spec: [docs/building-agents.md](./docs/building-agents.md) §5. Approve / **Request changes** (Lu re-plans with the owner's feedback) / Reject are all wired. 🟡 Remaining: promote `Task.acceptance` + dependency ordering ([harness-spec](./docs/harness-spec.md) §2 P2).
-- [x] **Acceptance verification** *(built 2026-07-17)* — after `open_preview` the Engineer runs **`verify_acceptance`**: an LLM judge scores the build against the plan's acceptance criteria; on `unmet` it **reworks** (`run_coding_agent` again) and re-verifies before `request_publish` (`engineeringTools.ts` + `engineering.ts`). 🟡 One honest gap left *(2026-07-17)*: the judge sees only **text evidence** (diff + transcript; the preview URL is printed, never fetched — no browser/HTTP check) — [harness-spec](./docs/harness-spec.md) §2 P1. ✅ The publish **code-gate** shipped (2026-07-17): `request_publish` refuses in code until the latest acceptance check passed. ✅ **The flow layer shipped too** ([docs/workflow.md](./docs/workflow.md)): the `AgentEvent` journal, Lu's per-turn situational block, report-back messages into the thread (preview ready / published / failed / plan approved), thread rehydration + live merge in the dock, the honest approvals badge, and the first Coming-soon honesty sweep.
-- [x] **Store port** — Prisma (prod) + in-memory (test); Tasks/Sites/Approvals/Deployments/Connections fully implemented.
-- [x] **Model gateway + tiering** — multi-provider registry + per-role recommendation + a dock model picker. `packages/core/src/models.ts` 🟡 **Discrepancies** *(2026-07-17)*: the registry says coding→Opus but the in-sandbox coding agent is pinned `CODING_MODEL="sonnet"` (`engineeringTools.ts:204`), and `Task.model` is a dead column (never threaded into `runEngineering`) — [harness-spec](./docs/harness-spec.md) §4 P1.
-- [x] **Usage metering + working/core memory** *(reconciled 2026-07-17 against code)* — metering ✅ (`UsageEvent` after every model/sandbox call + `Subscription` bucket; the only gate is in `dispatch_to_engineering` and `overageOptIn` defaults true so it never trips — enforcement is [harness-spec](./docs/harness-spec.md) §4 P1); working memory ✅ (`Thread`/`Message`, last-20 rehydrate); core memory ✅ (`Memory` rows into the prompt). 🟡 **Sleep-time consolidation is built but Redis-gated** — inactive until `REDIS_URL` (same switch as the worker).
-- [x] **Durable worker — LIVE** *(2026-07-18)* — Redis exists in the Railway project and `REDIS_URL` is set; deploy log confirms `[worker] engineering worker started (concurrency 3)` + `[worker] memory-consolidation worker started` (`worker: bullmq`). Builds survive redeploys; sleep-time consolidation runs. 🟡 Remaining: a stuck-task reaper for `in_progress` strays ([harness-spec](./docs/harness-spec.md) §3 P1).
-- [x] **Spawn/supervise sub-agents** *(built 2026-07-18)* — Lu's `spawn_agent` creates ORDERED children under a parent (`parentTaskId` + `needs_earlier` finally real); the supervisor (`agent/supervise.ts`) advances the cascade on every run end (worker, in-process, publish): next sibling dispatches, a failure pauses the parent at `needs_input` + asks the owner, all-done completes the parent — journaled + reported into the thread. `Task.acceptance` is first-class (per-subtask criteria feed verify + the publish gate).
-- [ ] ⬜ **xAI / Grok** in the gateway.
+The heart of the harness is markdown playbooks Lu follows, and the documents she produces must live
+somewhere the owner can always find. Today the onboarding playbook is a string inside TypeScript, it ends
+too early (at department activation), and the Business Plan is never seen again after its chat moment.
 
-### The Engineer — the build pipeline
-- [x] **create_site** — creates a real private GitHub repo from a template + a `Site` row; idempotent.
-- [x] **run_coding_agent** — boots a **real e2b sandbox**, runs the **Claude Code CLI headless**, commits + pushes `lu/build`, saves the full transcript as an `agent_session` artifact.
-- [x] **open_preview** — real PR + Vercel project + preview deploy; records `pr_diff` + `site_preview` artifacts; flips the task to `needs_approval`.
-- [x] **request_publish → confirmPublish** — real human-in-the-loop gate; owner-approved merge + promote-to-prod (a server action, not a model tool).
-- [x] **Cloud terminal** — `wss /api/terminal` ↔ e2b pty ↔ xterm.js node on the canvas.
-- [ ] 🟡 **generate_image** — `gpt-image-1` is real; **Flux / Higgsfield are placeholders**.
-- [ ] 🟡 **Reliability gaps** (fine for dogfooding, break a real BYO user): hardcoded **private** template `glevi2004/lu-site-starter`; `{slug}.lu.computer` domain assumed on the customer's Vercel; preview poll ≈24s (shorter than a real build); no post-build reconciliation.
+**Outcomes:**
 
-### BYO connect — GitHub · Vercel · Supabase
-- [x] **Token-paste + verify + encrypted storage** — all three providers; verified against the provider API; AES-256-GCM at rest. `routes/connect.ts`, `crypto/tokens.ts`
-- [x] **Org-scoped git/deploy ports** — per-org token with env fallback (the dogfood path).
-- [x] **Dispatch gate** — the Engineer is only dispatchable once **GitHub + Vercel** are connected (`connect/status.ts`).
-- [ ] 🟡 **GitHub for *any* user** — works via a pasted PAT, but blocked by the private template, the `GITHUB_OWNER` env owner-override (repos land in the platform's org), and the raw PAT sprayed into the sandbox.
-- [ ] 🟡 **Vercel for *any* user** — works via a pasted token, but blocked by the `lu.computer` domain assumption + the undocumented manual **Vercel↔GitHub app install**.
-- [ ] 🟡 **Supabase** — **console-view only** (the UI even drops the management token); the service key never reaches the build, so "the Engineer builds into your Supabase" is not yet code. Only needed for apps with a backend, not a basic website.
-- [ ] ⬜ **Real OAuth** — no GitHub-App install / Vercel Integration / Supabase OAuth anywhere; token-paste only. (Target design: [docs/byo-connect.md](./docs/byo-connect.md).)
-- [ ] ⬜ **Storage correctness** — no `@@unique([orgId])` on the connection tables → non-atomic `findFirst→create` upsert → duplicate/stale tokens under concurrency.
-- [ ] ⬜ **Token expiry / refresh / rotation** — none.
+1. **Skills are real `.md` files.** `apps/api/src/agent/skills/*.md` (name/description frontmatter),
+   loaded from disk by the registry; `onboarding.md` is the first. Adding a skill = adding a file — no
+   TypeScript change.
+2. **The onboarding playbook runs to first value.** Five stages: learn the company → Business Plan →
+   connect the stack (Lu drives the connect cards) → system architecture (a Library doc, approved like a
+   plan) → first build. The org's current stage is in Lu's situational block, so she resumes mid-way after
+   any reload. Onboarding ends when the owner has **shipped something**, not when a form is filled.
+3. **The Library shows company documents.** The dock Library tab (and Company) lists org docs — Business
+   Plan, architecture, decisions, migrations — from the artifact rows that already exist. Each opens a
+   full page; **Ask Lu to revise** prefills the composer. Everything follows one-object-three-sizes
+   (card in chat → row in Library → page).
 
-### Owner visibility — "watch Lu build"
-- [x] **Live task tracker** — real `Task` rows polled every 3s across **5 surfaces**: Lu chat, dock Home, dock Tasks, canvas (agent spinner/badge), department page.
-- [x] **Live site previews** — real deploy iframes on the canvas + department page ("Building…" until a URL exists).
-- [x] **Publish gate UI** — real Publish/Reject → merge + promote.
-- [ ] 🟡 **Depth in the chat** — where you *ask*, you get task rows + a spinner: no subtask breakdown, no build logs, no PR diff. The rich detail (transcript, diff) exists but is **buried** in the canvas → Engineering agent panel.
-- [ ] 🟡 **Persistence of the watch** — the in-chat build tracker lives in React state → a page reload empties it (the tasks survive server-side).
-- [ ] 🟡 **`/home` is stale** — the default landing surface is a one-shot server render, not live.
-- [ ] ⬜ **Chat → deeper-view links** after "dispatched the Engineer"; ⬜ **Revert All / Request-changes** (currently toast stubs).
+**Done when:** a fresh org can be walked from sign-up to a shipped first build entirely by the playbook;
+the Business Plan is findable in the Library after a reload; dropping a new `.md` into `skills/` registers
+it with zero code changes.
 
-### Canvas & dock
-- [x] **Canvas** — pan/zoom plane; Lu + department pills + resource nodes (terminal/note/file/folder/site); edges-as-grants; Engineering depth-cards.
-- [x] **Canvas persistence** — CanvasNode/Edge routes + web client (positions/nodes persist to the DB) *(per earlier audit; reconcile)*.
-- [x] **Cofounder dock** — Home / Lu / Company / Tasks / Library tabs.
-- [x] **Frame sizing + re-space pass** — nodes enlarged to ~75% of the dept cards, tighter corners *(this session)*.
+## NEXT
 
-### Onboarding *(v2 — two phases, [docs/onboarding.md](./docs/onboarding.md))*
-- [x] **Waitlist-gated self-serve** — real Supabase org; sign-up flips `onboardingComplete`.
-- [x] **Real-data only** — the Mature/New demo-profile / injected-org system is fully removed.
-- [x] **Phase 1 — static sign-up** — `OnboardingFlow.tsx` (name → role → idea stage → company) → `finishSignup` seeds Lu's memory (no dept activation) → `/canvas`. *(Old scripted wizard `OnboardingSketch` parked.)*
-- [x] **Phase 2 — Lu onboards you in-workspace** — general **skill system** (`apps/api/src/agent/skills/`); onboarding-mode (derived: no active dept) swaps Lu's toolkit; `propose_decisions` + `draft_business_plan` → decision cards + Business Plan doc → **Accept & activate departments** boots the company. Typechecks; not yet click-tested live.
-- [ ] ⬜ **Connect step at build-time** — nothing enforces or explains GitHub+Vercel at the moment a build needs them.
-- [ ] 🟡 **Onboarding polish** — suppress the generic dock welcome during onboarding; live end-to-end pass; optionally trim the legacy config schema to the builder shape.
+1. **Design-partner unblock** — GitHub App public · Vercel Integration public/unlisted · regenerate the
+   two chat-exposed OAuth secrets (Vercel Integration + Supabase) · stop seeding platform keys into user
+   terminals. *Outcome: a stranger's org can connect all three providers and no platform secret is
+   reachable from their session.*
+2. **Canvas grants become real** — ＋-menu notes/files create backing Artifacts (`refId`); content
+   persists server-side. *Outcome: a note connected `reads` to the Engineer actually appears in its build
+   context and survives reload.*
+3. **Slack goes live** — Levi registers the Slack app (manifest ready); set `SLACK_*` env; live pass.
+   *Outcome: DM Lu in Slack → plan → Approve button → build → Publish button → live, no web UI touched.*
+4. **Verification screenshots** — Playwright in the sandbox captures the preview; evidence thumbnails on
+   the task page. *Outcome: every verify verdict carries visual proof.*
+5. **Railway deploy adapter** — second `Deploy`-port adapter for long-running servers Lu builds.
+   *Outcome: a customer app that needs a worker/server deploys somewhere real.* (Parked until a build
+   needs it.)
 
-### Platform / infra / security  *(gates external users)*
-- [x] **API auth** *(shipped 2026-07-18)* — `/api/*` requires the `x-lu-proxy-secret` header (`API_PROXY_SECRET` set on Railway + Vercel; every server-side web fetch sends it; smoke-tested: no-header → 401). Was the cross-tenant blocker.
-- [ ] 🟡 **Terminal secret exposure** — the cloud terminal seeds the platform's GitHub/Anthropic keys into a user-reachable shell *(security review)*.
-- [ ] ⬜ **Supabase RLS in migrations** — RLS exists only as hand-applied prod state, not reproducible from the repo.
+## LATER
 
-### THE DOGFOOD LADDER — "development runs through Lu, from Slack" *(agreed 2026-07-18, in order)*
-The end state: DM Lu in Slack → plan → Approve button → she clones the REAL repo, builds on `lu/build`,
-PR + typecheck/tests + preview → Slack report with buttons → Publish → merge → Railway/Vercel deploy.
-**The UI for every step is specced in [docs/workflow.md §8b](./docs/workflow.md)** — the rule is ONE
-object (the Build) at three sizes (chat Card · list Row · the NEW Task Detail Page), every row/card
-clicking through to the Page; each ladder step ships its backend + its §8b surface together, never
-capability without UI.
-- [x] **0. The Task Detail Page + Build card/row unification** *(shipped 2026-07-18)* — the §8b hub (`/task/[id]` + dock
-  panel: plan · acceptance checklist w/ verdicts · events timeline · diff · preview · approvals ·
-  Retry/Request-changes); Tasks tab + Home rows + workplace selector all click through to it. Ships
-  FIRST — every later step renders into it.
-- [x] **0b. The workspace goes LIVE** *(shipped 2026-07-18; terminal-attach stays later)* (§8b canvas/department leg) — agent nodes pulse while
-  `Agent.status=working` + latest-event caption (the status is real now, the UI never reads it);
-  Workplace **Request changes becomes real** (prefill composer w/ build context → Lu) + Retry on
-  failed builds; department Home = the unified Projects list; console's four existing write
-  endpoints get their buttons (confirm dialogs). Later, deluxe: attach the canvas terminal to the
-  BUILD sandbox's pty ("watch the coding agent type") — needs an attach path on the Sandbox port.
-
-- [x] **1. GitHub sandbox-token downscoping + branch protection** *(shipped 2026-07-18)* — mint the sandbox a per-task token (ONE repo, `contents:write` only, 1h — GitHub's mint API takes `repositories` + `permissions`); full-perm token stays server-side (create repo, gated merge). Protect `main` at repo creation (block force-push/deletion, no required reviews so the gated merge still works). Non-negotiable before Lu edits repos we care about ([harness-spec](./docs/harness-spec.md) §3).
-- [x] **2. Existing-project import + REPO PROFILES** *(shipped 2026-07-18)* — point Lu at an EXISTING repo (the App install scopes which) + link its existing Vercel project; plus a per-repo profile (setup/install commands · typecheck/test commands · env needs) so the sandbox can build a real monorepo — Devin's "environment snapshot", our per-Site record. The rest of the pipeline is repo-agnostic already.
-- [x] **3. CI-grade + empirical verification** *(shipped 2026-07-18; screenshots stay follow-up)* — verify_acceptance runs the repo profile's typecheck/tests in the sandbox AND fetches/screenshots the preview (headless browser); DB apps exercise live flows ([harness-spec](./docs/harness-spec.md) §2 P1). The difference between a PR you trust and one you re-review from scratch.
-- [x] **4. SLACK — the first channel** *(built 2026-07-18 — DORMANT until the Slack app registers + SLACK_* env lands)* — a Slack app: DM/mention Lu → the SAME server-side thread (Slack is just a second client of Thread/Message); plan + publish approvals as Slack BUTTONS → the resolve endpoint; journal report-backs (preview ready · published · failed) posted to the Slack thread. The flow layer makes this mostly plumbing: events webhook + signature verify + org↔workspace mapping + chat.postMessage outbound.
-- [x] **5. Supabase build tools + THE MIGRATION GATE** *(shipped 2026-07-18 — provision_backend + run_migration; SQL executes ONLY in the approval-resolution path)* — `provision_backend` (env-var the selected project into the Vercel app) + `run_migration`; migrations NEVER hit prod DB directly: preview branch (the Environment scope) or an explicit approval. (Customer DB apps — NOT a dogfood blocker: our own schema rides the repo's Prisma migrations.)
-- [ ] ⬜ **6. Railway as a deploy target** — a second `Deploy`-port adapter (Railway GraphQL API, token-paste — no OAuth program) for long-running servers/workers Lu builds for customers. (Dogfood needs nothing: our api already auto-deploys on merge.)
-- [x] **Housekeeping: git-connect `leadanswered-web` on Vercel** *(done 2026-07-18 via `vercel git connect` — pushes to main now auto-deploy the web app; the CLI-deploy era is over)*.
-
-### Before a real DESIGN PARTNER connects  *(the "external users" checklist, 2026-07-18)*
-- [ ] ⬜ **Make the GitHub App public** — currently "Only on this account" (app settings → Advanced → Make public), else a partner can't install it.
-- [ ] ⬜ **Make the Vercel Integration public/unlisted** — same: a partner needs to be able to install it.
-- [ ] ⬜ **Regenerate the two OAuth secrets that passed through chat** — the Vercel Integration client secret + the Supabase OAuth client secret (rotate in each console → new value via a local file → swap the Railway/local env). (The Supabase OAuth app is already installable by any Supabase org — nothing to flip there.)
-- [ ] 🟡 **Terminal secret exposure** (above) — must land before non-owners get a terminal.
-
-### The company — the other departments
-- [x] **Engineering** — the flagship, operational.
-- [ ] ⬜ **Support · Finance · Sales · Marketing · Design · Operations · Legal** — prompt-forbidden + unprovisioned (each follows the Engineer's pattern).
-
-### Channels
-- [ ] ⬜ **Phone (SMS/voice) · Email inbox · Slack** — none built.
-
-### Debt & cleanup
-- [x] **Demo/mock removal** *(this session)*.
-- [ ] 🟡 **Sarah→Lu rename** (~59 refs) + `@leadanswered/*` package names + `leadanswered.com` in env/cookies + the `/sarah` route.
-- [ ] 🟡 **Landing-page** still carries old-product positioning (rewrite pass).
+Re-planning (plan v2 on failed verification) · pgvector memory + AST code index · `Task.model` threading +
+registry-driven coding model · usage-bucket enforcement on every entry point · Flux/Higgsfield image
+models · watch-the-build (terminal attached to the build sandbox pty) · Revert All rollback endpoint ·
+departments beyond Engineering · phone + email channels · presets beyond Business · Sarah→Lu rename +
+landing-page rewrite · prebuilt e2b template · per-task credential scopes + egress allowlists · managed
+hosting tier · xAI/Grok in the gateway.
 
 ---
 
-## 4. The critical path — "any owner builds a website, reliably"
+## Shipped (compressed — details in git history)
 
-The shortest ordered path from "works when I dogfood it" to "a design partner can use it". *(The
-harness-side P0s — the publish code-gate, `REDIS_URL`, the terminal key-leak fix — interleave with this
-list; they're tracked with checkboxes in [harness-spec.md](./docs/harness-spec.md) §6.)*
-
-1. ⬜ **Auth on `apps/api`** (shared proxy→api secret, then signed per-request org) — unblocks safe external use; prerequisite for everything below.
-2. 🟡 **Public/Lu-owned starter template** + drop the `GITHUB_OWNER` override — GitHub works for any user's own account.
-3. 🟡 **Real domain** — the owner's domain, or a `*.lu.computer` wildcard on **our** Vercel (not theirs) — plus surface the Vercel↔GitHub install — so deploys actually publish.
-4. 🟡 **Activate the durable worker** (`REDIS_URL`) — builds survive crashes/redeploys.
-5. 🟡 **Widen the preview poll + add reconciliation** — previews reliably appear instead of empty-on-first-pass.
-
-After that it's a real product. **Depth-in-chat** (logs/subtasks in the conversation) and **one-click OAuth connect** are polish that make it *sing*, not gates.
-
----
-
-## 5. The milestone: Lu builds Lu (dogfood)
-
-Hand Lu a task → a fleet of coding agents build it **durably** → it **ships to real infra** → we use Lu to build the rest of Lu (the other departments, channels, presets). The pipeline above already runs end-to-end with the platform's own creds — so the milestone is gated mainly by **durability (worker)** + **reliability (items 2–5)**, not by unbuilt machinery.
+- **2026-07-18 — the dogfood ladder**: Task Detail page (`/task/[id]`) + card/row/page unification · live
+  workspace (working agents, real Request-changes/Retry, wired console actions) · GitHub sandbox-token
+  downscoping + branch protection · existing-project import + repo profiles · empirical verification
+  (preview fetch + repo tests in sandbox, hard-gated) · Slack channel v1 (dormant) · Supabase build tools
+  + the migration gate · web git-connected to Vercel (pushes auto-deploy everything) · API proxy auth ·
+  stuck-task reaper · spawn/supervise ordered sub-agents · lu.computer domains.
+- **2026-07-18 — BYO through their apps**: GitHub App + Vercel Integration + Supabase OAuth (refresh
+  tokens, project picker), install-first connect UX, connect card in chat.
+- **2026-07-17 — the flow layer**: AgentEvent journal · situational block · report-backs into the thread ·
+  thread rehydration · plan gate + acceptance verification + publish code-gate · onboarding v2 (static
+  sign-up + Lu onboards in-workspace) · the skill system (TS v1).
+- **Earlier**: the agent runtime (orchestrator, Engineer, e2b, BullMQ durable worker — live), canvas +
+  dock, metering + memory + consolidation, waitlist self-serve, model gateway + picker.
