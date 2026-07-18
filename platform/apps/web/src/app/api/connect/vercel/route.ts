@@ -1,4 +1,4 @@
-import { API_BASE, currentOrgId } from "@/lib/dock/backend";
+import { API_BASE, currentOrgId, PROXY_HEADERS } from "@/lib/dock/backend";
 
 /**
  * BYO connect — Vercel (token-paste MVP). Same-origin proxy so the browser never hits
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
   try {
     const res = await fetch(`${API_BASE}/api/connect/vercel`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...PROXY_HEADERS },
       body: JSON.stringify({ orgId, token, ...(teamId ? { teamId } : {}) }),
     });
     const data = await res.json().catch(() => ({}));
@@ -51,7 +51,7 @@ export async function DELETE() {
   try {
     const res = await fetch(`${API_BASE}/api/connect/vercel`, {
       method: "DELETE",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...PROXY_HEADERS },
       body: JSON.stringify({ orgId }),
     });
     const data = await res.json().catch(() => ({}));

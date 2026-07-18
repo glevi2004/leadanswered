@@ -232,6 +232,9 @@ model Task {
   parentTaskId  String?
   input         Json?
   result        Json?
+  /// The paper's Outcome tier promoted onto the task (harness-spec §2 P2): the acceptance
+  /// criteria this task must verifiably meet — string[] written by propose_plan/spawn.
+  acceptance    Json?
   model         String?
   assignedBy    String
   createdAt     DateTime   @default(now())

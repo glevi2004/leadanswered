@@ -4,6 +4,7 @@ import { assertEnv, env, useE2b, usePostgres, useVercel } from "./env.js";
 import { startTelemetry } from "./telemetry.js";
 import { attachTerminalWs } from "./routes/terminal.js";
 import { startEngineeringWorker, startMemoryWorker } from "./worker.js";
+import { startTaskReaper } from "./agent/reaper.js";
 import { useRedis } from "./queue.js";
 import { recommendModel } from "@leadanswered/core";
 
@@ -26,6 +27,8 @@ async function main(): Promise<void> {
   // split to a dedicated process later via `node dist/worker.js`.
   startEngineeringWorker(store);
   startMemoryWorker(store);
+  // The stuck-task reaper (harness-spec §3 P1) — sweeps stranded in_progress tasks to failed.
+  startTaskReaper(store);
 
   server.listen(env.PORT, () => {
     console.log(`[api] listening on http://localhost:${env.PORT}`);

@@ -1,6 +1,7 @@
 import { requireOrganization, organizationTz } from "@/lib/dashboard-auth";
 import { PageHeader } from "@/components/app/PageHeader";
 import { EngineeringHome } from "./EngineeringHome";
+import { AutoRefresh } from "./AutoRefresh";
 import { loadEngineeringHome } from "@/lib/dashboard/engineering-home";
 
 function greeting(tz: string): string {
@@ -25,6 +26,7 @@ export default async function HomePage() {
 
   return (
     <div className="flex flex-col gap-8">
+      <AutoRefresh />
       <PageHeader
         title={
           <>

@@ -1,6 +1,7 @@
 import { runEngineering, type EngineeringDeps } from "./engineering.js";
 import { enqueueEngineering, useRedis } from "../queue.js";
 import { postToThread, recordEvent } from "./journal.js";
+import { superviseAfterRun } from "./supervise.js";
 
 /**
  * Dispatch the Engineer to build an EXISTING task. DURABLE when Redis is set
@@ -18,6 +19,10 @@ const inflight = new Map<string, Promise<unknown>>();
 function dispatchInProcess(deps: EngineeringDeps, orgId: string, taskId: string, message: string): void {
   if (inflight.has(taskId)) return; // already running — do not double-dispatch
   const run = runEngineering(deps, { orgId, taskId, message })
+    .then(async () => {
+      // Supervision (agent/supervise.ts): a finished child advances its parent's cascade.
+      await superviseAfterRun(deps.store, orgId, taskId, "ok");
+    })
     .catch(async (err) => {
       console.error(`[dispatch] engineering task ${taskId} failed:`, err);
       await deps.store
@@ -38,6 +43,7 @@ function dispatchInProcess(deps: EngineeringDeps, orgId: string, taskId: string,
         `The build for "${task?.title ?? "your task"}" failed: ${reason}. Ask me to retry or re-plan.`,
         { kind: "build_failed", taskId },
       );
+      await superviseAfterRun(deps.store, orgId, taskId, "failed");
     })
     .finally(() => inflight.delete(taskId));
   inflight.set(taskId, run);

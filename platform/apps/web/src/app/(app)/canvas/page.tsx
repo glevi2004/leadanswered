@@ -1,5 +1,6 @@
 import { requireOrganization } from "@/lib/dashboard-auth";
 import { CompanyCanvas, type CanvasDepartment } from "@/components/canvas/CompanyCanvas";
+import { PROXY_HEADERS } from "@/lib/dock/backend";
 
 export const metadata = { title: "Canvas — Lead Answered" };
 
@@ -18,6 +19,7 @@ async function loadDepartments(orgId: string): Promise<CanvasDepartment[]> {
   try {
     const res = await fetch(`${API_BASE}/api/departments?orgId=${encodeURIComponent(orgId)}`, {
       cache: "no-store",
+      headers: PROXY_HEADERS,
     });
     if (!res.ok) {
       console.warn(`[canvas] departments fetch failed: ${res.status}`);

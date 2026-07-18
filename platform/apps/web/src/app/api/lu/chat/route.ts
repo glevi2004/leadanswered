@@ -1,4 +1,4 @@
-import { API_BASE, currentOrgId } from "@/lib/dock/backend";
+import { API_BASE, currentOrgId, PROXY_HEADERS } from "@/lib/dock/backend";
 
 /**
  * INVOKE — the New org's ONE assistant, wired to the REAL Lu ORCHESTRATOR
@@ -58,7 +58,7 @@ export async function POST(req: Request) {
   try {
     const res = await fetch(`${API_BASE}/api/lu`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...PROXY_HEADERS },
       body: JSON.stringify({ orgId, message, history, modelId }),
     });
     if (!res.ok) throw new Error(`lu route ${res.status}`);

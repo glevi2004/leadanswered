@@ -1,4 +1,4 @@
-import { API_BASE, currentOrgId } from "@/lib/dock/backend";
+import { API_BASE, currentOrgId, PROXY_HEADERS } from "@/lib/dock/backend";
 
 /**
  * GET /api/dock/usage — the session org's metered agent-compute this period vs its bucket
@@ -14,6 +14,7 @@ export async function GET() {
   try {
     const res = await fetch(`${API_BASE}/api/usage?orgId=${encodeURIComponent(orgId)}`, {
       cache: "no-store",
+      headers: PROXY_HEADERS,
     });
     if (!res.ok) throw new Error(`usage ${res.status}`);
     return Response.json(await res.json());

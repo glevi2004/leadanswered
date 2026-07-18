@@ -1,4 +1,4 @@
-import { API_BASE, currentOrgId } from "@/lib/dock/backend";
+import { API_BASE, currentOrgId, PROXY_HEADERS } from "@/lib/dock/backend";
 
 /**
  * DELETE /api/canvas/edges/:id — same-origin proxy to apps/api `DELETE /api/canvas/edges/:id`.
@@ -19,7 +19,7 @@ export async function DELETE(_req: Request, { params }: Ctx) {
   try {
     const res = await fetch(`${API_BASE}/api/canvas/edges/${encodeURIComponent(id)}`, {
       method: "DELETE",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...PROXY_HEADERS },
     });
     const data = await res.json().catch(() => ({}));
     return Response.json(data, { status: res.status });

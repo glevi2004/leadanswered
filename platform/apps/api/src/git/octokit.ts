@@ -46,24 +46,29 @@ export class OctokitGit implements Git {
   private readonly octokit: Octokit;
   /** The PAT — returned verbatim by `installationToken()` for clone/push auth. */
   private readonly token: string;
+  /** BYO mode: never consult GITHUB_OWNER — new repos belong to the token's own account. */
+  private readonly ignoreEnvOwner: boolean;
   /** Memoised authenticated login (`GET /user`) — only fetched when no owner is otherwise given. */
   private authLogin: string | undefined;
 
-  constructor(token: string = process.env.GITHUB_TOKEN ?? "") {
+  constructor(token: string = process.env.GITHUB_TOKEN ?? "", opts?: { ignoreEnvOwner?: boolean }) {
     if (!token) {
       throw new Error("GITHUB_TOKEN is not set — cannot use the Octokit Git adapter.");
     }
     this.token = token;
+    this.ignoreEnvOwner = opts?.ignoreEnvOwner ?? false;
     this.octokit = new Octokit({ auth: token });
   }
 
   /**
-   * Resolve the owner for a NEW repo: explicit `org` → `GITHUB_OWNER` → the token's own login
-   * (`GET /user`, memoised). Only the last branch makes a network call, and only once.
+   * Resolve the owner for a NEW repo: explicit `org` → `GITHUB_OWNER` (platform/dogfood mode
+   * only — a BYO org-token adapter sets `ignoreEnvOwner` so the CUSTOMER's repos land in the
+   * customer's own account, never the platform org) → the token's own login (`GET /user`,
+   * memoised). Only the last branch makes a network call, and only once.
    */
   private async resolveOwner(org?: string): Promise<string> {
     if (org) return org;
-    if (process.env.GITHUB_OWNER) return process.env.GITHUB_OWNER;
+    if (!this.ignoreEnvOwner && process.env.GITHUB_OWNER) return process.env.GITHUB_OWNER;
     if (!this.authLogin) {
       try {
         const { data } = await this.octokit.rest.users.getAuthenticated();
@@ -96,7 +101,7 @@ export class OctokitGit implements Git {
       // NO template → an empty repo. Try org creation first (POST /orgs/{org}/repos); if the owner
       // is actually the authenticated USER (not an org), GitHub 404s that route, so fall back to
       // POST /user/repos (repos.createForAuthenticatedUser).
-      const isAuthedUser = !org && !process.env.GITHUB_OWNER;
+      const isAuthedUser = !org && (this.ignoreEnvOwner || !process.env.GITHUB_OWNER);
       if (isAuthedUser) {
         const { data } = await this.octokit.rest.repos.createForAuthenticatedUser({
           name,

@@ -42,7 +42,9 @@ export function getGit(): Git {
 export async function getGitForOrg(store: Store, orgId?: string): Promise<Git> {
   if (orgId) {
     const conn = await store.getGithubConnection(orgId);
-    if (conn?.userToken) return new OctokitGit(conn.userToken);
+    // BYO: `ignoreEnvOwner` so the customer's repos land in the CUSTOMER's own account —
+    // GITHUB_OWNER only ever applies to the platform's dogfood token below.
+    if (conn?.userToken) return new OctokitGit(conn.userToken, { ignoreEnvOwner: true });
   }
   return getGit();
 }

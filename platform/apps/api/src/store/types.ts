@@ -72,6 +72,8 @@ export interface TaskRecord {
   parentTaskId: string | null;
   input: unknown | null;
   result: unknown | null;
+  /** The acceptance criteria this task must verifiably meet (string[]) — the Outcome tier. */
+  acceptance: unknown | null;
   model: string | null;
   assignedBy: string;
   createdAt?: string;
@@ -87,6 +89,7 @@ export interface CreateTaskInput {
   parentTaskId?: string | null;
   input?: unknown;
   result?: unknown;
+  acceptance?: unknown;
   model?: string | null;
   assignedBy: string;
 }
@@ -99,6 +102,7 @@ export type TaskPatch = Partial<{
   parentTaskId: string | null;
   input: unknown;
   result: unknown;
+  acceptance: unknown;
   model: string | null;
   assignedBy: string;
 }>;
@@ -486,6 +490,8 @@ export interface Store {
   listTasks(orgId: string, filter?: TaskFilter): Promise<TaskRecord[]>;
   updateTaskStatus(id: string, status: string): Promise<TaskRecord>;
   updateTask(id: string, patch: TaskPatch): Promise<TaskRecord>;
+  /** CROSS-ORG: every `in_progress` task not touched since `olderThanISO` — the reaper's read. */
+  listStuckTasks(olderThanISO: string): Promise<TaskRecord[]>;
 
   // --- Artifacts ---
   addArtifact(input: AddArtifactInput): Promise<ArtifactRecord>;

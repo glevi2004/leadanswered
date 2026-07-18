@@ -231,6 +231,7 @@ export class MemoryStore implements Store {
       parentTaskId: input.parentTaskId ?? null,
       input: input.input ?? null,
       result: input.result ?? null,
+      acceptance: input.acceptance ?? null,
       model: input.model ?? null,
       assignedBy: input.assignedBy,
       createdAt: ts,
@@ -250,6 +251,12 @@ export class MemoryStore implements Store {
         t.orgId === orgId &&
         (filter?.departmentKey === undefined || t.departmentKey === filter.departmentKey) &&
         (filter?.status === undefined || t.status === filter.status),
+    );
+  }
+
+  async listStuckTasks(olderThanISO: string): Promise<TaskRecord[]> {
+    return [...this.tasks.values()].filter(
+      (t) => t.status === "in_progress" && (t.updatedAt ?? "") < olderThanISO,
     );
   }
 

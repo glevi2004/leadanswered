@@ -1,4 +1,4 @@
-import { API_BASE, currentOrgId } from "@/lib/dock/backend";
+import { API_BASE, currentOrgId, PROXY_HEADERS } from "@/lib/dock/backend";
 
 /**
  * BYO connect — Supabase (project-ref + service-key paste MVP). Same-origin proxy so the
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
   try {
     const res = await fetch(`${API_BASE}/api/connect/supabase`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...PROXY_HEADERS },
       body: JSON.stringify({ orgId, projectRef, serviceKey }),
     });
     const data = await res.json().catch(() => ({}));
@@ -53,7 +53,7 @@ export async function DELETE() {
   try {
     const res = await fetch(`${API_BASE}/api/connect/supabase`, {
       method: "DELETE",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...PROXY_HEADERS },
       body: JSON.stringify({ orgId }),
     });
     const data = await res.json().catch(() => ({}));

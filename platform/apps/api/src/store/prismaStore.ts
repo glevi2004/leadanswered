@@ -97,6 +97,7 @@ function mapTask(r: any): TaskRecord {
     parentTaskId: r.parentTaskId ?? null,
     input: r.input ?? null,
     result: r.result ?? null,
+    acceptance: r.acceptance ?? null,
     model: r.model ?? null,
     assignedBy: r.assignedBy,
     createdAt: iso(r.createdAt),
@@ -354,6 +355,7 @@ export class PrismaStore implements Store {
         parentTaskId: input.parentTaskId ?? null,
         input: (input.input ?? undefined) as any,
         result: (input.result ?? undefined) as any,
+        acceptance: (input.acceptance ?? undefined) as any,
         model: input.model ?? null,
         assignedBy: input.assignedBy,
       },
@@ -383,6 +385,15 @@ export class PrismaStore implements Store {
     return mapTask(t);
   }
 
+  async listStuckTasks(olderThanISO: string): Promise<TaskRecord[]> {
+    const rows = await this.db.task.findMany({
+      where: { status: "in_progress" as any, updatedAt: { lt: new Date(olderThanISO) } },
+      orderBy: { updatedAt: "asc" },
+      take: 100,
+    });
+    return rows.map(mapTask);
+  }
+
   async updateTask(id: string, patch: TaskPatch): Promise<TaskRecord> {
     const t = await this.db.task.update({
       where: { id },
@@ -395,6 +406,7 @@ export class PrismaStore implements Store {
         parentTaskId: patch.parentTaskId,
         input: patch.input as any,
         result: patch.result as any,
+        acceptance: patch.acceptance as any,
         model: patch.model,
         assignedBy: patch.assignedBy,
       },

@@ -82,9 +82,12 @@ export function LuBuildTracker() {
         // Tasks/previews to show as build progress = everything NOT still behind a plan gate.
         const progressTasks = batchTasks.filter((t) => !plannedTaskIds.has(t.id));
         const hasEngineering = progressTasks.some((t) => t.departmentKey === "engineering");
-        const previews = artifacts.filter(
+        const previewsAll = artifacts.filter(
           (a) => a.kind === "site_preview" && a.taskId && batchIds.has(a.taskId) && !plannedTaskIds.has(a.taskId),
         );
+        // Dedupe by title keeping the newest — reconciliation appends a healed copy when a
+        // preview URL arrives late, and we want ONE card that fills in, not two.
+        const previews = [...new Map(previewsAll.map((a) => [a.title, a])).values()];
         const n = batch.taskIds.length;
         // Header reads the lifecycle: awaiting-plan vs. building.
         const awaitingPlan = planApprovals.length > 0 && progressTasks.length === 0;
@@ -146,6 +149,34 @@ export function LuBuildTracker() {
                 {loaded ? "Lining up the work…" : "Getting the work going…"}
               </p>
             ) : null}
+
+            {/* Deep links (docs/workflow.md §7): the rich detail was buried in the canvas —
+                give the chat one-click doors to the PR and the workplace. */}
+            {progressTasks.length > 0 && (() => {
+              const prUrl = (artifacts
+                .filter((a) => a.kind === "pr_diff" && a.taskId && batchIds.has(a.taskId))
+                .at(-1)?.payload as { prUrl?: string } | null)?.prUrl;
+              return (
+                <div className="mt-2 flex items-center gap-3 pl-8 text-xs">
+                  <a
+                    href="/department/engineering"
+                    className="font-medium text-primary underline-offset-2 hover:underline"
+                  >
+                    Open workplace
+                  </a>
+                  {prUrl && (
+                    <a
+                      href={prUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-primary underline-offset-2 hover:underline"
+                    >
+                      View PR
+                    </a>
+                  )}
+                </div>
+              );
+            })()}
 
             {previews.length > 0 && (
               <div className="mt-2.5 space-y-1.5">

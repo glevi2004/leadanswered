@@ -19,6 +19,7 @@ import {
 } from "./engineeringTools.js";
 import { meterLlm } from "./metering.js";
 import { postToThread, recordEvent } from "./journal.js";
+import { superviseAfterRun } from "./supervise.js";
 
 /**
  * Absolute ceiling on ONE Engineering turn (model latency + every tool step). A hard
@@ -255,9 +256,22 @@ export async function confirmPublish(
   await d.git.mergePR(site.repoFullName, preview.prNumber);
   // 2) Promote the reviewed build to production.
   const prod = await d.deploy.promoteToProd(site.vercelProjectId, preview.sha ?? "");
-  // 3) Attach the default domain.
-  const domain = `${slugify(site.repoFullName.split("/").pop() ?? siteId)}.lu.computer`;
-  await d.deploy.addDomain(site.vercelProjectId, domain);
+  // 3) Domain (BYO honesty, harness-spec §"reliability"): `{slug}.lu.computer` only makes sense
+  // on the PLATFORM's Vercel (where the wildcard lives). On a customer's own Vercel (BYO
+  // connection present) we don't assume our domain — the live URL is their Vercel production
+  // URL, and a custom domain is a later, owner-driven step. Attach is best-effort either way:
+  // a failed domain attach must never fail an approved publish.
+  const byoVercel = Boolean((await d.store.getVercelConnection(site.orgId).catch(() => null))?.accessToken);
+  let domain = prod.url.replace(/^https?:\/\//, "");
+  if (!byoVercel) {
+    const luDomain = `${slugify(site.repoFullName.split("/").pop() ?? siteId)}.lu.computer`;
+    try {
+      await d.deploy.addDomain(site.vercelProjectId, luDomain);
+      domain = luDomain;
+    } catch (err) {
+      console.error(`[confirmPublish] domain attach failed (continuing with the Vercel URL):`, err);
+    }
+  }
   // 4) Mark the Site live + record the production Deployment.
   await d.store.updateSite(siteId, { status: "live", domain });
   await d.store.addDeployment({
@@ -290,6 +304,8 @@ export async function confirmPublish(
     taskId: approval.taskId ?? undefined,
     url: liveUrl,
   });
+  // Supervision: a published child may complete its parent's cascade.
+  if (approval.taskId) await superviseAfterRun(d.store, site.orgId, approval.taskId, "ok");
 
   return { siteId, domain, url: prod.url };
 }

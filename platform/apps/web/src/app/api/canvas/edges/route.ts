@@ -1,4 +1,4 @@
-import { API_BASE, currentOrgId } from "@/lib/dock/backend";
+import { API_BASE, currentOrgId, PROXY_HEADERS } from "@/lib/dock/backend";
 
 /**
  * POST /api/canvas/edges — same-origin proxy to apps/api `POST /api/canvas/edges`.
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   try {
     const res = await fetch(`${API_BASE}/api/canvas/edges`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...PROXY_HEADERS },
       body: JSON.stringify({ ...body, orgId }),
     });
     const data = await res.json().catch(() => ({}));

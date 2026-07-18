@@ -13,6 +13,15 @@ import { getOrganizationByOwnerEmail } from "@/lib/organizations";
 export const API_BASE = (process.env.API_PUBLIC_URL ?? "http://localhost:3000").replace(/\/$/, "");
 
 /**
+ * The shared proxy→api secret (apps/api enforces it on /api/* when API_PROXY_SECRET is set).
+ * Spread these into the headers of EVERY server-side fetch to API_BASE — the api rejects
+ * unauthenticated callers, which is what stops any browser from acting as any org.
+ */
+export const PROXY_HEADERS: Record<string, string> = process.env.API_PROXY_SECRET
+  ? { "x-lu-proxy-secret": process.env.API_PROXY_SECRET }
+  : {};
+
+/**
  * Resolve the signed-in owner's organization id for a Next API route. Mirrors
  * `requireOrganization()` (dashboard-auth) but NON-redirecting: returns null instead
  * of throwing a redirect, so a dock proxy can answer with an empty payload rather than
@@ -39,7 +48,10 @@ export async function proxyGet<T>(
 ): Promise<T> {
   try {
     const qs = new URLSearchParams({ orgId, ...(extraParams ?? {}) });
-    const res = await fetch(`${API_BASE}${path}?${qs.toString()}`, { cache: "no-store" });
+    const res = await fetch(`${API_BASE}${path}?${qs.toString()}`, {
+      cache: "no-store",
+      headers: PROXY_HEADERS,
+    });
     if (!res.ok) {
       console.warn(`[dock] GET ${path} failed: ${res.status}`);
       return fallback;

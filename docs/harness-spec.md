@@ -73,11 +73,12 @@ the model gateway; **journal** ≈ Artifact/Message rows (until `TaskEvent`); **
 - [ ] **P1 — verification retry budget in code**: N attempts per acceptance run, failure must reproduce on an
   independent re-check before counting (flake vs fault), budget exhaustion escalates to the owner with the
   evidence attached. Today retries are a prompt suggestion inside a `stepCountIs(10)` loop.
-- [ ] **P2 — promote acceptance onto `Task`** (`Task.acceptance` column): each criterion becomes the paper's
-  Outcome tier — a verifiable unit with its own predicate — instead of living only in the plan doc.
-- [ ] **P2 — honor dependencies**: write and read `Task.parentTaskId` + `needs_earlier` (both exist in schema,
-  nothing sets them — `schema.prisma:105,240`); dispatch in dependency order. This is the paper's DAG, minimal
-  form.
+- [x] **P2 — acceptance promoted onto `Task`** *(shipped 2026-07-18)*: `Task.acceptance` column (migration
+  `20260718100000`); `propose_plan`/`spawn_agent` write it; `verify_acceptance` + the publish code-gate read
+  it first (plan-artifact fallback for older tasks).
+- [x] **P2 — dependencies honored** *(shipped 2026-07-18)*: `spawn_agent` creates ordered children
+  (`parentTaskId` + `needs_earlier`); the supervisor (`agent/supervise.ts`) dispatches them in sequence on
+  run completion — the paper's DAG, minimal form.
 - [ ] **P3 — re-planning (versioned plans)**: on failed verification or build, Lu proposes plan v2 (a new plan
   artifact referencing the failure evidence) instead of dead-ending at `failed` (`dispatch.ts:22`,
   `worker.ts:53`). This is the paper's *G(i+1)* loop.
@@ -101,8 +102,9 @@ the model gateway; **journal** ≈ Artifact/Message rows (until `TaskEvent`); **
 - [x] **P0 — durability ON** *(confirmed live 2026-07-18)*: Redis + `REDIS_URL` were already provisioned on
   Railway; the 2026-07-18 deploy log shows the engineering worker (concurrency 3) and the
   memory-consolidation worker both started. Builds survive redeploys.
-- [ ] **P1 — stuck-task reaper**: sweep tasks `in_progress` beyond a deadline back to `failed` (or re-enqueue)
-  so crashes don't strand state.
+- [x] **P1 — stuck-task reaper** *(shipped 2026-07-18)*: `agent/reaper.ts` — cross-org sweep every 10 min
+  (45-min deadline, boot sweep clears strays from the previous deploy) → `failed` + journal event + thread
+  report-back.
 - [ ] **P2 — prebuilt E2B template** with Claude Code / Codex preinstalled (`SpawnOpts.template` exists,
   no caller sets it — today every run pays `npm i -g` in a base image).
 - [ ] **P2 — `TaskEvent` journal table**: append-only task lifecycle transitions (`PLANNED → DISPATCHED →

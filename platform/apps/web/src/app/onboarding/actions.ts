@@ -3,6 +3,7 @@
 import { organizationConfigSchema, type OrganizationConfigInput } from "@/lib/config";
 import { getOrganizationByOwnerEmail, setOrganizationConfig } from "@/lib/organizations";
 import { currentUser } from "@/lib/auth";
+import { PROXY_HEADERS } from "@/lib/dock/backend";
 
 /**
  * API base for the apps/api backend (reuses the same env the calendar/schedule
@@ -42,7 +43,7 @@ export async function completeOnboarding(
   try {
     const res = await fetch(`${API_BASE}/api/onboarding/provision`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...PROXY_HEADERS },
       body: JSON.stringify({ orgId: organization.id, business }),
     });
     if (!res.ok) console.error(`[completeOnboarding] provision failed: ${res.status}`);
@@ -95,7 +96,7 @@ export async function finishSignup(input: {
   try {
     await fetch(`${API_BASE}/api/onboarding/context`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...PROXY_HEADERS },
       body: JSON.stringify({
         orgId: organization.id,
         companyName: input.companyName,

@@ -52,7 +52,9 @@ const BUILD_BRANCH = "lu/build";
  * `owner/template`. A real private Next.js template on the token's GitHub account;
  * swap for a Lu-owned org / GitHub App template later (ENGINEERING-AGENT §2).
  */
-const DEFAULT_SITE_TEMPLATE = "glevi2004/lu-site-starter";
+// The PUBLIC starter template (BYO: any customer's PAT can generate from it; made public
+// 2026-07-18). Override with SITE_STARTER_TEMPLATE to point at a different owner/template.
+const DEFAULT_SITE_TEMPLATE = process.env.SITE_STARTER_TEMPLATE ?? "glevi2004/lu-site-starter";
 
 // ── Deps / context ─────────────────────────────────────────────────────────────
 
@@ -244,14 +246,17 @@ function buildCommitCommand(prompt: string): string {
   ].join(" && ");
 }
 
-/** Poll Vercel for the PR's preview until READY / terminal, or attempts run out. */
+/** Poll Vercel for the PR's preview until READY / terminal, or attempts run out.
+ * Widened (BYO reliability): real Vercel builds take 1–3 min, and the old ~24s window
+ * routinely returned empty previews. Tune with PREVIEW_POLL_ATTEMPTS / PREVIEW_POLL_DELAY_MS;
+ * the read-path reconciliation in routes/reads.ts self-heals anything still missed. */
 async function pollPreview(
   deploy: Deploy,
   projectId: string,
   prNumber: number,
 ): Promise<PreviewDeployment | null> {
-  const ATTEMPTS = 8;
-  const DELAY_MS = 3000;
+  const ATTEMPTS = Number(process.env.PREVIEW_POLL_ATTEMPTS) || 24;
+  const DELAY_MS = Number(process.env.PREVIEW_POLL_DELAY_MS) || 5000;
   let last: PreviewDeployment | null = null;
   for (let i = 0; i < ATTEMPTS; i++) {
     // Bound each poll so a single hung provider call can't stall the whole loop forever.
@@ -583,7 +588,11 @@ export function engineeringTools(deps: EngineeringToolDeps, ctx: EngineeringCont
         "Check the build against the plan's acceptance criteria BEFORE asking to publish. Reads the acceptance criteria off the approved plan and the build evidence (the preview URL, the PR diff, the coding transcript) and judges, criterion by criterion, whether the work is actually done. Takes no input — it reads this task's plan and artifacts. Returns { pass, unmet, notes }: if pass is false, fix the listed 'unmet' items with run_coding_agent, then call verify_acceptance again. Do NOT call request_publish until this passes. If there is no plan / no criteria it passes trivially.",
       inputSchema: z.object({}),
       execute: async () => {
-        // 1) Read the acceptance criteria off the approved plan (the doc Artifact propose_plan wrote).
+        // 1) Acceptance criteria: FIRST-CLASS on the Task (harness-spec §2 P2 — the paper's
+        // Outcome tier), falling back to the plan doc Artifact for tasks created before the
+        // promotion. Objective comes from the plan, else the task body.
+        const task = ctx.taskId ? await d.store.getTask(ctx.taskId).catch(() => null) : null;
+        const taskAcceptance = Array.isArray(task?.acceptance) ? (task.acceptance as string[]) : [];
         const arts = await d.store.listArtifacts({ taskId: ctx.taskId });
         const plan = arts.find(
           (a) => a.kind === "doc" && (a.payload as { type?: string } | null)?.type === "plan",
@@ -591,10 +600,10 @@ export function engineeringTools(deps: EngineeringToolDeps, ctx: EngineeringCont
         const planPayload = (plan?.payload ?? null) as
           | { objective?: string; acceptance?: string[] }
           | null;
-        const acceptance = planPayload?.acceptance ?? [];
-        const objective = planPayload?.objective ?? "";
-        if (!plan || acceptance.length === 0) {
-          // No plan / no criteria to check — never block the pipeline.
+        const acceptance = taskAcceptance.length > 0 ? taskAcceptance : (planPayload?.acceptance ?? []);
+        const objective = planPayload?.objective ?? task?.body ?? "";
+        if (acceptance.length === 0) {
+          // No criteria to check — never block the pipeline.
           return { pass: true as const, unmet: [] as string[], notes: "no acceptance criteria to check" };
         }
 
@@ -684,13 +693,15 @@ export function engineeringTools(deps: EngineeringToolDeps, ctx: EngineeringCont
         // check passed. Previously this rule lived only in the system prompt — the model was
         // trusted to obey it. Now it is enforced here, in code.
         if (taskId) {
+          const gateTask = await d.store.getTask(taskId).catch(() => null);
           const arts = await d.store.listArtifacts({ taskId });
           const plan = arts.find(
             (a) => a.kind === "doc" && (a.payload as { type?: string } | null)?.type === "plan",
           );
-          const planAcceptance =
-            ((plan?.payload ?? null) as { acceptance?: string[] } | null)?.acceptance ?? [];
-          if (plan && planAcceptance.length > 0) {
+          const planAcceptance = Array.isArray(gateTask?.acceptance)
+            ? (gateTask.acceptance as string[])
+            : (((plan?.payload ?? null) as { acceptance?: string[] } | null)?.acceptance ?? []);
+          if (planAcceptance.length > 0) {
             const lastCheck = arts
               .filter(
                 (a) => a.kind === "doc" && (a.payload as { type?: string } | null)?.type === "acceptance",

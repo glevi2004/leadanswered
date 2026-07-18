@@ -1,4 +1,4 @@
-import { API_BASE, currentOrgId } from "@/lib/dock/backend";
+import { API_BASE, currentOrgId, PROXY_HEADERS } from "@/lib/dock/backend";
 
 /**
  * PATCH  /api/canvas/nodes/:id — proxy to apps/api `PATCH /api/canvas/nodes/:id`
@@ -28,7 +28,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
   try {
     const res = await fetch(`${API_BASE}/api/canvas/nodes/${encodeURIComponent(id)}`, {
       method: "PATCH",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...PROXY_HEADERS },
       body: JSON.stringify(body),
     });
     const data = await res.json().catch(() => ({}));
@@ -47,7 +47,7 @@ export async function DELETE(_req: Request, { params }: Ctx) {
   try {
     const res = await fetch(`${API_BASE}/api/canvas/nodes/${encodeURIComponent(id)}`, {
       method: "DELETE",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...PROXY_HEADERS },
     });
     const data = await res.json().catch(() => ({}));
     return Response.json(data, { status: res.status });

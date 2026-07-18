@@ -12,6 +12,7 @@ import {
 } from "./queue.js";
 import { consolidateOrgMemory } from "./agent/consolidation.js";
 import { postToThread, recordEvent } from "./agent/journal.js";
+import { superviseAfterRun } from "./agent/supervise.js";
 
 /**
  * The durable Engineering worker (FOUNDATION §4, DEVELOPMENT Phase 0). It consumes the
@@ -70,9 +71,14 @@ export function startEngineeringWorker(store: Store): Worker<EngineeringJob> | n
         `The build for "${task?.title ?? "your task"}" failed after ${job.attemptsMade} attempts: ${reason}. Ask me to retry or re-plan.`,
         { kind: "build_failed", taskId: job.data.taskId },
       );
+      await superviseAfterRun(store, job.data.orgId, job.data.taskId, "failed");
     }
   });
-  worker.on("completed", (job) => console.log(`[worker] engineering job ${job.id} completed`));
+  worker.on("completed", async (job) => {
+    console.log(`[worker] engineering job ${job.id} completed`);
+    // Supervision (agent/supervise.ts): a finished child advances its parent's cascade.
+    await superviseAfterRun(store, job.data.orgId, job.data.taskId, "ok");
+  });
   worker.on("error", (err) => console.error("[worker] error:", err));
 
   console.log(`[worker] engineering worker started (concurrency ${worker.opts.concurrency})`);

@@ -79,6 +79,23 @@ export async function createApp(overrides: BuildDeps = {}): Promise<Express> {
     res.json({ status: "ok" });
   });
 
+  // PROXY AUTH (DEVELOPMENT §"critical path" item 1): every /api/* request must carry the
+  // shared secret the web proxy injects — otherwise any caller could act as any org by
+  // passing an orgId. Enforced ONLY when API_PROXY_SECRET is set (so local dev and tests
+  // are unaffected until the env lands); /health stays open for platform probes. The
+  // terminal WebSocket upgrade does not pass through this middleware — its hardening is
+  // tracked separately (harness-spec §3 secrets).
+  const proxySecret = process.env.API_PROXY_SECRET;
+  if (proxySecret) {
+    app.use("/api", (req, res, next) => {
+      if (req.headers["x-lu-proxy-secret"] === proxySecret) return next();
+      res.status(401).json({ error: "unauthorized" });
+    });
+    console.log("[api] proxy auth ON — /api/* requires x-lu-proxy-secret");
+  } else {
+    console.warn("[api] API_PROXY_SECRET not set — /api/* is unauthenticated (dev mode)");
+  }
+
   // Lu Computer — onboarding provisioning + department reads.
   app.post("/api/onboarding/provision", createProvisionRoute(deps));
   app.post("/api/onboarding/context", createSeedContextRoute(deps));

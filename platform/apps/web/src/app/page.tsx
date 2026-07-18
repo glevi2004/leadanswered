@@ -34,5 +34,6 @@ export default async function Home() {
     );
   }
 
-  redirect("/home");
+  // The canvas IS the product surface (FOUNDATION §1) — land there, not on the one-shot /home.
+  redirect("/canvas");
 }

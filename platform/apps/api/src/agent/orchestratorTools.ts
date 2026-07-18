@@ -181,6 +181,7 @@ export function orchestratorTools(deps: OrchestratorToolDeps, ctx: OrchestratorC
           title,
           body: objective,
           status: "agent_can_do", // planned but NOT dispatched — the plan gate holds it
+          acceptance, // the Outcome tier lives ON the task (harness-spec §2 P2)
           assignedBy: "lu",
         });
         await deps.store.addArtifact({
@@ -212,6 +213,67 @@ export function orchestratorTools(deps: OrchestratorToolDeps, ctx: OrchestratorC
           readyToBuild: s.github && s.vercel,
           missingConnections: [!s.github ? "GitHub" : null, !s.vercel ? "Vercel" : null].filter(Boolean),
         };
+      },
+    }),
+
+    spawn_agent: tool({
+      description:
+        "Split a BIG approved goal into ORDERED sub-tasks under a parent task, each run by its own agent in sequence. Call once per sub-task, in the order they must run, passing the parent taskId (usually the approved plan's task). The first sub-task starts building immediately; each later one waits for the one before it (the system supervises the cascade: it dispatches the next sub-task when one finishes, pauses everything and asks the owner if one fails, and completes the parent when all are done — reporting progress into the chat as it goes). Use this for multi-part builds (e.g. site + admin panel + API); for a single build just use propose_plan. Engineering sub-tasks only for now.",
+      inputSchema: z.object({
+        parentTaskId: z.string().describe("The parent task this sub-task belongs to (from propose_plan/create_task)"),
+        title: z.string().describe("Short imperative title for this sub-task"),
+        body: z.string().describe("What this sub-task's agent must do — self-contained instructions"),
+        acceptance: z
+          .array(z.string())
+          .optional()
+          .describe("Testable criteria for THIS sub-task (verified before its publish)"),
+      }),
+      execute: async ({ parentTaskId, title, body, acceptance }) => {
+        const parent = await deps.store.getTask(parentTaskId);
+        if (!parent || parent.orgId !== ctx.orgId) {
+          return { ok: false as const, reason: "task_not_found" as const };
+        }
+        const siblings = (await deps.store.listTasks(ctx.orgId)).filter(
+          (t) => t.parentTaskId === parentTaskId,
+        );
+        // Ordered cascade: only the FIRST unfinished sub-task runs; later ones queue at
+        // needs_earlier and the supervisor (agent/supervise.ts) advances them in turn.
+        const mustWait = siblings.some((t) => t.status !== "done" && t.status !== "failed");
+        const child = await deps.store.createTask({
+          orgId: ctx.orgId,
+          departmentKey: "engineering",
+          title,
+          body,
+          acceptance,
+          parentTaskId,
+          status: mustWait ? "needs_earlier" : "agent_can_do",
+          assignedBy: "lu",
+        });
+        tasksCreated.push(child.id);
+        await recordEvent(deps.store, {
+          orgId: ctx.orgId,
+          taskId: child.id,
+          kind: "agent_spawned",
+          message: `Spawned sub-task "${title}" under "${parent.title}"${mustWait ? " (queued)" : ""}`,
+          payload: { parentTaskId },
+        });
+        if (mustWait) {
+          return { ok: true as const, taskId: child.id, queued: true as const };
+        }
+        // First runnable sub-task — same gates as dispatch_to_engineering, then go.
+        if (!(await orgHasConnections(deps.store, ctx.orgId))) {
+          return { ok: true as const, taskId: child.id, queued: true as const, reason: "not_connected" as const };
+        }
+        const usage = await usageThisPeriod(deps.store, ctx.orgId);
+        if (usage.overBucket && !usage.overageOptIn) {
+          return { ok: true as const, taskId: child.id, queued: true as const, reason: "not_enough_credit" as const };
+        }
+        await deps.store.updateTaskStatus(parentTaskId, "in_progress").catch(() => {});
+        await dispatchBuild(
+          { store: deps.store },
+          { orgId: ctx.orgId, taskId: child.id, message: body.trim() || title },
+        );
+        return { ok: true as const, taskId: child.id, queued: false as const, dispatched: true as const };
       },
     }),
 

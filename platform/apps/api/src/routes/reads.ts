@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
-import type { DeploymentRecord, Store } from "../store/types.js";
+import type { DeploymentRecord, SiteRecord, Store } from "../store/types.js";
 import { usageThisPeriod } from "../billing/usage.js";
+import { getDeployForOrg } from "../deploy/index.js";
 
 /**
  * The Lu Computer READ routes (ENGINEER-ACTIVATION §B2) — GET endpoints the canvas
@@ -28,6 +29,62 @@ function requireOrgId(req: Request, res: Response): string | undefined {
 function latestDeployment(deployments: DeploymentRecord[]): DeploymentRecord | null {
   if (deployments.length === 0) return null;
   return [...deployments].sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""))[0];
+}
+
+/**
+ * Preview RECONCILIATION (BYO reliability — harness-spec §3): a preview that wasn't ready when
+ * `open_preview` stopped polling used to stay empty forever. On the sites read path, if the
+ * latest deployment is a recent preview with no URL (or still BUILDING), re-query Vercel for the
+ * PR's preview and append the healed Deployment row (+ a healed `site_preview` artifact so the
+ * chat card fills in too). Best-effort, bounded to deployments under 2h old.
+ */
+async function reconcilePreview(
+  store: Store,
+  site: SiteRecord,
+  latest: DeploymentRecord | null,
+): Promise<DeploymentRecord | null> {
+  if (!latest || latest.env !== "preview" || latest.prNumber == null || !site.vercelProjectId) {
+    return latest;
+  }
+  const terminal = latest.status === "READY" || latest.status === "ERROR" || latest.status === "CANCELED";
+  if (latest.url && terminal) return latest;
+  const ageMs = latest.createdAt ? Date.now() - new Date(latest.createdAt).getTime() : 0;
+  if (ageMs > 2 * 3_600_000) return latest;
+  try {
+    const deploy = await getDeployForOrg(store, site.orgId);
+    const fresh = await deploy.getPreviewForPr(site.vercelProjectId, latest.prNumber);
+    if (!fresh?.url || (fresh.url === latest.url && fresh.status === latest.status)) return latest;
+    const healed = await store.addDeployment({
+      siteId: site.id,
+      env: "preview",
+      url: fresh.url,
+      sha: latest.sha,
+      prNumber: latest.prNumber,
+      status: fresh.status ?? "READY",
+    });
+    // Heal the chat's site_preview artifact too (the tracker renders artifacts, not deployments).
+    const arts = await store.listArtifacts({ orgId: site.orgId });
+    const orig = arts
+      .filter(
+        (a) =>
+          a.kind === "site_preview" &&
+          (a.payload as { prNumber?: number } | null)?.prNumber === latest.prNumber,
+      )
+      .at(-1);
+    const origUrl = (orig?.payload as { url?: string | null } | null)?.url;
+    if (orig && !origUrl) {
+      await store.addArtifact({
+        orgId: site.orgId,
+        taskId: orig.taskId,
+        kind: "site_preview",
+        title: orig.title,
+        payload: { ...(orig.payload as Record<string, unknown>), url: fresh.url, status: fresh.status ?? "READY" },
+      });
+    }
+    return healed;
+  } catch {
+    return latest; // best-effort — never fail the read
+  }
 }
 
 /**
@@ -157,10 +214,10 @@ export function createListSitesRoute(deps: ReadRouteDeps) {
     try {
       const sites = await deps.store.listSites(orgId);
       const withDeploys = await Promise.all(
-        sites.map(async (site) => ({
-          ...site,
-          latestDeployment: latestDeployment(await deps.store.listDeployments(site.id)),
-        })),
+        sites.map(async (site) => {
+          const latest = latestDeployment(await deps.store.listDeployments(site.id));
+          return { ...site, latestDeployment: await reconcilePreview(deps.store, site, latest) };
+        }),
       );
       res.status(200).json({ sites: withDeploys });
     } catch (err) {
