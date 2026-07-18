@@ -127,6 +127,9 @@ function mapSite(r: any): SiteRecord {
     vercelProjectId: r.vercelProjectId ?? null,
     domain: r.domain ?? null,
     status: r.status,
+    kind: r.kind ?? "created",
+    setupCommand: r.setupCommand ?? null,
+    testCommand: r.testCommand ?? null,
     createdAt: iso(r.createdAt),
     updatedAt: iso(r.updatedAt),
   };
@@ -449,6 +452,9 @@ export class PrismaStore implements Store {
         vercelProjectId: input.vercelProjectId ?? null,
         domain: input.domain ?? null,
         status: input.status as any,
+        kind: input.kind ?? undefined,
+        setupCommand: input.setupCommand ?? null,
+        testCommand: input.testCommand ?? null,
       },
     });
     return mapSite(s);
@@ -473,6 +479,9 @@ export class PrismaStore implements Store {
         vercelProjectId: patch.vercelProjectId,
         domain: patch.domain,
         status: patch.status as any,
+        kind: patch.kind,
+        setupCommand: patch.setupCommand,
+        testCommand: patch.testCommand,
       },
     });
     return mapSite(s);

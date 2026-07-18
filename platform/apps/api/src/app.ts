@@ -30,6 +30,11 @@ import {
   createSupabaseProjectsRoute,
 } from "./routes/connect.js";
 import {
+  createListReposRoute,
+  createImportProjectRoute,
+  createUpdateProfileRoute,
+} from "./routes/projects.js";
+import {
   createConsoleOverviewRoute,
   createConsoleDatabaseRoute,
   createConsoleMigrationsRoute,
@@ -128,6 +133,11 @@ export async function createApp(overrides: BuildDeps = {}): Promise<Express> {
   app.delete("/api/connect/supabase", createDisconnectSupabaseRoute(deps));
   app.get("/api/connect/status", createConnectStatusRoute(deps));
   app.get("/api/connect/supabase/projects", createSupabaseProjectsRoute(deps));
+
+  // Lu Computer — existing-project import + repo profiles (ladder step 2).
+  app.get("/api/github/repos", createListReposRoute(deps));
+  app.post("/api/projects/import", createImportProjectRoute(deps));
+  app.post("/api/projects/profile", createUpdateProfileRoute(deps));
 
   // Lu Computer — the console proxy (docs/canvas.md §"the hub"): the department's Database-view
   // mirrors the company's one shared Supabase project (Management API + project APIs). Honest-empty

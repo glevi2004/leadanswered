@@ -378,6 +378,21 @@ export function engineeringTools(deps: EngineeringToolDeps, ctx: EngineeringCont
             d.sandbox.writeFiles(id, [{ path: ENV_FILE, content: renderEnvFile() }]),
           );
 
+          // REPO PROFILE (ladder step 2): an imported project's setup command runs after clone
+          // (install deps, generate clients) so the coding agent lands in a working tree. A
+          // non-zero exit doesn't abort — the agent sees the state and can often recover.
+          const profileSite = (await d.store.listSites(ctx.orgId)).find(
+            (s) => s.repoFullName === repoFullName && s.setupCommand,
+          );
+          if (profileSite?.setupCommand) {
+            const setup = await d.sandbox.exec(id, `cd ${REPO_DIR} && ${profileSite.setupCommand}`, {
+              timeoutMs: STEP_TIMEOUT_MS * 2,
+            });
+            if (setup.exitCode !== 0) {
+              console.warn(`[run_coding_agent] setup command exited ${setup.exitCode} for ${repoFullName}`);
+            }
+          }
+
           const runCmd = buildAgentCommand(agentKind, prompt);
           // The long step. On timeout the sandbox exec throws SandboxTimeoutError → the `finally`
           // below kills the sandbox and the throw propagates, failing the run cleanly (no hang).

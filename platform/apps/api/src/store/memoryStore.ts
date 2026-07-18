@@ -311,6 +311,9 @@ export class MemoryStore implements Store {
       vercelProjectId: input.vercelProjectId ?? null,
       domain: input.domain ?? null,
       status: input.status ?? "draft",
+      kind: input.kind ?? "created",
+      setupCommand: input.setupCommand ?? null,
+      testCommand: input.testCommand ?? null,
       createdAt: ts,
       updatedAt: ts,
     };

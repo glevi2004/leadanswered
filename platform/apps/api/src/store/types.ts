@@ -136,7 +136,8 @@ export interface ArtifactFilter {
   orgId?: string;
 }
 
-/** A customer / dogfood website. Domain default = {slug}.lu.computer. */
+/** A customer / dogfood project. `kind` = created | imported; `setupCommand`/`testCommand`
+ * are the repo profile (ladder step 2 — what the sandbox runs after clone / for verification). */
 export interface SiteRecord {
   id: string;
   orgId: string;
@@ -145,6 +146,9 @@ export interface SiteRecord {
   vercelProjectId: string | null;
   domain: string | null;
   status: string;
+  kind: string;
+  setupCommand: string | null;
+  testCommand: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -155,6 +159,9 @@ export interface CreateSiteInput {
   vercelProjectId?: string | null;
   domain?: string | null;
   status?: string;
+  kind?: string;
+  setupCommand?: string | null;
+  testCommand?: string | null;
 }
 export type SitePatch = Partial<{
   departmentKey: string | null;
@@ -162,6 +169,9 @@ export type SitePatch = Partial<{
   vercelProjectId: string | null;
   domain: string | null;
   status: string;
+  kind: string;
+  setupCommand: string | null;
+  testCommand: string | null;
 }>;
 
 /** A preview / production deploy of a Site. */

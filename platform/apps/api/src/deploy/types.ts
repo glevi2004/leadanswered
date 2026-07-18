@@ -44,4 +44,6 @@ export interface Deploy {
   promoteToProd(projectId: string, sha: string): Promise<{ url: string }>;
   /** Attach a domain (e.g. `{slug}.lu.computer`) to the project. */
   addDomain(projectId: string, domain: string): Promise<void>;
+  /** Find an EXISTING project by name/id — the import path (ladder step 2). Null if absent. */
+  findProject(nameOrId: string): Promise<{ projectId: string; name: string } | null>;
 }

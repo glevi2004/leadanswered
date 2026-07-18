@@ -4,6 +4,7 @@ import * as React from "react";
 import {
   Check, CreditCard, ExternalLink, Globe, Mail, Plus, Server, Sparkles,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useSarah } from "./sarah-context";
 import { useDockData, useSites } from "@/lib/dock/live";
 import { deriveAgents, importantLinks, useConnectStatus } from "./dock-data";
@@ -46,6 +47,9 @@ export function DockCompany() {
           </div>
         </div>
       </div>
+
+      {/* Projects — Lu-built sites + imported repos, one list (ladder step 2 / §8b). */}
+      <ProjectsCard sites={sites} />
 
       {/* Important links */}
       <div className="rounded-xl border bg-card p-4 elev-1">
@@ -165,5 +169,158 @@ function StatusChip({ connected }: { connected: boolean }) {
     <span className={cn("shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground")}>
       Setup
     </span>
+  );
+}
+
+/**
+ * Projects (ladder step 2): the org's repos Lu can build into — her own creations plus IMPORTED
+ * existing repos. Import: pick from the repos the GitHub connection can see, optionally set the
+ * REPO PROFILE (setup/test commands), done — the Engineer then builds INTO that repo, PRs and
+ * previews included, instead of creating something new.
+ */
+function ProjectsCard({ sites }: { sites: import("@/lib/dock/live").DockSite[] }) {
+  const [importing, setImporting] = React.useState(false);
+  const [repos, setRepos] = React.useState<{ fullName: string }[] | null>(null);
+  const [repo, setRepo] = React.useState("");
+  const [setupCommand, setSetup] = React.useState("");
+  const [testCommand, setTest] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+
+  const openImport = async () => {
+    setImporting(true);
+    if (repos === null) {
+      try {
+        const res = await fetch("/api/dock/github-repos", { cache: "no-store" });
+        const data = (await res.json()) as { repos?: { fullName: string }[] };
+        setRepos(Array.isArray(data.repos) ? data.repos : []);
+      } catch {
+        setRepos([]);
+      }
+    }
+  };
+
+  const doImport = async () => {
+    if (!repo) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/dock/projects/import", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          repoFullName: repo,
+          ...(setupCommand.trim() ? { setupCommand: setupCommand.trim() } : {}),
+          ...(testCommand.trim() ? { testCommand: testCommand.trim() } : {}),
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; vercelLinked?: boolean };
+      if (data.ok) {
+        toast.success(`Imported ${repo}${data.vercelLinked ? " — Vercel project linked" : ""}.`);
+        setImporting(false);
+        setRepo("");
+      } else {
+        toast.error(data.error || "Import failed — check the connection.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const alreadyImported = new Set(sites.map((s) => s.repoFullName).filter(Boolean));
+
+  return (
+    <div className="rounded-xl border bg-card p-4 elev-1">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="font-medium text-foreground">Projects</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">What Lu builds into — hers and yours.</p>
+        </div>
+        {!importing && (
+          <button
+            type="button"
+            onClick={openImport}
+            className="flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+          >
+            <Plus className="size-3.5" /> Import repo
+          </button>
+        )}
+      </div>
+
+      {sites.length > 0 ? (
+        <div className="mt-3 space-y-2">
+          {sites.map((s) => (
+            <div key={s.id} className="flex items-center gap-2.5 rounded-lg border bg-background px-3 py-2">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-foreground">{s.repoFullName ?? s.domain ?? s.id}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {(s.kind ?? "created") === "imported" ? "Imported" : "Built by Lu"} · {s.status}
+                  {s.vercelProjectId ? " · Vercel linked" : ""}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-3 text-xs text-muted-foreground">
+          Nothing yet — ask Lu to build something, or import one of your repos.
+        </p>
+      )}
+
+      {importing && (
+        <div className="mt-3 space-y-2 rounded-lg border bg-background p-3">
+          {repos === null ? (
+            <p className="text-xs text-muted-foreground">Loading your repos…</p>
+          ) : repos.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              No repos visible — install the GitHub App (Hosting above) and grant it the repos.
+            </p>
+          ) : (
+            <>
+              <select
+                value={repo}
+                onChange={(e) => setRepo(e.target.value)}
+                className="h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              >
+                <option value="">Choose a repo…</option>
+                {repos.map((r) => (
+                  <option key={r.fullName} value={r.fullName} disabled={alreadyImported.has(r.fullName)}>
+                    {r.fullName}
+                    {alreadyImported.has(r.fullName) ? " (already a project)" : ""}
+                  </option>
+                ))}
+              </select>
+              <input
+                value={setupCommand}
+                onChange={(e) => setSetup(e.target.value)}
+                placeholder="Setup command (optional) — e.g. pnpm install"
+                className="h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-xs outline-none focus-visible:border-ring"
+              />
+              <input
+                value={testCommand}
+                onChange={(e) => setTest(e.target.value)}
+                placeholder="Test command (optional) — e.g. pnpm typecheck"
+                className="h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-xs outline-none focus-visible:border-ring"
+              />
+            </>
+          )}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={doImport}
+              disabled={!repo || busy}
+              className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+            >
+              {busy ? "Importing…" : "Import"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setImporting(false)}
+              className="rounded-lg border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

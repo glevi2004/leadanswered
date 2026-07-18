@@ -377,6 +377,10 @@ export interface DockSite {
   vercelProjectId: string | null;
   domain: string | null; // "{slug}.lu.computer" once live
   status: string; // building | preview | live
+  /** created (Lu stood it up) | imported (the owner's existing repo — ladder step 2) */
+  kind?: string;
+  setupCommand?: string | null;
+  testCommand?: string | null;
   createdAt?: string;
   updatedAt?: string;
   latestDeployment?: DockDeployment | null;

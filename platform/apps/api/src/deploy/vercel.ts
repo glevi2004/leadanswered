@@ -219,4 +219,15 @@ export class VercelDeploy implements Deploy {
       },
     );
   }
+
+  async findProject(nameOrId: string): Promise<{ projectId: string; name: string } | null> {
+    try {
+      const p = await this.vfetch<{ id?: string; name?: string }>(
+        `/v9/projects/${encodeURIComponent(nameOrId)}`,
+      );
+      return p?.id ? { projectId: p.id, name: p.name ?? nameOrId } : null;
+    } catch {
+      return null; // 404 → no such project (the import path treats this as "none linked yet")
+    }
+  }
 }

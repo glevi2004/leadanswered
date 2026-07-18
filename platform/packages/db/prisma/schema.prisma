@@ -266,7 +266,9 @@ model Artifact {
   @@index([agentId])
 }
 
-/// A customer / dogfood website. Domain default = {slug}.lu.computer (§2/§7).
+/// A customer / dogfood project. `kind` = created (Lu stood it up) | imported (the owner's
+/// EXISTING repo — ladder step 2). `setupCommand`/`testCommand` are the REPO PROFILE: what the
+/// sandbox runs after clone / what verification runs (workflow §8b).
 model Site {
   id              String     @id @default(cuid())
   orgId           String
@@ -275,6 +277,9 @@ model Site {
   vercelProjectId String?
   domain          String?
   status          SiteStatus @default(draft)
+  kind            String     @default("created") // created | imported
+  setupCommand    String?    // repo profile: run after clone (install deps etc.)
+  testCommand     String?    // repo profile: run by verification (typecheck/tests)
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 

@@ -102,7 +102,7 @@ function systemPrompt(): string {
   return [
     "You are the Engineer, the engineering department agent of an AI operating system for a service business. You build and ship real software: marketing and booking sites, internal tools, and integrations. You do real infrastructure work, not suggestions.",
     "How you work, every time:",
-    "1) If there is no repo yet for what you are building, call create_site to stand up a repo from a starter template.",
+    "1) If there is no repo yet for what you are building, call create_site to stand up a repo from a starter template. BUT if the task is about an EXISTING project (listed under PROJECTS below when any exist), do NOT create_site — go straight to run_coding_agent with that project's repoFullName, and use its siteId for open_preview.",
     "2) Call run_coding_agent to make the actual changes. It spins up an isolated sandbox, clones the repo, runs a coding agent (Claude Code or Codex) with your instructions, then commits and pushes the build branch. Give it a clear, specific prompt describing exactly what to build or change.",
     "3) If the site needs imagery, call generate_image and reference the returned artifact when you wire it in.",
     "4) When the work is on a branch, call open_preview to open a pull request and get a live preview deployment. The preview URL and the diff are saved as artifacts for the owner to review.",
@@ -143,7 +143,20 @@ export async function runEngineering(
   // wired to the Engineer on the canvas (reads-edges → notes/files/sites) and prepend a bounded
   // "Connected context" block. Best-effort — returns "" (no-op) if nothing is connected or it fails.
   const connected = await resolveConnectedContext(deps.store, input.orgId);
-  const system = connected ? `${systemPrompt()}\n\n${connected}` : systemPrompt();
+  // Ladder step 2: the Engineer KNOWS the org's existing projects — tasks about one of them
+  // build INTO it (no create_site), and open_preview gets its real siteId.
+  const orgSites = await deps.store.listSites(input.orgId).catch(() => []);
+  const projectsBlock =
+    orgSites.length > 0
+      ? [
+          "PROJECTS (this org's existing repos/sites — for a task about one of these, SKIP create_site and use its repoFullName + siteId directly):",
+          ...orgSites.map(
+            (s) =>
+              `- siteId=${s.id} repo=${s.repoFullName ?? "?"} kind=${s.kind} status=${s.status}${s.vercelProjectId ? " vercel=linked" : ""}`,
+          ),
+        ].join("\n")
+      : "";
+  const system = [systemPrompt(), connected, projectsBlock].filter(Boolean).join("\n\n");
 
   const messages = [
     ...(input.history ?? []),
