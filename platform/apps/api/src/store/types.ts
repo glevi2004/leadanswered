@@ -411,14 +411,34 @@ export interface ThreadRecord {
   createdAt?: string;
   updatedAt?: string;
 }
-/** One persisted turn in a Thread. */
+/** One persisted turn in a Thread. `meta` marks system-authored report-back messages
+ * (docs/workflow.md §3) so the UI can render them as event cards. */
 export interface MessageRecord {
   id: string;
   threadId: string;
   orgId: string;
   role: "user" | "assistant";
   content: string;
+  meta?: Record<string, unknown> | null;
   createdAt?: string;
+}
+
+/** One row in the event journal — the flow layer's spine (docs/workflow.md §1). */
+export interface AgentEventRecord {
+  id: string;
+  orgId: string;
+  taskId: string | null;
+  kind: string;
+  message: string;
+  payload: unknown | null;
+  createdAt?: string;
+}
+export interface AddAgentEventInput {
+  orgId: string;
+  taskId?: string | null;
+  kind: string;
+  message: string;
+  payload?: unknown;
 }
 
 /** Durable org knowledge for Lu (plan Pillar 3, Tiers 2/3 — core + long-term memory). */
@@ -539,9 +559,16 @@ export interface Store {
     orgId: string;
     role: "user" | "assistant";
     content: string;
+    meta?: Record<string, unknown> | null;
   }): Promise<MessageRecord>;
   /** The most recent `limit` messages of a thread, oldest-first (for prompt history). */
   listRecentMessages(threadId: string, limit: number): Promise<MessageRecord[]>;
+
+  // --- The event journal (docs/workflow.md §1) ---
+  /** Append one journal event. Best-effort callers — never let this fail a run. */
+  addAgentEvent(input: AddAgentEventInput): Promise<AgentEventRecord>;
+  /** The org's most recent events, newest-first. */
+  listAgentEvents(orgId: string, limit: number): Promise<AgentEventRecord[]>;
 
   // --- Memory: core + long-term (plan Pillar 3, Tiers 2/3) ---
   /** Upsert a memory: with a `key`, replace the existing (orgId,tier,key); else insert new. */

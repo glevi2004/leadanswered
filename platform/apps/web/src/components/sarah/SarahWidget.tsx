@@ -22,7 +22,7 @@ import { DockLibrary } from "./DockLibrary";
 import { AgentDockPanel } from "@/components/canvas/AgentDockPanel";
 import { SarahIcon } from "@/components/icons/sarah";
 import { PixelVoice } from "@/components/ds/PixelVoice";
-import { useDockData, taskStatusLabel, type DockTask } from "@/lib/dock/live";
+import { useDockData, useOnboardingMode, taskStatusLabel, type DockTask } from "@/lib/dock/live";
 import { cn } from "@/lib/utils";
 
 /**
@@ -184,9 +184,22 @@ function PanelBody() {
 /** The Lu chat — the existing thread (escalations + approvals + thread + composer). */
 function ChatTab() {
   const { approvals, escalations, beginEscalationAnswer, messages, typing, widgetOpen } = useSarah();
+  // Phase-2 onboarding empty state: while the org is mid-onboarding and the owner hasn't
+  // said anything yet, front the chat with Lu's ask + a matching composer placeholder.
+  const onboarding = useOnboardingMode(widgetOpen);
+  const hasOwnerMessages = messages.some((m) => m.role === "owner");
+  const onboardingIntro = onboarding && !hasOwnerMessages;
   return (
     <>
       <div className="flex-1 overflow-y-auto px-4 py-3">
+        {onboardingIntro && (
+          <div className="px-2 py-6 text-center">
+            <h2 className="text-lg font-semibold text-foreground">Tell me more about your company</h2>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              A little context and I&apos;ll set your departments up.
+            </p>
+          </div>
+        )}
         {/* Real publish gates from the Engineer (polled while the dock is open). */}
         <PublishApprovals active={widgetOpen} />
         {escalations.length > 0 && (
@@ -218,7 +231,7 @@ function ChatTab() {
         <SarahThread messages={messages} typing={typing} />
       </div>
       <div className="shrink-0 px-3 pb-3 pt-1">
-        <SarahComposer showContext />
+        <SarahComposer showContext placeholder={onboardingIntro ? "Share what you're building…" : undefined} />
       </div>
     </>
   );

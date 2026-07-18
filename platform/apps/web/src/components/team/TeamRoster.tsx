@@ -113,8 +113,10 @@ export function TeamRoster() {
     ]);
     setAddOpen(false);
     resetForm();
-    toast.success(`${firstName(name)} joined the ${meta.label} team.`, {
-      description: `They now appear on your Workspace graph, next to ${meta.label}.`,
+    // UI honesty (docs/workflow.md §7): teammates are NOT persisted yet — say so plainly
+    // instead of claiming they joined and appear on the graph.
+    toast.info(`${firstName(name)} added — for this session only.`, {
+      description: "Saving teammates to your org is coming soon; this list resets on reload.",
     });
   };
 
@@ -189,7 +191,10 @@ export function TeamRoster() {
           <DialogHeader>
             <DialogTitle>Add teammate</DialogTitle>
             <DialogDescription>
-              They join the roster and appear on your Workspace graph, attached to the department they work with.
+              They join this roster for the current session.{" "}
+              <span className="font-medium text-foreground">Saving teammates to your org is coming
+              soon</span>{" "}
+              — the list resets on reload for now.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-4">

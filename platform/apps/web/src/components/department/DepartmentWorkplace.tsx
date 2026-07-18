@@ -97,14 +97,10 @@ export function DepartmentWorkplace({ dept }: { dept: string }) {
     void resolve(publishApproval.id, "approved");
     toast.success("Publishing to staging…");
   };
-  const onRevert = () => {
-    // TODO(revert): wire to a real revert-all endpoint (roll the deployment back to the last good build).
-    toast.info("Revert all isn't wired up yet.");
-  };
-  const onRequestChanges = () => {
-    // TODO(request-changes): open a change request against the current build (feeds back into the Engineer).
-    toast.info("Request changes isn't wired up yet.");
-  };
+  // UI honesty rule (docs/workflow.md §7): these two are not wired yet, so they SAY so —
+  // disabled + labeled, never a silent no-op or a toast pretending to be a feature.
+  // TODO(revert): roll the deployment back to the last good build.
+  // TODO(request-changes): open a change request that feeds back into the Engineer.
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -230,11 +226,19 @@ export function DepartmentWorkplace({ dept }: { dept: string }) {
           {publishing ? <Loader2 className="size-3.5 animate-spin" /> : <Rocket className="size-3.5" />}
           {publishing ? "Publishing…" : "Publish to Staging"}
         </Button>
-        <Button size="sm" variant="outline" className="gap-1.5" onClick={onRevert}>
+        <Button size="sm" variant="outline" className="gap-1.5" disabled title="Coming soon">
           <RotateCcw className="size-3.5" /> Revert All
+          <span className="rounded bg-muted px-1 py-px font-mono text-[9px] uppercase tracking-wide">Soon</span>
         </Button>
-        <Button size="sm" variant="ghost" className="ml-auto gap-1.5 text-muted-foreground" onClick={onRequestChanges}>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="ml-auto gap-1.5 text-muted-foreground"
+          disabled
+          title="Coming soon"
+        >
           <GitPullRequestArrow className="size-3.5" /> Request changes
+          <span className="rounded bg-muted px-1 py-px font-mono text-[9px] uppercase tracking-wide">Soon</span>
         </Button>
       </div>
     </div>

@@ -477,18 +477,38 @@ model Thread {
 }
 
 /// One turn in a Thread. `role` = user | assistant. Ordered by createdAt.
+/// `meta` marks system-authored report-back messages (docs/workflow.md §3) so the
+/// UI can render them as event cards, not plain chat text.
 model Message {
   id        String   @id @default(cuid())
   threadId  String
   orgId     String
   role      String
   content   String   @db.Text
+  meta      Json?
   createdAt DateTime @default(now())
 
   thread    Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
 
   @@index([threadId])
   @@index([orgId])
+}
+
+/// The event journal — the flow layer's spine (docs/workflow.md §1). Every notable
+/// transition (dispatch, preview, verify, publish, failure, question) writes one row.
+/// Feeds Lu's situational block (§2), the thread report-back (§3), and the UI's
+/// derived chat states (§4).
+model AgentEvent {
+  id        String   @id @default(cuid())
+  orgId     String
+  taskId    String?
+  kind      String
+  message   String   @db.Text
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  @@index([orgId, createdAt])
+  @@index([taskId])
 }
 
 enum MemoryTier {

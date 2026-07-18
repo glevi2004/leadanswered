@@ -34,9 +34,11 @@ export function DockCompany() {
         <p className="font-medium text-foreground">Stack</p>
         <p className="mt-0.5 text-xs text-muted-foreground">The rails your company runs on.</p>
         <div className="mt-3 space-y-1">
-          <StackRow icon={Globe} label="Domain" connected={false} />
-          <StackRow icon={Mail} label="Email" connected={false} />
-          <StackRow icon={CreditCard} label="Payment" connected={false} />
+          {/* UI honesty (docs/workflow.md §7): Domain/Email/Payment have no data source yet —
+              they say Soon, not a "Setup" chip pretending there's a flow behind it. */}
+          <StackRow icon={Globe} label="Domain" connected={false} soon />
+          <StackRow icon={Mail} label="Email" connected={false} soon />
+          <StackRow icon={CreditCard} label="Payment" connected={false} soon />
           <StackRow icon={Server} label="Hosting" connected={hostingConnected} />
           {/* Hosting sub-providers — the real repo/deploy connections. */}
           <div className="ml-8 mt-1 space-y-1 border-l pl-3">
@@ -114,24 +116,29 @@ export function DockCompany() {
         )}
         <button
           type="button"
-          className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border py-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          disabled
+          title="Coming soon"
+          className="mt-2 flex w-full cursor-not-allowed items-center justify-center gap-1.5 rounded-lg border border-dashed py-2 text-muted-foreground/70"
         >
           <Plus className="size-3.5" /> New agent
+          <span className="rounded bg-muted px-1 py-px font-mono text-[9px] uppercase tracking-wide">Soon</span>
         </button>
       </div>
     </div>
   );
 }
 
-/** A Stack row — icon, label, and a Connected/Setup chip. */
+/** A Stack row — icon, label, and a Connected/Setup/Soon chip. */
 function StackRow({
   icon: Icon,
   label,
   connected,
+  soon = false,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   connected: boolean;
+  soon?: boolean;
 }) {
   return (
     <div className="flex items-center gap-2.5 py-1.5">
@@ -139,7 +146,13 @@ function StackRow({
         <Icon className="size-3.5" />
       </span>
       <span className="min-w-0 flex-1 truncate text-foreground">{label}</span>
-      <StatusChip connected={connected} />
+      {soon ? (
+        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide text-muted-foreground/70">
+          Soon
+        </span>
+      ) : (
+        <StatusChip connected={connected} />
+      )}
     </div>
   );
 }

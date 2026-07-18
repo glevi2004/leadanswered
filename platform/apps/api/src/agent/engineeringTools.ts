@@ -6,6 +6,7 @@ import { getSandbox, type Sandbox } from "../sandbox/index.js";
 import { getGit, getGitForOrg, type Git } from "../git/index.js";
 import { getDeploy, getDeployForOrg, type Deploy, type PreviewDeployment } from "../deploy/index.js";
 import { meterLlm, meterSandbox } from "./metering.js";
+import { postToThread, recordEvent } from "./journal.js";
 
 /**
  * The ENGINEERING agent's toolkit (AGENTS-BACKEND §6, ENGINEERING-AGENT §5). The
@@ -402,6 +403,13 @@ export function engineeringTools(deps: EngineeringToolDeps, ctx: EngineeringCont
 
           const raw = (run.stdout || run.stderr || "").trim();
           const summary = raw.length > 800 ? raw.slice(0, 800) + "…" : raw;
+          await recordEvent(d.store, {
+            orgId: ctx.orgId,
+            taskId,
+            kind: "coding_finished",
+            message: `Coding run finished (${agentKind}, exit ${run.exitCode}) on ${repoFullName}`,
+            payload: { agentKind, repoFullName, exitCode: run.exitCode, sha, pushedOk: commit.exitCode === 0 },
+          });
           return {
             branch: BUILD_BRANCH,
             summary: summary || `${agentKind} run finished (exit ${run.exitCode}).`,
@@ -550,6 +558,21 @@ export function engineeringTools(deps: EngineeringToolDeps, ctx: EngineeringCont
         await d.store.updateSite(siteId, { status: "preview" });
         if (ctx.taskId) await d.store.updateTaskStatus(ctx.taskId, "needs_approval");
         actions.push({ type: "preview_ready", siteId, prNumber: pr.number, url });
+        await recordEvent(d.store, {
+          orgId: ctx.orgId,
+          taskId,
+          kind: "preview_ready",
+          message: `Preview ready for ${slug} (PR #${pr.number})`,
+          payload: { siteId, url, prNumber: pr.number, prUrl: pr.url, status },
+        });
+        await postToThread(
+          d.store,
+          ctx.orgId,
+          url
+            ? `The preview for ${slug} is up: ${url} (PR #${pr.number}). Review it and hit Publish when you're happy.`
+            : `The preview for ${slug} is building (PR #${pr.number}). It'll appear in the dock shortly.`,
+          { kind: "preview_ready", taskId: taskId ?? undefined, url, prNumber: pr.number },
+        );
 
         return { ok: true as const, prNumber: pr.number, prUrl: pr.url, previewUrl: url, status };
       },
@@ -631,6 +654,15 @@ export function engineeringTools(deps: EngineeringToolDeps, ctx: EngineeringCont
           payload: { type: "acceptance", pass, unmet, notes },
         });
         artifacts.push(verdict);
+        await recordEvent(d.store, {
+          orgId: ctx.orgId,
+          taskId,
+          kind: pass ? "verify_passed" : "verify_failed",
+          message: pass
+            ? "Acceptance verification passed"
+            : `Acceptance verification failed (${unmet.length} unmet)`,
+          payload: { unmet, notes },
+        });
 
         // 5) Return the verdict for the loop.
         return { pass, unmet, notes };
@@ -646,6 +678,38 @@ export function engineeringTools(deps: EngineeringToolDeps, ctx: EngineeringCont
       execute: async ({ siteId }) => {
         const site = await d.store.getSite(siteId);
         if (!site) return { status: "error" as const, reason: "site_not_found" as const };
+
+        // THE PUBLISH CODE-GATE (harness-spec §2 P0, docs/workflow.md): if the task's plan has
+        // acceptance criteria, publishing may only be REQUESTED once the latest acceptance
+        // check passed. Previously this rule lived only in the system prompt — the model was
+        // trusted to obey it. Now it is enforced here, in code.
+        if (taskId) {
+          const arts = await d.store.listArtifacts({ taskId });
+          const plan = arts.find(
+            (a) => a.kind === "doc" && (a.payload as { type?: string } | null)?.type === "plan",
+          );
+          const planAcceptance =
+            ((plan?.payload ?? null) as { acceptance?: string[] } | null)?.acceptance ?? [];
+          if (plan && planAcceptance.length > 0) {
+            const lastCheck = arts
+              .filter(
+                (a) => a.kind === "doc" && (a.payload as { type?: string } | null)?.type === "acceptance",
+              )
+              .at(-1);
+            const checkPayload = (lastCheck?.payload ?? null) as
+              | { pass?: boolean; unmet?: string[] }
+              | null;
+            if (!lastCheck || checkPayload?.pass !== true) {
+              return {
+                status: "blocked" as const,
+                reason: "acceptance_not_passed" as const,
+                unmet: checkPayload?.unmet ?? planAcceptance,
+                hint: "Run verify_acceptance and fix the unmet items before requesting publish.",
+              };
+            }
+          }
+        }
+
         const approval = await d.store.createApproval({
           orgId: ctx.orgId,
           taskId,
@@ -653,6 +717,13 @@ export function engineeringTools(deps: EngineeringToolDeps, ctx: EngineeringCont
         });
         if (ctx.taskId) await d.store.updateTaskStatus(ctx.taskId, "needs_approval");
         actions.push({ type: "needs_approval", siteId, approvalId: approval.id, action: "publish_site" });
+        await recordEvent(d.store, {
+          orgId: ctx.orgId,
+          taskId,
+          kind: "publish_requested",
+          message: `Publish requested for ${site.repoFullName ?? siteId} — awaiting owner approval`,
+          payload: { siteId, approvalId: approval.id },
+        });
         return { status: "needs_approval" as const, approvalId: approval.id };
       },
     }),

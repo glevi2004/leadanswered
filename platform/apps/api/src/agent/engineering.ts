@@ -18,6 +18,7 @@ import {
   type EngineeringToolDeps,
 } from "./engineeringTools.js";
 import { meterLlm } from "./metering.js";
+import { postToThread, recordEvent } from "./journal.js";
 
 /**
  * Absolute ceiling on ONE Engineering turn (model latency + every tool step). A hard
@@ -156,48 +157,63 @@ export async function runEngineering(
     ...(input.taskId ? { taskId: input.taskId } : {}),
   };
 
-  const result = await generateText({
-    model,
-    system,
-    messages,
-    tools,
-    stopWhen: stepCountIs(10), // bound the build loop (create → code → image → preview → publish)
-    timeout: { totalMs: ENGINEERING_TURN_TIMEOUT_MS }, // ultimate ceiling — the turn can never hang
-    experimental_telemetry: { isEnabled: true, functionId: "lu-engineering-turn", metadata: meta },
-  });
-  void meterLlm(deps.store, input.orgId, modelId, result.usage, { taskId: input.taskId });
-
-  // Fail clean: a tool that threw (e.g. a coding-step TIMEOUT) was swallowed into a tool-error
-  // part, so re-throw here to end the run and let the Task go to `failed`.
-  const fatal = firstFatalToolError(result.steps);
-  if (fatal) {
-    const detail = fatal.error instanceof Error ? fatal.error.message : String(fatal.error);
-    throw new Error(`Engineering run failed at ${fatal.toolName}: ${detail}`);
+  // Agent status (docs/workflow.md §1 row hygiene): the Engineer shows `working` for the
+  // duration of the run, `idle` after — so rosters and the canvas stop lying.
+  const engineerAgent = await deps.store
+    .getAgentByDepartment(input.orgId, "engineering")
+    .catch(() => null);
+  if (engineerAgent) {
+    void deps.store.updateAgent(engineerAgent.id, { status: "working" }).catch(() => {});
   }
 
-  let reply = result.text.trim();
-  // Like runner.ts / orchestrator.ts: a turn that ends on a tool call (e.g. open_preview)
-  // can leave no closing text. Force a short reply from the tool results so the Engineer
-  // always reports back what it did.
-  if (!reply) {
-    const followup = await generateText({
+  try {
+    const result = await generateText({
       model,
       system,
-      messages: [...messages, ...result.response.messages],
+      messages,
       tools,
-      toolChoice: "none",
-      timeout: { totalMs: 120_000 }, // a plain closing reply — keep it short and bounded
-      experimental_telemetry: { isEnabled: true, functionId: "lu-engineering-closing", metadata: meta },
+      stopWhen: stepCountIs(10), // bound the build loop (create → code → image → preview → publish)
+      timeout: { totalMs: ENGINEERING_TURN_TIMEOUT_MS }, // ultimate ceiling — the turn can never hang
+      experimental_telemetry: { isEnabled: true, functionId: "lu-engineering-turn", metadata: meta },
     });
-    void meterLlm(deps.store, input.orgId, modelId, followup.usage, { taskId: input.taskId });
-    reply = followup.text.trim();
-  }
+    void meterLlm(deps.store, input.orgId, modelId, result.usage, { taskId: input.taskId });
 
-  return {
-    reply: reply || "Done for now. I've saved the artifacts and will report back as the build progresses.",
-    artifacts: ctx.artifacts ?? [],
-    actions: ctx.actions ?? [],
-  };
+    // Fail clean: a tool that threw (e.g. a coding-step TIMEOUT) was swallowed into a tool-error
+    // part, so re-throw here to end the run and let the Task go to `failed`.
+    const fatal = firstFatalToolError(result.steps);
+    if (fatal) {
+      const detail = fatal.error instanceof Error ? fatal.error.message : String(fatal.error);
+      throw new Error(`Engineering run failed at ${fatal.toolName}: ${detail}`);
+    }
+
+    let reply = result.text.trim();
+    // Like runner.ts / orchestrator.ts: a turn that ends on a tool call (e.g. open_preview)
+    // can leave no closing text. Force a short reply from the tool results so the Engineer
+    // always reports back what it did.
+    if (!reply) {
+      const followup = await generateText({
+        model,
+        system,
+        messages: [...messages, ...result.response.messages],
+        tools,
+        toolChoice: "none",
+        timeout: { totalMs: 120_000 }, // a plain closing reply — keep it short and bounded
+        experimental_telemetry: { isEnabled: true, functionId: "lu-engineering-closing", metadata: meta },
+      });
+      void meterLlm(deps.store, input.orgId, modelId, followup.usage, { taskId: input.taskId });
+      reply = followup.text.trim();
+    }
+
+    return {
+      reply: reply || "Done for now. I've saved the artifacts and will report back as the build progresses.",
+      artifacts: ctx.artifacts ?? [],
+      actions: ctx.actions ?? [],
+    };
+  } finally {
+    if (engineerAgent) {
+      void deps.store.updateAgent(engineerAgent.id, { status: "idle" }).catch(() => {});
+    }
+  }
 }
 
 /** The outcome of an approved publish. */
@@ -252,8 +268,28 @@ export async function confirmPublish(
     prNumber: preview.prNumber,
     status: "READY",
   });
-  // 5) Resolve the Approval.
-  await d.store.resolveApproval(approvalId, "approved", "owner");
+  // 5) Resolve the Approval — and close the loop (docs/workflow.md §1/§3): the task goes
+  // to `done` (previously nothing ever wrote `done`), the journal records `published`,
+  // and Lu's thread gets the report-back.
+  const approval = await d.store.resolveApproval(approvalId, "approved", "owner");
+  if (approval.taskId) {
+    await d.store
+      .updateTaskStatus(approval.taskId, "done")
+      .catch((e) => console.error(`[confirmPublish] could not mark task done:`, e));
+  }
+  const liveUrl = `https://${domain}`;
+  await recordEvent(d.store, {
+    orgId: site.orgId,
+    taskId: approval.taskId ?? null,
+    kind: "published",
+    message: `Published: ${site.repoFullName} → ${domain}`,
+    payload: { siteId, domain, url: liveUrl },
+  });
+  await postToThread(d.store, site.orgId, `It's live: ${liveUrl}. The PR is merged and production is promoted.`, {
+    kind: "published",
+    taskId: approval.taskId ?? undefined,
+    url: liveUrl,
+  });
 
   return { siteId, domain, url: prod.url };
 }

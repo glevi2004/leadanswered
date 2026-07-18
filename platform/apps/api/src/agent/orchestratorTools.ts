@@ -2,6 +2,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import type { Store } from "../store/types.js";
 import { dispatchBuild } from "./dispatch.js";
+import { recordEvent } from "./journal.js";
 import { orgHasConnections, connectionStatus } from "../connect/status.js";
 import { usageThisPeriod } from "../billing/usage.js";
 
@@ -195,6 +196,13 @@ export function orchestratorTools(deps: OrchestratorToolDeps, ctx: OrchestratorC
           action: "approve_plan",
         });
         tasksCreated.push(task.id);
+        await recordEvent(deps.store, {
+          orgId: ctx.orgId,
+          taskId: task.id,
+          kind: "plan_proposed",
+          message: `Plan proposed: ${title}`,
+          payload: { objective, steps, acceptance },
+        });
         const s = await connectionStatus(deps.store, ctx.orgId);
         return {
           ok: true as const,
@@ -209,17 +217,32 @@ export function orchestratorTools(deps: OrchestratorToolDeps, ctx: OrchestratorC
 
     list_status: tool({
       description:
-        "Get the current state of the org's work: total tasks with counts by status and by department, plus the roster of agents. Read this before planning so you don't duplicate work already underway, and when reporting progress back to the owner.",
+        "Get the current state of the org's work: the open tasks themselves (id, title, status, department), pending approvals, recent events, counts, and the roster of agents. Read this before planning so you don't duplicate work already underway, and when reporting progress back to the owner — cite the specific tasks, not just numbers.",
       inputSchema: z.object({}),
       execute: async () => {
-        const [tasks, agents] = await Promise.all([
+        const [tasks, agents, approvals, events] = await Promise.all([
           deps.store.listTasks(ctx.orgId),
           deps.store.listAgents(ctx.orgId),
+          deps.store.listPendingApprovals(ctx.orgId).catch(() => []),
+          deps.store.listAgentEvents(ctx.orgId, 10).catch(() => []),
         ]);
+        const open = tasks.filter((t) => t.status !== "done" && t.status !== "failed");
         return {
           totalTasks: tasks.length,
           byStatus: countBy(tasks, (t) => t.status),
           byDepartment: countBy(tasks, (t) => t.departmentKey),
+          openTasks: open.slice(0, 15).map((t) => ({
+            taskId: t.id,
+            title: t.title,
+            status: t.status,
+            departmentKey: t.departmentKey,
+          })),
+          pendingApprovals: approvals.map((a) => ({
+            approvalId: a.id,
+            action: a.action,
+            taskId: a.taskId,
+          })),
+          recentEvents: events.map((e) => ({ kind: e.kind, message: e.message, at: e.createdAt })),
           agents: agents.map((a) => ({
             name: a.name,
             departmentKey: a.departmentKey,
@@ -242,6 +265,12 @@ export function orchestratorTools(deps: OrchestratorToolDeps, ctx: OrchestratorC
       }),
       execute: async ({ question, options }) => {
         actions.push({ type: "ask_user", question, ...(options ? { options } : {}) });
+        await recordEvent(deps.store, {
+          orgId: ctx.orgId,
+          kind: "question_asked",
+          message: question,
+          payload: options ? { options } : undefined,
+        });
         return { asked: true as const, question };
       },
     }),

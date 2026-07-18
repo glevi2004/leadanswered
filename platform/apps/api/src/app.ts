@@ -2,7 +2,12 @@ import express, { type Express } from "express";
 import { usePostgres } from "./env.js";
 import type { Store } from "./store/types.js";
 import { MemoryStore } from "./store/memoryStore.js";
-import { createProvisionRoute, createListDepartmentsRoute } from "./routes/onboarding.js";
+import {
+  createProvisionRoute,
+  createListDepartmentsRoute,
+  createSeedContextRoute,
+  createOnboardingStatusRoute,
+} from "./routes/onboarding.js";
 import { createLuRoute, createEngineeringRoute } from "./routes/agents.js";
 import {
   createListTasksRoute,
@@ -10,6 +15,8 @@ import {
   createListApprovalsRoute,
   createListSitesRoute,
   createUsageRoute,
+  createLuHistoryRoute,
+  createListEventsRoute,
 } from "./routes/reads.js";
 import { createResolveApprovalRoute } from "./routes/approvals.js";
 import {
@@ -74,6 +81,8 @@ export async function createApp(overrides: BuildDeps = {}): Promise<Express> {
 
   // Lu Computer — onboarding provisioning + department reads.
   app.post("/api/onboarding/provision", createProvisionRoute(deps));
+  app.post("/api/onboarding/context", createSeedContextRoute(deps));
+  app.get("/api/onboarding/status", createOnboardingStatusRoute(deps));
   app.get("/api/departments", createListDepartmentsRoute(deps));
 
   // Lu Computer — the agents over HTTP: the Lu orchestrator + the (async) Engineering agent.
@@ -86,6 +95,8 @@ export async function createApp(overrides: BuildDeps = {}): Promise<Express> {
   app.get("/api/approvals", createListApprovalsRoute(deps));
   app.get("/api/sites", createListSitesRoute(deps));
   app.get("/api/usage", createUsageRoute(deps));
+  app.get("/api/lu/history", createLuHistoryRoute(deps));
+  app.get("/api/events", createListEventsRoute(deps));
 
   // Lu Computer — the owner's Publish button closes the approval gate (→ confirmPublish).
   app.post("/api/approvals/:id/resolve", createResolveApprovalRoute(deps));

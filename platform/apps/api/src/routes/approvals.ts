@@ -2,6 +2,8 @@ import type { Request, Response } from "express";
 import { confirmPublish, type EngineeringDeps } from "../agent/engineering.js";
 import { dispatchBuild } from "../agent/dispatch.js";
 import { orgHasConnections } from "../connect/status.js";
+import { provisionDepartments } from "../onboarding/provision.js";
+import { postToThread, recordEvent } from "../agent/journal.js";
 import type { Store } from "../store/types.js";
 
 /**
@@ -68,6 +70,12 @@ export function createResolveApprovalRoute(deps: EngineeringDeps) {
         if (appr?.action === "approve_plan") {
           if (decision === "rejected") {
             const approval = await deps.store.resolveApproval(id, "rejected", decidedBy);
+            await recordEvent(deps.store, {
+              orgId,
+              taskId: appr.taskId,
+              kind: "plan_rejected",
+              message: "Plan rejected by the owner",
+            });
             res.status(200).json({ decision, kind: "plan", approval });
             return;
           }
@@ -98,8 +106,53 @@ export function createResolveApprovalRoute(deps: EngineeringDeps) {
                 .join("\n\n")
             : task?.body?.trim() || task?.title || "";
           await deps.store.resolveApproval(id, "approved", decidedBy);
+          await recordEvent(deps.store, {
+            orgId,
+            taskId: planTaskId,
+            kind: "plan_approved",
+            message: `Plan approved: ${task?.title ?? planTaskId}`,
+          });
+          await postToThread(
+            deps.store,
+            orgId,
+            `Plan approved. I'm dispatching the Engineer on "${task?.title ?? "the build"}" now — I'll report back when the preview is up.`,
+            { kind: "plan_approved", taskId: planTaskId },
+          );
           await dispatchBuild({ store: deps.store }, { orgId, taskId: planTaskId, message });
           res.status(200).json({ decision, kind: "plan", dispatched: true, taskId: planTaskId });
+          return;
+        }
+
+        // The ACTIVATE gate (docs/onboarding.md Phase 2): "Accept & activate departments" on the
+        // Business Plan. Approving boots the company's departments (Engineering active + agent) and
+        // ends onboarding-mode; rejecting just supersedes the gate.
+        if (appr?.action === "activate_departments") {
+          if (decision === "rejected") {
+            const approval = await deps.store.resolveApproval(id, "rejected", decidedBy);
+            res.status(200).json({ decision, kind: "activate", approval });
+            return;
+          }
+          // Seed the business into Lu's memory from the Business Plan the owner accepted.
+          const arts = await deps.store.listArtifacts({ orgId });
+          const plan = arts.find(
+            (a) => a.kind === "doc" && (a.payload as { type?: unknown } | null)?.type === "business_plan",
+          )?.payload as
+            | { classification?: { companyType?: string; industry?: string }; summary?: string }
+            | undefined;
+          const business =
+            plan?.summary?.trim() ||
+            [plan?.classification?.companyType, plan?.classification?.industry].filter(Boolean).join(" · ") ||
+            undefined;
+          await deps.store.resolveApproval(id, "approved", decidedBy);
+          const result = await provisionDepartments(deps.store, orgId, { business });
+          await recordEvent(deps.store, {
+            orgId,
+            kind: "departments_activated",
+            message: `Departments activated (${result.departments.length})`,
+          });
+          res
+            .status(200)
+            .json({ decision, kind: "activate", activated: true, departments: result.departments.length });
           return;
         }
       }

@@ -143,6 +143,166 @@ export function usePublishApprovals(active: boolean): {
   return { approvals, resolve, pending };
 }
 
+/**
+ * Onboarding-mode signal (Phase 2). GET /api/dock/onboarding → { active } tells us the org
+ * is mid-onboarding (Lu hasn't finished booting the company yet). Polls on the same ~3s
+ * cadence as the other dock pollers while `active` (the surface is on screen). Returns the
+ * current onboarding-mode flag; false once the departments are activated.
+ */
+export function useOnboardingMode(active: boolean): boolean {
+  const [onboarding, setOnboarding] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!active) return;
+    let alive = true;
+    const load = async () => {
+      const d = await getJSON<{ active: boolean }>("/api/dock/onboarding", { active: false });
+      if (!alive) return;
+      setOnboarding(Boolean(d.active));
+    };
+    load();
+    const iv = window.setInterval(load, POLL_MS);
+    return () => {
+      alive = false;
+      window.clearInterval(iv);
+    };
+  }, [active]);
+
+  return onboarding;
+}
+
+/** One row of the org's journal (docs/workflow.md §1) — what activity lines derive from. */
+export interface DockEvent {
+  id: string;
+  taskId: string | null;
+  kind: string; // plan_proposed | build_dispatched | coding_finished | preview_ready | verify_* | published | build_failed | ...
+  message: string;
+  payload: Record<string, unknown> | null;
+  createdAt?: string;
+}
+
+/**
+ * Poll the org's journal events while `active` (newest-first). The build tracker renders
+ * the latest event as a live activity line, so the owner sees PROCESS (coding finished →
+ * preview ready → verifying), not just a spinner.
+ */
+export function useAgentEvents(active: boolean): DockEvent[] {
+  const [events, setEvents] = React.useState<DockEvent[]>([]);
+
+  React.useEffect(() => {
+    if (!active) return;
+    let alive = true;
+    const load = async () => {
+      const d = await getJSON<{ events: DockEvent[] }>("/api/dock/events", { events: [] });
+      if (!alive) return;
+      setEvents(d.events ?? []);
+    };
+    load();
+    const iv = window.setInterval(load, POLL_MS);
+    return () => {
+      alive = false;
+      window.clearInterval(iv);
+    };
+  }, [active]);
+
+  return events;
+}
+
+/* --------------------------- onboarding artifacts --------------------------- */
+
+/** One option in an onboarding decision — a choice Lu offers with an optional one-liner. */
+export interface DecisionOption {
+  label: string;
+  detail?: string;
+}
+
+/** A single decision Lu wants the owner to make while setting the company up. */
+export interface OnboardingDecision {
+  question: string;
+  options: DecisionOption[];
+  /** index into `options` Lu recommends (clamped in range). */
+  recommended: number;
+}
+
+/** The `onboarding_decisions` doc payload — the ordered decisions Lu drafted. */
+export interface OnboardingDecisions {
+  decisions: OnboardingDecision[];
+}
+
+/**
+ * Read the decisions out of a `doc` artifact payload
+ * (`{ type: "onboarding_decisions", decisions: [...] }`), or null when the payload isn't one.
+ * Defensive (mirrors planFromArtifact): drops malformed options/decisions and clamps
+ * `recommended` into range so the card never indexes off the end.
+ */
+export function decisionsFromArtifact(payload: Record<string, unknown> | null): OnboardingDecisions | null {
+  if (!payload || payload.type !== "onboarding_decisions") return null;
+  const rawDecisions = Array.isArray(payload.decisions) ? payload.decisions : [];
+  const decisions: OnboardingDecision[] = [];
+  for (const d of rawDecisions) {
+    if (!d || typeof d !== "object") continue;
+    const dd = d as Record<string, unknown>;
+    const rawOptions = Array.isArray(dd.options) ? dd.options : [];
+    const options: DecisionOption[] = [];
+    for (const o of rawOptions) {
+      if (!o || typeof o !== "object") continue;
+      const oo = o as Record<string, unknown>;
+      if (typeof oo.label !== "string") continue;
+      options.push({ label: oo.label, detail: typeof oo.detail === "string" ? oo.detail : undefined });
+    }
+    if (options.length === 0) continue;
+    const rawRec = typeof dd.recommended === "number" ? Math.trunc(dd.recommended) : 0;
+    const recommended = Math.min(Math.max(0, rawRec), options.length - 1);
+    decisions.push({
+      question: typeof dd.question === "string" ? dd.question : "",
+      options,
+      recommended,
+    });
+  }
+  if (decisions.length === 0) return null;
+  return { decisions };
+}
+
+/** How Lu classified the company from the onboarding conversation. */
+export interface BusinessClassification {
+  companyType: string;
+  industry: string;
+  userType: string;
+}
+
+/** The `business_plan` doc payload — Lu's drafted plan the owner accepts to boot the company. */
+export interface BusinessPlan {
+  classification: BusinessClassification;
+  values: string[];
+  summary?: string;
+}
+
+/**
+ * Read the business plan out of a `doc` artifact payload
+ * (`{ type: "business_plan", classification, values, summary? }`), or null when it isn't one.
+ * Defensive like the other parsers.
+ */
+export function businessPlanFromArtifact(payload: Record<string, unknown> | null): BusinessPlan | null {
+  if (!payload || payload.type !== "business_plan") return null;
+  const str = (v: unknown): string => (typeof v === "string" ? v : "");
+  const c =
+    payload.classification && typeof payload.classification === "object"
+      ? (payload.classification as Record<string, unknown>)
+      : {};
+  const values = Array.isArray(payload.values)
+    ? payload.values.filter((s): s is string => typeof s === "string")
+    : [];
+  return {
+    classification: {
+      companyType: str(c.companyType),
+      industry: str(c.industry),
+      userType: str(c.userType),
+    },
+    values,
+    summary: typeof payload.summary === "string" ? payload.summary : undefined,
+  };
+}
+
 /* ------------------------------ render helpers ------------------------------ */
 
 /** Human-readable label for a task status enum. */

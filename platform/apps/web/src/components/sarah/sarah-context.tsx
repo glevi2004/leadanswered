@@ -195,6 +195,59 @@ export function SarahProvider({
   const [composerPrefill, setComposerPrefill] = React.useState<string | null>(null);
   const answeringEscalation = React.useRef<OpenEscalation | null>(null);
 
+  // THREAD REHYDRATION (docs/workflow.md §4): the server persists the whole Lu conversation
+  // (Thread/Message rows) but the client used to start every load from a fresh greeting — a
+  // reload wiped the visible thread while Lu still remembered. On mount, read the persisted
+  // thread once and adopt it as the main chat (only if the owner hasn't typed yet this session).
+  const seenServerIds = React.useRef<Set<string>>(new Set());
+  const hydratedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (hydratedRef.current) return;
+    hydratedRef.current = true;
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/lu/history", { cache: "no-store" });
+        if (!res.ok || !alive) return;
+        const data = (await res.json()) as {
+          messages?: {
+            id: string;
+            role: string;
+            content: string;
+            createdAt?: string;
+            meta?: Record<string, unknown> | null;
+          }[];
+        };
+        const msgs = Array.isArray(data.messages) ? data.messages : [];
+        if (!alive || msgs.length === 0) return;
+        for (const m of msgs) seenServerIds.current.add(m.id);
+        const mapped: SarahMessage[] = msgs.map((m) => ({
+          id: `srv_${m.id}`,
+          at: m.createdAt ?? new Date().toISOString(),
+          role: m.role === "user" ? ("owner" as const) : ("sarah" as const),
+          body: m.content,
+          via: "app" as const,
+        }));
+        setChats((cs) =>
+          cs.map((c) =>
+            c.id === "chat_main" && !c.messages.some((m) => m.role === "owner")
+              ? {
+                  ...c,
+                  messages: mapped,
+                  title: mapped.find((x) => x.role === "owner")?.body.slice(0, 24) ?? c.title,
+                }
+              : c,
+          ),
+        );
+      } catch {
+        /* keep the greeting — hydration is best-effort */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   // ⌘/ toggles the widget; persist open state across pages.
   React.useEffect(() => {
     setWidgetOpen(window.localStorage.getItem("sarah_widget_open") === "1");
@@ -208,6 +261,31 @@ export function SarahProvider({
     setWidgetOpen(open);
     window.localStorage.setItem("sarah_widget_open", open ? "1" : "0");
   }, []);
+
+  // Phase-2 auto-open: check onboarding-mode ONCE on mount (a single fetch, NOT a poller — so
+  // onboarded users never poll this in the background) and open the dock if the org is
+  // mid-onboarding, dropping the owner straight into Lu's setup conversation. The open dock's own
+  // pollers (ChatTab / LuOnboardingTracker) take it from there.
+  const autoOpenedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (autoOpenedRef.current) return;
+    autoOpenedRef.current = true;
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/dock/onboarding", { cache: "no-store" });
+        if (!res.ok || !alive) return;
+        const data = (await res.json()) as { active?: boolean };
+        if (alive && data.active) persistOpen(true);
+      } catch {
+        /* ignore — the owner can still open the dock manually */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [persistOpen]);
+
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "/" && (e.metaKey || e.ctrlKey)) {
@@ -218,6 +296,79 @@ export function SarahProvider({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [widgetOpen, persistOpen]);
+
+  // LIVE REPORT-BACK (docs/workflow.md §3): while the dock is open, gently poll the persisted
+  // thread and append NEW system-authored messages (preview ready, published, build failed —
+  // written server-side by the journal) into the visible chat. This is how work "reports back"
+  // into the conversation without the owner having to ask.
+  React.useEffect(() => {
+    if (!widgetOpen) return;
+    let alive = true;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/lu/history", { cache: "no-store" });
+        if (!res.ok || !alive) return;
+        const data = (await res.json()) as {
+          messages?: {
+            id: string;
+            role: string;
+            content: string;
+            createdAt?: string;
+            meta?: Record<string, unknown> | null;
+          }[];
+        };
+        const msgs = Array.isArray(data.messages) ? data.messages : [];
+        if (!alive) return;
+        for (const m of msgs) {
+          if (seenServerIds.current.has(m.id)) continue;
+          seenServerIds.current.add(m.id);
+          // Only merge system report-backs: the owner's turns and Lu's replies are already in
+          // the local thread (they were appended optimistically when sent).
+          if (m.role === "assistant" && m.meta && m.meta.source === "system") {
+            appendTo("chat_main", {
+              id: `srv_${m.id}`,
+              at: m.createdAt ?? new Date().toISOString(),
+              role: "sarah",
+              body: m.content,
+              via: "app",
+            });
+          }
+        }
+      } catch {
+        /* best-effort */
+      }
+    };
+    load();
+    const iv = window.setInterval(load, 10_000);
+    return () => {
+      alive = false;
+      window.clearInterval(iv);
+    };
+  }, [widgetOpen, appendTo]);
+
+  // THE HONEST BADGE (docs/workflow.md §4/§7): the "needs you" number counts SERVER truth —
+  // real pending approvals (plan gates, publish gates) polled cheaply even while the dock is
+  // closed — instead of a local array that started empty and lied.
+  const [serverPendingCount, setServerPendingCount] = React.useState(0);
+  React.useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/dock/approvals", { cache: "no-store" });
+        if (!res.ok || !alive) return;
+        const data = (await res.json()) as { approvals?: unknown[] };
+        if (alive) setServerPendingCount(Array.isArray(data.approvals) ? data.approvals.length : 0);
+      } catch {
+        /* keep the last count */
+      }
+    };
+    load();
+    const iv = window.setInterval(load, 15_000);
+    return () => {
+      alive = false;
+      window.clearInterval(iv);
+    };
+  }, []);
 
   // the entity context is about the page you were on — leaving it clears it
   // (and the canvas selection, which is likewise page-scoped)
@@ -390,7 +541,7 @@ export function SarahProvider({
     escalations,
     actions,
     builds,
-    pendingCount: approvals.length + escalations.length,
+    pendingCount: approvals.length + escalations.length + serverPendingCount,
     typing,
     widgetOpen,
     setWidgetOpen: persistOpen,

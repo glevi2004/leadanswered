@@ -40,6 +40,8 @@ import type {
   VercelConnectionRecord,
 } from "./types.js";
 import type {
+  AddAgentEventInput,
+  AgentEventRecord,
   CreateUsageEventInput,
   MemoryRecord,
   MessageRecord,
@@ -670,6 +672,7 @@ export class MemoryStore implements Store {
     orgId: string;
     role: "user" | "assistant";
     content: string;
+    meta?: Record<string, unknown> | null;
   }): Promise<MessageRecord> {
     const rec: MessageRecord = {
       id: randomUUID(),
@@ -677,6 +680,7 @@ export class MemoryStore implements Store {
       orgId: input.orgId,
       role: input.role,
       content: input.content,
+      meta: input.meta ?? null,
       createdAt: this.now().toISOString(),
     };
     this.threadMessages.push(rec);
@@ -687,6 +691,30 @@ export class MemoryStore implements Store {
 
   async listRecentMessages(threadId: string, limit: number): Promise<MessageRecord[]> {
     return this.threadMessages.filter((m) => m.threadId === threadId).slice(-limit);
+  }
+
+  // --- The event journal (docs/workflow.md §1) ---
+  private agentEvents: AgentEventRecord[] = [];
+
+  async addAgentEvent(input: AddAgentEventInput): Promise<AgentEventRecord> {
+    const rec: AgentEventRecord = {
+      id: randomUUID(),
+      orgId: input.orgId,
+      taskId: input.taskId ?? null,
+      kind: input.kind,
+      message: input.message,
+      payload: input.payload ?? null,
+      createdAt: this.now().toISOString(),
+    };
+    this.agentEvents.push(rec);
+    return rec;
+  }
+
+  async listAgentEvents(orgId: string, limit: number): Promise<AgentEventRecord[]> {
+    return this.agentEvents
+      .filter((e) => e.orgId === orgId)
+      .slice(-limit)
+      .reverse();
   }
 
   // --- Memory: core + long-term ---

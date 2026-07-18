@@ -8,6 +8,7 @@ import { PlanApprovalCard } from "./PlanApprovalCard";
 import {
   useDockData,
   usePublishApprovals,
+  useAgentEvents,
   previewUrl,
   planFromArtifact,
   taskStatusLabel,
@@ -62,6 +63,9 @@ export function LuBuildTracker() {
   // (propose_plan). `resolve` POSTs the owner's decision → backend dispatches (approved) or
   // cancels (rejected). Same generic approvals hook the publish gate uses.
   const { approvals, resolve, pending } = usePublishApprovals(active);
+  // The journal (docs/workflow.md §1): the latest event per batch renders as a live activity
+  // line — the owner sees PROCESS (coding finished → preview ready → verifying), not a spinner.
+  const events = useAgentEvents(active);
 
   if (mine.length === 0) return null;
 
@@ -84,6 +88,8 @@ export function LuBuildTracker() {
         const n = batch.taskIds.length;
         // Header reads the lifecycle: awaiting-plan vs. building.
         const awaitingPlan = planApprovals.length > 0 && progressTasks.length === 0;
+        // Newest journal event for this batch's tasks — the live activity line.
+        const latestEvent = events.find((e) => e.taskId != null && batchIds.has(e.taskId));
 
         return (
           <div key={batch.id} className="rounded-xl border bg-card p-3 text-sm text-card-foreground elev-1">
@@ -97,6 +103,10 @@ export function LuBuildTracker() {
                   : `Lu created ${n} ${n === 1 ? "task" : "tasks"}${hasEngineering ? " and dispatched the Engineer" : ""}`}
               </p>
             </div>
+
+            {latestEvent && !awaitingPlan && (
+              <p className="mt-1.5 truncate pl-8 text-xs text-muted-foreground">{latestEvent.message}</p>
+            )}
 
             {/* PLAN GATE first: render Lu's plan for each held task so the owner approves before the build. */}
             {planApprovals.length > 0 && (

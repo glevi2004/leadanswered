@@ -106,9 +106,20 @@ export function DockHome() {
                   {c.options && c.options.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {c.options.map((o) => (
-                        <span key={o} className="rounded-full border bg-background px-2 py-0.5 text-xs text-muted-foreground">
+                        <button
+                          key={o}
+                          type="button"
+                          onClick={() => {
+                            // Answering IS one click (docs/workflow.md §5): send the option as the
+                            // owner's reply, jump to the Lu thread, and clear the card.
+                            sendMessage(o);
+                            setDockTab("lu");
+                            dismissClarification(c.id);
+                          }}
+                          className="rounded-full border bg-background px-2 py-0.5 text-xs text-foreground transition-colors hover:border-amber-500/60 hover:bg-amber-500/10"
+                        >
                           {o}
-                        </span>
+                        </button>
                       ))}
                     </div>
                   )}

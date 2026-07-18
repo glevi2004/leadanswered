@@ -1225,14 +1225,16 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
               <div className="pointer-events-auto absolute right-full top-1/2 mr-3 -translate-y-1/2">
                 <ArtifactsNav />
               </div>
-              {/* action bar — below the frame */}
+              {/* action bar — below the frame. Not wired on the canvas yet (the REAL publish gate
+                  lives in the department Workplace card) — so these say Soon instead of doing
+                  nothing (docs/workflow.md §7). */}
               <div className="pointer-events-auto absolute left-1/2 top-full mt-3 -translate-x-1/2 whitespace-nowrap">
                 <div className="gloss flex items-center gap-0.5 rounded-full p-0.5 text-[10px]">
-                  <button type="button" className="gloss-ink flex items-center gap-1 rounded-full px-2.5 py-0.5 font-medium">
+                  <button type="button" disabled title="Publish from the department Workplace — canvas control coming soon" className="gloss-ink flex cursor-not-allowed items-center gap-1 rounded-full px-2.5 py-0.5 font-medium opacity-60">
                     <Check className="size-2.5" /> Publish to Staging
                   </button>
-                  <button type="button" className="rounded-full px-2.5 py-0.5 text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10">Revert All</button>
-                  <button type="button" className="rounded-full px-2.5 py-0.5 text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10">Request changes</button>
+                  <button type="button" disabled title="Coming soon" className="cursor-not-allowed rounded-full px-2.5 py-0.5 text-muted-foreground/60">Revert All</button>
+                  <button type="button" disabled title="Coming soon" className="cursor-not-allowed rounded-full px-2.5 py-0.5 text-muted-foreground/60">Request changes</button>
                 </div>
               </div>
             </>
@@ -1286,7 +1288,17 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
             ))}
           </span>
           <span className="text-sm font-medium text-foreground">{totalUpdates} agent updates</span>
-          <button type="button" className="gloss ml-1 rounded-full px-3 py-1 text-sm font-medium text-foreground">Review</button>
+          <button
+            type="button"
+            onClick={() => {
+              // Review = jump to the first updating agent's dock panel (was a dead button).
+              const first = updates[0]?.a;
+              if (first) nodeClick(first.id);
+            }}
+            className="gloss ml-1 rounded-full px-3 py-1 text-sm font-medium text-foreground"
+          >
+            Review
+          </button>
         </div>
       )}
 

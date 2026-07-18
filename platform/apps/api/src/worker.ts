@@ -11,6 +11,7 @@ import {
   type MemoryJob,
 } from "./queue.js";
 import { consolidateOrgMemory } from "./agent/consolidation.js";
+import { postToThread, recordEvent } from "./agent/journal.js";
 
 /**
  * The durable Engineering worker (FOUNDATION §4, DEVELOPMENT Phase 0). It consumes the
@@ -54,6 +55,21 @@ export function startEngineeringWorker(store: Store): Worker<EngineeringJob> | n
       await store
         .updateTaskStatus(job.data.taskId, "failed")
         .catch((e) => console.error(`[worker] could not mark task ${job.data.taskId} failed:`, e));
+      const task = await store.getTask(job.data.taskId).catch(() => null);
+      const reason = err?.message ?? "unknown error";
+      await recordEvent(store, {
+        orgId: job.data.orgId,
+        taskId: job.data.taskId,
+        kind: "build_failed",
+        message: `Build failed after retries: ${task?.title ?? job.data.taskId}`,
+        payload: { reason, attempts: job.attemptsMade },
+      });
+      await postToThread(
+        store,
+        job.data.orgId,
+        `The build for "${task?.title ?? "your task"}" failed after ${job.attemptsMade} attempts: ${reason}. Ask me to retry or re-plan.`,
+        { kind: "build_failed", taskId: job.data.taskId },
+      );
     }
   });
   worker.on("completed", (job) => console.log(`[worker] engineering job ${job.id} completed`));

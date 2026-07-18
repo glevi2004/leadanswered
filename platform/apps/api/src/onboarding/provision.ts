@@ -130,3 +130,33 @@ export async function provisionDepartments(
   const departments = await store.listDepartments(orgId);
   return { departments, engineeringAgent };
 }
+
+export interface OnboardingContextInput {
+  companyName?: string;
+  ownerName?: string;
+  role?: string;
+  ideaStage?: string;
+}
+
+/**
+ * Seed Lu's CORE memory from the Phase-1 sign-up answers WITHOUT activating any department
+ * (docs/onboarding.md — provisioning is split: Phase 1 seeds context, "Accept & activate"
+ * boots the departments). So Lu opens the in-workspace onboarding already knowing who the
+ * founder is + the company name + stage, and learns what they're building in the conversation.
+ */
+export async function seedOnboardingContext(
+  store: Store,
+  orgId: string,
+  input: OnboardingContextInput,
+): Promise<void> {
+  const parts = [
+    input.ownerName?.trim()
+      ? `Owner: ${input.ownerName.trim()}${input.role?.trim() ? ` (${input.role.trim()})` : ""}`
+      : null,
+    input.companyName?.trim() ? `Company: ${input.companyName.trim()}` : null,
+    input.ideaStage?.trim() ? `Stage: ${input.ideaStage.trim()}` : null,
+  ].filter(Boolean);
+  if (parts.length === 0) return;
+  const content = `${parts.join(". ")}. (Onboarding in progress — still learning what they're building.)`;
+  await store.upsertMemory({ orgId, tier: "core", key: "business", content, source: "onboarding" });
+}

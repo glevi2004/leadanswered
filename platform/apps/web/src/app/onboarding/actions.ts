@@ -53,6 +53,64 @@ export async function completeOnboarding(
   return { ok: true };
 }
 
+/**
+ * Finish Phase-1 sign-up (docs/onboarding.md): the 5-screen static flow. Persists a minimal
+ * honest-empty config (which flips `onboardingComplete=true`), then seeds Lu's memory with the
+ * sign-up answers via the backend — WITHOUT activating any department. The real onboarding is
+ * Phase 2 (Lu onboards the founder in the workspace); accepting her Business Plan activates the
+ * departments. On success the client redirects into the workspace (`/canvas`).
+ */
+export async function finishSignup(input: {
+  ownerName: string;
+  role: string;
+  ideaStage: string;
+  companyName: string;
+}): Promise<{ error?: string }> {
+  const user = await currentUser();
+  if (!user?.email) return { error: "You're not signed in." };
+
+  const organization = await getOrganizationByOwnerEmail(user.email);
+  if (!organization) return { error: "No organization is linked to your account yet." };
+
+  const config: OrganizationConfigInput = {
+    companyName: input.companyName?.trim() || "Your Company",
+    sarahName: "Lu",
+    personaNotes: null,
+    projectTypes: [],
+    serviceArea: { baseLocations: [], includeOverrides: [], excludeOverrides: [] },
+    qualificationRules: { requireDecisionMaker: true },
+    standingAvailability: { timezone: "America/New_York", windows: [] },
+    escalationTopics: [],
+    recipients: [],
+  };
+
+  try {
+    await setOrganizationConfig(organization.id, config);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to save your setup." };
+  }
+
+  // Seed Lu's memory from the sign-up answers (no department activation — Phase 2 does that).
+  // Best-effort: a backend hiccup never blocks reaching the workspace.
+  try {
+    await fetch(`${API_BASE}/api/onboarding/context`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        orgId: organization.id,
+        companyName: input.companyName,
+        ownerName: input.ownerName,
+        role: input.role,
+        ideaStage: input.ideaStage,
+      }),
+    });
+  } catch (e) {
+    console.error("[finishSignup] context seed error:", e);
+  }
+
+  return {};
+}
+
 /** Validate + persist the client's self-serve config for their own organization. */
 export async function saveOnboardingAction(raw: unknown): Promise<{ error?: string; ok?: boolean }> {
   const user = await currentUser();

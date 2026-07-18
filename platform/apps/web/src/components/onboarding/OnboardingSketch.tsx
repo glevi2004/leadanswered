@@ -40,15 +40,21 @@ import { PixelLoader } from "@/components/ds/PixelLoader";
 import { DeptIcon, type Dept } from "@/components/ds/PixelIcon";
 
 /**
- * SKETCH — self-onboarding, first run (VISION-LU §3). The owner talks to Lu on
- * the left; on the right, ONE thing fills the space on its turn. The opening
- * asks for their existing web + socials, Lu "studies" them (Tavily-style
- * scrape), and shows a rich "what I know about you" profile — which also seeds
- * her running their socials later. Not wired; a clickable sketch.
+ * Self-onboarding, first run (VISION-LU §3). The owner talks to Lu on the left;
+ * on the right, ONE thing fills the space on its turn. The flow is deliberately
+ * minimal — meet Lu → what's your business → name it → name Lu → map your team →
+ * boot the company → straight into the app. No link-scrape, email, phone,
+ * availability, calendar, or "is-live" gate in onboarding; those live in the app.
+ * The stages/handlers for the removed steps are kept below (parked, unreachable)
+ * so the flow can be re-expanded later — the phone/SMS steps especially are
+ * preserved verbatim for when we bring the line back into onboarding.
  */
 
-type Phase = "welcome" | "chat" | "building" | "ready";
+type Phase = "welcome" | "chat" | "building";
 type GcalStatus = "idle" | "loading" | "connected";
+// Active flow: trade → handle → assistant → team. The rest ("links", "learning", "site",
+// "email", "phone", "sms", "hours", "gcal") are PARKED — their stages/handlers still exist
+// below but nothing routes to them, so they can be re-wired into the flow later.
 type StepKey = "trade" | "links" | "learning" | "handle" | "assistant" | "site" | "email" | "phone" | "sms" | "hours" | "gcal" | "team";
 
 interface Workspace {
@@ -240,8 +246,8 @@ export function OnboardingSketch() {
     pushHistory();
     say("owner", t);
     setWs((w) => ({ ...w, trade: t }));
-    say("lu", `${t} — got it. Do you already have a website or socials? Drop whatever you've got and I'll study up — it's how I learn your voice, your services, all of it.`);
-    setStep("links");
+    say("lu", `${t} — got it. What's your business called?`);
+    setStep("handle");
   };
   const answerLinks = (data: { website?: string; facebook?: string; instagram?: string; skipped?: boolean }) => {
     pushHistory();
@@ -273,7 +279,7 @@ export function OnboardingSketch() {
     const handle = slugify(name);
     say("owner", name);
     setWs((w) => ({ ...w, name, handle }));
-    say("lu", `${name} — love it, and your handle is reserved at ${handle}.lu.computer. One more thing before we go on — what do you want to call me? Most keep it Lu, but I'll answer to anything.`);
+    say("lu", `${name} — love it, and your handle is reserved at ${handle}.lu.computer. Before we set up your team, what do you want to call me? Most keep it Lu, but I'll answer to anything.`);
     setStep("assistant");
   };
   const answerAssistant = (assistantName: string) => {
@@ -281,8 +287,8 @@ export function OnboardingSketch() {
     const named = assistantName.trim() || "Lu";
     say("owner", named);
     setWs((w) => ({ ...w, assistantName: named }));
-    say("lu", `${named} it is — that's what your customers will hear too. Your Lu Space is live at ${ws.handle}.lu.computer 👉 build it with me anytime, or connect the site you already have.`);
-    setStep("site");
+    say("lu", `${named} it is. Last thing before we open your workspace — let's map out your team so I know who does what. Add the people you work with, or skip and add them later.`);
+    setStep("team");
   };
   const continueSite = () => {
     pushHistory();
@@ -387,8 +393,9 @@ export function OnboardingSketch() {
   };
 
   if (phase === "welcome") return <Welcome onStart={start} />;
-  if (phase === "building") return <Building name={ws.name ?? "your business"} onDone={() => setPhase("ready")} />;
-  if (phase === "ready") return <Ready ws={ws} onOpenWorkspace={openWorkspace} submitting={submitting} error={submitError} />;
+  // Team is the last step → boot the company, then go straight into the app (no "is-live" gate).
+  if (phase === "building")
+    return <Building name={ws.name ?? "your business"} onDone={() => void openWorkspace()} submitting={submitting} error={submitError} />;
 
   // last step — Lu builds your team graph with you (same experience as the Team page)
   if (step === "team")
@@ -573,7 +580,7 @@ function IntroStage() {
           <SarahIcon className="size-7" />
         </div>
         <h2 className="mt-4 text-lg font-semibold">Let's get to know your business</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Tell Lu what you do and share your links — she learns your voice, services, and reviews, then runs with it.</p>
+        <p className="mt-2 text-sm text-muted-foreground">Tell Lu what you do, in your own words — she sets up your workspace around it and keeps learning as you work together.</p>
       </div>
     </div>
   );
@@ -642,7 +649,7 @@ function ProfileStage({ ws, scanning, onContinue }: { ws: Workspace; scanning?: 
       <div className="flex h-full items-center justify-center p-8 text-center">
         <div className="max-w-xs">
           <Sparkles className="mx-auto size-8 text-muted-foreground" />
-          <p className="mt-3 text-sm text-muted-foreground">No links yet — we'll build your profile together as we go, and I'll learn more the more we work.</p>
+          <p className="mt-3 text-sm text-muted-foreground">I'll build your profile as we work together — the more we do, the better I'll know your business and your voice.</p>
           {scanning && onContinue && <Button className="btn-glow mt-4 gap-2" onClick={onContinue}>Continue <ArrowRight className="size-4" /></Button>}
         </div>
       </div>
@@ -1090,10 +1097,22 @@ function BootStepRow({ step, state }: { step: BootStep; state: StepState }) {
   );
 }
 
-function Building({ name, onDone }: { name: string; onDone: () => void }) {
+function Building({
+  name,
+  onDone,
+  submitting = false,
+  error,
+}: {
+  name: string;
+  onDone: () => void;
+  submitting?: boolean;
+  error?: string | null;
+}) {
   const [idx, setIdx] = React.useState(0);
   React.useEffect(() => {
     if (idx >= BOOT_STEPS.length) {
+      // Boot animation done → persist config + open the app. onDone (openWorkspace)
+      // redirects on success; on failure it surfaces `error` below with a retry.
       const t = setTimeout(onDone, 700);
       return () => clearTimeout(t);
     }
@@ -1117,6 +1136,14 @@ function Building({ name, onDone }: { name: string; onDone: () => void }) {
             <BootStepRow key={i} step={s} state={i < idx ? "done" : i === idx ? "active" : "upcoming"} />
           ))}
         </div>
+        {error && (
+          <div className="flex flex-col items-center gap-2 border-t pt-4">
+            <p className="text-center text-sm text-destructive">{error}</p>
+            <Button size="sm" onClick={onDone} disabled={submitting}>
+              {submitting ? "Opening…" : "Try again"}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1134,6 +1161,8 @@ const DEPARTMENTS: { label: string; icon: React.ComponentType<{ className?: stri
   { label: "Sales", icon: TrendingUp },
 ];
 
+// PARKED — the onboarding "is-live" summary screen. Pulled from the flow 2026-07-17 (we now
+// boot the company and go straight into the app). Kept for when we want a post-setup recap.
 function Ready({ ws, onOpenWorkspace, submitting = false, error }: { ws: Workspace; onOpenWorkspace: () => void; submitting?: boolean; error?: string | null }) {
   const setup = [
     { icon: Globe, label: "Website", value: `${ws.handle}.lu.computer`, live: true },

@@ -40,6 +40,8 @@ import type {
   VercelConnectionRecord,
 } from "./types.js";
 import type {
+  AddAgentEventInput,
+  AgentEventRecord,
   CreateUsageEventInput,
   MemoryRecord,
   MessageRecord,
@@ -811,6 +813,7 @@ export class PrismaStore implements Store {
     orgId: string;
     role: "user" | "assistant";
     content: string;
+    meta?: Record<string, unknown> | null;
   }): Promise<MessageRecord> {
     const m = await this.db.message.create({
       data: {
@@ -818,6 +821,7 @@ export class PrismaStore implements Store {
         orgId: input.orgId,
         role: input.role,
         content: input.content,
+        meta: (input.meta ?? undefined) as any,
       },
     });
     await this.db.thread
@@ -829,6 +833,7 @@ export class PrismaStore implements Store {
       orgId: m.orgId,
       role: m.role as "user" | "assistant",
       content: m.content,
+      meta: (m.meta as Record<string, unknown> | null) ?? null,
       createdAt: iso(m.createdAt),
     };
   }
@@ -845,7 +850,47 @@ export class PrismaStore implements Store {
       orgId: m.orgId,
       role: m.role as "user" | "assistant",
       content: m.content,
+      meta: (m.meta as Record<string, unknown> | null) ?? null,
       createdAt: iso(m.createdAt),
+    }));
+  }
+
+  // --- The event journal (docs/workflow.md §1) ---
+  async addAgentEvent(input: AddAgentEventInput): Promise<AgentEventRecord> {
+    const e = await this.db.agentEvent.create({
+      data: {
+        orgId: input.orgId,
+        taskId: input.taskId ?? null,
+        kind: input.kind,
+        message: input.message,
+        payload: (input.payload ?? undefined) as any,
+      },
+    });
+    return {
+      id: e.id,
+      orgId: e.orgId,
+      taskId: e.taskId ?? null,
+      kind: e.kind,
+      message: e.message,
+      payload: e.payload ?? null,
+      createdAt: iso(e.createdAt),
+    };
+  }
+
+  async listAgentEvents(orgId: string, limit: number): Promise<AgentEventRecord[]> {
+    const rows = await this.db.agentEvent.findMany({
+      where: { orgId },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+    });
+    return rows.map((e) => ({
+      id: e.id,
+      orgId: e.orgId,
+      taskId: e.taskId ?? null,
+      kind: e.kind,
+      message: e.message,
+      payload: e.payload ?? null,
+      createdAt: iso(e.createdAt),
     }));
   }
 

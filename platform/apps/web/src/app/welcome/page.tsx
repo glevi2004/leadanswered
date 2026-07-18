@@ -15,29 +15,30 @@ export default async function WelcomePage() {
     <main className="flex min-h-screen items-center justify-center p-6">
       <Card className="w-full max-w-lg">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Welcome to Lead Answered</CardTitle>
+          <CardTitle className="text-2xl">Welcome to Lu Computer</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-5 text-sm text-muted-foreground">
           <p className="text-center">
             You're all set, <strong className="text-foreground">{organization.companyName}</strong>.{" "}
-            {sarah} — your AI assistant — is live and ready to text your leads back in seconds:
-            qualifying them, booking estimates, and looping you in.
+            {sarah} — your AI cofounder — is ready: tell her a goal and she plans it, gets it built,
+            and brings you the result to approve.
           </p>
           <ul className="mx-auto flex max-w-sm flex-col gap-2">
             <li>
-              • <strong className="text-foreground">Overview</strong> — leads, bookings, and what{" "}
-              {sarah}'s been up to.
+              • <strong className="text-foreground">Workspace</strong> — the canvas: {sarah}, your
+              agents, and everything they build.
             </li>
             <li>
-              • <strong className="text-foreground">Leads</strong> — every conversation, start to finish.
+              • <strong className="text-foreground">The dock</strong> — talk to {sarah}, approve
+              plans and publishes, watch builds live.
             </li>
             <li>
-              • <strong className="text-foreground">Settings</strong> — tweak your info, hours, and
-              notifications anytime.
+              • <strong className="text-foreground">Settings</strong> — connect your GitHub, Vercel,
+              and Supabase so builds land in your own accounts.
             </li>
           </ul>
-          <Button nativeButton={false} render={<Link href="/home" />} className="mx-auto">
-            Go to my dashboard
+          <Button nativeButton={false} render={<Link href="/canvas" />} className="mx-auto">
+            Open my workspace
           </Button>
         </CardContent>
       </Card>

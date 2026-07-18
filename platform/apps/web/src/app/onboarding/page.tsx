@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { currentUser, isAdminEmail } from "@/lib/auth";
 import { getOrganizationByOwnerEmail } from "@/lib/organizations";
-import { OnboardingSketch } from "@/components/onboarding/OnboardingSketch";
+import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 
 /**
  * Self-serve Lu onboarding (VISION-LU §3). The owner talks to Lu; on finish we persist their
@@ -21,7 +21,7 @@ export default async function OnboardingPage() {
 
   return (
     <div className="min-h-svh bg-sidebar">
-      <OnboardingSketch />
+      <OnboardingFlow />
     </div>
   );
 }

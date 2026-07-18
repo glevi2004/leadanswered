@@ -3,6 +3,7 @@
 import * as React from "react";
 import type { SarahMessage } from "@/lib/data/shared";
 import { LuBuildTracker } from "./LuBuildTracker";
+import { LuOnboardingTracker } from "./LuOnboardingTracker";
 import { useSarah } from "./sarah-context";
 import { cn } from "@/lib/utils";
 
@@ -87,8 +88,9 @@ export function SarahThread({
           </div>
         </div>
       )}
-      {/* The chat↔Engineer wire: Lu's dispatched builds unfold right here in the thread. */}
+      {/* The Phase-2 onboarding wire + the chat↔Engineer wire: both unfold in the thread. */}
       <div className="px-4 pb-1">
+        <LuOnboardingTracker />
         <LuBuildTracker />
       </div>
       <div ref={endRef} />

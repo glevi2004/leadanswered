@@ -235,9 +235,12 @@ export function AgentDockPanel({ dept }: { dept: string }) {
         </div>
         <button
           type="button"
-          className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border py-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          disabled
+          title="Coming soon"
+          className="mt-2 flex w-full cursor-not-allowed items-center justify-center gap-1.5 rounded-lg border border-dashed py-2 text-muted-foreground/70"
         >
           <Plus className="size-3.5" /> New Agent
+          <span className="rounded bg-muted px-1 py-px font-mono text-[9px] uppercase tracking-wide">Soon</span>
         </button>
       </div>
 
@@ -283,11 +286,20 @@ export function AgentDockPanel({ dept }: { dept: string }) {
         )}
       </div>
 
-      {/* Context */}
+      {/* Context — the department's real context string, shown as-is (no fake JSON dressing;
+          docs/workflow.md §7: never render mock as real). */}
       <div className="rounded-xl border bg-card p-4 elev-1">
         <p className="font-medium text-foreground">Context</p>
         <p className="mt-0.5 text-xs text-muted-foreground">Department knowledge shared with every agent here.</p>
-        <pre className="mt-3 overflow-x-auto rounded-lg border bg-muted p-3 text-xs text-muted-foreground">{`{\n  "summary": "${agent.context}"\n}`}</pre>
+        {agent.context?.trim() ? (
+          <p className="mt-3 whitespace-pre-wrap rounded-lg border bg-muted p-3 text-xs text-muted-foreground">
+            {agent.context}
+          </p>
+        ) : (
+          <p className="mt-3 text-xs text-muted-foreground">
+            No context yet — Lu seeds this from onboarding and your corrections.
+          </p>
+        )}
       </div>
 
       {/* Composer — ask Lu to build something (hands off to the real owner thread) */}

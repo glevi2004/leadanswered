@@ -1,4 +1,4 @@
-import { generateText, stepCountIs, type LanguageModel, type ModelMessage } from "ai";
+import { generateText, stepCountIs, type LanguageModel, type ModelMessage, type ToolSet } from "ai";
 import { getModel, recommendModel } from "@leadanswered/core";
 import type { Store } from "../store/types.js";
 import {
@@ -8,6 +8,9 @@ import {
 } from "./orchestratorTools.js";
 import { meterLlm } from "./metering.js";
 import { resolveOrgMemory } from "./orgMemory.js";
+import { resolveSituation } from "./situational.js";
+import { onboardingTools } from "./onboardingTools.js";
+import { getSkill } from "./skills/index.js";
 
 /**
  * Lu the ORCHESTRATOR (AGENTS-BACKEND §3) — the one planning brain of the Lu
@@ -70,6 +73,16 @@ function systemPrompt(): string {
   ].join("\n");
 }
 
+/** Onboarding-mode system prompt — a short identity wrapper around the loaded onboarding SKILL. */
+function onboardingSystemPrompt(procedure: string): string {
+  return [
+    "You are Lu, the founder's AI cofounder, onboarding a brand-new company inside their workspace.",
+    "Follow the procedure below exactly, one step at a time. Keep replies short and warm. Never use em-dashes.",
+    "",
+    procedure,
+  ].join("\n");
+}
+
 /**
  * Run one orchestrator turn. The model reasons over the conversation, calls the
  * deterministic Store-backed tools (which create/route tasks + record questions),
@@ -83,11 +96,30 @@ export async function runOrchestrator(
   const modelId = input.modelId ?? recommendModel("orchestrator", "text").id;
   const model = deps.model ?? getModel(modelId);
   const ctx: OrchestratorContext = { orgId: input.orgId, tasksCreated: [], actions: [] };
-  const tools = orchestratorTools({ store: deps.store }, ctx);
+  const allTools = orchestratorTools({ store: deps.store }, ctx);
+  // Onboarding-mode (docs/onboarding.md Phase 2): a brand-new org has no ACTIVE department yet.
+  // While onboarding, Lu runs the onboarding SKILL and gets only the onboarding toolkit (+ ask_user),
+  // so she interviews, decides, and drafts the Business Plan instead of trying to build.
+  const departments = await deps.store.listDepartments(input.orgId);
+  const onboarding = !departments.some((d) => d.status === "active");
   // Core/long-term memory injection (plan Pillar 3): prepend what Lu knows about this business so
   // she has context from turn one. Best-effort — "" when there is nothing (or on any failure).
   const memory = await resolveOrgMemory(deps.store, input.orgId);
-  const system = memory ? `${systemPrompt()}\n\n${memory}` : systemPrompt();
+  // The situational block (docs/workflow.md §2): live connections + open tasks + pending
+  // approvals + recent journal events, every turn — Lu is never blind to the state of the world.
+  const situation = await resolveSituation(deps.store, input.orgId);
+
+  let tools: ToolSet;
+  let base: string;
+  if (onboarding) {
+    const skill = getSkill("onboarding");
+    base = skill ? onboardingSystemPrompt(skill.procedure) : systemPrompt();
+    tools = { ask_user: allTools.ask_user, ...onboardingTools({ store: deps.store }, { orgId: input.orgId }) };
+  } else {
+    base = systemPrompt();
+    tools = allTools;
+  }
+  const system = [base, memory, situation].filter(Boolean).join("\n\n");
 
   const messages = [
     ...(input.history ?? []),

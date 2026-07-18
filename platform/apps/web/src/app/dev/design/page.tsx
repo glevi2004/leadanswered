@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -392,6 +393,29 @@ export default function DesignBoard() {
                 <Cap>click “Use mic” — the field follows your actual voice (Web Audio analyser)</Cap>
               </div>
             </div>
+          </Frame>
+
+          {/* ============ ONBOARDING — SIGN-UP FLOW ============ */}
+          <Frame title="Onboarding — sign-up flow" tag="Phase-1 · 5-screen wizard · full-page preview">
+            <Link
+              href="/dev/design/onboarding"
+              className="neu-card group flex items-center gap-5 rounded-2xl bg-card p-6 transition active:translate-y-px"
+            >
+              <PixelTile size={72} className="shrink-0">
+                <PixelIcon glyph="sparkle" color="blue" size={40} />
+              </PixelTile>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold text-foreground">Sign-up onboarding</div>
+                <p className="mt-1 text-[13px] text-muted-foreground">
+                  name → role → idea stage → create company. Fully clickable; the final step is
+                  preview-safe — no data written, no redirect.
+                </p>
+              </div>
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[13px] font-medium text-foreground transition-colors group-hover:bg-foreground group-hover:text-background">
+                Open preview
+                <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3l5 5-5 5" /></svg>
+              </span>
+            </Link>
           </Frame>
 
           {/* ============ CONTINUOUS METER + DELTAS ============ */}

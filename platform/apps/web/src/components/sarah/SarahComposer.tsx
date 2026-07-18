@@ -97,11 +97,13 @@ export function SarahComposer({
         className="neu-socket rounded-2xl px-2.5 py-2"
       >
         <div className="flex items-end gap-2">
-          {/* attach affordance (design board) — sits at the pill's left edge */}
+          {/* attach affordance — not wired yet, so it says so (docs/workflow.md §7) */}
           <button
             type="button"
-            aria-label="Attach"
-            className="gloss press mb-0.5 grid size-7 shrink-0 place-items-center rounded-full text-foreground/70"
+            aria-label="Attach (coming soon)"
+            title="Attachments — coming soon"
+            disabled
+            className="gloss mb-0.5 grid size-7 shrink-0 cursor-not-allowed place-items-center rounded-full text-foreground/40"
           >
             <Plus className="size-3.5" />
           </button>

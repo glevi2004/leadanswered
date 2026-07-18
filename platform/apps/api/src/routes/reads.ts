@@ -103,6 +103,50 @@ export function createListApprovalsRoute(deps: ReadRouteDeps) {
 }
 
 /**
+ * GET /api/lu/history?orgId=...&limit=...
+ * The persisted Lu conversation (docs/workflow.md §4 — thread rehydration): the org's main
+ * thread + its most recent messages, oldest-first, including report-back messages' `meta`.
+ * The web reads this on load so a reload shows the real conversation, not a fresh greeting.
+ */
+export function createLuHistoryRoute(deps: ReadRouteDeps) {
+  return async function getLuHistory(req: Request, res: Response): Promise<void> {
+    const orgId = requireOrgId(req, res);
+    if (!orgId) return;
+    const limitRaw = Number(req.query.limit);
+    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 200) : 50;
+    try {
+      const thread = await deps.store.getOrCreateMainThread(orgId);
+      const messages = await deps.store.listRecentMessages(thread.id, limit);
+      res.status(200).json({ threadId: thread.id, messages });
+    } catch (err) {
+      console.error("[/api/lu/history] error:", err);
+      res.status(500).json({ error: "failed to read thread history" });
+    }
+  };
+}
+
+/**
+ * GET /api/events?orgId=...&limit=...
+ * The org's journal (docs/workflow.md §1), newest-first — what the chat derives its
+ * phase states from and what activity feeds render. → { events }.
+ */
+export function createListEventsRoute(deps: ReadRouteDeps) {
+  return async function getEvents(req: Request, res: Response): Promise<void> {
+    const orgId = requireOrgId(req, res);
+    if (!orgId) return;
+    const limitRaw = Number(req.query.limit);
+    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : 30;
+    try {
+      const events = await deps.store.listAgentEvents(orgId, limit);
+      res.status(200).json({ events });
+    } catch (err) {
+      console.error("[/api/events] error:", err);
+      res.status(500).json({ error: "failed to list events" });
+    }
+  };
+}
+
+/**
  * GET /api/sites?orgId=...
  * The org's sites, each with its latest deployment (preview/production). → { sites }.
  */

@@ -1,24 +1,11 @@
-import { requireOrganization } from "@/lib/dashboard-auth";
-import { PageHeader } from "@/components/app/PageHeader";
-import { AGENT_PRESETS, type AgentId } from "@/lib/workspace/agent-presets";
-import { AgentsClient } from "./AgentsClient";
-
-export const metadata = { title: "Agents — Lead Answered" };
+import { redirect } from "next/navigation";
 
 /**
- * The Agents container (server) — the grid of AI-worker presets. The client grid drives
- * navigation to each agent's detail surface.
+ * Legacy surface (docs/workflow.md §7 honesty sweep, 2026-07-17): the old preset grid
+ * (receptionist / reviews / content / follow-ups) was the pre-pivot SMS product, rendered
+ * every preset as hardcoded "hired", and its Manage links dead-ended back here. Agents now
+ * live on the canvas and in the dock's Company tab — send anyone who lands here there.
  */
-export default async function AgentsPage() {
-  await requireOrganization();
-  const hired = Object.fromEntries(
-    AGENT_PRESETS.map((p) => [p.id, true]),
-  ) as Record<AgentId, boolean>;
-
-  return (
-    <div className="flex flex-col gap-4">
-      <PageHeader title="Agents" description="Your AI coworkers — hire one and Lu gets to work." />
-      <AgentsClient hired={hired} />
-    </div>
-  );
+export default function AgentsPage() {
+  redirect("/canvas");
 }
