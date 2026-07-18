@@ -19,6 +19,8 @@ export interface ConnectStatus {
   github: boolean;
   /** the owner has connected their Vercel */
   vercel: boolean;
+  /** the owner has connected their Supabase (optional — only database-backed apps need it) */
+  supabase: boolean;
   loaded: boolean;
 }
 
@@ -28,7 +30,12 @@ export interface ConnectStatus {
  * reload. `/api/connect/status` reports github/vercel through the proxy.
  */
 export function useConnectStatus(active: boolean): ConnectStatus {
-  const [state, setState] = React.useState<ConnectStatus>({ github: false, vercel: false, loaded: false });
+  const [state, setState] = React.useState<ConnectStatus>({
+    github: false,
+    vercel: false,
+    supabase: false,
+    loaded: false,
+  });
   React.useEffect(() => {
     if (!active) return;
     let alive = true;
@@ -36,7 +43,13 @@ export function useConnectStatus(active: boolean): ConnectStatus {
       try {
         const res = await fetch("/api/connect/status", { cache: "no-store" });
         const data = (res.ok ? await res.json() : {}) as Partial<ConnectStatus>;
-        if (alive) setState({ github: Boolean(data.github), vercel: Boolean(data.vercel), loaded: true });
+        if (alive)
+          setState({
+            github: Boolean(data.github),
+            vercel: Boolean(data.vercel),
+            supabase: Boolean(data.supabase),
+            loaded: true,
+          });
       } catch {
         if (alive) setState((s) => ({ ...s, loaded: true }));
       }
@@ -53,63 +66,18 @@ export function useConnectStatus(active: boolean): ConnectStatus {
 
 /* -------------------------------- Lu intents -------------------------------- */
 
-/** Deep-link to the connections settings — the secondary affordance on connect items. */
-export const SETTINGS_HREF = "/settings";
-
 /**
- * The natural-language prompt each "next" fires at the REAL Lu (/api/lu/chat) when clicked, so a
- * suggestion actually TAKES the step (Lu walks the connect / proposes the plan) instead of
- * dead-ending at a static Settings link. Shared by the Roadmap steps and the Suggested-next list
- * so both speak with one voice.
+ * The natural-language prompt each "next" fires at the REAL Lu (/api/lu/chat) when clicked.
+ * Connect intents are phrased so Lu answers with the FORM (her show_connect_form tool renders
+ * the connect card as her reply) — the click's whole journey is Home → Lu → form, one line.
  */
 export const LU_INTENTS = {
-  connectGithub: "Walk me through connecting my GitHub so you can build into it.",
-  connectVercel: "Walk me through connecting my Vercel so you can deploy my sites.",
+  connectGithub: "I want to connect my GitHub.",
+  connectVercel: "I want to connect my Vercel.",
+  connectSupabase: "I want to connect my Supabase.",
   dispatchBuild: "Draft a plan to build me my first project — something simple to get started.",
   shipSite: "Ship my first site to a preview so I can see it live.",
 } as const;
-
-/* ---------------------------------- roadmap % ---------------------------------- */
-
-export interface RoadmapStep {
-  label: string;
-  done: boolean;
-  /** the Lu prompt clicking an INCOMPLETE step fires (done steps aren't actionable) */
-  intent: string;
-  /** optional Settings deep-link — the secondary affordance for connect steps */
-  settingsHref?: string;
-}
-
-export interface Roadmap {
-  percent: number;
-  steps: RoadmapStep[];
-}
-
-/**
- * A coarse-but-honest workspace-setup progress: four real milestones (connect GitHub, connect
- * Vercel, dispatch a build, ship a site) plus the fraction of tasks completed, as a fifth unit.
- * Auto-completes as the workspace changes — no hardcoded stages.
- */
-export function computeRoadmap(input: {
-  github: boolean;
-  vercel: boolean;
-  tasks: DockTask[];
-  sites: DockSite[];
-}): Roadmap {
-  const { github, vercel, tasks, sites } = input;
-  const steps: RoadmapStep[] = [
-    { label: "Connect GitHub", done: github, intent: LU_INTENTS.connectGithub, settingsHref: SETTINGS_HREF },
-    { label: "Connect Vercel", done: vercel, intent: LU_INTENTS.connectVercel, settingsHref: SETTINGS_HREF },
-    { label: "Dispatch a build", done: tasks.length > 0, intent: LU_INTENTS.dispatchBuild },
-    { label: "Ship a site", done: sites.length > 0, intent: LU_INTENTS.shipSite },
-  ];
-  const doneSteps = steps.filter((s) => s.done).length;
-  const doneTasks = tasks.filter((t) => t.status === "done").length;
-  const taskFraction = tasks.length > 0 ? doneTasks / tasks.length : 0;
-  // steps + task-progress as one extra unit → all milestones + all tasks done = 100%.
-  const percent = Math.round((100 * (doneSteps + taskFraction)) / (steps.length + 1));
-  return { percent, steps };
-}
 
 /* -------------------------------- suggested next -------------------------------- */
 
@@ -119,35 +87,40 @@ export interface Suggestion {
   label: string;
   /** the natural-language prompt clicking it sends to the REAL Lu (/api/lu/chat) */
   intent: string;
-  /** optional Settings deep-link — the secondary affordance for connect items */
-  settingsHref?: string;
 }
 
 /**
- * Derive concrete next moves from real state (never fiction). Each carries a Lu intent so the
- * click TAKES the step (Lu acts) rather than just navigating. Empty ⇒ "you're all set".
+ * The owner's to-do list, derived from real state (never fiction) — THE Home surface.
+ * Ordered: connections first (GitHub + Vercel required; Supabase optional), then the first
+ * build, then the first ship. Every click goes to Lu, who answers with the action (the
+ * connect form, a drafted plan). Empty ⇒ "you're all set".
  */
 export function suggestNext(input: {
   github: boolean;
   vercel: boolean;
+  supabase: boolean;
   tasks: DockTask[];
   sites: DockSite[];
 }): Suggestion[] {
-  const { github, vercel, tasks, sites } = input;
+  const { github, vercel, supabase, tasks, sites } = input;
   const out: Suggestion[] = [];
   if (!github)
     out.push({
       id: "connect-github",
       label: "Connect GitHub so the Engineer can build",
       intent: LU_INTENTS.connectGithub,
-      settingsHref: SETTINGS_HREF,
     });
   if (!vercel)
     out.push({
       id: "connect-vercel",
       label: "Connect Vercel to deploy your sites",
       intent: LU_INTENTS.connectVercel,
-      settingsHref: SETTINGS_HREF,
+    });
+  if (!supabase)
+    out.push({
+      id: "connect-supabase",
+      label: "Connect Supabase (optional — for apps with a database)",
+      intent: LU_INTENTS.connectSupabase,
     });
   if (tasks.length === 0)
     out.push({

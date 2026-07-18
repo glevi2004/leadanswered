@@ -423,8 +423,31 @@ export function SarahProvider({
           })
           .then((data) => {
             setTyping(false);
+            // Structured Lu→UI actions (docs/workflow.md): show_connect attaches the inline
+            // connect FORM to Lu's reply — her answer to "I want to connect X" IS the form.
+            const showConnect =
+              Array.isArray(data.actions) &&
+              data.actions.some(
+                (a) => !!a && typeof a === "object" && (a as { type?: unknown }).type === "show_connect",
+              );
             if (data.reply?.trim()) {
-              appendTo(chatId, { id: nextId(), at: new Date().toISOString(), role: "sarah", body: data.reply.trim(), via: "app" });
+              appendTo(chatId, {
+                id: nextId(),
+                at: new Date().toISOString(),
+                role: "sarah",
+                body: data.reply.trim(),
+                via: "app",
+                ...(showConnect ? { card: "connect" as const } : {}),
+              });
+            } else if (showConnect) {
+              appendTo(chatId, {
+                id: nextId(),
+                at: new Date().toISOString(),
+                role: "sarah",
+                body: "Here's the form — paste your tokens and we're set.",
+                via: "app",
+                card: "connect",
+              });
             }
             const taskIds = Array.isArray(data.tasksCreated)
               ? data.tasksCreated.filter((t): t is string => typeof t === "string")

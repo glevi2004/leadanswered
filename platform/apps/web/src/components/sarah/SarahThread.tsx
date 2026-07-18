@@ -4,6 +4,7 @@ import * as React from "react";
 import type { SarahMessage } from "@/lib/data/shared";
 import { LuBuildTracker } from "./LuBuildTracker";
 import { LuOnboardingTracker } from "./LuOnboardingTracker";
+import { ConnectCard } from "./ConnectCard";
 import { useSarah } from "./sarah-context";
 import { cn } from "@/lib/utils";
 
@@ -70,11 +71,19 @@ export function SarahThread({
         ) : (
           <div key={m.id} className="flex gap-3 px-1 py-2">
             <LuMark label={assistantName} />
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <div className="mb-0.5 text-[11px] font-semibold text-muted-foreground">{assistantName}</div>
               <div className="t-body whitespace-pre-wrap break-words text-[13.5px] text-foreground">
                 {m.body}
               </div>
+              {/* Structured card attached to this Lu turn — her reply IS the form. */}
+              {m.card === "connect" && (
+                <ConnectCard
+                  className="mt-2.5"
+                  title="Connect your accounts"
+                  subtitle="Builds land in your own GitHub and Vercel; Supabase is optional, for apps with a database."
+                />
+              )}
             </div>
           </div>
         );

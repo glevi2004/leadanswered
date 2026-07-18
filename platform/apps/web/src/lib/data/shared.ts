@@ -56,12 +56,15 @@ export interface Approval {
   status: "pending" | "approved" | "declined" | "expired";
 }
 
-/** One message in THE owner conversation (SMS + widget + /sarah are one thread). */
+/** One message in THE owner conversation (SMS + widget + /sarah are one thread).
+ * `card` attaches a structured UI card to a Lu turn (docs/workflow.md — Lu→UI actions):
+ * "connect" renders the inline connect form under her message. */
 export interface SarahMessage {
   id: string;
   at: string; // ISO
   role: "owner" | "sarah";
   body: string;
   via: "sms" | "app";
+  card?: "connect";
 }
 

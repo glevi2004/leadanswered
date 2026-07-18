@@ -27,12 +27,14 @@ export interface OrchestratorToolDeps {
   store: Store;
 }
 
-/** A non-blocking question Lu surfaced for the owner (rendered as an AskUserQuestion in the Lu dock). */
-export interface OrchestratorAction {
-  type: "ask_user";
-  question: string;
-  options?: string[];
-}
+/**
+ * A structured Lu→UI action riding the turn's response (docs/workflow.md — the chat renders
+ * these as real UI, not text): a non-blocking question (option buttons), or the connect form
+ * rendered inline as part of Lu's reply.
+ */
+export type OrchestratorAction =
+  | { type: "ask_user"; question: string; options?: string[] }
+  | { type: "show_connect" };
 
 /**
  * Per-run context + collectors shared across tool calls (the ownerTools `draft`
@@ -116,7 +118,7 @@ export function orchestratorTools(deps: OrchestratorToolDeps, ctx: OrchestratorC
 
     check_connections: tool({
       description:
-        "Check which of the owner's OWN accounts are connected: their GitHub, Vercel, and Supabase. Use this whenever the owner asks whether you have their connections, and before dispatching a build so you can tell them exactly what is missing. GitHub AND Vercel are BOTH required to build and deploy a site; Supabase is only needed for a database-backed app. Report the result plainly.",
+        "Check which of the owner's OWN accounts are connected: their GitHub, Vercel, and Supabase. Use this whenever the owner asks whether you have their connections, and before dispatching a build so you can tell them exactly what is missing. GitHub AND Vercel are BOTH required to build and deploy a site; Supabase is only needed for a database-backed app. Report the result plainly. If something is missing and the owner should connect it NOW, follow up with show_connect_form.",
       inputSchema: z.object({}),
       execute: async () => {
         const s = await connectionStatus(deps.store, ctx.orgId);
@@ -126,6 +128,23 @@ export function orchestratorTools(deps: OrchestratorToolDeps, ctx: OrchestratorC
           supabase: s.supabase,
           readyToBuild: s.github && s.vercel,
           missing: [!s.github ? "GitHub" : null, !s.vercel ? "Vercel" : null].filter(Boolean),
+        };
+      },
+    }),
+
+    show_connect_form: tool({
+      description:
+        "Show the owner the CONNECT FORM right here in the chat (GitHub · Vercel · Supabase, token paste). Call this whenever the owner wants to connect an account, or a build is blocked on a missing connection — the form renders as part of your reply, so NEVER describe manual steps or point them at a settings page. Returns the current status; accompany it with ONE short line (e.g. \"Here's the form — paste your GitHub token and we're set.\").",
+      inputSchema: z.object({}),
+      execute: async () => {
+        const s = await connectionStatus(deps.store, ctx.orgId);
+        actions.push({ type: "show_connect" });
+        return {
+          shown: true as const,
+          github: s.github,
+          vercel: s.vercel,
+          supabase: s.supabase,
+          readyToBuild: s.github && s.vercel,
         };
       },
     }),
