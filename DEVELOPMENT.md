@@ -142,24 +142,24 @@ PR + typecheck/tests + preview → Slack report with buttons → Publish → mer
 object (the Build) at three sizes (chat Card · list Row · the NEW Task Detail Page), every row/card
 clicking through to the Page; each ladder step ships its backend + its §8b surface together, never
 capability without UI.
-- [ ] ⬜ **0. The Task Detail Page + Build card/row unification** — the §8b hub (`/task/[id]` + dock
+- [x] **0. The Task Detail Page + Build card/row unification** *(shipped 2026-07-18)* — the §8b hub (`/task/[id]` + dock
   panel: plan · acceptance checklist w/ verdicts · events timeline · diff · preview · approvals ·
   Retry/Request-changes); Tasks tab + Home rows + workplace selector all click through to it. Ships
   FIRST — every later step renders into it.
-- [ ] ⬜ **0b. The workspace goes LIVE** (§8b canvas/department leg) — agent nodes pulse while
+- [x] **0b. The workspace goes LIVE** *(shipped 2026-07-18; terminal-attach stays later)* (§8b canvas/department leg) — agent nodes pulse while
   `Agent.status=working` + latest-event caption (the status is real now, the UI never reads it);
   Workplace **Request changes becomes real** (prefill composer w/ build context → Lu) + Retry on
   failed builds; department Home = the unified Projects list; console's four existing write
   endpoints get their buttons (confirm dialogs). Later, deluxe: attach the canvas terminal to the
   BUILD sandbox's pty ("watch the coding agent type") — needs an attach path on the Sandbox port.
 
-- [ ] ⬜ **1. GitHub sandbox-token downscoping + branch protection** — mint the sandbox a per-task token (ONE repo, `contents:write` only, 1h — GitHub's mint API takes `repositories` + `permissions`); full-perm token stays server-side (create repo, gated merge). Protect `main` at repo creation (block force-push/deletion, no required reviews so the gated merge still works). Non-negotiable before Lu edits repos we care about ([harness-spec](./docs/harness-spec.md) §3).
-- [ ] ⬜ **2. Existing-project import + REPO PROFILES** — point Lu at an EXISTING repo (the App install scopes which) + link its existing Vercel project; plus a per-repo profile (setup/install commands · typecheck/test commands · env needs) so the sandbox can build a real monorepo — Devin's "environment snapshot", our per-Site record. The rest of the pipeline is repo-agnostic already.
-- [ ] ⬜ **3. CI-grade + empirical verification** — verify_acceptance runs the repo profile's typecheck/tests in the sandbox AND fetches/screenshots the preview (headless browser); DB apps exercise live flows ([harness-spec](./docs/harness-spec.md) §2 P1). The difference between a PR you trust and one you re-review from scratch.
-- [ ] ⬜ **4. SLACK — the first channel** — a Slack app: DM/mention Lu → the SAME server-side thread (Slack is just a second client of Thread/Message); plan + publish approvals as Slack BUTTONS → the resolve endpoint; journal report-backs (preview ready · published · failed) posted to the Slack thread. The flow layer makes this mostly plumbing: events webhook + signature verify + org↔workspace mapping + chat.postMessage outbound.
-- [ ] ⬜ **5. Supabase build tools + THE MIGRATION GATE** — `provision_backend` (env-var the selected project into the Vercel app) + `run_migration`; migrations NEVER hit prod DB directly: preview branch (the Environment scope) or an explicit approval. (Customer DB apps — NOT a dogfood blocker: our own schema rides the repo's Prisma migrations.)
+- [x] **1. GitHub sandbox-token downscoping + branch protection** *(shipped 2026-07-18)* — mint the sandbox a per-task token (ONE repo, `contents:write` only, 1h — GitHub's mint API takes `repositories` + `permissions`); full-perm token stays server-side (create repo, gated merge). Protect `main` at repo creation (block force-push/deletion, no required reviews so the gated merge still works). Non-negotiable before Lu edits repos we care about ([harness-spec](./docs/harness-spec.md) §3).
+- [x] **2. Existing-project import + REPO PROFILES** *(shipped 2026-07-18)* — point Lu at an EXISTING repo (the App install scopes which) + link its existing Vercel project; plus a per-repo profile (setup/install commands · typecheck/test commands · env needs) so the sandbox can build a real monorepo — Devin's "environment snapshot", our per-Site record. The rest of the pipeline is repo-agnostic already.
+- [x] **3. CI-grade + empirical verification** *(shipped 2026-07-18; screenshots stay follow-up)* — verify_acceptance runs the repo profile's typecheck/tests in the sandbox AND fetches/screenshots the preview (headless browser); DB apps exercise live flows ([harness-spec](./docs/harness-spec.md) §2 P1). The difference between a PR you trust and one you re-review from scratch.
+- [x] **4. SLACK — the first channel** *(built 2026-07-18 — DORMANT until the Slack app registers + SLACK_* env lands)* — a Slack app: DM/mention Lu → the SAME server-side thread (Slack is just a second client of Thread/Message); plan + publish approvals as Slack BUTTONS → the resolve endpoint; journal report-backs (preview ready · published · failed) posted to the Slack thread. The flow layer makes this mostly plumbing: events webhook + signature verify + org↔workspace mapping + chat.postMessage outbound.
+- [x] **5. Supabase build tools + THE MIGRATION GATE** *(shipped 2026-07-18 — provision_backend + run_migration; SQL executes ONLY in the approval-resolution path)* — `provision_backend` (env-var the selected project into the Vercel app) + `run_migration`; migrations NEVER hit prod DB directly: preview branch (the Environment scope) or an explicit approval. (Customer DB apps — NOT a dogfood blocker: our own schema rides the repo's Prisma migrations.)
 - [ ] ⬜ **6. Railway as a deploy target** — a second `Deploy`-port adapter (Railway GraphQL API, token-paste — no OAuth program) for long-running servers/workers Lu builds for customers. (Dogfood needs nothing: our api already auto-deploys on merge.)
-- [ ] ⬜ **Housekeeping: git-connect `leadanswered-web` on Vercel** — merges must auto-deploy the web app; today it's CLI-deploy, a human step Lu can't take.
+- [x] **Housekeeping: git-connect `leadanswered-web` on Vercel** *(done 2026-07-18 via `vercel git connect` — pushes to main now auto-deploy the web app; the CLI-deploy era is over)*.
 
 ### Before a real DESIGN PARTNER connects  *(the "external users" checklist, 2026-07-18)*
 - [ ] ⬜ **Make the GitHub App public** — currently "Only on this account" (app settings → Advanced → Make public), else a partner can't install it.

@@ -8,6 +8,7 @@ import { getDeploy, getDeployForOrg, type Deploy, type PreviewDeployment } from 
 import { meterLlm, meterSandbox } from "./metering.js";
 import { postToThread, recordEvent } from "./journal.js";
 import { notifySlackApproval } from "../channels/slack.js";
+import { fetchProjectKeys, validManagementToken } from "../connect/supabaseOAuth.js";
 
 /**
  * The ENGINEERING agent's toolkit (AGENTS-BACKEND §6, ENGINEERING-AGENT §5). The
@@ -774,6 +775,85 @@ export function engineeringTools(deps: EngineeringToolDeps, ctx: EngineeringCont
 
         // 5) Return the verdict for the loop.
         return { pass, unmet, notes };
+      },
+    }),
+
+    provision_backend: tool({
+      description:
+        "Wire the org's connected Supabase project INTO a site (ladder step 5): sets NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_ANON_KEY (and SUPABASE_SERVICE_ROLE_KEY, encrypted) as env vars on the site's Vercel project, so the code you write can use Supabase clients. Call this BEFORE building an app that needs a database. Requires the org's Supabase connection; returns the project URL to reference in code. Does NOT touch the database schema — schema changes go through run_migration.",
+      inputSchema: z.object({
+        siteId: z.string().describe("The Site whose Vercel project gets the env vars (from create_site / PROJECTS)"),
+      }),
+      execute: async ({ siteId }) => {
+        const site = await d.store.getSite(siteId);
+        if (!site || site.orgId !== ctx.orgId) return { ok: false as const, reason: "site_not_found" as const };
+        if (!site.vercelProjectId) return { ok: false as const, reason: "no_vercel_project_yet" as const, hint: "open_preview creates it on first build" };
+        const conn = await d.store.getSupabaseConnection(ctx.orgId);
+        if (!conn?.projectRef) return { ok: false as const, reason: "supabase_not_connected" as const };
+
+        const url = `https://${conn.projectRef}.supabase.co`;
+        let anonKey: string | null = null;
+        let serviceKey: string | null = conn.serviceKey;
+        const mgmt = await validManagementToken(d.store, ctx.orgId);
+        if (mgmt) {
+          const keys = await fetchProjectKeys(mgmt, conn.projectRef);
+          anonKey = keys.anonKey;
+          serviceKey = keys.serviceKey ?? serviceKey;
+        }
+        const vars: Record<string, string> = { NEXT_PUBLIC_SUPABASE_URL: url };
+        if (anonKey) vars.NEXT_PUBLIC_SUPABASE_ANON_KEY = anonKey;
+        if (serviceKey) vars.SUPABASE_SERVICE_ROLE_KEY = serviceKey;
+        await withTimeout("setEnvVars", STEP_TIMEOUT_MS, d.deploy.setEnvVars(site.vercelProjectId, vars));
+        await recordEvent(d.store, {
+          orgId: ctx.orgId,
+          taskId,
+          kind: "backend_provisioned",
+          message: `Supabase wired into ${site.repoFullName ?? siteId} (${Object.keys(vars).join(", ")})`,
+          payload: { siteId, projectRef: conn.projectRef },
+        });
+        return { ok: true as const, supabaseUrl: url, anonKeySet: Boolean(anonKey), serviceKeySet: Boolean(serviceKey) };
+      },
+    }),
+
+    run_migration: tool({
+      description:
+        "Stage a DATABASE MIGRATION for the owner's approval (ladder step 5 — THE MIGRATION GATE). This does NOT run any SQL: it records the migration and stages an approval; the SQL executes against the org's Supabase ONLY when the owner approves. Pass complete, idempotent SQL (CREATE TABLE IF NOT EXISTS …, RLS policies included). Never claim a migration ran — say it awaits approval.",
+      inputSchema: z.object({
+        title: z.string().describe("Short name, e.g. 'Create bookings tables'"),
+        sql: z.string().describe("The complete SQL to run, idempotent, RLS included"),
+      }),
+      execute: async ({ title, sql }) => {
+        const conn = await d.store.getSupabaseConnection(ctx.orgId);
+        if (!conn?.projectRef) return { ok: false as const, reason: "supabase_not_connected" as const };
+        const doc = await d.store.addArtifact({
+          orgId: ctx.orgId,
+          taskId,
+          kind: "doc",
+          title: `Migration — ${title}`,
+          payload: { type: "migration", title, sql, projectRef: conn.projectRef },
+        });
+        artifacts.push(doc);
+        const approval = await d.store.createApproval({
+          orgId: ctx.orgId,
+          taskId,
+          action: "run_migration",
+        });
+        if (ctx.taskId) await d.store.updateTaskStatus(ctx.taskId, "needs_approval");
+        actions.push({ type: "needs_approval", siteId: "", approvalId: approval.id, action: "run_migration" });
+        await recordEvent(d.store, {
+          orgId: ctx.orgId,
+          taskId,
+          kind: "migration_staged",
+          message: `Migration staged for approval: ${title}`,
+          payload: { approvalId: approval.id, artifactId: doc.id },
+        });
+        await postToThread(
+          d.store,
+          ctx.orgId,
+          `A database migration ("${title}") is staged and awaiting your approval — review the SQL on the task page before approving.`,
+          { kind: "migration_staged", taskId: taskId ?? undefined },
+        );
+        return { ok: true as const, staged: true as const, approvalId: approval.id };
       },
     }),
 

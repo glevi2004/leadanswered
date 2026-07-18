@@ -220,6 +220,19 @@ export class VercelDeploy implements Deploy {
     );
   }
 
+  async setEnvVars(projectId: string, vars: Record<string, string>): Promise<void> {
+    const body = Object.entries(vars).map(([key, value]) => ({
+      key,
+      value,
+      type: "encrypted",
+      target: ["production", "preview", "development"],
+    }));
+    await this.vfetch<unknown>(
+      `/v10/projects/${encodeURIComponent(projectId)}/env?upsert=true`,
+      { method: "POST", body: JSON.stringify(body) },
+    );
+  }
+
   async findProject(nameOrId: string): Promise<{ projectId: string; name: string } | null> {
     try {
       const p = await this.vfetch<{ id?: string; name?: string }>(

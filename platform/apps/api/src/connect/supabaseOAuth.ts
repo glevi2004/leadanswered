@@ -114,12 +114,40 @@ export async function listProjects(mgmtToken: string): Promise<SupabaseProject[]
 
 /** The project's service_role key via the Management API (byo-connect: no pasted key needed). */
 export async function fetchServiceKey(mgmtToken: string, ref: string): Promise<string | null> {
+  return (await fetchProjectKeys(mgmtToken, ref)).serviceKey;
+}
+
+/** Both project keys (anon + service_role) — provision_backend wires these into the app. */
+export async function fetchProjectKeys(
+  mgmtToken: string,
+  ref: string,
+): Promise<{ anonKey: string | null; serviceKey: string | null }> {
   const res = await fetch(`${MGMT_API}/v1/projects/${encodeURIComponent(ref)}/api-keys`, {
     headers: { authorization: `Bearer ${mgmtToken}` },
   });
-  if (!res.ok) return null;
+  if (!res.ok) return { anonKey: null, serviceKey: null };
   const keys = (await res.json()) as Array<{ name?: string; api_key?: string }>;
-  return keys.find((k) => k.name === "service_role")?.api_key ?? null;
+  return {
+    anonKey: keys.find((k) => k.name === "anon")?.api_key ?? null,
+    serviceKey: keys.find((k) => k.name === "service_role")?.api_key ?? null,
+  };
+}
+
+/** Run SQL against the project's database via the Management API — the MIGRATION GATE's
+ * execute step (ladder step 5): called ONLY from the approval-resolution path, never by a
+ * model tool directly. */
+export async function runProjectQuery(
+  mgmtToken: string,
+  ref: string,
+  query: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const res = await fetch(`${MGMT_API}/v1/projects/${encodeURIComponent(ref)}/database/query`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${mgmtToken}`, "content-type": "application/json" },
+    body: JSON.stringify({ query }),
+  });
+  if (!res.ok) return { ok: false, error: `HTTP ${res.status}: ${(await res.text()).slice(0, 400)}` };
+  return { ok: true };
 }
 
 /** Pick the best default project: the first ACTIVE_HEALTHY, else the first. */

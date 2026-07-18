@@ -4,6 +4,7 @@ import { dispatchBuild } from "../agent/dispatch.js";
 import { orgHasConnections } from "../connect/status.js";
 import { provisionDepartments } from "../onboarding/provision.js";
 import { postToThread, recordEvent } from "../agent/journal.js";
+import { runProjectQuery, validManagementToken } from "../connect/supabaseOAuth.js";
 import type { Store } from "../store/types.js";
 
 /**
@@ -120,6 +121,74 @@ export function createResolveApprovalRoute(deps: EngineeringDeps) {
           );
           await dispatchBuild({ store: deps.store }, { orgId, taskId: planTaskId, message });
           res.status(200).json({ decision, kind: "plan", dispatched: true, taskId: planTaskId });
+          return;
+        }
+
+        // THE MIGRATION GATE (ladder step 5): SQL runs against the org's Supabase ONLY here —
+        // after the owner approves — never from a model tool.
+        if (appr?.action === "run_migration") {
+          if (decision === "rejected") {
+            const approval = await deps.store.resolveApproval(id, "rejected", decidedBy);
+            await recordEvent(deps.store, {
+              orgId,
+              taskId: appr.taskId,
+              kind: "migration_rejected",
+              message: "Migration rejected by the owner — no SQL ran",
+            });
+            res.status(200).json({ decision, kind: "migration", approval });
+            return;
+          }
+          const arts = appr.taskId ? await deps.store.listArtifacts({ taskId: appr.taskId }) : [];
+          const mig = arts
+            .filter((a) => a.kind === "doc" && (a.payload as { type?: string } | null)?.type === "migration")
+            .at(-1);
+          const migPayload = (mig?.payload ?? null) as
+            | { sql?: string; projectRef?: string; title?: string }
+            | null;
+          if (!migPayload?.sql) {
+            res.status(400).json({ error: "no staged migration found for this approval" });
+            return;
+          }
+          const mgmt = await validManagementToken(deps.store, orgId);
+          const conn = await deps.store.getSupabaseConnection(orgId);
+          const ref = migPayload.projectRef || conn?.projectRef || "";
+          if (!mgmt || !ref) {
+            res.status(200).json({ decision, kind: "migration", applied: false, needsConnect: true });
+            return;
+          }
+          const result = await runProjectQuery(mgmt, ref, migPayload.sql);
+          if (!result.ok) {
+            // Keep the approval pending so it can be retried after a fix; report the failure.
+            await recordEvent(deps.store, {
+              orgId,
+              taskId: appr.taskId,
+              kind: "migration_failed",
+              message: `Migration "${migPayload.title ?? "untitled"}" failed`,
+              payload: { error: result.error },
+            });
+            await postToThread(
+              deps.store,
+              orgId,
+              `The migration "${migPayload.title ?? "untitled"}" failed to apply: ${result.error?.slice(0, 300)}. It's still staged — ask me to fix the SQL and try again.`,
+              { kind: "migration_failed", taskId: appr.taskId ?? undefined },
+            );
+            res.status(200).json({ decision, kind: "migration", applied: false, error: result.error });
+            return;
+          }
+          await deps.store.resolveApproval(id, "approved", decidedBy);
+          await recordEvent(deps.store, {
+            orgId,
+            taskId: appr.taskId,
+            kind: "migration_applied",
+            message: `Migration applied: ${migPayload.title ?? "untitled"}`,
+          });
+          await postToThread(
+            deps.store,
+            orgId,
+            `Migration "${migPayload.title ?? "untitled"}" is applied to your database.`,
+            { kind: "migration_applied", taskId: appr.taskId ?? undefined },
+          );
+          res.status(200).json({ decision, kind: "migration", applied: true });
           return;
         }
 

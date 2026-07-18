@@ -149,22 +149,47 @@ export function TaskDetail({ taskId }: { taskId: string }) {
       </div>
 
       {/* pending approvals — the gates, right here */}
-      {myApprovals.map((a) => (
-        <div key={a.id} className="rounded-xl border border-amber-500/40 bg-amber-500/[0.06] p-4">
-          <p className="text-sm font-medium text-foreground">
-            {a.action === "approve_plan" ? "Plan awaiting your approval" : "Ready to publish"}
-          </p>
-          <div className="mt-2 flex gap-2">
-            <Button size="sm" onClick={() => resolve(a.id, "approved")} disabled={pending.has(a.id)}>
-              {pending.has(a.id) ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
-              {a.action === "approve_plan" ? "Approve plan" : "Publish"}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => resolve(a.id, "rejected")} disabled={pending.has(a.id)}>
-              <X className="size-3.5" /> Reject
-            </Button>
+      {myApprovals.map((a) => {
+        const label =
+          a.action === "approve_plan"
+            ? { title: "Plan awaiting your approval", yes: "Approve plan" }
+            : a.action === "run_migration"
+              ? { title: "Database migration awaiting your approval — review the SQL below", yes: "Run migration" }
+              : { title: "Ready to publish", yes: "Publish" };
+        return (
+          <div key={a.id} className="rounded-xl border border-amber-500/40 bg-amber-500/[0.06] p-4">
+            <p className="text-sm font-medium text-foreground">{label.title}</p>
+            <div className="mt-2 flex gap-2">
+              <Button size="sm" onClick={() => resolve(a.id, "approved")} disabled={pending.has(a.id)}>
+                {pending.has(a.id) ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
+                {label.yes}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => resolve(a.id, "rejected")} disabled={pending.has(a.id)}>
+                <X className="size-3.5" /> Reject
+              </Button>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
+
+      {/* staged migration — the SQL, reviewable before the gate above is approved */}
+      {(() => {
+        const mig = mine
+          .filter((a) => a.kind === "doc" && (a.payload as { type?: string } | null)?.type === "migration")
+          .at(-1);
+        const p = (mig?.payload ?? null) as { title?: string; sql?: string } | null;
+        if (!p?.sql) return null;
+        return (
+          <details open className="rounded-xl border bg-card p-4 elev-1">
+            <summary className="cursor-pointer text-sm font-medium text-foreground">
+              Migration — {p.title ?? "untitled"}
+            </summary>
+            <pre className="mt-2 max-h-80 overflow-auto rounded-lg bg-muted p-3 text-xs text-muted-foreground">
+              {p.sql}
+            </pre>
+          </details>
+        );
+      })()}
 
       {/* the plan + the acceptance CHECKLIST */}
       {plan && (
