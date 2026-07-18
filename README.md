@@ -11,16 +11,24 @@ other). Boot it from a **preset** — run a business, a dev studio, your own thi
 
 > *Cursor made you a faster developer. Lu makes the computer the developer.*
 
-## Start here
+## Start here — the docs cascade from one root
 
-- **[MANIFESTO.md](./MANIFESTO.md)** — what Lu Computer is, and why.
-- **[FOUNDATION.md](./FOUNDATION.md)** — how it's built: the shape, the stack, orchestration, runtime,
-  data, hosting.
-- **[BUSINESS.md](./BUSINESS.md)** — how it makes money: positioning, pricing, unit economics.
-- **[ROADMAP.md](./ROADMAP.md)** — what's shipped and what's next.
-- **[DEVELOPMENT.md](./DEVELOPMENT.md)** — the live build map & status (✅/🟡/⬜), grounded in the code.
-- **[docs/](./docs/)** — the technical specs. Start with **[building-agents.md](./docs/building-agents.md)**
-  (how we build agents) + **[canvas.md](./docs/canvas.md)** (the product surface).
+Everything derives from the paper; each doc goes one level more concrete than its parent:
+
+1. **[paper.md](./paper.md)** — *the theory.* The research paper: the target architecture (control plane,
+   ephemeral runtime, memory + secrets, multi-model registry), its rationale, and its limits.
+2. **[MANIFESTO.md](./MANIFESTO.md)** — *the why*, in one page. The paper's argument as a product thesis.
+3. **[FOUNDATION.md](./FOUNDATION.md)** — *the what.* The system spec of record: shape, stack,
+   orchestration, runtime, data, hosting.
+4. **[docs/harness-spec.md](./docs/harness-spec.md)** — *the how.* Paper → substrates (e2b, BullMQ/Redis,
+   pgvector, GitHub App…), with checked/unchecked build tasks, phases, and the drift assessment.
+5. **[docs/](./docs/)** — *the deep specs.* Start with **[building-agents.md](./docs/building-agents.md)**
+   (how we build agents) + **[canvas.md](./docs/canvas.md)** (the product surface).
+6. **[DEVELOPMENT.md](./DEVELOPMENT.md)** — *the where-are-we.* The live build map & status (✅/🟡/⬜),
+   grounded in the code.
+
+Alongside: **[BUSINESS.md](./BUSINESS.md)** (positioning, pricing, unit economics) ·
+**[ROADMAP.md](./ROADMAP.md)** (what's shipped, what's next, in order).
 
 ## The repo
 

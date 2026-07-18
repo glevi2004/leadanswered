@@ -1,7 +1,7 @@
 # Lu Computer — Business Model
 
-> Why: [MANIFESTO.md](./MANIFESTO.md) · How: [FOUNDATION.md](./FOUNDATION.md) · Next:
-> [ROADMAP.md](./ROADMAP.md).
+> Theory: [paper.md](./paper.md) · Why: [MANIFESTO.md](./MANIFESTO.md) · How:
+> [FOUNDATION.md](./FOUNDATION.md) · Next: [ROADMAP.md](./ROADMAP.md).
 
 ## What we sell
 

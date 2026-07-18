@@ -1,9 +1,11 @@
 # Lu Computer — Foundation
 
 The system spec of record: how Lu is built. If a decision about the build lives anywhere, it lives here.
-(Why: [MANIFESTO.md](./MANIFESTO.md) · Status: [DEVELOPMENT.md](./DEVELOPMENT.md) · Money:
-[BUSINESS.md](./BUSINESS.md) · Next: [ROADMAP.md](./ROADMAP.md) · Deep specs: [`docs/`](./docs/), esp.
-[building-agents](./docs/building-agents.md) (how we build agents) + [canvas](./docs/canvas.md) (the surface).)
+(Theory: [paper.md](./paper.md) — the target architecture this realizes · Why: [MANIFESTO.md](./MANIFESTO.md) ·
+Implementation plan: [docs/harness-spec.md](./docs/harness-spec.md) — paper → substrates, with live checkboxes ·
+Status: [DEVELOPMENT.md](./DEVELOPMENT.md) · Money: [BUSINESS.md](./BUSINESS.md) · Next:
+[ROADMAP.md](./ROADMAP.md) · Deep specs: [`docs/`](./docs/), esp. [building-agents](./docs/building-agents.md)
+(how we build agents) + [canvas](./docs/canvas.md) (the surface).)
 
 ## Why now — the technical bet
 
@@ -34,7 +36,9 @@ flowchart LR
 ```
 
 This is why "the computer is the developer" **begins in Engineering** — the one function whose loop can
-actually close — and dogfoods outward. Everything below is how that's built.
+actually close — and dogfoods outward. The full argument — why the harness must be cloud-native, stateful,
+multi-model, and empirically verified, and why it composes substrates instead of reimplementing them — is
+the paper ([paper.md](./paper.md)); everything below is how that architecture is built as a product.
 
 ## 1. The shape
 
@@ -87,8 +91,11 @@ flowchart TB
 
 ## 3. Orchestration
 
-**Lu** is the top conductor: a goal → **Tasks** → routed to the right agent. It does not do the work
-itself.
+**Lu** is the top conductor: a goal → a **Plan** the owner approves (the **plan gate** —
+[docs/building-agents.md §5](./docs/building-agents.md)) → **Tasks** routed to the right agent, and "done" means the plan's
+**acceptance criteria are verified** (`verify_acceptance`), not that the agent stopped. Lu does not do the
+work itself. *(This is the paper's Goal → Outcome → Task decomposition with its verification loop; the
+deepening path — empirical checks, retry budgets — is [harness-spec §2](./docs/harness-spec.md).)*
 
 **Orchestration is recursive and multi-model.** An agent is a program you compose on the fly: it runs
 **any model** (`Agent.models`, via the gateway — Anthropic / OpenAI / Google today; **xAI/Grok** is on the
@@ -108,8 +115,8 @@ port-backed `tool()`s, and `stopWhen`. Agents read/write only through the **`Sto
 prod, in-memory in tests) — never the DB directly.
 
 **Runs are async and durable.** Work is dispatched off the request path against a durable **Task** and run
-by a background **worker** — a durable-execution engine (Trigger.dev / Inngest), *not* an in-process
-handler, so an overnight run survives a redeploy or crash. For long work the worker **supervises rather
+by a background **worker** — **BullMQ + Redis**, borrowing the durability semantics of Trigger.dev /
+Inngest-class engines without adopting one — so an overnight run survives a redeploy or crash. For long work the worker **supervises rather
 than executes**: the marathon (a coding agent building for hours) runs *inside the e2b sandbox* while the
 worker streams progress to the Store as **Artifacts**, parks on **Approvals** (hibernating the sandbox),
 and resumes when resolved. Persistent state is cheap DB rows; heavy compute is ephemeral + metered.
@@ -122,7 +129,8 @@ Turns "build me X" into a deployed thing. Runs **async** (`POST /api/engineering
 worker) over five **ports** — the last three provision into the **customer's own accounts** (§7):
 
 - **Sandbox** (e2b): an isolated cloud machine — clone, `exec`, stream a **pty**.
-- **Git** (GitHub App / Octokit): create repo, open/merge PR, diff.
+- **Git** (Octokit; PAT token-paste today, GitHub App installation tokens are the upgrade —
+  [harness-spec §3](./docs/harness-spec.md)): create repo, open/merge PR, diff.
 - **Deploy** (Vercel): create project, get the PR preview, promote to prod, attach a domain.
 - **Data** (Supabase Management API): provision the app's project/database, run migrations.
 - **Model gateway**: text (coding) + image (hero).
@@ -198,4 +206,8 @@ everything else to the customer's accounts.
 - Vocabulary is **vertical-neutral**: the tenant is an **Organization**, the person is the **owner**.
 - The assistant is **Lu**. (Legacy `Sarah`/`leadanswered.com` strings are branding debt — see the roadmap.)
 - Agents reach the world only through **ports**; agents reach data only through the **Store**.
+- **Sandbox = e2b**, behind the `Sandbox` port so Daytona/Fly are swappable; **coding agent = the owner's
+  choice** (Claude Code or Codex, headless in the sandbox) + plain shell.
+- **Agent config = the CONTRACT** (`Agent.contract` + `ContractRevision` — [agent-backend §2](./docs/agent-backend.md));
+  for Engineering it's also committed into the repo so the sandbox reads it.
 - Additive migrations only against prod; dev-validate first.

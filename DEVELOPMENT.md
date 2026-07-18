@@ -1,11 +1,13 @@
 # Lu Computer — Build Map & Status
 
 > The one place that answers **"where are we, and what's left?"** Grounded in the actual code
-> (re-verified 2026-07-16). Companion to the spec — [FOUNDATION.md](./FOUNDATION.md) = *what it is*,
-> [ROADMAP.md](./ROADMAP.md) = *the order/themes*, [MANIFESTO.md](./MANIFESTO.md) = *why*. Deep dives:
-> [docs/building-agents.md](./docs/building-agents.md) (how agents are built) ·
-> [docs/canvas.md](./docs/canvas.md) (the surface) · [docs/agent-backend.md](./docs/agent-backend.md) (reference).
-> **This is a living checklist: check the boxes as we ship.**
+> (re-verified 2026-07-17). Companion to the spec — [paper.md](./paper.md) = *the theory*,
+> [FOUNDATION.md](./FOUNDATION.md) = *what it is*, [docs/harness-spec.md](./docs/harness-spec.md) =
+> *paper → substrates, the phased implementation checklist*, [ROADMAP.md](./ROADMAP.md) = *the product
+> order*, [MANIFESTO.md](./MANIFESTO.md) = *why*. Deep dives: [docs/building-agents.md](./docs/building-agents.md)
+> (how agents are built) · [docs/canvas.md](./docs/canvas.md) (the surface) ·
+> [docs/agent-backend.md](./docs/agent-backend.md) (reference). **This is a living checklist: check the
+> boxes as we ship.**
 
 Legend: **✅ built & working** · **🟡 built but partial/fragile** · **⬜ not built yet**
 
@@ -76,11 +78,11 @@ sequenceDiagram
 ### Runtime & orchestration
 - [x] **Lu orchestrator** — real Sonnet tool-loop; persists the thread; tools: `create_task`, `dispatch_to_engineering`, `check_connections`, `ask_user`. `apps/api/src/agent/orchestrator.ts`
 - [x] **Agent→agent dispatch** — Lu dispatches the Engineer *inside the runtime* (the old hard-coded web hand-off is gone). `agent/dispatch.ts`, `agent/orchestratorTools.ts`
-- [x] **Planning — the plan gate** *(built 2026-07-17)* — Lu now **plans first**: `propose_plan` drafts a plan (a `doc` artifact — objective · steps · acceptance) and stages an **`approve_plan`** gate *instead of* building; the plan renders as a review card in the chat (`LuBuildTracker` + `PlanApprovalCard`), and **approving it dispatches the Engineer using the plan as its brief** (`routes/approvals.ts` branches the resolve on the action). The **actionable roadmap** ships too — every dock "next" (Connect GitHub, etc.) fires a Lu intent, not a dead link (`DockHome`/`dock-data`). Spec: [docs/planning.md](./docs/planning.md). Approve / **Request changes** (Lu re-plans with the owner's feedback) / Reject are all wired. 🟡 Remaining: only the cosmetic enum precision (a first-class `planned` status / `Task.acceptance` column — functionally covered by `agent_can_do` + the plan doc, no gap).
-- [x] **Acceptance verification** *(built 2026-07-17)* — after `open_preview` the Engineer runs **`verify_acceptance`**: an LLM judge scores the build against the plan's acceptance criteria; on `unmet` it **reworks** (`run_coding_agent` again) and re-verifies, and it will **not `request_publish` until acceptance passes** (`engineeringTools.ts` + `engineering.ts`). 🟡 Deeper (broader agent-workflow): a first-class `needs_rework` status + a tests-in-CI gate.
+- [x] **Planning — the plan gate** *(built 2026-07-17)* — Lu now **plans first**: `propose_plan` drafts a plan (a `doc` artifact — objective · steps · acceptance) and stages an **`approve_plan`** gate *instead of* building; the plan renders as a review card in the chat (`LuBuildTracker` + `PlanApprovalCard`), and **approving it dispatches the Engineer using the plan as its brief** (`routes/approvals.ts` branches the resolve on the action). The **actionable roadmap** ships too — every dock "next" (Connect GitHub, etc.) fires a Lu intent, not a dead link (`DockHome`/`dock-data`). Spec: [docs/building-agents.md](./docs/building-agents.md) §5. Approve / **Request changes** (Lu re-plans with the owner's feedback) / Reject are all wired. 🟡 Remaining: promote `Task.acceptance` + dependency ordering ([harness-spec](./docs/harness-spec.md) §2 P2).
+- [x] **Acceptance verification** *(built 2026-07-17)* — after `open_preview` the Engineer runs **`verify_acceptance`**: an LLM judge scores the build against the plan's acceptance criteria; on `unmet` it **reworks** (`run_coding_agent` again) and re-verifies before `request_publish` (`engineeringTools.ts` + `engineering.ts`). 🟡 One honest gap left *(2026-07-17)*: the judge sees only **text evidence** (diff + transcript; the preview URL is printed, never fetched — no browser/HTTP check) — [harness-spec](./docs/harness-spec.md) §2 P1. ✅ The publish **code-gate** shipped (2026-07-17): `request_publish` refuses in code until the latest acceptance check passed. ✅ **The flow layer shipped too** ([docs/workflow.md](./docs/workflow.md)): the `AgentEvent` journal, Lu's per-turn situational block, report-back messages into the thread (preview ready / published / failed / plan approved), thread rehydration + live merge in the dock, the honest approvals badge, and the first Coming-soon honesty sweep.
 - [x] **Store port** — Prisma (prod) + in-memory (test); Tasks/Sites/Approvals/Deployments/Connections fully implemented.
-- [x] **Model gateway + tiering** — multi-provider, per-role model (orchestrator→Sonnet, coding→Opus, routine→Haiku) + a dock model picker. `packages/core/src/models.ts`
-- [x] **Usage metering + working/core memory + sleep-time consolidation** — shipped *(per the AI-plan doc; reconcile there)*.
+- [x] **Model gateway + tiering** — multi-provider registry + per-role recommendation + a dock model picker. `packages/core/src/models.ts` 🟡 **Discrepancies** *(2026-07-17)*: the registry says coding→Opus but the in-sandbox coding agent is pinned `CODING_MODEL="sonnet"` (`engineeringTools.ts:204`), and `Task.model` is a dead column (never threaded into `runEngineering`) — [harness-spec](./docs/harness-spec.md) §4 P1.
+- [x] **Usage metering + working/core memory** *(reconciled 2026-07-17 against code)* — metering ✅ (`UsageEvent` after every model/sandbox call + `Subscription` bucket; the only gate is in `dispatch_to_engineering` and `overageOptIn` defaults true so it never trips — enforcement is [harness-spec](./docs/harness-spec.md) §4 P1); working memory ✅ (`Thread`/`Message`, last-20 rehydrate); core memory ✅ (`Memory` rows into the prompt). 🟡 **Sleep-time consolidation is built but Redis-gated** — inactive until `REDIS_URL` (same switch as the worker).
 - [ ] 🟡 **Durable worker** — the BullMQ worker is **built but INACTIVE**: `REDIS_URL` is unset, so builds run **in-process fire-and-forget** (a crash/redeploy mid-build loses the run and can wedge a task at `in_progress`). Setting `REDIS_URL` activates it. `worker.ts`, `queue.ts`, `dispatch.ts`
 - [ ] ⬜ **Spawn/supervise sub-agents** — `Task.parentTaskId` exists; a `spawn_agent` tool + supervision loop is not built.
 - [ ] ⬜ **xAI / Grok** in the gateway.
@@ -120,11 +122,13 @@ sequenceDiagram
 - [x] **Cofounder dock** — Home / Lu / Company / Tasks / Library tabs.
 - [x] **Frame sizing + re-space pass** — nodes enlarged to ~75% of the dept cards, tighter corners *(this session)*.
 
-### Onboarding
-- [x] **Waitlist-gated self-serve** — real Supabase org; `completeOnboarding` writes config + provisions the Engineering department.
-- [x] **Real-data only** — the Mature/New demo-profile / injected-org system is fully removed *(this session)*.
+### Onboarding *(v2 — two phases, [docs/onboarding.md](./docs/onboarding.md))*
+- [x] **Waitlist-gated self-serve** — real Supabase org; sign-up flips `onboardingComplete`.
+- [x] **Real-data only** — the Mature/New demo-profile / injected-org system is fully removed.
+- [x] **Phase 1 — static sign-up** — `OnboardingFlow.tsx` (name → role → idea stage → company) → `finishSignup` seeds Lu's memory (no dept activation) → `/canvas`. *(Old scripted wizard `OnboardingSketch` parked.)*
+- [x] **Phase 2 — Lu onboards you in-workspace** — general **skill system** (`apps/api/src/agent/skills/`); onboarding-mode (derived: no active dept) swaps Lu's toolkit; `propose_decisions` + `draft_business_plan` → decision cards + Business Plan doc → **Accept & activate departments** boots the company. Typechecks; not yet click-tested live.
 - [ ] ⬜ **Connect step at build-time** — nothing enforces or explains GitHub+Vercel at the moment a build needs them.
-- [ ] 🟡 **Scrape + interview depth** *(reconcile with [docs/onboarding.md](./docs/onboarding.md))*.
+- [ ] 🟡 **Onboarding polish** — suppress the generic dock welcome during onboarding; live end-to-end pass; optionally trim the legacy config schema to the builder shape.
 
 ### Platform / infra / security  *(gates external users)*
 - [ ] ⬜ **API auth** — `apps/api` trusts a **client-supplied `orgId`** with no shared secret → any caller can act as any org (cross-tenant). **Hard blocker before real customers.**
@@ -147,7 +151,9 @@ sequenceDiagram
 
 ## 4. The critical path — "any owner builds a website, reliably"
 
-The shortest ordered path from "works when I dogfood it" to "a design partner can use it":
+The shortest ordered path from "works when I dogfood it" to "a design partner can use it". *(The
+harness-side P0s — the publish code-gate, `REDIS_URL`, the terminal key-leak fix — interleave with this
+list; they're tracked with checkboxes in [harness-spec.md](./docs/harness-spec.md) §6.)*
 
 1. ⬜ **Auth on `apps/api`** (shared proxy→api secret, then signed per-request org) — unblocks safe external use; prerequisite for everything below.
 2. 🟡 **Public/Lu-owned starter template** + drop the `GITHUB_OWNER` override — GitHub works for any user's own account.

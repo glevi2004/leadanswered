@@ -1,6 +1,8 @@
 # Lu Computer — Roadmap
 
-A living, undated map — order, not dates. (Why: [MANIFESTO.md](./MANIFESTO.md) · How:
+A living, undated map — order, not dates. This doc owns the **product** order (departments, channels,
+presets); the **infrastructure** order is owned by [docs/harness-spec.md](./docs/harness-spec.md) (phases
+P0→P4, with checkboxes). (Theory: [paper.md](./paper.md) · Why: [MANIFESTO.md](./MANIFESTO.md) · How:
 [FOUNDATION.md](./FOUNDATION.md) · Live status: [DEVELOPMENT.md](./DEVELOPMENT.md) · How we build agents:
 [docs/building-agents.md](./docs/building-agents.md).)
 
@@ -18,17 +20,21 @@ A living, undated map — order, not dates. (Why: [MANIFESTO.md](./MANIFESTO.md)
 - **BYO connect (token-paste)** — each org connects its own GitHub + Vercel + Supabase; verified + encrypted
   at rest; the Engineer builds into *their* accounts ([docs/byo-connect.md](./docs/byo-connect.md)).
 - **The cloud terminal** — an e2b pty bridged to an xterm.js node on the canvas.
+- **The plan gate + acceptance verification** *(2026-07-17)* — Lu plans first; the owner approves the plan
+  before any build; `verify_acceptance` judges the build against the plan's criteria before publish.
+- **Onboarding v2 + the skill system** *(2026-07-17)* — static sign-up, then Lu onboards you in-workspace
+  (decision cards → Business Plan → activate departments), powered by the general skill system.
+- **Metering + memory** — usage events + buckets; working/core memory + sleep-time consolidation
+  *(consolidation activates with Redis — [harness-spec](./docs/harness-spec.md))*.
 - **Infra** — Git via Octokit/PAT; `gpt-image-1` hero images; web on Vercel, api on Railway.
 
 ## Next — the last mile of the Engineer
 
-- **One-click OAuth connect** — a GitHub **App** install + a Vercel **Integration** + Supabase OAuth,
-  replacing the token-paste MVP ([byo-connect.md](./docs/byo-connect.md) "Phase 2").
-- **Reliable BYO builds** — a public starter template, per-org domains (drop the hardcoded
-  `{slug}.lu.computer`), the Vercel↔GitHub link, a longer preview poll (the critical path in
-  [DEVELOPMENT.md](./DEVELOPMENT.md)).
-- **Activate durability** — set `REDIS_URL` so builds survive redeploys; then step-memoization for
-  `run_coding_agent`.
+The ordered infra items live in **[harness-spec.md](./docs/harness-spec.md) §6** (P0: publish code-gate ·
+`REDIS_URL` on · terminal key-leak fix; then empirical verification, GitHub App tokens, …) and the
+product-reliability items in **[DEVELOPMENT.md](./DEVELOPMENT.md) §4** (the critical path: api auth, public
+starter template, real domains, wider preview poll). Between them: any owner builds a website, reliably —
+then one-click OAuth connect ([byo-connect.md](./docs/byo-connect.md) Phase 2) makes it sing.
 
 ## The department buildout — the rest of the company
 

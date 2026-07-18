@@ -1,6 +1,7 @@
 # Building agents — Lu's handbook
 
-> Part of the Lu Computer canon. **Why**: [MANIFESTO](../MANIFESTO.md) · **What/spec**: [FOUNDATION](../FOUNDATION.md) ·
+> Part of the Lu Computer canon. **Theory**: [paper.md](../paper.md) · **Why**: [MANIFESTO](../MANIFESTO.md) ·
+> **What/spec**: [FOUNDATION](../FOUNDATION.md) · **Implementation plan**: [harness-spec.md](./harness-spec.md) ·
 > **Status**: [DEVELOPMENT](../DEVELOPMENT.md) · **Order**: [ROADMAP](../ROADMAP.md). Reference for the
 > backend's parts: [agent-backend.md](./agent-backend.md); the product surface: [canvas.md](./canvas.md).
 
@@ -40,7 +41,7 @@ Every agent is defined by five things (the cofounder model, our files):
 | **Contract** | the identity file — role, duties, boundaries (Always/Ask-first/Never), voice, knowledge. Compiles into the system prompt. | `Agent.contract` + `ContractRevision` (`packages/db`); assembled in `packages/core` |
 | **Model** | its reasoning model (+ generation models), chosen per-agent, swappable on the fly | `Agent.models` via the gateway (`packages/core/src/models.ts`) |
 | **Tools / Ports** | its real actions — deterministic bodies over the ports (§3) | `apps/api/src/agent/*Tools.ts` |
-| **Skills** | reusable guidance for a kind of work (a playbook the tool loop can pull) | *not built yet — see §8* |
+| **Skills** | reusable guidance for a kind of work (a playbook the loop injects) | `apps/api/src/agent/skills/` — **built**; onboarding is the first skill (§8) |
 | **Department** | the operating area that groups the agent + its work on the canvas | `Department` row (`key`, `status`) |
 
 > **The distinction to keep straight** (cofounder's, and ours): *an agent is the worker · a skill is reusable
@@ -64,6 +65,8 @@ flowchart LR
 A turn is: **contract → `generateText` with tools → the model calls tools → each tool does a real thing through a
 port and returns the authoritative result → loop until `stopWhen` → persist the reply + any `Task`/`Artifact`
 rows.** Model tiering by role: **orchestrator = Sonnet, coding = Opus, routine department turns = Haiku** (cost).
+*(Honest note: the in-sandbox coding agent is currently pinned to Sonnet (`CODING_MODEL`), contradicting the
+coding→Opus mapping — reconciling it is [harness-spec §4](./harness-spec.md) P1.)*
 
 ---
 
@@ -129,8 +132,35 @@ are tracked in [DEVELOPMENT.md](../DEVELOPMENT.md) §"BYO connect" / §"critical
 
 **Lu is the top conductor** (`apps/api/src/agent/orchestrator.ts`, Sonnet). A goal → a plan → real `Task` rows
 routed to agents. Its tools (`orchestratorTools.ts`): `create_task`, `assign_to_department`, `check_connections`,
-**`dispatch_to_engineering`** (agent→agent — hands the Engineer a task *inside the runtime*), `list_status`,
-`ask_user` (renders as a question in the Lu dock).
+**`propose_plan`** (the plan gate, below), **`dispatch_to_engineering`** (agent→agent — hands the Engineer a
+task *inside the runtime*), `list_status`, `ask_user` (renders as a question in the Lu dock).
+
+**The plan gate** *(built 2026-07-17; absorbs the old `planning.md`)* — Lu **plans before building**, and the
+owner approves the *approach*, not just the finished publish:
+
+```mermaid
+flowchart LR
+  G["Goal"] --> P["PLAN — Lu drafts<br/>(objective · steps · acceptance)"]
+  P --> A{"Plan gate<br/>owner reviews"}
+  A -->|"request changes"| P
+  A -->|"approve"| X["EXECUTE — dispatch<br/>the Engineer with the plan"]
+  X --> V{"VERIFY — done =<br/>acceptance met"}
+  V -->|"unmet → rework"| X
+  V -->|"met"| Pub{"Publish gate<br/>(Approval)"}
+```
+
+- **The Plan** is a `doc` Artifact `{objective, steps[], acceptance[]}` staged with an `approve_plan`
+  `Approval`; the dock renders it as a review card (Approve / **Request changes** → Lu re-plans / Reject).
+  **Nothing dispatches until the plan is approved**; approving dispatches the Engineer with the plan as its
+  brief (`routes/approvals.ts` branches on the action).
+- **"Done" = acceptance met, not "agent stopped."** After `open_preview`, `verify_acceptance` (an LLM judge)
+  scores the build against the plan's `acceptance[]`; unmet items trigger rework (`run_coding_agent` again)
+  before `request_publish`.
+- **The actionable roadmap** — every dock "next" carries a Lu intent: clicking it prompts Lu with that step's
+  goal (guide → `ask_user` → `propose_plan` → dispatch), and the roadmap advances off real state.
+- **Deepening** (all tracked in [harness-spec](./harness-spec.md) §2): make verification *empirical* (fetch
+  the preview, screenshot, retry budget) and the publish block a **code** gate, not a prompt rule; promote
+  `Task.acceptance` + dependency ordering; re-plan (plan v2) on failure instead of dead-ending.
 
 **Recursion is the whole trick.** An agent is a program you compose on the fly: it runs any model (`Agent.models`)
 and can **spawn sub-agents** (a child `Task` via `parentTaskId`) and **attach/drive a cloud terminal's pty**. On
@@ -153,7 +183,9 @@ adopting a whole engine.
    build branch is `checkout -B lu/build`; `open_preview` reuses the Vercel project.
 3. **Wait-for-approval as a run boundary** — the build **ends** at `request_publish` (stages an `Approval` and
    stops). `confirmPublish` is a *separate* run when the owner resolves it. "Pause for hours, then resume" is two
-   runs with an `Approval` between — no mid-run suspend needed.
+   runs with an `Approval` between — no mid-run suspend needed for **human** gates. *(Resuming on **machine**
+   events — a deploy webhook, DNS propagation — is the same pattern with a webhook instead of an Approval:
+   [harness-spec §3](./harness-spec.md) P3.)*
 
 **Implementation:** `queue.ts` (the `engineering` queue; `jobId = taskId` so a task is never double-dispatched;
 `attempts: 3` + backoff) · `worker.ts` (`startEngineeringWorker(store)`, `lockDuration: 300_000`; on exhausted
@@ -197,12 +229,14 @@ tools, and the wiring.
 
 ---
 
-## §8 — Skills (the next rung)
+## §8 — Skills (built 2026-07-17)
 
-**Skills** = reusable guidance attached to an agent for a *kind* of work (a playbook the tool-loop pulls when it
-matches). Cofounder has them; Lu does not yet. When we add them: a `Skill` is markdown + an optional matcher, and
-the loop injects the relevant one(s) into context. Flagged here so the anatomy (§1) is complete; tracked in
-[ROADMAP.md](../ROADMAP.md).
+**Skills** = reusable guidance attached to an agent for a *kind* of work — a markdown procedure the loop
+injects when it applies. **Built**: `apps/api/src/agent/skills/` is a registry (`getSkill(name)`);
+**onboarding is the first skill** — when an org has no `active` department, the orchestrator injects
+`skills/onboarding.ts` and swaps Lu's toolkit to the onboarding tools ([onboarding.md](./onboarding.md)).
+To add a skill: write the module, register it, and gate when the orchestrator loads it. Matchers beyond the
+onboarding-mode derivation are future work.
 
 ---
 
