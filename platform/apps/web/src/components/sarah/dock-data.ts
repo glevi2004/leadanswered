@@ -23,16 +23,16 @@ export interface ConnectStatus {
 }
 
 /**
- * Fetch the org's provider-connect status once while `active` (the dock tab is mounted).
- * `/api/connect/status` only reports github/vercel today (the proxy maps just those two);
- * Supabase state isn't exposed client-side, so the Stack shows it as "Setup".
+ * Poll the org's provider-connect status while `active` (gentle — 15s), so connecting via the
+ * inline ConnectCard is reflected everywhere (roadmap ticks, chat banner clears) without a
+ * reload. `/api/connect/status` reports github/vercel through the proxy.
  */
 export function useConnectStatus(active: boolean): ConnectStatus {
   const [state, setState] = React.useState<ConnectStatus>({ github: false, vercel: false, loaded: false });
   React.useEffect(() => {
     if (!active) return;
     let alive = true;
-    (async () => {
+    const load = async () => {
       try {
         const res = await fetch("/api/connect/status", { cache: "no-store" });
         const data = (res.ok ? await res.json() : {}) as Partial<ConnectStatus>;
@@ -40,9 +40,12 @@ export function useConnectStatus(active: boolean): ConnectStatus {
       } catch {
         if (alive) setState((s) => ({ ...s, loaded: true }));
       }
-    })();
+    };
+    void load();
+    const iv = window.setInterval(load, 15_000);
     return () => {
       alive = false;
+      window.clearInterval(iv);
     };
   }, [active]);
   return state;

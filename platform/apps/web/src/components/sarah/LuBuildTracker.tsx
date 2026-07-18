@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { ClipboardList, ExternalLink, Hammer } from "lucide-react";
 import { useSarah } from "./sarah-context";
 import { PlanApprovalCard } from "./PlanApprovalCard";
+import { ConnectCard } from "./ConnectCard";
+import { useConnectStatus } from "./dock-data";
 import {
   useDockData,
   usePublishApprovals,
@@ -66,6 +68,11 @@ export function LuBuildTracker() {
   // The journal (docs/workflow.md §1): the latest event per batch renders as a live activity
   // line — the owner sees PROCESS (coding finished → preview ready → verifying), not a spinner.
   const events = useAgentEvents(active);
+  // THE DEAD-END FIX (docs/workflow.md §7): approving a plan with GitHub/Vercel missing used
+  // to silently no-op (the backend returns needsConnect and the approval stays pending, with
+  // nothing on screen). Now the connect FORM renders inline, right above the plan card.
+  const conn = useConnectStatus(active);
+  const missingConnections = conn.loaded && (!conn.github || !conn.vercel);
 
   if (mine.length === 0) return null;
 
@@ -109,6 +116,15 @@ export function LuBuildTracker() {
 
             {latestEvent && !awaitingPlan && (
               <p className="mt-1.5 truncate pl-8 text-xs text-muted-foreground">{latestEvent.message}</p>
+            )}
+
+            {/* Missing connections while work is staged → the form, inline, right here. */}
+            {missingConnections && (planApprovals.length > 0 || progressTasks.length > 0) && (
+              <ConnectCard
+                className="mt-2.5"
+                title="Connect your accounts to build"
+                subtitle="The build ships to your own GitHub and Vercel. Connect them here, then approve the plan."
+              />
             )}
 
             {/* PLAN GATE first: render Lu's plan for each held task so the owner approves before the build. */}

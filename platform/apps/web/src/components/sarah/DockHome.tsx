@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, MessageCircleQuestion, X } from "lucide-react";
 import { useSarah } from "./sarah-context";
 import { StatusDot } from "./LuBuildTracker";
+import { ConnectCard } from "./ConnectCard";
 import { useDockData, useSites, taskStatusLabel, type DockTask } from "@/lib/dock/live";
 import { useConnectStatus, computeRoadmap, suggestNext } from "./dock-data";
 import { cn } from "@/lib/utils";
@@ -20,16 +21,26 @@ export function DockHome() {
     useSarah();
   const { tasks, loaded } = useDockData(widgetOpen);
   const { sites } = useSites(widgetOpen);
-  const { github, vercel } = useConnectStatus(widgetOpen);
+  const { github, vercel, loaded: connectLoaded } = useConnectStatus(widgetOpen);
 
   const roadmap = computeRoadmap({ github, vercel, tasks, sites });
   const suggestions = suggestNext({ github, vercel, tasks, sites });
   const openTasks = tasks.filter((t) => t.status !== "done" && t.status !== "failed");
 
-  // A "next" (roadmap step or suggestion) doesn't navigate — it hands the step to the real Lu:
-  // fire the intent into the owner thread and jump to the Lu tab so she takes it from here.
+  // The inline connect form (docs/workflow.md §7): shown ON HOME whenever a connection is
+  // missing. Connect-type "next" clicks scroll to it — the form is the action; they never
+  // bounce through a chat message that can only answer "go to Settings".
+  const showConnect = connectLoaded && (!github || !vercel);
+  const connectRef = React.useRef<HTMLDivElement>(null);
+
+  // Non-connect "next" items hand the step to the real Lu: fire the intent into the owner
+  // thread and jump to the Lu tab. Connect items open the form instead (settingsHref marks them).
   const fireIntent = React.useCallback(
-    (intent: string) => {
+    (intent: string, isConnect?: boolean) => {
+      if (isConnect) {
+        connectRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
+      }
       sendMessage(intent);
       openWidget();
       setDockTab("lu");
@@ -79,7 +90,7 @@ export function DockHome() {
               <button
                 key={s.label}
                 type="button"
-                onClick={() => fireIntent(s.intent)}
+                onClick={() => fireIntent(s.intent, Boolean(s.settingsHref))}
                 className="group flex w-full items-center gap-2 rounded-md text-left text-sm text-foreground hover:text-foreground"
               >
                 {check}
@@ -90,6 +101,15 @@ export function DockHome() {
           })}
         </div>
       </div>
+
+      {/* The connect form, right here on Home while anything is missing — the real action. */}
+      {showConnect && (
+        <ConnectCard
+          ref={connectRef}
+          className="mt-4"
+          subtitle="Builds land in your own GitHub and Vercel — connect them once and every build ships there."
+        />
+      )}
 
       {/* Needs clarification — Lu's non-blocking questions (ask_user), answered in the Lu chat. */}
       {clarifications.length > 0 && (
@@ -174,10 +194,10 @@ export function DockHome() {
         <div className="mt-2.5 space-y-2.5 text-sm text-muted-foreground">
           {suggestions.map((s) => (
             <div key={s.id} className="flex items-center gap-2.5">
-              {/* Primary click hands the step to Lu; connect items keep a quiet Settings deep-link. */}
+              {/* Connect items open the inline form above; the rest hand the step to Lu. */}
               <button
                 type="button"
-                onClick={() => fireIntent(s.intent)}
+                onClick={() => fireIntent(s.intent, Boolean(s.settingsHref))}
                 className="group flex min-w-0 flex-1 items-center gap-2.5 text-left hover:text-foreground"
               >
                 <span className="size-4 shrink-0 rounded-full border" />

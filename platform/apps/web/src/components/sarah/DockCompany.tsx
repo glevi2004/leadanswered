@@ -6,9 +6,8 @@ import {
 } from "lucide-react";
 import { useSarah } from "./sarah-context";
 import { useDockData, useSites } from "@/lib/dock/live";
-import {
-  deriveAgents, hostingProviders, importantLinks, useConnectStatus, type StackProvider,
-} from "./dock-data";
+import { deriveAgents, importantLinks, useConnectStatus } from "./dock-data";
+import { ConnectionsPanel } from "@/components/settings/ConnectionsPanel";
 import { cn } from "@/lib/utils";
 
 /**
@@ -40,11 +39,10 @@ export function DockCompany() {
           <StackRow icon={Mail} label="Email" connected={false} soon />
           <StackRow icon={CreditCard} label="Payment" connected={false} soon />
           <StackRow icon={Server} label="Hosting" connected={hostingConnected} />
-          {/* Hosting sub-providers — the real repo/deploy connections. */}
-          <div className="ml-8 mt-1 space-y-1 border-l pl-3">
-            {hostingProviders(connect).map((p) => (
-              <ProviderRow key={p.label} provider={p} />
-            ))}
+          {/* Hosting = the REAL connect panel (token paste · status · disconnect), right here —
+              the old sub-rows were display-only chips that answered clicks with nothing. */}
+          <div className="ml-8 mt-1 border-l pl-3">
+            <ConnectionsPanel />
           </div>
         </div>
       </div>
@@ -153,16 +151,6 @@ function StackRow({
       ) : (
         <StatusChip connected={connected} />
       )}
-    </div>
-  );
-}
-
-/** A Hosting sub-provider row (GitHub/Vercel/Supabase). */
-function ProviderRow({ provider }: { provider: StackProvider }) {
-  return (
-    <div className="flex items-center gap-2 py-0.5">
-      <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{provider.label}</span>
-      <StatusChip connected={provider.connected} />
     </div>
   );
 }
