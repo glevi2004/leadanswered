@@ -60,7 +60,14 @@ what changes: the connect routes (each gains `/start` + `/callback`), the Connec
 provider consent screens, token-paste kept behind a "paste a token instead" fallback link), and GitHub's
 token minting. The dock card's 15s status poll flips rows to Connected when the popup closes.
 
-**GitHub — a GitHub App** *(build first: also the security win — harness-spec §3 P1)*
+**GitHub — a GitHub App** ✅ *(BUILT + LIVE 2026-07-18 — the security win too, harness-spec §3 P1)*:
+the "lu.computer" App (id 4328962, slug `lu-computer`) is registered; the api mints 1-hour repo-scoped
+installation tokens (`git/githubApp.ts`, App JWT, per-install cache); `getGitForOrg` prefers the
+installation over the pasted PAT; `POST /api/connect/github` accepts `{installationId}` (verified by
+minting); web `/api/connect/github/{start,callback}` drive the install; the ConnectionsPanel GitHub row
+leads with "Install the GitHub App", paste demoted to fallback. NOTE: the App is currently
+**private** ("Only on this account") — flip to public (app settings → Advanced → Make public) before a
+design partner connects. Original design notes:
 - Register the "Lu Computer" App once (repo permissions: **Contents R/W · Pull requests R/W ·
   Administration R/W** for repo creation; webhook off for now; public app, direct install link — no
   marketplace listing needed).
