@@ -16,63 +16,92 @@
 
 ---
 
-## NOW — Skills become files; docs become the Library
+## THE PLAN — "running Lu from Lu" (the roadmap, made real)
 
-The heart of the harness is markdown playbooks Lu follows, and the documents she produces must live
-somewhere the owner can always find. Today the onboarding playbook is a string inside TypeScript, it ends
-too early (at department activation), and the Business Plan is never seen again after its chat moment.
+The end state: Levi signs up fresh and runs the whole company through Lu exactly as
+[docs/roadmap.md](./docs/roadmap.md) scripts it — she speaks first, walks the interview tree, the
+Business Context lands in the Library, she drives the connects, the architecture, the first ship, and
+then the standing loop (situations + the weekly review) carries daily work. **The orchestration is
+prompt engineering + derived state, and the moat is the interface**: authored `.md` scripts injected
+into Lu's prompt, state derived from real rows (never stored flags), and every beat rendered as
+persisted, tappable moves in the thread. Almost no new machinery — the skills loader, the setup/state
+derivation, the situational block, `Message.meta`, and the card system already exist; this plan wires
+the roadmap through them. Phases P1→P4 below are the NOW pipeline; each promotes when the previous
+verifies.
+
+## NOW — P1: The interface substrate (chips + Lu speaks first)
+
+The two UI primitives every later phase renders through. Nothing about the tree ships until moves are
+real, persistent objects in the conversation.
 
 **Outcomes:**
 
-1. **Skills are real `.md` files.** `apps/api/src/agent/skills/*.md` (name/description frontmatter),
-   loaded from disk by the registry; `onboarding.md` is the first. Adding a skill = adding a file — no
-   TypeScript change.
-2. **The onboarding playbook runs to first value.** Five stages: learn the company → Business Plan →
-   connect the stack (Lu drives the connect cards) → system architecture (a Library doc, approved like a
-   plan) → first build. The org's current stage is in Lu's situational block, so she resumes mid-way after
-   any reload. Onboarding ends when the owner has **shipped something**, not when a form is filled.
-3. **The Library shows company documents.** The dock Library tab (and Company) lists org docs — Business
-   Plan, architecture, decisions, migrations — from the artifact rows that already exist. Each opens a
-   full page; **Ask Lu to revise** prefills the composer. Everything follows one-object-three-sizes
-   (card in chat → row in Library → page).
+1. **Moves live on the message.** The api persists `meta.choices` (question, options, recommended
+   index, chosen) on the assistant turn whenever the turn carries options (`ask_user` feeds it);
+   history hydration maps `meta` back into the thread; `SarahThread` renders a **ChoiceBar** under
+   the LATEST Lu message — tappable chips, one visually primary (Recommended), free composer always
+   live. Tapping sends the option as the owner's message; older turns render the chosen option
+   inline (the dialogue-history feel). Reload-safe by construction.
+2. **One frontier.** Home's Suggested Next reads the same persisted choices (+ pending approvals) —
+   the chat chips and Home never disagree.
+3. **Lu speaks first.** After Phase-1 sign-up (and for any org whose thread is empty), a kickoff
+   orchestrator turn runs server-side with an internal instruction — personalized from the seeded
+   memory + the skill — and ONLY the assistant opener is persisted. Idempotent via the thread-empty
+   check. The dock's empty-states become fallbacks that real users never see.
 
-**Done when:** a fresh org can be walked from sign-up to a shipped first build entirely by the playbook;
-the Business Plan is findable in the Library after a reload; dropping a new `.md` into `skills/` registers
-it with zero code changes.
+**Done when:** a fresh org lands on the canvas with Lu's opener already in the thread (zero typing,
+exactly once, reload-safe); a question's chips render under her message, a tap sends it, and the
+chosen chip survives reload; Home shows the same moves.
 
-**Status (2026-07-18): BUILT — awaiting the live walkthrough.** Skills load from real `.md` files
-(drop-in registration verified in dev AND against the compiled dist); the five-stage playbook +
-COMPANY SETUP stage line are injected until the org ships; `draft_doc` + the `approve_doc` gate exist;
-the Library ships as preview cards (dock Library tab) + rows (Company) + a **Notion-style viewer** at
-`/doc/[id]` (outline sidebar from headings, last-updated, Ask-Lu-to-revise, the approve gate inline) +
-the chat card for a doc awaiting approval. Remaining before this checks off: the fresh-org live
-walkthrough (sign-up → shipped first build, driven by the playbook).
+## NEXT (the P-pipeline + the standing unblock)
 
-## NEXT
-
-1. **Design-partner unblock** — GitHub App public · Vercel Integration public/unlisted · regenerate the
-   two chat-exposed OAuth secrets (Vercel Integration + Supabase) · stop seeding platform keys into user
-   terminals. *Outcome: a stranger's org can connect all three providers and no platform secret is
-   reachable from their session.*
-2. **Canvas grants become real** — ＋-menu notes/files create backing Artifacts (`refId`); content
-   persists server-side. *Outcome: a note connected `reads` to the Engineer actually appears in its build
-   context and survives reload.*
-3. **Slack goes live** — Levi registers the Slack app (manifest ready); set `SLACK_*` env; live pass.
-   *Outcome: DM Lu in Slack → plan → Approve button → build → Publish button → live, no web UI touched.*
-4. **Verification screenshots** — Playwright in the sandbox captures the preview; evidence thumbnails on
-   the task page. *Outcome: every verify verdict carries visual proof.*
-5. **Railway deploy adapter** — second `Deploy`-port adapter for long-running servers Lu builds.
-   *Outcome: a customer app that needs a worker/server deploys somewhere real.* (Parked until a build
-   needs it.)
+1. **P2 — the interview tree via prompt engineering.** `skills/onboarding.md` rewritten as roadmap
+   Ch.1: the session contract (10-15 budget, ~3-then-read-back, derive>label>confirm>ask), the trunk
+   (intent fork · payroll screen · SBDC basics · owner-dependence), the three wings with their
+   modules and menus. `agent/setup.ts` grows SCOPING STATE derivation: captured fields read from the
+   **growing Business Context draft** (each answer upserts the doc artifact — the doc builds live in
+   the Library during the interview), so Lu always knows the current node and never re-asks.
+   `draft_business_plan` → `draft_business_context` with wing-flexed sections. *Outcome: three test
+   personas — new SaaS founder, running-agency owner, "build me a website" — get three correct,
+   different interviews inside budget, each ending in an agreed 90-day outcome; the doc grows in the
+   Library as they answer. This phase's live pass IS the deferred skills/Library walkthrough.*
+2. **P3 — chapters 2-4 ride the tree.** The connect chapter consumes the interview's assets answer
+   (import path when a repo exists); the architecture doc cites the Business Context; the first-ship
+   proposal derives from the agreed outcome; the COMPANY SETUP stage line spans all of it. *Outcome:
+   the fresh-org walkthrough runs sign-up → published first build entirely through the script.*
+3. **P4 — the standing loop.** Situation rules become authored data (a `situations` section per
+   field skill): event-class rules keyed to journal kinds (report-backs carry `meta.choices` — moves
+   on every terminal event), and the first time-class beat — **the weekly review**: a scheduled
+   worker turn that opens with the L10-derived agenda (scorecard from real rows → outcome progress →
+   issues → committed moves). *Outcome: publishing a change yields the published-situation moves;
+   Monday brings the weekly review unprompted; a plain question still gets plain prose.*
+4. **P5 — the interface polish that is the moat.** Interview progress feel (chips show n/N on
+   modules), decision cards keep the 2/5 batch, read-backs render as mini context-cards, the doc
+   viewer live-updates during the interview, voice pass on every authored line in the skills.
+   *Outcome: the interview feels like the cofounder screenshots — a game, not a form.*
+5. **Design-partner unblock** (standing, user-side + small code) — GitHub App public · Vercel
+   Integration public/unlisted · regenerate the two chat-exposed OAuth secrets · stop seeding
+   platform keys into user terminals. *Outcome: a stranger's org connects all three providers; no
+   platform secret reachable.*
 
 ## LATER
 
-Re-planning (plan v2 on failed verification) · pgvector memory + AST code index · `Task.model` threading +
-registry-driven coding model · usage-bucket enforcement on every entry point · Flux/Higgsfield image
-models · watch-the-build (terminal attached to the build sandbox pty) · Revert All rollback endpoint ·
-departments beyond Engineering · phone + email channels · presets beyond Business · Sarah→Lu rename +
-landing-page rewrite · prebuilt e2b template · per-task credential scopes + egress allowlists · managed
-hosting tier · xAI/Grok in the gateway.
+Canvas grants become real (artifact-backed notes) · Slack activation (manifest ready; then the same
+chips render as Slack buttons) · verification screenshots · Railway deploy adapter · re-planning
+(plan v2) · pgvector memory + AST index · `Task.model` threading + registry-driven coding model ·
+usage-bucket enforcement · Flux/Higgsfield · watch-the-build · Revert All rollback · departments
+beyond Engineering (each = authoring a field's seven things) · phone + email channels · presets
+beyond Business · Sarah→Lu rename + landing rewrite · prebuilt e2b template · per-task credential
+scopes · managed hosting tier.
+
+---
+
+## Shipped-but-unverified
+
+- **Skills-as-files + the Library** *(built 2026-07-18)* — disk-loaded `.md` skills (drop-in
+  verified), `draft_doc` + `approve_doc`, Library folders (General/Engineering) with preview cards +
+  the Notion-style `/doc/[id]` viewer + the doc chat card. Its live walkthrough now rides P2 (the
+  interview rewrite replaces the five-stage playbook before anyone walks the old one).
 
 ---
 
