@@ -27,8 +27,8 @@ export function CreateOrganizationForm() {
             <p className="text-xs text-muted-foreground">They're invited after you finish onboarding them.</p>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="twilioNumber">Twilio number</Label>
-            <Input id="twilioNumber" name="twilioNumber" required placeholder="+18334567890" />
+            <Label htmlFor="twilioNumber">Phone number (optional)</Label>
+            <Input id="twilioNumber" name="twilioNumber" placeholder="+18334567890" />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="slug">Lead-email slug (optional)</Label>

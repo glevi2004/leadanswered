@@ -3,7 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { AccountStatus } from "@/lib/organizations";
-import { accountMeta, lineMeta, type Variant } from "./status-meta";
+import { accountMeta, type Variant } from "./status-meta";
 
 /** A status chip whose meaning shows in a real tooltip on hover/focus (delay 0). */
 function Chip({ label, variant, hint }: { label: string; variant: Variant; hint: string }) {
@@ -20,9 +20,4 @@ function Chip({ label, variant, hint }: { label: string; variant: Variant; hint:
 export function AccountBadge({ status }: { status: AccountStatus }) {
   const a = accountMeta[status] ?? accountMeta.none;
   return <Chip label={a.label} variant={a.variant} hint={a.hint} />;
-}
-
-export function LineBadge({ status }: { status: string }) {
-  const l = lineMeta[status] ?? lineMeta.pending;
-  return <Chip label={l.label} variant={l.variant} hint={l.hint} />;
 }

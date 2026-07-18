@@ -1,13 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import {
-  createOrganizationShell,
-  updateOrganizationAdmin,
-  setOrganizationConfig,
-  getOrganizationById,
-} from "@/lib/organizations";
-import { organizationConfigSchema } from "@/lib/config";
+import { createOrganizationShell, updateOrganizationAdmin } from "@/lib/organizations";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { currentUser, isAdminEmail } from "@/lib/auth";
 
@@ -43,18 +37,19 @@ export async function createOrganizationAction(
     await requireAdmin();
     const companyName = String(formData.get("companyName") ?? "").trim();
     const ownerEmail = String(formData.get("ownerEmail") ?? "").trim().toLowerCase();
-    const twilioNumber = String(formData.get("twilioNumber") ?? "").trim();
+    const twilioNumber = String(formData.get("twilioNumber") ?? "").trim(); // optional — legacy field
     const slug = (String(formData.get("slug") ?? "").trim() || slugify(companyName)).toLowerCase();
-    if (!companyName || !ownerEmail || !twilioNumber || !slug) {
-      return { error: "Company, owner email, number, and slug are all required." };
+    if (!companyName || !ownerEmail || !slug) {
+      return { error: "Company and owner email are required." };
     }
 
-    // Create only — NO invite. Onboarding is admin-led and precedes the invite: the invite goes
-    // out when the admin finishes the onboarding wizard (saveOnboardingAdminAction).
+    // Create the shell only. SELF-SERVE model (docs/onboarding.md): the admin's one job is
+    // sending the invite (from the org page) — the owner sets a password and Lu onboards
+    // them in the workspace. There is no admin-led onboarding step anymore.
     await createOrganizationShell({ companyName, slug, twilioNumber, ownerEmail });
 
     revalidatePath("/admin");
-    return { ok: `Created ${companyName}. Onboard them next — the invite goes out when you finish.` };
+    return { ok: `Created ${companyName}. Send the invite from the org page — they'll onboard themselves with Lu.` };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Something went wrong." };
   }
@@ -97,53 +92,6 @@ export async function resendInviteAction(formData: FormData): Promise<void> {
   if (error && !isAlreadyRegistered(error)) throw new Error(error.message);
   revalidatePath("/admin");
   if (id) revalidatePath(`/admin/${id}`);
-}
-
-/**
- * Admin-led onboarding finish: save the organization's config, then send the FIRST invite. Bound to a
- * organizationId and passed to the wizard's `save` prop. Re-running the wizard to edit config does NOT
- * re-invite — inviteUserByEmail returns email_exists for an already-invited owner and sends nothing.
- */
-export async function saveOnboardingAdminAction(
-  organizationId: string,
-  raw: unknown,
-): Promise<{ error?: string; ok?: boolean; warning?: string }> {
-  try {
-    await requireAdmin();
-  } catch {
-    return { error: "Forbidden." };
-  }
-
-  const parsed = organizationConfigSchema.safeParse(raw);
-  if (!parsed.success) {
-    const first = parsed.error.issues[0];
-    return { error: first ? `${first.path.join(".")}: ${first.message}` : "Please check your entries." };
-  }
-
-  try {
-    await setOrganizationConfig(organizationId, parsed.data); // sets onboardingComplete = true
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : "Failed to save." };
-  }
-
-  const organization = await getOrganizationById(organizationId);
-  const ownerEmail = organization?.ownerEmail;
-  let warning: string | undefined;
-  if (!ownerEmail) {
-    warning = "Setup saved, but there's no owner email — add one on the organization page to invite them.";
-  } else {
-    const sb = createSupabaseAdmin();
-    const { error } = await sb.auth.admin.inviteUserByEmail(ownerEmail, {
-      redirectTo: INVITE_REDIRECT(siteUrl()),
-    });
-    if (error && !isAlreadyRegistered(error)) {
-      warning = `Setup saved, but the invite email failed: ${error.message}. Resend it from the organization page.`;
-    }
-  }
-
-  revalidatePath("/admin");
-  revalidatePath(`/admin/${organizationId}`);
-  return { ok: true, warning };
 }
 
 /**

@@ -4,7 +4,7 @@ import { currentUser, isAdminEmail } from "@/lib/auth";
 import { listOrganizationsWithStatus } from "@/lib/organizations";
 import { CreateOrganizationForm } from "./CreateOrganizationForm";
 import { WaitlistCard } from "./WaitlistCard";
-import { AccountBadge, LineBadge } from "./status";
+import { AccountBadge } from "./status";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -54,7 +54,6 @@ export default async function AdminPage() {
                   <span className="font-medium">{c.companyName}</span>
                   <div className="flex items-center gap-1.5">
                     <AccountBadge status={c.accountStatus} />
-                    <LineBadge status={c.verificationStatus} />
                   </div>
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground">
