@@ -102,6 +102,10 @@ export class OctokitGit implements Git {
           name,
           private: isPrivate,
         });
+        // Ladder step 1: protect main (block force-pushes + deletion; NO required reviews, so the
+        // human-gated squash-merge still works). Best-effort — template content lands async and
+        // some plans 403 protection on private repos; a miss never fails repo creation.
+        void this.protectMain(owner, data.name);
         return { fullName: data.full_name, cloneUrl: data.clone_url, htmlUrl: data.html_url };
       }
 
@@ -193,4 +197,41 @@ export class OctokitGit implements Git {
     // adapter). The Sandbox port injects this as `GITHUB_TOKEN` and clones via `x-access-token:`.
     return this.token;
   }
+
+  /** Minimal main-branch protection: no force-push, no deletion, PRs still auto-mergeable. */
+  private async protectMain(owner: string, repo: string): Promise<void> {
+    // The template's content lands asynchronously — give main a moment to exist first.
+    await new Promise((r) => setTimeout(r, 5_000));
+    try {
+      await this.octokit.rest.repos.updateBranchProtection({
+        owner,
+        repo,
+        branch: "main",
+        required_status_checks: null,
+        enforce_admins: false,
+        required_pull_request_reviews: null,
+        restrictions: null,
+        allow_force_pushes: false,
+        allow_deletions: false,
+      });
+    } catch (err) {
+      console.warn(`[git] branch protection skipped for ${owner}/${repo}:`, (err as Error).message);
+    }
+  }
+
+  async sandboxToken(repoFullName: string): Promise<string> {
+    // App-mode (set via `sandboxTokenMinter` in getGitForOrg) mints a one-repo, contents-write,
+    // 1-hour token. PAT/env mode can't downscope — full token, documented limitation.
+    if (this.sandboxTokenMinter) {
+      try {
+        return await this.sandboxTokenMinter(repoFullName);
+      } catch (err) {
+        console.error(`[git] scoped sandbox-token mint failed for ${repoFullName} (falling back):`, err);
+      }
+    }
+    return this.token;
+  }
+
+  /** Injected by getGitForOrg in App-install mode — mints the downscoped per-repo token. */
+  sandboxTokenMinter?: (repoFullName: string) => Promise<string>;
 }

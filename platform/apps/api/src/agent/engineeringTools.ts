@@ -359,8 +359,9 @@ export function engineeringTools(deps: EngineeringToolDeps, ctx: EngineeringCont
           .describe("Which runtime to use: claude_code (default), codex, or a raw shell command"),
       }),
       execute: async ({ repoFullName, prompt, agentKind }) => {
-        // Scoped clone/push token for this repo's org (v0: the authed gh user).
-        const token = await withTimeout("installationToken", STEP_TIMEOUT_MS, d.git.installationToken());
+        // THE SANDBOX'S token (ladder step 1): app-mode = one repo, contents:write, 1h —
+        // a hijacked sandbox can't reach main-protection, other repos, or admin.
+        const token = await withTimeout("sandboxToken", STEP_TIMEOUT_MS, d.git.sandboxToken(repoFullName));
         // Meter the sandbox wall-clock (plan Pillar 2): time from spawn to kill.
         const sandboxStartedMs = Date.now();
         // Give the sandbox a lifetime that outlasts the coding step (+buffer) so it can't die mid-build.

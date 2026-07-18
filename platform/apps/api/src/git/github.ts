@@ -123,6 +123,11 @@ export class GhCliGit implements Git {
     return gh(["pr", "diff", "--repo", repo, String(number)]);
   }
 
+  async sandboxToken(_repoFullName: string): Promise<string> {
+    // Local dev (`gh` CLI) can't downscope — the CLI user's token, same as installationToken.
+    return this.installationToken();
+  }
+
   async installationToken(_org?: string): Promise<string> {
     // v0: the single authed CLI user's token covers all Lu-owned repos, so `org` is ignored.
     // v1: mint a GitHub-App installation token scoped to `_org`'s installation (see header sketch).

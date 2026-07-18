@@ -48,8 +48,16 @@ export async function getGitForOrg(store: Store, orgId?: string): Promise<Git> {
     // tokens can't `GET /user`), so new repos land exactly where the owner installed.
     if (conn?.installationId && githubAppConfigured()) {
       try {
-        const token = await mintInstallationToken(conn.installationId);
-        return new OctokitGit(token, { ignoreEnvOwner: true, defaultOwner: conn.login ?? undefined });
+        const installationId = conn.installationId;
+        const token = await mintInstallationToken(installationId);
+        const git = new OctokitGit(token, { ignoreEnvOwner: true, defaultOwner: conn.login ?? undefined });
+        // Ladder step 1: sandboxes get a DOWNSCOPED per-task token — one repo, contents:write, 1h.
+        git.sandboxTokenMinter = (repoFullName: string) =>
+          mintInstallationToken(installationId, {
+            repositories: [repoFullName.split("/").pop() ?? repoFullName],
+            permissions: { contents: "write" },
+          });
+        return git;
       } catch (err) {
         console.error(`[git] installation-token mint failed for org ${orgId} (falling back):`, err);
       }

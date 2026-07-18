@@ -41,21 +41,36 @@ const HEADERS = () => ({
   "user-agent": "lu-computer",
 });
 
-/** Per-installation token cache — reminted when within 5 min of expiry. */
+/** Per-installation+scope token cache — reminted when within 5 min of expiry. */
 const tokenCache = new Map<string, { token: string; expiresAtMs: number }>();
 
-export async function mintInstallationToken(installationId: string): Promise<string> {
-  const hit = tokenCache.get(installationId);
+export interface MintScope {
+  /** Repo NAMES (no owner) to scope the token to — GitHub's `repositories` param. */
+  repositories?: string[];
+  /** Permission downscope, e.g. { contents: "write" } — GitHub's `permissions` param. */
+  permissions?: Record<string, string>;
+}
+
+/**
+ * Mint an installation access token, optionally DOWNSCOPED (harness-spec §3 / DEVELOPMENT
+ * ladder step 1): pass `{ repositories: ["repo"], permissions: { contents: "write" } }` to get
+ * a 1-hour token that can touch ONE repo's contents and nothing else — what sandboxes get.
+ * Unscoped mints (server-side repo creation, gated merges) carry the App's full permissions.
+ */
+export async function mintInstallationToken(installationId: string, scope?: MintScope): Promise<string> {
+  const cacheKey = `${installationId}:${JSON.stringify(scope ?? {})}`;
+  const hit = tokenCache.get(cacheKey);
   if (hit && hit.expiresAtMs - Date.now() > 5 * 60_000) return hit.token;
   const res = await fetch(`${GITHUB_API}/app/installations/${installationId}/access_tokens`, {
     method: "POST",
-    headers: HEADERS(),
+    headers: { ...HEADERS(), "content-type": "application/json" },
+    body: scope ? JSON.stringify(scope) : undefined,
   });
   if (!res.ok) {
     throw new Error(`GitHub App installation-token mint failed (HTTP ${res.status}): ${await res.text()}`);
   }
   const data = (await res.json()) as { token: string; expires_at: string };
-  tokenCache.set(installationId, { token: data.token, expiresAtMs: new Date(data.expires_at).getTime() });
+  tokenCache.set(cacheKey, { token: data.token, expiresAtMs: new Date(data.expires_at).getTime() });
   return data.token;
 }
 

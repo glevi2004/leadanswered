@@ -75,4 +75,11 @@ export interface Git {
    * - v1 → a GitHub-App installation token scoped to that org's installation.
    */
   installationToken(org?: string): Promise<string>;
+  /**
+   * THE SANDBOX'S token (DEVELOPMENT ladder step 1): the least-privileged credential that can
+   * clone/push ONE repo. App-mode mints a per-task token — this repo only, `contents: write`
+   * only, 1 hour — so a hijacked sandbox can't touch `main`-protection, other repos, or admin.
+   * PAT/CLI modes can't downscope and return their full token (one more reason installs > paste).
+   */
+  sandboxToken(repoFullName: string): Promise<string>;
 }
