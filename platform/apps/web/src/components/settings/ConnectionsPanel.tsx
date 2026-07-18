@@ -111,6 +111,8 @@ const PROVIDERS: ProviderDef[] = [
       { payloadKey: "token", kind: "primary", label: "access token", placeholder: "Vercel access token", required: true },
       { payloadKey: "teamId", kind: "text", label: "Team ID", placeholder: "Team ID (optional — leave blank for personal account)" },
     ],
+    installHref: "/api/connect/vercel/start",
+    installLabel: "Install the Vercel Integration",
   },
   {
     key: "supabase",

@@ -109,15 +109,60 @@ export function createConnectGithubRoute(deps: ConnectDeps) {
  * upsert the VercelConnection (accessToken encrypted + teamId + vercelUserId).
  * → 200 { ok:true } | 400 { ok:false, error }.
  */
+/** Vercel Integration OAuth (byo-connect Phase 2) — configured when both env vars are set. */
+const vercelIntegrationConfigured = () =>
+  isFilled(process.env.VERCEL_INTEGRATION_CLIENT_ID) && isFilled(process.env.VERCEL_INTEGRATION_CLIENT_SECRET);
+
 export function createConnectVercelRoute(deps: ConnectDeps) {
   return async function postConnectVercel(req: Request, res: Response): Promise<void> {
     const b = req.body ?? {};
     const orgId = b.orgId ?? b.org_id;
-    const token = b.token;
-    const teamId = b.teamId ?? b.team_id;
+    let token = b.token;
+    let teamId = b.teamId ?? b.team_id;
+    const code = b.code;
+
+    // INTEGRATION PATH (byo-connect Phase 2): the install callback posts { code, teamId? } —
+    // exchange it for an integration-scoped access token, then fall through to the shared
+    // verify + store below. The token lives until the owner removes the integration.
+    if (isFilled(orgId) && isFilled(code)) {
+      if (!vercelIntegrationConfigured()) {
+        res.status(400).json({ ok: false, error: "Vercel Integration is not configured on the server" });
+        return;
+      }
+      try {
+        const resp = await fetch("https://api.vercel.com/v2/oauth/access_token", {
+          method: "POST",
+          headers: { "content-type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            client_id: process.env.VERCEL_INTEGRATION_CLIENT_ID!.trim(),
+            client_secret: process.env.VERCEL_INTEGRATION_CLIENT_SECRET!.trim(),
+            code: String(code).trim(),
+            redirect_uri:
+              process.env.VERCEL_INTEGRATION_REDIRECT_URI?.trim() ||
+              "https://app.lu.computer/api/connect/vercel/callback",
+          }),
+        });
+        const data = (await resp.json().catch(() => ({}))) as {
+          access_token?: string;
+          team_id?: string | null;
+          error?: string;
+        };
+        if (!resp.ok || !isFilled(data.access_token)) {
+          console.warn(`[/api/connect/vercel] code exchange failed (HTTP ${resp.status}):`, data.error);
+          res.status(400).json({ ok: false, error: "Vercel install could not be verified" });
+          return;
+        }
+        token = data.access_token;
+        teamId = isFilled(teamId) ? teamId : (data.team_id ?? undefined);
+      } catch (err) {
+        console.warn("[/api/connect/vercel] code exchange error:", (err as Error).message);
+        res.status(400).json({ ok: false, error: "Vercel install could not be verified" });
+        return;
+      }
+    }
 
     if (!isFilled(orgId) || !isFilled(token)) {
-      res.status(400).json({ ok: false, error: "orgId and token are required" });
+      res.status(400).json({ ok: false, error: "orgId and token (or code) are required" });
       return;
     }
 
