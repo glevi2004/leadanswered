@@ -238,11 +238,16 @@ export function createResolveApprovalRoute(deps: EngineeringDeps) {
             res.status(200).json({ decision, kind: "activate", approval });
             return;
           }
-          // Seed the business into Lu's memory from the Business Plan the owner accepted.
+          // Seed the business into Lu's memory from the doc the owner accepted — the
+          // Business Context (roadmap Ch.1; final, latest) or the legacy Business Plan.
           const arts = await deps.store.listArtifacts({ orgId });
-          const plan = arts.find(
-            (a) => a.kind === "doc" && (a.payload as { type?: unknown } | null)?.type === "business_plan",
-          )?.payload as
+          const doc = arts
+            .filter((a) => {
+              const t = (a.payload as { type?: unknown } | null)?.type;
+              return a.kind === "doc" && (t === "business_context" || t === "business_plan");
+            })
+            .at(-1);
+          const plan = doc?.payload as
             | { classification?: { companyType?: string; industry?: string }; summary?: string }
             | undefined;
           const business =

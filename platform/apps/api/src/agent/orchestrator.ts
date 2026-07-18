@@ -11,7 +11,7 @@ import { resolveOrgMemory } from "./orgMemory.js";
 import { resolveSituation } from "./situational.js";
 import { onboardingTools } from "./onboardingTools.js";
 import { getSkill } from "./skills/index.js";
-import { resolveSetupProgress } from "./setup.js";
+import { resolveScopingState, resolveSetupProgress } from "./setup.js";
 
 /**
  * Lu the ORCHESTRATOR (AGENTS-BACKEND §3) — the one planning brain of the Lu
@@ -77,11 +77,11 @@ function systemPrompt(): string {
   ].join("\n");
 }
 
-/** Onboarding-mode system prompt — a short identity wrapper around the loaded onboarding SKILL. */
+/** Scoping-mode system prompt — a short identity wrapper around the loaded setup SKILL. */
 function onboardingSystemPrompt(procedure: string): string {
   return [
-    "You are Lu, the founder's AI cofounder, onboarding a brand-new company inside their workspace.",
-    "Follow the procedure below exactly, one step at a time. Keep replies short and warm. Never use em-dashes.",
+    "You are Lu, the owner's AI business partner, scoping their business inside their workspace — any business, any level, not just startups.",
+    "Follow the procedure below exactly, one beat at a time. Keep replies short and warm. Never use em-dashes.",
     "",
     procedure,
   ].join("\n");
@@ -117,7 +117,12 @@ export async function runOrchestrator(
   let base: string;
   const skill = setup.complete ? null : getSkill("onboarding");
   if (!setup.activated) {
-    base = skill ? onboardingSystemPrompt(skill.procedure) : systemPrompt();
+    // The interview's memory (roadmap Ch.1): what's captured, what's staged — so the
+    // tree resumes mid-walk after any reload and never re-asks.
+    const scoping = await resolveScopingState(deps.store, input.orgId);
+    base = [skill ? onboardingSystemPrompt(skill.procedure) : systemPrompt(), scoping]
+      .filter(Boolean)
+      .join("\n\n");
     tools = { ask_user: allTools.ask_user, ...onboardingTools({ store: deps.store }, { orgId: input.orgId }) };
   } else {
     base = skill
@@ -154,6 +159,13 @@ export async function runOrchestrator(
   void meterLlm(deps.store, input.orgId, modelId, result.usage);
 
   let reply = result.text.trim();
+  // A turn that asked a question but wrote no text: the QUESTION is the message —
+  // its chips render right under it. Deterministic, never narrates the machinery,
+  // and skips the follow-up model call entirely.
+  if (!reply) {
+    const ask = (ctx.actions ?? []).find((a) => a.type === "ask_user");
+    if (ask && ask.type === "ask_user") reply = ask.question;
+  }
   // Like runner.ts: a turn that ends on a tool call (e.g. create_task) can leave
   // no closing text. Force a short reply from the tool results so Lu always
   // reports back what she did.
@@ -161,7 +173,17 @@ export async function runOrchestrator(
     const followup = await generateText({
       model,
       system,
-      messages: [...messages, ...result.response.messages],
+      // The nudge turn also keeps the transcript valid: a tool-heavy first pass can end
+      // its assistant message on a thinking block, which the API rejects as final input.
+      messages: [
+        ...messages,
+        ...result.response.messages,
+        {
+          role: "user" as const,
+          content:
+            "(internal: now write your reply to the owner — 1-2 sentences, speaking TO them ('you'), reacting only to what they've ALREADY said. If you just asked a question via ask_user, it renders with tappable options right under your reply, so write only the warm lead-in to it — never restate the question, never say you asked or you'll wait, and never assume their answer. Never mention this note.)",
+        },
+      ],
       tools,
       toolChoice: "none",
       experimental_telemetry: { isEnabled: true, functionId: "lu-orchestrator-closing", metadata: meta },

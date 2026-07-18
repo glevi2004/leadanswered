@@ -22,6 +22,50 @@ export interface SetupProgress {
   line: string;
 }
 
+/**
+ * SCOPING STATE (roadmap Ch.1 / P2) — injected while the org is still being scoped
+ * (onboarding-mode) so Lu always knows exactly what the interview has captured and
+ * never re-asks. Derived from the GROWING Business Context draft (the artifact
+ * `update_business_context` upserts) plus the live gate state. Best-effort: "" on any
+ * failure — the skill still works, just without the memory of captured fields.
+ */
+export async function resolveScopingState(store: Store, orgId: string): Promise<string> {
+  try {
+    const [arts, approvals] = await Promise.all([
+      store.listArtifacts({ orgId }).catch(() => []),
+      store.listPendingApprovals(orgId).catch(() => []),
+    ]);
+    const ctxDoc = arts
+      .filter((a) => a.kind === "doc" && (a.payload as { type?: unknown } | null)?.type === "business_context")
+      .at(-1);
+    const p = (ctxDoc?.payload ?? null) as { draft?: boolean; fields?: Record<string, string> } | null;
+    const fields = p?.fields ?? {};
+    const decisionsAsked = arts.some(
+      (a) => a.kind === "doc" && (a.payload as { type?: unknown } | null)?.type === "onboarding_decisions",
+    );
+    const gateStaged = approvals.some((a) => a.action === "activate_departments");
+
+    const lines: string[] = ["SCOPING STATE (live — never re-ask a captured field; correct it only if the owner contradicts it):"];
+    const keys = Object.keys(fields);
+    if (keys.length === 0) {
+      lines.push("- Captured: nothing yet — the interview hasn't started or nothing has been recorded. Record with update_business_context as you learn.");
+    } else {
+      lines.push(`- Captured (${keys.length}): ${keys.map((k) => `${k}=${String(fields[k]).slice(0, 60)}`).join(" · ")}`);
+    }
+    lines.push(`- Decision batch: ${decisionsAsked ? "already presented" : "not yet presented"}`);
+    lines.push(
+      gateStaged
+        ? "- The final doc is staged and AWAITING the owner's accept — do not re-finalize unless they ask for changes."
+        : `- Final doc: ${p && p.draft === false ? "finalized" : "not finalized yet"}`,
+    );
+    const block = lines.join("\n");
+    return block.length > 1_800 ? block.slice(0, 1_800) : block;
+  } catch (err) {
+    console.error("[setup] scoping state failed (continuing without):", err);
+    return "";
+  }
+}
+
 export async function resolveSetupProgress(store: Store, orgId: string): Promise<SetupProgress> {
   try {
     const departments = await store.listDepartments(orgId);

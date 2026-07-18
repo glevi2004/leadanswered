@@ -278,12 +278,18 @@ export interface BusinessPlan {
 }
 
 /**
- * Read the business plan out of a `doc` artifact payload
- * (`{ type: "business_plan", classification, values, summary? }`), or null when it isn't one.
- * Defensive like the other parsers.
+ * Read the accept-gate doc out of a `doc` artifact payload — the FINAL Business Context
+ * (`{ type: "business_context", draft: false, classification, values, summary }`, roadmap
+ * Ch.1) or the legacy Business Plan. Returns null for drafts (the growing doc renders in
+ * the Library, not as the accept card). Defensive like the other parsers.
  */
 export function businessPlanFromArtifact(payload: Record<string, unknown> | null): BusinessPlan | null {
-  if (!payload || payload.type !== "business_plan") return null;
+  if (!payload) return null;
+  if (payload.type === "business_context") {
+    if (payload.draft === true || !payload.classification) return null;
+  } else if (payload.type !== "business_plan") {
+    return null;
+  }
   const str = (v: unknown): string => (typeof v === "string" ? v : "");
   const c =
     payload.classification && typeof payload.classification === "object"
@@ -340,6 +346,8 @@ function docTypeLabel(type: string): string {
   switch (type) {
     case "business_plan":
       return "Business Plan";
+    case "business_context":
+      return "Business Context";
     case "onboarding_decisions":
       return "Decisions";
     case "architecture":
@@ -351,11 +359,60 @@ function docTypeLabel(type: string): string {
   }
 }
 
+/** Human label for a business-context field key (camelCase → Title Case, few specials). */
+function fieldLabel(key: string): string {
+  const specials: Record<string, string> = {
+    icp: "ICP", jtbd: "Job to be done", gtm: "Go-to-market", b2x: "B2B / B2C",
+    outcome90: "90-day outcome", oneLiner: "One-sentence summary",
+  };
+  if (specials[key]) return specials[key];
+  return key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
+}
+
 /** Normalize one doc artifact into a LibraryDoc, or null when it isn't a Library doc. */
 export function libraryDocFromArtifact(a: DockArtifact): LibraryDoc | null {
   if (a.kind !== "doc") return null;
   const p = a.payload;
   const type = typeof p?.type === "string" ? p.type : "";
+  if (type === "business_context") {
+    // The GROWING doc (roadmap Ch.1): draft or final, rendered from whatever's captured.
+    const draft = p?.draft === true;
+    const fields =
+      p?.fields && typeof p.fields === "object" ? (p.fields as Record<string, unknown>) : {};
+    const c =
+      p?.classification && typeof p.classification === "object"
+        ? (p.classification as Record<string, unknown>)
+        : null;
+    const values = Array.isArray(p?.values)
+      ? (p!.values as unknown[]).filter((s): s is string => typeof s === "string")
+      : [];
+    const sections: string[] = [];
+    if (typeof p?.summary === "string" && p.summary) sections.push(`## Summary\n\n${p.summary}`);
+    if (c) {
+      const rows = [
+        typeof c.companyType === "string" && c.companyType && `- **Company Type** — ${c.companyType}`,
+        typeof c.industry === "string" && c.industry && `- **Industry** — ${c.industry}`,
+        typeof c.userType === "string" && c.userType && `- **User Type** — ${c.userType}`,
+      ].filter(Boolean);
+      if (rows.length) sections.push(`## Business Classification\n\n${rows.join("\n")}`);
+    }
+    if (values.length) sections.push(`## Company Values\n\n${values.map((v) => `- ${v}`).join("\n")}`);
+    const fieldLines = Object.entries(fields)
+      .filter(([, v]) => typeof v === "string" && v)
+      .map(([k, v]) => `- **${fieldLabel(k)}** — ${v}`);
+    if (fieldLines.length) sections.push(`## The Picture\n\n${fieldLines.join("\n")}`);
+    if (sections.length === 0) return null;
+    return {
+      id: a.id,
+      title: a.title || "Business Context",
+      type,
+      typeLabel: draft ? "Business Context · Draft" : docTypeLabel(type),
+      markdown: sections.join("\n\n"),
+      gated: false,
+      folder: docFolder(type),
+      createdAt: a.createdAt,
+    };
+  }
   if (type === "business_plan") {
     const plan = businessPlanFromArtifact(p);
     if (!plan) return null;
@@ -414,7 +471,7 @@ export function libraryDocs(artifacts: DockArtifact[]): LibraryDoc[] {
   // artifacts arrive append-ordered → walk newest-first and keep the first of each identity.
   for (const d of [...all].reverse()) {
     const key =
-      d.type === "business_plan" || d.type === "onboarding_decisions"
+      d.type === "business_plan" || d.type === "business_context" || d.type === "onboarding_decisions"
         ? d.type
         : d.type === "migration"
           ? `migration:${d.id}`

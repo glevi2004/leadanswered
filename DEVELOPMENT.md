@@ -72,6 +72,13 @@ finishSignup + the dock's empty-thread fallback; the MOVES RULE added to Lu's pr
    personas — new SaaS founder, running-agency owner, "build me a website" — get three correct,
    different interviews inside budget, each ending in an agreed 90-day outcome; the doc grows in the
    Library as they answer. This phase's live pass IS the deferred skills/Library walkthrough.*
+   **Status (2026-07-18): BUILT + smoke-verified** (`scripts/treeSmoke.ts` against the real model:
+   Wing A → riskiest-assumption module with derived options; Wing B → the worst-first screens;
+   Wing C → project scoping — three different correct interviews). skills/onboarding.md is the tree;
+   `update_business_context` grows the draft live in the Library; `finalize_business_context` stages
+   the accept gate; SCOPING STATE injected each scoping turn; plus two real orchestrator fixes the
+   smoke caught (trailing-thinking 400 on the forced-reply pass; question-as-body fallback so empty
+   turns never narrate machinery). Remaining: the fresh-org live pass.
 2. **P3 — chapters 2-4 ride the tree.** The connect chapter consumes the interview's assets answer
    (import path when a repo exists); the architecture doc cites the Business Context; the first-ship
    proposal derives from the agreed outcome; the COMPANY SETUP stage line spans all of it. *Outcome:
