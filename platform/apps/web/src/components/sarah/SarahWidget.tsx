@@ -189,6 +189,8 @@ function ChatTab() {
   const onboarding = useOnboardingMode(widgetOpen);
   const hasOwnerMessages = messages.some((m) => m.role === "owner");
   const onboardingIntro = onboarding && !hasOwnerMessages;
+  // Post-onboarding empty thread: an honest prompt instead of a seeded template "Lu message".
+  const buildIntro = !onboarding && messages.length === 0;
   return (
     <>
       <div className="flex-1 overflow-y-auto px-4 py-3">
@@ -197,6 +199,15 @@ function ChatTab() {
             <h2 className="text-lg font-semibold text-foreground">Tell me more about your company</h2>
             <p className="mt-1.5 text-sm text-muted-foreground">
               A little context and I&apos;ll set your departments up.
+            </p>
+          </div>
+        )}
+        {buildIntro && (
+          <div className="px-2 py-6 text-center">
+            <h2 className="text-lg font-semibold text-foreground">What should we build?</h2>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              Tell me the goal. I&apos;ll draft a plan for your approval, then the Engineer ships it
+              to your own GitHub and Vercel.
             </p>
           </div>
         )}

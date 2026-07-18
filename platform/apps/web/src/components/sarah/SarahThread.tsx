@@ -30,9 +30,9 @@ function ownerInitials(name: string): string {
 }
 
 /**
- * The owner thread as Claude / cowork-style ROLE BLOCKS (design board: SecChat) — a
- * small role mark + label + the message body, Lu rows plain, owner rows a subtle
- * `bg-muted/40` block. No SMS bubbles. The whole thread sits in a `neu-card` shell.
+ * The owner thread, cofounder-style: LU'S TURNS ARE PLAIN TEXT on the surface — no card,
+ * no bubble — and only the OWNER'S turns sit in a rounded block. (The old version wrapped
+ * the whole thread in a `neu-card`, which made every Lu message read as a boxed card.)
  */
 export function SarahThread({
   messages,
@@ -52,34 +52,35 @@ export function SarahThread({
   const initials = ownerInitials(ownerName);
 
   return (
-    <div className={cn("neu-card overflow-hidden rounded-2xl bg-card", className)}>
+    <div className={cn("flex flex-col gap-2", className)}>
       {messages.map((m) => {
         const mine = m.role === "owner";
-        return (
-          <div key={m.id} className={cn("flex gap-3 px-4 py-3.5", mine && "bg-muted/40")}>
-            {mine ? (
-              <span className="grid size-6 shrink-0 place-items-center rounded-md bg-muted text-[10px] font-semibold text-muted-foreground">
-                {initials}
-              </span>
-            ) : (
-              <LuMark label={assistantName} />
-            )}
+        return mine ? (
+          <div key={m.id} className="flex gap-3 rounded-xl bg-muted/50 px-3.5 py-3">
+            <span className="grid size-6 shrink-0 place-items-center rounded-md bg-muted text-[10px] font-semibold text-muted-foreground">
+              {initials}
+            </span>
+            <div className="t-body min-w-0 whitespace-pre-wrap break-words pt-0.5 text-[13.5px] text-foreground">
+              {m.body}
+              {m.via === "sms" && (
+                <span className="ml-1.5 align-middle text-[10px] text-muted-foreground opacity-60">· SMS</span>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div key={m.id} className="flex gap-3 px-1 py-2">
+            <LuMark label={assistantName} />
             <div className="min-w-0">
-              <div className="mb-0.5 text-[11px] font-semibold text-muted-foreground">
-                {mine ? "You" : assistantName}
-              </div>
+              <div className="mb-0.5 text-[11px] font-semibold text-muted-foreground">{assistantName}</div>
               <div className="t-body whitespace-pre-wrap break-words text-[13.5px] text-foreground">
                 {m.body}
-                {m.via === "sms" && (
-                  <span className="ml-1.5 align-middle text-[10px] text-muted-foreground opacity-60">· SMS</span>
-                )}
               </div>
             </div>
           </div>
         );
       })}
       {typing && (
-        <div className="flex gap-3 px-4 py-3.5">
+        <div className="flex gap-3 px-1 py-2">
           <LuMark label={assistantName} />
           <div className="flex items-center gap-1 pt-1" aria-label={`${assistantName} is typing`}>
             <span className="typing-dot" />
@@ -89,7 +90,7 @@ export function SarahThread({
         </div>
       )}
       {/* The Phase-2 onboarding wire + the chat↔Engineer wire: both unfold in the thread. */}
-      <div className="px-4 pb-1">
+      <div className="pb-1">
         <LuOnboardingTracker />
         <LuBuildTracker />
       </div>

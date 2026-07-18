@@ -503,18 +503,10 @@ export function SarahProvider({
 
   const startNewChat = React.useCallback(() => {
     const id = `chat_${nextId()}`;
-    setChats((cs) => [
-      {
-        id,
-        title: "New chat",
-        messages: [
-          { id: nextId(), at: new Date().toISOString(), role: "sarah", body: `Fresh page, ${ownerName} — what do you need?`, via: "app" },
-        ],
-      },
-      ...cs,
-    ]);
+    // Empty by design — no preset Lu message; the chat's empty state carries the prompt.
+    setChats((cs) => [{ id, title: "New chat", messages: [] }, ...cs]);
     setActiveChatId(id);
-  }, [ownerName]);
+  }, []);
 
   const beginEscalationAnswer = React.useCallback((e: OpenEscalation) => {
     answeringEscalation.current = e;

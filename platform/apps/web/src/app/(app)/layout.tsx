@@ -30,21 +30,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const ownerName = (organization.name as string)?.split(" ")[0] ?? "there";
   const assistantName = (organization.sarahName as string) || "Lu";
 
-  const welcome = [
-    {
-      id: "welcome",
-      at: new Date().toISOString(),
-      role: "sarah" as const,
-      body: `Hi ${ownerName}, I'm ${assistantName}, the conductor of your computer. My Engineer is live and ready to build: tell me what you want made (a website, a web app, an internal tool, an integration) and I'll have her ship it to your own GitHub and Vercel.`,
-      via: "app" as const,
-    },
-  ];
-
+  // NO seeded greeting (docs/workflow.md §7): the thread is the REAL persisted conversation
+  // (rehydrated client-side); an empty thread shows the honest empty state — onboarding's
+  // "Tell me more about your company", or the build prompt. A template message pretending to
+  // be Lu contradicted onboarding-mode and rendered stale copy.
   return (
     <SarahProvider
       ownerName={ownerName}
       assistantName={assistantName}
-      initialMessages={welcome}
+      initialMessages={[]}
       initialApprovals={[]}
       initialActions={[]}
       initialEscalations={[]}

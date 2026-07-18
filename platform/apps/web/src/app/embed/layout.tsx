@@ -13,20 +13,13 @@ export default async function EmbedLayout({ children }: { children: React.ReactN
   const organization = await requireOrganization();
 
   const ownerName = (organization.name as string)?.split(" ")[0] ?? "there";
-  const welcome = [
-    {
-      id: "welcome",
-      at: new Date().toISOString(),
-      role: "sarah" as const,
-      body: `Hi ${ownerName} — I'm here. Ask me anything about your leads, schedule, or jobs.`,
-      via: "app" as const,
-    },
-  ];
 
+  // No seeded greeting — same rule as the app shell (the thread is the real conversation;
+  // the old template here was pure pre-pivot copy: "leads, schedule, or jobs").
   return (
     <SarahProvider
       ownerName={ownerName}
-      initialMessages={welcome}
+      initialMessages={[]}
       initialApprovals={[]}
       initialActions={[]}
     >
