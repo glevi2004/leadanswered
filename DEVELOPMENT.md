@@ -135,6 +135,13 @@ sequenceDiagram
 - [ ] 🟡 **Terminal secret exposure** — the cloud terminal seeds the platform's GitHub/Anthropic keys into a user-reachable shell *(security review)*.
 - [ ] ⬜ **Supabase RLS in migrations** — RLS exists only as hand-applied prod state, not reproducible from the repo.
 
+### The FULL-SETUP milestone — "Lu operates my entire GitHub/Vercel/Supabase" *(agreed 2026-07-18, in order)*
+- [ ] ⬜ **1. GitHub sandbox-token downscoping + branch protection** — mint the sandbox a per-task token (ONE repo, `contents:write` only, 1h — GitHub's mint API takes `repositories` + `permissions`); full-perm token stays server-side (create repo, gated merge). Protect `main` at repo creation (block force-push/deletion, no required reviews so the gated merge still works). Closes the one live capability gap ([harness-spec](./docs/harness-spec.md) §3 "per-task scopes").
+- [ ] ⬜ **2. Existing-project import** — point Lu at an EXISTING repo (the App install already scopes which) + link its existing Vercel project; the rest of the pipeline (clone → branch → PR → preview → verify → gated merge) is repo-agnostic already. This is agent-backend's old "rung v1", finally first-class.
+- [ ] ⬜ **3. Supabase build tools + THE MIGRATION GATE** — `provision_backend` (env-var the selected project into the Vercel app) + `run_migration`; migrations NEVER hit prod DB directly: preview branch (the Environment scope) or an explicit approval. Design requirement, not polish.
+- [ ] ⬜ **4. Empirical verification** — verify_acceptance fetches + screenshots the preview (headless browser in the sandbox) and, for DB apps, exercises live flows ([harness-spec](./docs/harness-spec.md) §2 P1).
+- [ ] ⬜ **(later) Railway as a deploy target** — a second `Deploy`-port adapter (Railway GraphQL API, token-paste connect — no OAuth program) for long-running servers/workers the Engineer builds; Vercel stays the static/frontend target.
+
 ### Before a real DESIGN PARTNER connects  *(the "external users" checklist, 2026-07-18)*
 - [ ] ⬜ **Make the GitHub App public** — currently "Only on this account" (app settings → Advanced → Make public), else a partner can't install it.
 - [ ] ⬜ **Make the Vercel Integration public/unlisted** — same: a partner needs to be able to install it.
