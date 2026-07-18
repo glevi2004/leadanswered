@@ -6,6 +6,7 @@ import { BrowserChrome } from "@/components/canvas/BrowserChrome";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { useSarah } from "@/components/sarah/sarah-context";
 import {
   useDockData,
   useSites,
@@ -97,10 +98,32 @@ export function DepartmentWorkplace({ dept }: { dept: string }) {
     void resolve(publishApproval.id, "approved");
     toast.success("Publishing to staging…");
   };
-  // UI honesty rule (docs/workflow.md §7): these two are not wired yet, so they SAY so —
-  // disabled + labeled, never a silent no-op or a toast pretending to be a feature.
-  // TODO(revert): roll the deployment back to the last good build.
-  // TODO(request-changes): open a change request that feeds back into the Engineer.
+  // §8b (ladder 0b): Request changes is REAL — prefill the Lu composer with this build's
+  // context and jump to the chat; changing things IS asking Lu. Retry re-dispatches a failed
+  // build. Revert-all stays Soon until a rollback endpoint exists.
+  const { prefillComposer, openWidget, setDockTab } = useSarah();
+  const [retrying, setRetrying] = React.useState(false);
+  const onRequestChanges = () => {
+    prefillComposer(`Request changes on "${selectedTask?.title ?? "the current build"}": `);
+    openWidget();
+    setDockTab("lu");
+  };
+  const onRetry = async () => {
+    if (!selectedTask) return;
+    setRetrying(true);
+    try {
+      await fetch("/api/dock/tasks/retry", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ taskId: selectedTask.id, message: selectedTask.body?.trim() || selectedTask.title }),
+      });
+      toast.success("Retrying the build…");
+    } catch {
+      toast.error("Couldn't retry — try again.");
+    } finally {
+      setRetrying(false);
+    }
+  };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -131,8 +154,17 @@ export function DepartmentWorkplace({ dept }: { dept: string }) {
           </div>
         )}
         {selectedTask && (
-          <span className="ml-auto shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-            {taskStatusLabel(selectedTask.status)}
+          <span className="ml-auto flex shrink-0 items-center gap-2">
+            <span className="rounded-full border px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+              {taskStatusLabel(selectedTask.status)}
+            </span>
+            {/* §8b: every surface clicks through to the Task Detail hub. */}
+            <a
+              href={`/task/${selectedTask.id}`}
+              className="text-[11px] font-medium text-primary underline-offset-2 hover:underline"
+            >
+              Details
+            </a>
           </span>
         )}
       </div>
@@ -226,19 +258,23 @@ export function DepartmentWorkplace({ dept }: { dept: string }) {
           {publishing ? <Loader2 className="size-3.5 animate-spin" /> : <Rocket className="size-3.5" />}
           {publishing ? "Publishing…" : "Publish to Staging"}
         </Button>
-        <Button size="sm" variant="outline" className="gap-1.5" disabled title="Coming soon">
+        {selectedTask?.status === "failed" && (
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={onRetry} disabled={retrying}>
+            {retrying ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />}
+            Retry build
+          </Button>
+        )}
+        <Button size="sm" variant="outline" className="gap-1.5" disabled title="Rollback — coming soon">
           <RotateCcw className="size-3.5" /> Revert All
           <span className="rounded bg-muted px-1 py-px font-mono text-[9px] uppercase tracking-wide">Soon</span>
         </Button>
         <Button
           size="sm"
           variant="ghost"
-          className="ml-auto gap-1.5 text-muted-foreground"
-          disabled
-          title="Coming soon"
+          className="ml-auto gap-1.5 text-muted-foreground hover:text-foreground"
+          onClick={onRequestChanges}
         >
           <GitPullRequestArrow className="size-3.5" /> Request changes
-          <span className="rounded bg-muted px-1 py-px font-mono text-[9px] uppercase tracking-wide">Soon</span>
         </Button>
       </div>
     </div>

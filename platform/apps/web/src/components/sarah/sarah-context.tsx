@@ -107,6 +107,8 @@ interface SarahState {
   decline: (id: string) => void;
   /** stage an answer to an escalation: prefills the composer; the next send resolves it */
   beginEscalationAnswer: (e: OpenEscalation) => void;
+  /** prefill the Lu composer with text (Request-changes, canvas hand-offs) — user edits, then sends */
+  prefillComposer: (text: string) => void;
   /** composer prefill handshake — composer reads it once, then clears */
   composerPrefill: string | null;
   consumePrefill: () => string | null;
@@ -580,6 +582,7 @@ export function SarahProvider({
     approve: (id, editedPreview) => resolveApproval(id, "approved", editedPreview),
     decline: (id) => resolveApproval(id, "declined"),
     beginEscalationAnswer,
+    prefillComposer: (text) => setComposerPrefill(text),
     composerPrefill,
     consumePrefill,
     chipsForCurrentPage: chips,

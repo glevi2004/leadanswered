@@ -23,7 +23,7 @@ import { TextNote, type TextNoteData } from "@/components/canvas/TextNote";
 import { ResourceNode, nodeCenter, nodeDims, DEFAULT_NODE_DIMS } from "@/components/canvas/ResourceNode";
 import { DeptCardNode, WorkCardNode } from "@/components/canvas/DepartmentCanvasNode";
 import { DrawLayer, type Stroke } from "@/components/canvas/DrawLayer";
-import { useSites } from "@/lib/dock/live";
+import { useSites, useAgentEvents } from "@/lib/dock/live";
 import { useSarah } from "@/components/sarah/sarah-context";
 
 /** Edge line color + human label per capability-grant kind (canvas.md "Edges"). */
@@ -138,6 +138,10 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
   // REAL activity (COCKPIT Part A) — agent badges / working spinners / the updates pill are
   // driven by live /api/dock/tasks, not the old mock AGENT_WORK.
   const { agentBadge, workingDepts } = useCanvasActivity(true);
+  // §8b (ladder 0b): the latest journal event captions a WORKING agent node — you can literally
+  // read what she's doing ("coding finished on grovebox-site…") off the canvas.
+  const liveEvents = useAgentEvents(true);
+  const latestEventMsg = liveEvents[0]?.message ?? null;
   // DB-persisted composable graph (COCKPIT Part C) — nodes (terminal/note/file/folder/site),
   // their positions, and the EDGES (capability grants). Replaces the localStorage-only canvas.
   const graph = useCanvasGraph(true);
@@ -1106,6 +1110,12 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
                         ? <span className="size-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" style={{ animationDuration: "1.6s" }} />
                         : <span className="size-3 rounded-full bg-amber-500" />}
                       {badge.count}
+                    </span>
+                  )}
+                  {/* §8b: while working, the latest journal event reads out what she's doing. */}
+                  {badge?.kind === "working" && latestEventMsg && (
+                    <span className="absolute -top-6 left-1/2 w-80 -translate-x-1/2 truncate text-center text-sm text-muted-foreground">
+                      {latestEventMsg}
                     </span>
                   )}
                   <div

@@ -20,6 +20,7 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -185,6 +186,29 @@ function EmptyState({ icon: Icon, title, hint }: { icon: LucideIcon; title: stri
       {hint && <p className="max-w-xs text-xs text-muted-foreground/70">{hint}</p>}
     </div>
   );
+}
+
+/**
+ * Run a console WRITE action through the proxy (§8b ladder 0b). Returns ok; surfaces the api's
+ * error message when it fails. Callers confirm() first — these mutate the org's real Supabase.
+ */
+async function consoleAct(action: string, params: Record<string, unknown> = {}): Promise<boolean> {
+  try {
+    const res = await fetch("/api/console/action", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action, ...params }),
+    });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      toast.error(data.error || "That didn't work — check the connection and try again.");
+      return false;
+    }
+    return true;
+  } catch {
+    toast.error("That didn't work — check the connection and try again.");
+    return false;
+  }
 }
 
 /** A key action button. `todo` renders it disabled with an explanatory tooltip (mutation not wired yet). */
@@ -455,8 +479,17 @@ function SecretsPanel() {
   return (
     <>
       <PaneHeader title="Secrets" state={state} onReload={reload}>
-        <KeyAction icon={KeyRound} todo>
-          Generate secret key
+        <KeyAction
+          icon={KeyRound}
+          onClick={async () => {
+            if (!window.confirm("Rotate the project's secret key? Anything using the old key stops working.")) return;
+            if (await consoleAct("rotate-secret")) {
+              toast.success("Secret key rotated.");
+              reload();
+            }
+          }}
+        >
+          {secretSet ? "Rotate secret key" : "Generate secret key"}
         </KeyAction>
       </PaneHeader>
       <div className="min-h-0 flex-1 space-y-4 overflow-auto p-4">
@@ -494,7 +527,17 @@ function StoragePanel() {
   return (
     <>
       <PaneHeader title="Storage" state={state} onReload={reload}>
-        <KeyAction icon={Plus} todo>
+        <KeyAction
+          icon={Plus}
+          onClick={async () => {
+            const name = window.prompt("Bucket name:")?.trim();
+            if (!name) return;
+            if (await consoleAct("create-bucket", { name })) {
+              toast.success(`Bucket "${name}" created.`);
+              reload();
+            }
+          }}
+        >
           New bucket
         </KeyAction>
       </PaneHeader>
@@ -534,7 +577,17 @@ function AuthPanel() {
   return (
     <>
       <PaneHeader title="Authentication" state={state} onReload={reload}>
-        <KeyAction icon={Plus} todo>
+        <KeyAction
+          icon={Plus}
+          onClick={async () => {
+            const url = window.prompt("Redirect URL to allow (https://…):")?.trim();
+            if (!url) return;
+            if (await consoleAct("add-redirect", { url })) {
+              toast.success("Redirect URL added.");
+              reload();
+            }
+          }}
+        >
           Add redirect URL
         </KeyAction>
       </PaneHeader>
@@ -617,7 +670,17 @@ function UsersPanel() {
   return (
     <>
       <PaneHeader title="Users" state={state} onReload={reload}>
-        <KeyAction icon={Plus} todo>
+        <KeyAction
+          icon={Plus}
+          onClick={async () => {
+            const email = window.prompt("New user's email:")?.trim();
+            if (!email) return;
+            if (await consoleAct("add-user", { email })) {
+              toast.success(`User ${email} added.`);
+              reload();
+            }
+          }}
+        >
           Add user
         </KeyAction>
       </PaneHeader>

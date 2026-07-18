@@ -153,11 +153,15 @@ export function LuBuildTracker() {
             {progressTasks.length > 0 ? (
               <div className="mt-2.5 space-y-1.5">
                 {progressTasks.map((t) => (
-                  <div key={t.id} className="flex items-center gap-2">
+                  <a
+                    key={t.id}
+                    href={`/task/${t.id}`}
+                    className="group flex items-center gap-2 rounded-md transition-colors hover:bg-muted/60"
+                  >
                     <StatusDot status={t.status} />
-                    <span className="min-w-0 flex-1 truncate text-foreground">{t.title}</span>
+                    <span className="min-w-0 flex-1 truncate text-foreground group-hover:underline">{t.title}</span>
                     <span className="shrink-0 text-xs text-muted-foreground">{taskStatusLabel(t.status)}</span>
-                  </div>
+                  </a>
                 ))}
               </div>
             ) : planApprovals.length === 0 ? (

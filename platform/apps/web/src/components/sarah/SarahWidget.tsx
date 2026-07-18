@@ -298,15 +298,19 @@ function TasksTab() {
 
 /** One row of the live task list — status dot, title, owning department, status label. */
 function TaskRow({ task }: { task: DockTask }) {
+  // §8b: every Row clicks through to the Task Detail — the one hub.
   return (
-    <div className="flex items-center gap-2.5 rounded-lg border bg-card px-3 py-2 text-sm">
+    <Link
+      href={`/task/${task.id}`}
+      className="flex items-center gap-2.5 rounded-lg border bg-card px-3 py-2 text-sm transition-colors hover:bg-muted"
+    >
       <StatusDot status={task.status} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-foreground">{task.title}</p>
         <p className="truncate text-xs capitalize text-muted-foreground">{task.departmentKey}</p>
       </div>
       <span className="shrink-0 text-xs text-muted-foreground">{taskStatusLabel(task.status)}</span>
-    </div>
+    </Link>
   );
 }
 
