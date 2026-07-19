@@ -70,7 +70,7 @@ for (let t = 1; t <= TURNS; t++) {
       next = ask.options?.[ask.recommended ?? 0] ?? ask.options?.[0] ?? "yes";
     }
   } else {
-    // No card — converging (decisions/finalize) or a read-back. Nudge forward.
+    // No card — converging (finalize) or a read-back. Nudge forward.
     next = "Sounds right, go ahead.";
   }
 }
@@ -80,12 +80,8 @@ const arts = await store.listArtifacts({ orgId });
 const ctxDoc = arts
   .filter((a) => a.kind === "doc" && (a.payload as { type?: string } | null)?.type === "business_context")
   .at(-1);
-const decisions = arts.filter(
-  (a) => a.kind === "doc" && (a.payload as { type?: string } | null)?.type === "onboarding_decisions",
-);
 const approvals = await store.listPendingApprovals(orgId);
 console.log(`\n━━━ END STATE ━━━`);
 console.log("captured fields:", (ctxDoc?.payload as { fields?: Record<string, string> } | null)?.fields ?? {});
 console.log("draft?", (ctxDoc?.payload as { draft?: boolean } | null)?.draft);
-console.log("decision batches:", decisions.length);
 console.log("pending approvals:", approvals.map((a) => a.action));

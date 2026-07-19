@@ -17,8 +17,6 @@ export interface OnboardingToolContext {
   orgId: string;
 }
 
-/** The `doc` payload the dock reads for the decision cards. */
-export const DECISIONS_DOC_TYPE = "onboarding_decisions";
 /** The Business Context doc (roadmap Ch.1) — grows as a DRAFT during the interview,
  *  finalized at convergence. One artifact, upserted in place. */
 export const BUSINESS_CONTEXT_DOC_TYPE = "business_context";
@@ -39,45 +37,6 @@ async function latestBusinessContext(store: Store, orgId: string) {
 
 export function onboardingTools(deps: OnboardingToolDeps, ctx: OnboardingToolContext) {
   return {
-    propose_decisions: tool({
-      description:
-        "Put a small batch of multiple-choice decisions in front of the founder as cards, each with one Recommended option. Use this ONCE, early in onboarding, for the 3-5 choices that actually change how you'd frame the company (the core problem to solve first, the primary user, the wedge, the business model). Give each decision 3-4 concrete options and mark the single best one as `recommended` (its 0-based index). The founder taps an option per card (or picks Other and types their own answer); tapped choices come back as one summary message, typed answers arrive as their own messages. You do NOT wait here.",
-      inputSchema: z.object({
-        decisions: z
-          .array(
-            z.object({
-              question: z.string().describe("The single decision, phrased as a question"),
-              options: z
-                .array(
-                  z.object({
-                    label: z.string().describe("The option, short"),
-                    detail: z.string().optional().describe("One line explaining the option"),
-                  }),
-                )
-                .min(2)
-                .max(5)
-                .describe("2-5 concrete options"),
-              recommended: z
-                .number()
-                .int()
-                .describe("0-based index of the single best option (badged Recommended)"),
-            }),
-          )
-          .min(1)
-          .max(6)
-          .describe("3-5 crisp decisions that change how the company is framed"),
-      }),
-      execute: async ({ decisions }) => {
-        const artifact = await deps.store.addArtifact({
-          orgId: ctx.orgId,
-          kind: "doc",
-          title: "Decisions",
-          payload: { type: DECISIONS_DOC_TYPE, decisions },
-        });
-        return { ok: true as const, artifactId: artifact.id, count: decisions.length };
-      },
-    }),
-
     update_business_context: tool({
       description:
         "Record what you've learned into the GROWING Business Context draft — the doc builds live in the owner's Library as the interview progresses. Call this every 2-3 answers with ONLY the fields you newly learned or corrected (they merge into the draft; existing fields persist). Use short plain-English values. Suggested keys (use what applies, add others when needed): intent, wing (start|existing|project), archetype, b2x, dealSize, stage, level, trend, mode, yearsRunning, headcount, teamSize, payrollSafe, ownerDependence, companyName, product, icp, jtbd, problem, model, pricing, gtm, edge, assets, marketSize, ratioName, ratioValue, goalFork, outcome90, oneLiner, mission.",
@@ -102,7 +61,7 @@ export function onboardingTools(deps: OnboardingToolDeps, ctx: OnboardingToolCon
 
     finalize_business_context: tool({
       description:
-        "Finalize the Business Context and stage the last onboarding gate. Call this at CONVERGENCE — after the interview and the decision batch (or when the owner says to wrap up). Provide the classification, 4-6 sharp company values, and a one-paragraph summary; every field already recorded in the draft rides along automatically. This writes the final doc the owner reviews and stages the 'Accept & activate departments' button — accepting boots their departments and ends scoping. Specific to THIS company, never boilerplate. To revise after feedback, call again.",
+        "Finalize the Business Context and stage the last onboarding gate. Call this at CONVERGENCE — after the interview (or when the owner says to wrap up). Provide the classification, 4-6 sharp company values, and a one-paragraph summary; every field already recorded in the draft rides along automatically. This writes the final doc the owner reviews and stages the 'Accept & activate departments' button — accepting boots their departments and ends scoping. Specific to THIS company, never boilerplate. To revise after feedback, call again.",
       inputSchema: z.object({
         classification: z
           .object({

@@ -40,9 +40,6 @@ export async function resolveScopingState(store: Store, orgId: string): Promise<
       .at(-1);
     const p = (ctxDoc?.payload ?? null) as { draft?: boolean; fields?: Record<string, string> } | null;
     const fields = p?.fields ?? {};
-    const decisionsAsked = arts.some(
-      (a) => a.kind === "doc" && (a.payload as { type?: unknown } | null)?.type === "onboarding_decisions",
-    );
     const gateStaged = approvals.some((a) => a.action === "activate_departments");
 
     const lines: string[] = ["SCOPING STATE (live — never re-ask a captured field; correct it only if the owner contradicts it):"];
@@ -52,7 +49,6 @@ export async function resolveScopingState(store: Store, orgId: string): Promise<
     } else {
       lines.push(`- Captured (${keys.length}): ${keys.map((k) => `${k}=${String(fields[k]).slice(0, 60)}`).join(" · ")}`);
     }
-    lines.push(`- Decision batch: ${decisionsAsked ? "already presented" : "not yet presented"}`);
     lines.push(
       gateStaged
         ? "- The final doc is staged and AWAITING the owner's accept — do not re-finalize unless they ask for changes."
