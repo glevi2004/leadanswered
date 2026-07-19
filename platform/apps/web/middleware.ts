@@ -31,7 +31,7 @@ export async function middleware(request: NextRequest) {
 
   // Protect everything except the public surface (00-foundation §7):
   // auth pages, the customer-facing /q (quote accept) + /i (invoice pay) pages,
-  // and /p (site draft preview — the view-only link Sarah texts, 03-website §5).
+  // and /p (site draft preview — the view-only link Lu texts, 03-website §5).
   const path = request.nextUrl.pathname;
   const publicPath =
     path === "/sign-in" ||

@@ -68,7 +68,7 @@ export const ROLES: Record<RoleKey, Role> = {
   },
 };
 
-export const SARAH_CAP_LABELS: Record<keyof LuCapabilities, string> = {
+export const LU_CAP_LABELS: Record<keyof LuCapabilities, string> = {
   askSchedule: "Ask about the schedule",
   moveJobs: "Move or cancel jobs",
   askCrm: "Look up customers",

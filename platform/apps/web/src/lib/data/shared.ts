@@ -67,7 +67,7 @@ export interface LuChoices {
   recommended?: number;
 }
 
-/** One message in THE owner conversation (SMS + widget + /sarah are one thread).
+/** One message in THE owner conversation (SMS + the dock are one thread).
  * `card` attaches a structured UI card to a Lu turn (docs/product.md — Lu→UI actions):
  * "connect" renders the inline connect form under her message; `choices` renders the
  * tappable move chips. */

@@ -10,13 +10,12 @@ import { CAPABILITIES } from "@/lib/workspace/capabilities";
 import type { CapabilityKey } from "@/lib/workspace/capabilities";
 
 /**
- * The one owner conversation, shared by the dock and /sarah (00 §3: three
+ * The one owner conversation, shared by the dock (00 §3: three
  * surfaces, one thread). Every org talks to the REAL Lu (/api/lu/chat); the thread
  * starts honest-empty with a greeting.
  *
  * Escalations live here too (drift fix 2026-07-12): the pending badge is
- * approvals + open escalations on EVERY surface — sidebar, launcher, /sarah
- * tab, Home "Needs you" — one number, one meaning.
+ * approvals + open escalations on EVERY surface — the dock, Home "Needs you" — one number, one meaning.
  */
 
 export interface LuChat {
@@ -434,7 +433,7 @@ export function LuProvider({
         return;
       }
 
-      // Every org shares ONE real assistant: this widget talks to /api/lu/chat, which
+      // Every org shares ONE real assistant: the dock talks to /api/lu/chat, which
       // (server-side, from the session org) drives the REAL Lu orchestrator on apps/api — she
       // decomposes the goal into Task rows and dispatches engineering builds; the dock watches them.
       {

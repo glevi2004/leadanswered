@@ -12,13 +12,13 @@ export function EmptyState({
   icon: Icon,
   title,
   body,
-  askSarah,
+  askLu,
   variant = "default",
 }: {
   icon?: React.ComponentType<{ className?: string }>;
   title: string;
   body?: string;
-  askSarah?: boolean;
+  askLu?: boolean;
   /** "mono" = a centered terminal-style empty state (IBM Plex Mono via `font-mono`). */
   variant?: "default" | "mono";
 }) {
@@ -40,7 +40,7 @@ export function EmptyState({
       {Icon && <Icon className="size-6 text-muted-foreground" />}
       <p className="text-sm font-medium">{title}</p>
       {body && <p className="max-w-sm text-sm text-muted-foreground">{body}</p>}
-      {askSarah && (
+      {askLu && (
         <Button variant="outline" size="sm" className="mt-2 gap-1.5" onClick={() => openDock()}>
           <LuIcon className="size-3.5 text-primary" /> Ask Lu
         </Button>

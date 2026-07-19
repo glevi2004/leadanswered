@@ -1,7 +1,7 @@
 import type { ModuleStatus, NavGroup, SurfaceKey } from "./shared";
 
 /**
- * The one registry behind nav, gating, and the Lu widget (00-foundation §5).
+ * The one registry behind nav, gating, and the Lu dock (00-foundation §5).
  * `group` is INTERNAL — it orders the unlabeled sidebar clusters and is never
  * rendered as text (the sales pillars are landing-page copy only).
  */
@@ -11,7 +11,7 @@ export interface SurfaceEntry {
   /** lucide icon name, resolved in AppSidebar (registry stays server-safe). */
   group?: NavGroup; // absent = core surface (Home, Lu, Settings)
   defaultStatus?: ModuleStatus; // absent = always live (core surfaces)
-  /** Widget suggestion chips for this surface. */
+  /** Suggestion chips for this surface. */
   chips: string[];
   /** Coming-soon teaser line — the module's sales promise, verbatim (REBRAND §3.4). */
   promise?: string;

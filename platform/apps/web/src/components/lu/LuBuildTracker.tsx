@@ -27,7 +27,7 @@ import { cn } from "@/lib/utils";
  * The PLAN GATE comes first: when Lu calls propose_plan she stages a pending `approve_plan`
  * approval + a `doc` plan artifact WITHOUT building; this tracker renders that plan for the
  * owner to Approve/Reject before any build runs. Lives in LuThread so it appears on every
- * surface that renders the thread (the dock's Lu tab and the full-page /sarah), right after
+ * surface that renders the thread (the dock's Lu tab), right after
  * Lu's reply.
  */
 
@@ -54,7 +54,7 @@ export function LuBuildTracker() {
   const mine = builds.filter((b) => b.chatId === activeChatId);
 
   // Poll while this chat has a build AND its surface is actually on screen: the dock's Lu
-  // tab (dockOpen) or the full-page /sarah. Otherwise the thread stays mounted-but-hidden
+  // tab (dockOpen). Otherwise the thread stays mounted-but-hidden
   // and we'd poll needlessly.
   const active = mine.length > 0 && (dockOpen);
   const { tasks, artifacts, loaded } = useDockData(active);

@@ -2,7 +2,7 @@ import { API_BASE, currentOrgId, PROXY_HEADERS } from "@/lib/dock/backend";
 
 /**
  * INVOKE — the New org's ONE assistant, wired to the REAL Lu ORCHESTRATOR
- * (apps/api `POST /api/lu`). The global Lu widget/dock/`/sarah` POSTs the conversation
+ * (apps/api `POST /api/lu`). The global Lu dock POSTs the conversation
  * here; this route (server-side, so the browser never hits Railway and never passes an
  * orgId):
  *   1) resolves the session org,

@@ -55,9 +55,9 @@ model Organization {
   projectTypes         String[]
   qualificationRules   Json     @default("{}")
   standingAvailability Json     @default("{}")
-  sarahName            String   @default("Sarah")
-  sarahPersonaNotes    String?
-  // Customer-question topics Sarah loops the owner in on (dashboard-editable; SCOPE §5.1).
+  assistantName        String   @default("Lu")
+  personaNotes         String?
+  // Customer-question topics Lu loops the owner in on (dashboard-editable; SCOPE §5.1).
   escalationTopics     String[] @default([])
 
   // Onboarding (Phase 3): owner login link + whether they've finished self-serve setup.

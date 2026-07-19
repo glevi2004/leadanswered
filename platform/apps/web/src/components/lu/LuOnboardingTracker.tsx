@@ -22,7 +22,7 @@ import {
  * goes false (departments activated) this renders nothing at all.
  *
  * Gated on the same surface-active signal LuBuildTracker uses: the dock's Lu tab (dockOpen)
- * or the full-page /sarah. Returns null unless onboarding-mode is active.
+ *. Returns null unless onboarding-mode is active.
  */
 export function LuOnboardingTracker() {
   const { dockOpen } = useLu();

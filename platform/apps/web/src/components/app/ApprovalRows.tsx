@@ -34,13 +34,13 @@ function RowBody({ children }: { children: React.ReactNode }) {
  * The Linear-style approvals inbox (Levi, 2026-07-12): flat rows — kind chip ·
  * summary · wait time — that expand on hover (click pins, covers touch) to
  * reveal the draft and the actions, including INLINE editing of the draft
- * before sending. Shared by Home's "Needs you" card and the /sarah Approvals
+ * before sending. Shared by Home's "Needs you" card and the dock.s Approvals
  * tab; the dock keeps compact ApprovalCards.
  */
 export function ApprovalRows({
   onAnswerEscalation,
 }: {
-  /** Where "Answer via Lu" lands — defaults to the dock; /sarah jumps to its Chat tab. */
+  /** Where "Answer via Lu" lands — defaults to the dock. */
   onAnswerEscalation?: (e: OpenEscalation) => void;
 }) {
   const { approvals, escalations, approve, decline, openDock, beginEscalationAnswer } = useLu();

@@ -12,7 +12,7 @@ function timeAgo(iso: string): string {
   return `${Math.round(hours / 24)}d ago`;
 }
 
-/** One "what Lu did" feed row — shared by Home's digest and /sarah's activity log (00 §8). */
+/** One "what Lu did" feed row — shared by Home's digest (00 §8). */
 export function LuActionRow({ action, className }: { action: LuAction; className?: string }) {
   const moduleLabel = action.module === "core" ? null : MODULES[action.module]?.label;
   const row = (
