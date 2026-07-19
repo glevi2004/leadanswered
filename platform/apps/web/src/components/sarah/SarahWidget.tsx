@@ -1,14 +1,7 @@
 "use client";
 
-import * as React from "react";
 import Link from "next/link";
-import { Check, ChevronDown, ChevronLeft, Maximize2, PanelRight, PictureInPicture2, Plus, X } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { ChevronLeft } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useSarah, type DockTab } from "./sarah-context";
 import { SarahThread } from "./SarahThread";
@@ -62,66 +55,6 @@ export function SarahTrigger() {
   );
 }
 
-function PanelHeader() {
-  const { setWidgetOpen, widgetMode, setWidgetMode, startNewChat, chats, activeChatId, switchChat } =
-    useSarah();
-  const activeTitle = chats.find((c) => c.id === activeChatId)?.title ?? "New chat";
-  const docked = widgetMode === "docked";
-  const ModeIcon = docked ? PictureInPicture2 : PanelRight;
-  const iconBtn =
-    "rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground";
-
-  return (
-    <header className="flex shrink-0 items-center justify-between px-3 py-2.5">
-      <div className="flex min-w-0 flex-1 items-center gap-1.5">
-        <DropdownMenu>
-          <DropdownMenuTrigger className="flex min-w-0 items-center gap-1 rounded-md px-1.5 py-1 text-sm font-semibold outline-none hover:bg-muted">
-            <span className="min-w-0 truncate">{activeTitle}</span>
-            <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-64">
-            <DropdownMenuItem onClick={startNewChat}>
-              <Plus className="size-3.5" /> New chat
-            </DropdownMenuItem>
-            {chats.map((c) => (
-              <DropdownMenuItem key={c.id} onClick={() => switchChat(c.id)}>
-                <Check className={c.id === activeChatId ? "size-3.5" : "size-3.5 opacity-0"} />
-                <span className="truncate">{c.title}</span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-      <div className="flex shrink-0 items-center gap-0.5">
-        <button type="button" aria-label="New chat" title="New chat" className={iconBtn} onClick={startNewChat}>
-          <Plus className="size-4" />
-        </button>
-        <button
-          type="button"
-          aria-label={docked ? "Switch to floating" : "Dock to the side"}
-          title={docked ? "Float" : "Dock"}
-          className={cn(iconBtn, "hidden md:block")}
-          onClick={() => setWidgetMode(docked ? "floating" : "docked")}
-        >
-          <ModeIcon className="size-4" />
-        </button>
-        <Link
-          href="/sarah"
-          aria-label="Open the full Sarah page"
-          title="Full page"
-          className={iconBtn}
-          onClick={() => setWidgetOpen(false)}
-        >
-          <Maximize2 className="size-4" />
-        </Link>
-        <button type="button" aria-label="Close" className={iconBtn} onClick={() => setWidgetOpen(false)}>
-          <X className="size-4" />
-        </button>
-      </div>
-    </header>
-  );
-}
-
 const DOCK_TABS: DockTab[] = ["home", "lu", "company", "tasks", "library"];
 
 /**
@@ -134,47 +67,57 @@ function PanelBody() {
   const { selectedAgent, setSelectedAgent, dockTab, setDockTab } = useSarah();
 
   return (
-    <>
-      <div className="flex shrink-0 items-center gap-1 border-b px-2 py-1.5">
+    <div className="flex min-h-0 flex-1 flex-col [--bubble-surface:var(--card)]">
+      {/* THE HEADER — tabs only (the sidebar has no window controls). Spread across the width,
+          the active tab a bordered pill. This is the first of the "two cards". */}
+      <div className="shrink-0 px-3 pt-3 pb-2.5">
         {selectedAgent ? (
           <button
             type="button"
             onClick={() => setSelectedAgent(null)}
-            className="flex items-center gap-0.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="flex items-center gap-0.5 rounded-lg px-2 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
-            <ChevronLeft className="size-3.5" /> Back
+            <ChevronLeft className="size-4" /> Back
           </button>
         ) : (
-          DOCK_TABS.map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setDockTab(t)}
-              className={cn(
-                "rounded-md px-2.5 py-1 text-xs font-medium capitalize transition-colors",
-                dockTab === t ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {t}
-            </button>
-          ))
+          <div className="flex items-center justify-between gap-0.5">
+            {DOCK_TABS.map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setDockTab(t)}
+                className={cn(
+                  "rounded-[9px] px-2.5 py-1 text-[13px] font-medium capitalize transition-colors",
+                  dockTab === t
+                    ? "border border-border text-foreground"
+                    : "border border-transparent text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
         )}
       </div>
 
-      {selectedAgent ? (
-        <AgentDockPanel dept={selectedAgent} />
-      ) : dockTab === "lu" ? (
-        <ChatTab />
-      ) : dockTab === "home" ? (
-        <DockHome />
-      ) : dockTab === "company" ? (
-        <DockCompany />
-      ) : dockTab === "library" ? (
-        <DockLibrary />
-      ) : (
-        <TasksTab />
-      )}
-    </>
+      {/* THE BODY CARD — the nested, inset, rounded panel that holds the active tab; its rounded
+          top edge sitting inside the frame below the header is what reads as the second card. */}
+      <div className="mx-2 mb-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border bg-card">
+        {selectedAgent ? (
+          <AgentDockPanel dept={selectedAgent} />
+        ) : dockTab === "lu" ? (
+          <ChatTab />
+        ) : dockTab === "home" ? (
+          <DockHome />
+        ) : dockTab === "company" ? (
+          <DockCompany />
+        ) : dockTab === "library" ? (
+          <DockLibrary />
+        ) : (
+          <TasksTab />
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -301,120 +244,34 @@ function TaskRow({ task }: { task: DockTask }) {
   );
 }
 
-// Dock resize bounds (mirrors the website chat lane / SidebarResizer pattern).
-const DOCK_MIN = 320;
-const DOCK_MAX = 560;
-const DOCK_DEFAULT = 380;
-
 /**
- * The docked panel — a flex sibling of the ROUNDED FRAME itself, sitting on
- * the shell background like the website builder's chat lane; the frame
- * compresses beside it (Apollo behavior). Drag the left edge to resize
- * (persisted); double-click resets. Desktop only; on mobile the floating
- * card takes over.
+ * THE chat sidebar — a SINGLE floating card inside the canvas (no docked/floating modes, no
+ * maximize/close). It floats with a margin all around, overlaying the canvas on the right; the
+ * dark frame holds the tab header, and a lighter body card nested inside reads as the second
+ * card. Desktop only; on mobile SarahWidget shows the same card as a bottom sheet.
  */
 export function SarahDock() {
-  const { widgetOpen, widgetMode } = useSarah();
-  const pathname = usePathname();
-  const ref = React.useRef<HTMLElement>(null);
-
-  React.useEffect(() => {
-    const saved = Number(window.localStorage.getItem("sarah_dock_width"));
-    if (saved >= DOCK_MIN && saved <= DOCK_MAX) ref.current?.style.setProperty("--sarah-dock", `${saved}px`);
-  });
-
-  // Stay mounted while this is the docked surface so open/close animates its WIDTH like the
-  // left sidebar (return null only when the dock isn't the active surface at all).
-  if (pathname?.startsWith("/sarah")) return null;
-  if (widgetMode !== "docked") return null;
-
-  const clamp = (x: number) => Math.min(DOCK_MAX, Math.max(DOCK_MIN, x));
-  const onResizeStart = (e: React.PointerEvent) => {
-    e.preventDefault();
-    const el = ref.current;
-    if (!el) return;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-    el.style.transition = "none"; // no width easing while actively dragging
-    const move = (ev: PointerEvent) => {
-      const right = el.getBoundingClientRect().right;
-      el.style.setProperty("--sarah-dock", `${clamp(right - ev.clientX)}px`);
-    };
-    const up = (ev: PointerEvent) => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-      document.body.style.removeProperty("cursor");
-      document.body.style.removeProperty("user-select");
-      el.style.removeProperty("transition");
-      const right = el.getBoundingClientRect().right;
-      window.localStorage.setItem("sarah_dock_width", String(Math.round(clamp(right - ev.clientX))));
-    };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
-  };
-
-  return (
-    // Outside the rounded frame, on the shell background — the website chat lane's twin. Width
-    // animates 0 <-> --sarah-dock (matches ui/sidebar: transition-[width] duration-200 ease-linear);
-    // the frame compresses beside it. The inner panel is fixed-width + pinned right so its content
-    // doesn't reflow while the width animates — it's simply revealed/hidden.
-    <aside
-      ref={ref}
-      data-open={widgetOpen}
-      className={cn(
-        "relative hidden shrink-0 overflow-hidden [--bubble-surface:var(--sidebar)] [--sarah-dock:380px] transition-[width] duration-200 ease-linear md:block md:h-svh",
-        widgetOpen ? "w-(--sarah-dock)" : "w-0",
-      )}
-    >
-      <div
-        inert={!widgetOpen}
-        className={cn(
-          "absolute inset-y-0 right-0 flex w-(--sarah-dock) flex-col py-2 pl-1 pr-2 transition-transform duration-200 ease-linear",
-          widgetOpen ? "translate-x-0" : "translate-x-full",
-        )}
-      >
-        {/* Same handle anatomy as SidebarResizer: full-height 3px pill at the dock's left edge. */}
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize Sarah panel"
-          className={cn(
-            "group absolute inset-y-0 left-0 z-30 w-2 cursor-col-resize",
-            !widgetOpen && "pointer-events-none",
-          )}
-          onPointerDown={onResizeStart}
-          onDoubleClick={() => {
-            ref.current?.style.setProperty("--sarah-dock", `${DOCK_DEFAULT}px`);
-            window.localStorage.setItem("sarah_dock_width", String(DOCK_DEFAULT));
-          }}
-        >
-          <div className="mx-auto h-full w-[3px] rounded-full bg-transparent transition-colors duration-150 group-hover:bg-primary/25 group-active:bg-primary/40" />
-        </div>
-        <PanelHeader />
-        <PanelBody />
-      </div>
-    </aside>
-  );
-}
-
-/** The floating corner card (Apollo's float mode) — also the mobile fallback for docked mode. */
-export function SarahWidget() {
-  const { widgetOpen, widgetMode } = useSarah();
+  const { widgetOpen } = useSarah();
   const pathname = usePathname();
   if (pathname?.startsWith("/sarah")) return null;
   if (!widgetOpen) return null;
 
   return (
-    <div
-      className={cn(
-        "widget-in elev-4 fixed inset-x-3 bottom-4 z-50 flex-col overflow-hidden rounded-3xl border bg-card text-card-foreground [--bubble-surface:var(--card)] sm:inset-x-auto sm:right-5 sm:w-[380px]",
-        // docked mode renders the dock on md+; this card covers small screens only
-        widgetMode === "docked" ? "flex md:hidden" : "flex",
-      )}
-      style={{ maxHeight: "min(640px, calc(100dvh - 6rem))", height: "min(640px, calc(100dvh - 6rem))" }}
-    >
-      <PanelHeader />
+    <div className="widget-in elev-4 fixed inset-y-3 right-3 z-40 hidden w-[380px] flex-col overflow-hidden rounded-[26px] border bg-background text-foreground md:flex">
+      <PanelBody />
+    </div>
+  );
+}
+
+/** Mobile: the same sidebar card as a bottom sheet (desktop uses SarahDock). */
+export function SarahWidget() {
+  const { widgetOpen } = useSarah();
+  const pathname = usePathname();
+  if (pathname?.startsWith("/sarah")) return null;
+  if (!widgetOpen) return null;
+
+  return (
+    <div className="widget-in elev-4 fixed inset-x-3 top-16 bottom-4 z-50 flex flex-col overflow-hidden rounded-[26px] border bg-background text-foreground md:hidden">
       <PanelBody />
     </div>
   );
