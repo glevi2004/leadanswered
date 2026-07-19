@@ -67,30 +67,29 @@ function PanelBody() {
   const { selectedAgent, setSelectedAgent, dockTab, setDockTab } = useSarah();
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col [--bubble-surface:var(--card)]">
-      {/* THE HEADER — tabs only (the sidebar has no window controls). Spread across the width,
-          the active tab a bordered pill. This is the first of the "two cards". */}
-      <div className="shrink-0 px-3 pt-3 pb-2.5">
+    // TWO STACKED CARDS on a recessed frame (design-system zones): the tab bar is one neu-card,
+    // the active tab's content is a second neu-card, with a gap between them.
+    <div className="flex min-h-0 flex-1 flex-col gap-2 p-2 [--bubble-surface:var(--card)]">
+      {/* Stacked card 1 — the tabs. Active tab = a raised gloss pill (the board's Tabs pattern). */}
+      <div className="neu-card shrink-0 rounded-2xl bg-card px-2 py-2">
         {selectedAgent ? (
           <button
             type="button"
             onClick={() => setSelectedAgent(null)}
-            className="flex items-center gap-0.5 rounded-lg px-2 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="press flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             <ChevronLeft className="size-4" /> Back
           </button>
         ) : (
-          <div className="flex items-center justify-between gap-0.5">
+          <div className="flex items-center justify-between gap-1">
             {DOCK_TABS.map((t) => (
               <button
                 key={t}
                 type="button"
                 onClick={() => setDockTab(t)}
                 className={cn(
-                  "rounded-[9px] px-2.5 py-1 text-[13px] font-medium capitalize transition-colors",
-                  dockTab === t
-                    ? "border border-border text-foreground"
-                    : "border border-transparent text-muted-foreground hover:text-foreground",
+                  "rounded-lg px-3 py-1.5 text-[13px] font-medium capitalize transition active:translate-y-px",
+                  dockTab === t ? "gloss text-foreground" : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 {t}
@@ -100,9 +99,8 @@ function PanelBody() {
         )}
       </div>
 
-      {/* THE BODY CARD — the nested, inset, rounded panel that holds the active tab; its rounded
-          top edge sitting inside the frame below the header is what reads as the second card. */}
-      <div className="mx-2 mb-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border bg-card">
+      {/* Stacked card 2 — the active tab's content, its own neu-card. */}
+      <div className="neu-card flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-card">
         {selectedAgent ? (
           <AgentDockPanel dept={selectedAgent} />
         ) : dockTab === "lu" ? (
