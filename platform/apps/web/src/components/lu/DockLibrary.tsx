@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { ChevronDown, FileText, Folder, FolderOpen, Info, LayoutGrid, List, Search, Upload, X } from "lucide-react";
 import { useLu } from "./lu-context";
 import { useDockData, libraryFiles, libraryFolders, type LibraryFile } from "@/lib/dock/live";
-import { Toolbar, type ToolbarItem } from "@/components/ds/Toolbar";
+import { SegmentedTabs } from "@/components/ds/SegmentedTabs";
 import { LibraryFolderCard } from "@/components/ds/LibraryFolderCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -46,17 +46,12 @@ export function DockLibrary() {
     }
   };
 
-  const viewToggle: ToolbarItem[] = [
-    { key: "grid", label: "Grid view", active: view === "grid", onClick: () => setView("grid"), render: () => <LayoutGrid className="size-4" /> },
-    { key: "list", label: "List view", active: view === "list", onClick: () => setView("list"), render: () => <List className="size-4" /> },
-  ];
-
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4">
       {/* Header — title + import + view toggle */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1.5">
-          <h2 className="text-xl font-semibold text-foreground">Library</h2>
+          <h2 className="t-h2 text-foreground">Library</h2>
           <Info className="size-3.5 shrink-0 text-muted-foreground" aria-label="Everything Lu writes and builds files here." />
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -65,11 +60,17 @@ export function DockLibrary() {
             aria-label="Import context"
             title="Bring over ChatGPT / Claude context"
             onClick={copyImportPrompt}
-            className="gloss press grid size-9 place-items-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
+            className="gloss press grid size-7 place-items-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
           >
             <Upload className="size-4" />
           </button>
-          <Toolbar items={viewToggle} orientation="horizontal" variant="ink" />
+          <SegmentedTabs
+            items={["grid", "list"] as const}
+            active={view}
+            onChange={setView}
+            labels={{ grid: "Grid view", list: "List view" }}
+            icons={{ grid: <LayoutGrid className="size-4" />, list: <List className="size-4" /> }}
+          />
         </div>
       </div>
 
@@ -92,14 +93,14 @@ export function DockLibrary() {
               <FileText className="size-4 text-muted-foreground" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-foreground">Bring over ChatGPT or Claude context</p>
-              <p className="mt-0.5 text-[13px] leading-snug text-muted-foreground">
+              <p className="t-title text-foreground">Bring over ChatGPT or Claude context</p>
+              <p className="t-body mt-0.5 leading-snug text-muted-foreground">
                 Copy a prompt that turns old chats, decisions, and working preferences into import-ready Markdown.
               </p>
               <button
                 type="button"
                 onClick={copyImportPrompt}
-                className="gloss press mt-3 rounded-lg px-3 py-1.5 text-[13px] font-medium text-foreground"
+                className="gloss press mt-3 rounded-lg px-3 py-1.5 text-[12px] font-medium text-foreground"
               >
                 Copy prompt
               </button>

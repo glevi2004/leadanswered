@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
+import { LayoutGrid, List } from "lucide-react";
 import { SegmentedTabs } from "@/components/ds/SegmentedTabs";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -101,6 +102,21 @@ function Tabs() {
   const items = ["Home", "CRM", "Inbox"] as const;
   const [active, setActive] = useState<(typeof items)[number]>("Home");
   return <SegmentedTabs items={items} active={active} onChange={setActive} />;
+}
+
+/** SegmentedTabs with the `icons` prop — the grid/list mode switcher (e.g. the Library). */
+function IconSegmented() {
+  const items = ["grid", "list"] as const;
+  const [active, setActive] = useState<(typeof items)[number]>("grid");
+  return (
+    <SegmentedTabs
+      items={items}
+      active={active}
+      onChange={setActive}
+      labels={{ grid: "Grid", list: "List" }}
+      icons={{ grid: <LayoutGrid className="size-4" />, list: <List className="size-4" /> }}
+    />
+  );
 }
 
 function NeuNode({ label, icon, dim = false }: { label: string; icon: React.ReactNode; dim?: boolean }) {
@@ -476,6 +492,7 @@ export default function DesignBoard() {
               <GlassNav items={["Start", "Build", "Sell", "Scale"]} />
               <Segmented />
               <Tabs />
+              <IconSegmented />
               <div className="flex items-center gap-2"><Toggle /> <Toggle defaultOn={false} /></div>
               <PageNav />
             </div>

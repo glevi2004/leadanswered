@@ -5,6 +5,15 @@ import { StatBlock } from "@/components/ds/StatBlock";
 import { PixelMeter } from "@/components/ds/PixelMeter";
 import { SparklineStat } from "@/components/app/SparklineStat";
 import { DeptIcon } from "@/components/ds/PixelIcon";
+import { LibraryFolderCard } from "@/components/ds/LibraryFolderCard";
+import { FileThumb } from "@/components/ds/FileThumb";
+
+/** Placeholder preview for the Library thumbs (board demo only). */
+const LIB_THUMB =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(
+    "<svg xmlns='http://www.w3.org/2000/svg' width='80' height='64'><rect width='80' height='64' fill='#2b3a55'/><rect x='8' y='8' width='64' height='34' fill='#e9e9ea'/><rect x='8' y='48' width='40' height='6' fill='#6b7bb0'/></svg>",
+  );
 
 /* Needs-you row — the Lu-interaction line (ref-78 Tasks). Recessed until it needs you. */
 function NeedsRow({ dept, title, tone, label, age }: { dept: "legal" | "engineering" | "marketing"; title: string; tone: "amber" | "violet" | "blue"; label: string; age: string }) {
@@ -74,6 +83,33 @@ export default function SecData() {
           <span className="text-[13px] text-muted-foreground">Onboarding</span>
           <PixelMeter value={35} className="flex-1" segments={40} />
           <span className="font-mono text-[11px] tabular-nums text-muted-foreground">35%</span>
+        </div>
+      </Frame>
+
+      <Frame title="Library — folder card + file thumb" tag="grid view · neu-card p-2.5 · h-16 thumbs (FileThumb) · t-title/t-label">
+        <div className="grid grid-cols-2 gap-3">
+          <LibraryFolderCard
+            label="General"
+            files={[
+              { id: "a", name: "business_context.md", kind: "doc" },
+              { id: "b", name: "generated-artifact.png", kind: "image", previewUrl: LIB_THUMB },
+            ]}
+          />
+          <LibraryFolderCard
+            label="Engineering"
+            files={[
+              { id: "c", name: "landing-hero.png", kind: "image", previewUrl: LIB_THUMB },
+              { id: "d", name: "landing-cta.png", kind: "image", previewUrl: LIB_THUMB },
+              { id: "e", name: "landing-mid.png", kind: "image", previewUrl: LIB_THUMB },
+            ]}
+          />
+        </div>
+        <Cap>FileThumb — image vs doc</Cap>
+        <div className="mt-3 grid grid-cols-4 gap-2">
+          <FileThumb name="hero.png" kind="image" previewUrl={LIB_THUMB} className="h-16" />
+          <FileThumb name="doc.md" kind="doc" className="h-16" />
+          <FileThumb name="chart.png" kind="image" previewUrl={LIB_THUMB} className="h-16" />
+          <FileThumb name="spec.md" kind="doc" className="h-16" />
         </div>
       </Frame>
     </div>
