@@ -256,11 +256,17 @@
 .hover-lift:hover { transform: translateY(-2px); box-shadow: var(--edge), var(--elev-3), var(--bevel-top); }
 .press { transition: transform var(--dur-1) var(--ease-out); }
 .press:active { transform: translateY(1px); }
-/* One canonical focus ring (the interactive blue), works on any surface. */
-.focus-ring:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--background), 0 0 0 4px #5b9bff; }
+/* One canonical focus ring (the interactive blue), works on any surface. An OUTLINE, not a
+ * box-shadow: it follows the element's border-radius and never overwrites a surface's own
+ * shadow (a .gloss/.neu-socket keeps its depth while focused, instead of flattening to a ring). */
+.focus-ring:focus-visible { outline: 2px solid #5b9bff; outline-offset: 2px; }
 :where(a, button, [role="button"], input, textarea, select):focus-visible {
-  outline: none; box-shadow: 0 0 0 2px var(--background), 0 0 0 4px #5b9bff;
+  outline: 2px solid #5b9bff; outline-offset: 2px;
 }
+/* Bare field: opt a raw input/textarea OUT of the canonical ring when its rounded container
+ * shows focus instead (via focus-within) — no sharp rectangle inside a rounded socket. Unlayered
+ * so it beats the :where() rule above; the utility `outline-none` (layered) cannot. */
+.field-bare:focus-visible { outline: none; }
 
 /* Skeleton shimmer — the loading state, in the system's grayscale. */
 .shimmer { position: relative; overflow: hidden; background: color-mix(in oklab, var(--foreground) 6%, transparent); }

@@ -94,7 +94,7 @@ export function SarahComposer({
           e.preventDefault();
           submit();
         }}
-        className="neu-socket rounded-2xl px-2.5 py-2"
+        className="neu-socket rounded-2xl px-2.5 py-2 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#5b9bff]"
       >
         <div className="flex items-end gap-2">
           {/* attach affordance — not wired yet, so it says so (docs/product.md §0) */}
@@ -122,7 +122,7 @@ export function SarahComposer({
               }
             }}
             placeholder={placeholder ?? `What can ${assistantName} do for you?`}
-            className="max-h-30 min-h-6 flex-1 resize-none bg-transparent py-1 text-[13.5px] text-foreground outline-none placeholder:text-muted-foreground"
+            className="field-bare max-h-30 min-h-6 flex-1 resize-none bg-transparent py-1 text-[13.5px] text-foreground outline-none placeholder:text-muted-foreground"
           />
           <button
             type="submit"
