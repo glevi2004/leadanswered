@@ -13,6 +13,7 @@ import { DockHome } from "./DockHome";
 import { DockCompany } from "./DockCompany";
 import { DockLibrary } from "./DockLibrary";
 import { AgentDockPanel } from "@/components/canvas/AgentDockPanel";
+import { SegmentedTabs } from "@/components/ds/SegmentedTabs";
 import { SarahIcon } from "@/components/icons/sarah";
 import { useDockData, useOnboardingMode, taskStatusLabel, type DockTask } from "@/lib/dock/live";
 import { cn } from "@/lib/utils";
@@ -67,11 +68,11 @@ function PanelBody() {
   const { selectedAgent, setSelectedAgent, dockTab, setDockTab } = useSarah();
 
   return (
-    // TWO STACKED CARDS on a recessed frame (design-system zones): the tab bar is one neu-card,
-    // the active tab's content is a second neu-card, with a gap between them.
-    <div className="flex min-h-0 flex-1 flex-col gap-2 p-2 [--bubble-surface:var(--card)]">
-      {/* Stacked card 1 — the tabs. Active tab = a raised gloss pill (the board's Tabs pattern). */}
-      <div className="neu-card shrink-0 rounded-2xl bg-card px-2 py-2">
+    // The header is NOT a card — it's the segmented tab bar sitting directly on the frame. The
+    // content is ONE full-width card (same width as the frame) stacked right below it, so the
+    // two read as two cards stacked on top of each other (the frame's top + the content card).
+    <div className="flex min-h-0 flex-1 flex-col [--bubble-surface:var(--card)]">
+      <div className="shrink-0 px-3 py-3">
         {selectedAgent ? (
           <button
             type="button"
@@ -81,26 +82,12 @@ function PanelBody() {
             <ChevronLeft className="size-4" /> Back
           </button>
         ) : (
-          <div className="flex items-center justify-between gap-1">
-            {DOCK_TABS.map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setDockTab(t)}
-                className={cn(
-                  "rounded-lg px-3 py-1.5 text-[13px] font-medium capitalize transition active:translate-y-px",
-                  dockTab === t ? "gloss text-foreground" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
+          <SegmentedTabs items={DOCK_TABS} active={dockTab} onChange={setDockTab} fill />
         )}
       </div>
 
-      {/* Stacked card 2 — the active tab's content, its own neu-card. */}
-      <div className="neu-card flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-card">
+      {/* The content card — full width, flush to the frame, stacked below the header. */}
+      <div className="neu-card flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-2xl bg-card">
         {selectedAgent ? (
           <AgentDockPanel dept={selectedAgent} />
         ) : dockTab === "lu" ? (

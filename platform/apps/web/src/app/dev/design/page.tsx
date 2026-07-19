@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
+import { SegmentedTabs } from "@/components/ds/SegmentedTabs";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -76,21 +77,9 @@ function PageNav() {
 }
 
 function Segmented() {
-  const items = ["Publish", "Revert", "Changes"];
-  const [active, setActive] = useState("Publish");
-  return (
-    <div className="neu-socket inline-flex items-center gap-1 rounded-xl p-1">
-      {items.map((it) => (
-        <button
-          key={it}
-          onClick={() => setActive(it)}
-          className={cn("rounded-lg px-3 py-1.5 text-[13px] font-medium transition active:translate-y-px", it === active ? "gloss text-foreground" : "text-muted-foreground hover:text-foreground")}
-        >
-          {it}
-        </button>
-      ))}
-    </div>
-  );
+  const items = ["Publish", "Revert", "Changes"] as const;
+  const [active, setActive] = useState<(typeof items)[number]>("Publish");
+  return <SegmentedTabs items={items} active={active} onChange={setActive} />;
 }
 
 function Toggle({ defaultOn = true }: { defaultOn?: boolean }) {
@@ -109,21 +98,9 @@ function Toggle({ defaultOn = true }: { defaultOn?: boolean }) {
 }
 
 function Tabs() {
-  const items = ["Home", "CRM", "Inbox"];
-  const [active, setActive] = useState("Home");
-  return (
-    <div className="neu-socket inline-flex items-center gap-1 rounded-xl p-1">
-      {items.map((it) => (
-        <button
-          key={it}
-          onClick={() => setActive(it)}
-          className={cn("rounded-lg px-3.5 py-1.5 text-[13px] font-medium transition", it === active ? "gloss text-foreground" : "text-muted-foreground hover:text-foreground")}
-        >
-          {it}
-        </button>
-      ))}
-    </div>
-  );
+  const items = ["Home", "CRM", "Inbox"] as const;
+  const [active, setActive] = useState<(typeof items)[number]>("Home");
+  return <SegmentedTabs items={items} active={active} onChange={setActive} />;
 }
 
 function NeuNode({ label, icon, dim = false }: { label: string; icon: React.ReactNode; dim?: boolean }) {
