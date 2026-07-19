@@ -508,6 +508,59 @@ export function taskStatusLabel(status: string): string {
   }
 }
 
+/* ------------------------------- the unified Library ------------------------------- */
+
+/** One file in the Library — a doc Lu wrote or a generated image asset. */
+export interface LibraryFile {
+  id: string;
+  name: string;
+  /** the folder key it files under (general | a department key) */
+  folder: string;
+  kind: "doc" | "image";
+  /** internal route for docs (the Notion-style viewer) */
+  href?: string;
+  /** preview image (data URL) for image assets */
+  previewUrl?: string;
+}
+
+/** The Library's canonical folders, in order — General + the live departments. */
+export const LIBRARY_FOLDERS: Array<{ key: string; label: string }> = [
+  { key: "general", label: "General" },
+  { key: "engineering", label: "Engineering" },
+];
+
+/** Every file in the Library: the docs Lu writes + generated image assets, one flat list. */
+export function libraryFiles(artifacts: DockArtifact[]): LibraryFile[] {
+  const docs: LibraryFile[] = libraryDocs(artifacts).map((d) => ({
+    id: d.id,
+    name: d.title,
+    folder: d.folder,
+    kind: "doc",
+    href: `/doc/${d.id}`,
+  }));
+  const images: LibraryFile[] = [];
+  for (const a of artifacts) {
+    if (a.kind !== "image") continue;
+    const p = a.payload ?? {};
+    const url = typeof p.dataUrl === "string" ? p.dataUrl : typeof p.url === "string" ? p.url : "";
+    if (!url) continue;
+    images.push({ id: a.id, name: a.title, folder: "engineering", kind: "image", previewUrl: url });
+  }
+  return [...docs, ...images];
+}
+
+/** Group files into the folder tree: the canonical folders first (honest-empty), then any
+ *  extra folder that already holds files. */
+export function libraryFolders(files: LibraryFile[]): Array<{ key: string; label: string; files: LibraryFile[] }> {
+  const known = new Set(LIBRARY_FOLDERS.map((f) => f.key));
+  const extras = [...new Set(files.map((f) => f.folder))].filter((k) => !known.has(k)).sort();
+  const all = [
+    ...LIBRARY_FOLDERS,
+    ...extras.map((k) => ({ key: k, label: k.charAt(0).toUpperCase() + k.slice(1) })),
+  ];
+  return all.map((f) => ({ ...f, files: files.filter((x) => x.folder === f.key) }));
+}
+
 /** Pull the best preview URL off a site_preview artifact payload (null while building). */
 export function previewUrl(payload: Record<string, unknown> | null): string | null {
   if (!payload) return null;
