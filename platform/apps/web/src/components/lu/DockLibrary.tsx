@@ -14,8 +14,8 @@ import { cn } from "@/lib/utils";
 /**
  * Library — ONE place for everything the company keeps: FOLDERS (General + each live department)
  * holding FILES (the docs Lu writes + generated image assets). Two views, toggled with the
- * design-system Toolbar: GRID (folder cards with file previews) · LIST (an expandable folder
- * tree). Search + import-context sit above. Honest-empty — never a fixture.
+ * design-system SegmentedTabs: GRID (square folder cards with file previews) · LIST (an expandable
+ * folder tree). Search + import-context sit above. Honest-empty — never a fixture.
  */
 
 const IMPORT_PROMPT =
@@ -85,22 +85,22 @@ export function DockLibrary() {
         />
       </div>
 
-      {/* Import context card */}
+      {/* Import context card — compact */}
       {!importDismissed && (
-        <div className="neu-card mt-3 rounded-2xl bg-card p-4">
-          <div className="flex items-start gap-3">
-            <span className="neu-card-in grid size-9 shrink-0 place-items-center rounded-full">
-              <FileText className="size-4 text-muted-foreground" />
+        <div className="neu-card mt-3 rounded-xl bg-card p-3">
+          <div className="flex items-start gap-2.5">
+            <span className="neu-card-in grid size-7 shrink-0 place-items-center rounded-lg">
+              <FileText className="size-3.5 text-muted-foreground" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="t-title text-foreground">Bring over ChatGPT or Claude context</p>
-              <p className="t-body mt-0.5 leading-snug text-muted-foreground">
-                Copy a prompt that turns old chats, decisions, and working preferences into import-ready Markdown.
+              <p className="t-label text-foreground">Bring over ChatGPT or Claude context</p>
+              <p className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
+                Copy a prompt that turns old chats and preferences into import-ready Markdown.
               </p>
               <button
                 type="button"
                 onClick={copyImportPrompt}
-                className="gloss press mt-3 rounded-lg px-3 py-1.5 text-[12px] font-medium text-foreground"
+                className="gloss press mt-2 rounded-lg px-2.5 py-1 text-[11px] font-medium text-foreground"
               >
                 Copy prompt
               </button>
@@ -111,7 +111,7 @@ export function DockLibrary() {
               onClick={() => setImportDismissed(true)}
               className="press shrink-0 rounded-md p-0.5 text-muted-foreground transition-colors hover:text-foreground"
             >
-              <X className="size-4" />
+              <X className="size-3.5" />
             </button>
           </div>
         </div>

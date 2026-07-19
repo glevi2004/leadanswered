@@ -86,8 +86,9 @@ export default function SecData() {
         </div>
       </Frame>
 
-      <Frame title="Library — folder card + file thumb" tag="grid view · neu-card p-2.5 · h-16 thumbs (FileThumb) · t-title/t-label">
-        <div className="grid grid-cols-2 gap-3">
+      <Frame title="Library — folder card + file thumb" tag="grid view · full-width square card · neu-card p-2.5 · aspect-square 2×2 thumbs · t-title/t-label">
+        <Cap>Full-width square folder card (as it sits in the dock) — a 2×2 grid of square previews</Cap>
+        <div className="mt-2 max-w-sm space-y-3">
           <LibraryFolderCard
             label="General"
             files={[
@@ -104,12 +105,12 @@ export default function SecData() {
             ]}
           />
         </div>
-        <Cap>FileThumb — image vs doc</Cap>
+        <Cap>FileThumb — image vs doc (square)</Cap>
         <div className="mt-3 grid grid-cols-4 gap-2">
-          <FileThumb name="hero.png" kind="image" previewUrl={LIB_THUMB} className="h-16" />
-          <FileThumb name="doc.md" kind="doc" className="h-16" />
-          <FileThumb name="chart.png" kind="image" previewUrl={LIB_THUMB} className="h-16" />
-          <FileThumb name="spec.md" kind="doc" className="h-16" />
+          <FileThumb name="hero.png" kind="image" previewUrl={LIB_THUMB} className="aspect-square" />
+          <FileThumb name="doc.md" kind="doc" className="aspect-square" />
+          <FileThumb name="chart.png" kind="image" previewUrl={LIB_THUMB} className="aspect-square" />
+          <FileThumb name="spec.md" kind="doc" className="aspect-square" />
         </div>
       </Frame>
     </div>

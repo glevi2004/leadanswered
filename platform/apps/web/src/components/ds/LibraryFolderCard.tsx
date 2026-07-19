@@ -9,9 +9,9 @@ export interface LibraryFolderFile {
 }
 
 /**
- * LibraryFolderCard — the Library's grid-view folder tile: a raised neu-card with a compact 2×2
- * strip of the folder's file previews (empty slots dashed) and the folder name + count below.
- * Sizes per the design harness (neu-card p-2.5, h-16 thumbs, t-title/t-label).
+ * LibraryFolderCard — the Library's grid-view folder tile: a raised, square neu-card with a 2×2
+ * grid of square file previews (empty slots dashed) and the folder name + count below.
+ * Sizes per the design harness (neu-card p-2.5, aspect-square thumbs, t-title/t-label).
  */
 export function LibraryFolderCard({
   label,
@@ -34,10 +34,10 @@ export function LibraryFolderCard({
     >
       <div className="grid grid-cols-2 gap-1.5">
         {thumbs.map((f) => (
-          <FileThumb key={f.id} name={f.name} kind={f.kind} previewUrl={f.previewUrl} className="h-16" />
+          <FileThumb key={f.id} name={f.name} kind={f.kind} previewUrl={f.previewUrl} className="aspect-square" />
         ))}
         {Array.from({ length: empties }).map((_, i) => (
-          <div key={`e${i}`} className="h-16 rounded-lg border border-dashed border-border/60" />
+          <div key={`e${i}`} className="aspect-square rounded-lg border border-dashed border-border/60" />
         ))}
       </div>
       <div className="px-0.5 pt-2">
