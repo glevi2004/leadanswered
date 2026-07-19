@@ -21,7 +21,7 @@ export const MODULES: Record<SurfaceKey, SurfaceEntry> = {
   canvas: {
     label: "Workspace",
     route: "/canvas",
-    chips: ["What's each department working on?", "Show me what needs approval", "What's Lu doing right now?"],
+    chips: [],
   },
   crm: {
     label: "Customers",
