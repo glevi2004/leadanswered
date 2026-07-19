@@ -6,6 +6,7 @@ import { ClipboardCopy, File, FileText, Folder, LayoutGrid, List, Search } from 
 import { useSarah } from "./sarah-context";
 import { useCanvasGraph, type CanvasNode } from "@/lib/canvas/api";
 import { OrgDocsList } from "@/components/library/OrgDocs";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 /**
@@ -132,7 +133,13 @@ export function DockLibrary() {
 
       {/* Items */}
       <div className="mt-4 min-h-0 flex-1">
-        {filtered.length > 0 ? (
+        {!loaded ? (
+          <div className="grid grid-cols-2 gap-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="aspect-[4/3] rounded-xl" />
+            ))}
+          </div>
+        ) : filtered.length > 0 ? (
           view === "grid" ? (
             <div className="grid grid-cols-2 gap-2">
               {filtered.map((i) => (
@@ -148,11 +155,7 @@ export function DockLibrary() {
           )
         ) : (
           <p className="text-sm text-muted-foreground">
-            {!loaded
-              ? "Loading…"
-              : q
-                ? "Nothing matches that."
-                : "Your library is empty. Notes and files you add to the canvas show up here."}
+            {q ? "Nothing matches that." : "Your library is empty. Notes and files you add to the canvas show up here."}
           </p>
         )}
       </div>

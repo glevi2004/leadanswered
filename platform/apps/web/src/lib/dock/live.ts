@@ -61,10 +61,13 @@ export function useDockData(active: boolean): {
   tasks: DockTask[];
   artifacts: DockArtifact[];
   loaded: boolean;
+  /** Force an immediate re-fetch (e.g. a manual "refresh" control) — a real reload, no-op safe. */
+  refresh: () => void;
 } {
   const [tasks, setTasks] = React.useState<DockTask[]>([]);
   const [artifacts, setArtifacts] = React.useState<DockArtifact[]>([]);
   const [loaded, setLoaded] = React.useState(false);
+  const refreshRef = React.useRef<() => void>(() => {});
 
   React.useEffect(() => {
     if (!active) return;
@@ -79,6 +82,7 @@ export function useDockData(active: boolean): {
       setArtifacts(a.artifacts ?? []);
       setLoaded(true);
     };
+    refreshRef.current = load;
     load();
     const iv = window.setInterval(load, POLL_MS);
     return () => {
@@ -87,7 +91,8 @@ export function useDockData(active: boolean): {
     };
   }, [active]);
 
-  return { tasks, artifacts, loaded };
+  const refresh = React.useCallback(() => refreshRef.current(), []);
+  return { tasks, artifacts, loaded, refresh };
 }
 
 /**

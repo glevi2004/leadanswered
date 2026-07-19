@@ -4,6 +4,37 @@ import * as React from "react";
 import { AGENTS } from "@/lib/canvas/graph";
 import type { DockSite, DockTask } from "@/lib/dock/live";
 import { siteHost, siteUrl } from "@/lib/dock/live";
+import { FAMILY_CHIP, FAMILY_DOT, type StatusFamily } from "@/lib/dashboard-ui";
+
+/* ------------------------------- task presentation ------------------------------ */
+
+/** A task status → the colored badge + dot the Home Tasks list shows (agent working / needs you). */
+const TASK_STATUS: Record<string, { label: string; family: StatusFamily }> = {
+  agent_can_do: { label: "Queued", family: "gray" },
+  in_progress: { label: "Working", family: "blue" },
+  needs_approval: { label: "Needs approval", family: "amber" },
+  done: { label: "Done", family: "emerald" },
+  failed: { label: "Failed", family: "red" },
+};
+
+export function taskBadge(status: string): { label: string; chip: string; dot: string } {
+  const meta = TASK_STATUS[status] ?? { label: status.replace(/_/g, " "), family: "gray" as StatusFamily };
+  return { label: meta.label, chip: FAMILY_CHIP[meta.family], dot: FAMILY_DOT[meta.family] };
+}
+
+/** Compact age like "now", "3m", "2h", "1d" from an ISO timestamp; "" when missing/invalid. */
+export function shortAge(iso?: string): string {
+  if (!iso) return "";
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return "";
+  const s = Math.max(0, Math.floor((Date.now() - t) / 1000));
+  if (s < 60) return "now";
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  return `${Math.floor(h / 24)}d`;
+}
 
 /**
  * Derived, REAL state for the Lu dock's Home / Company tabs (canvas.md §"the dock"). Nothing

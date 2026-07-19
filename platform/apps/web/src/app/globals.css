@@ -263,9 +263,9 @@
 :where(a, button, [role="button"], input, textarea, select):focus-visible {
   outline: 2px solid #5b9bff; outline-offset: 2px;
 }
-/* Bare field: opt a raw input/textarea OUT of the canonical ring when its rounded container
- * shows focus instead (via focus-within) — no sharp rectangle inside a rounded socket. Unlayered
- * so it beats the :where() rule above; the utility `outline-none` (layered) cannot. */
+/* Bare field: opt a raw input/textarea OUT of the canonical ring — its rounded container
+ * (e.g. the composer's neu-socket) is the visible field, so the recess + cursor carry focus
+ * with no ring. Unlayered so it beats the :where() rule above; `outline-none` (layered) cannot. */
 .field-bare:focus-visible { outline: none; }
 
 /* Skeleton shimmer — the loading state, in the system's grayscale. */

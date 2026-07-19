@@ -94,7 +94,7 @@ export function SarahComposer({
           e.preventDefault();
           submit();
         }}
-        className="neu-socket rounded-2xl px-2.5 py-2 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#5b9bff]"
+        className="neu-socket rounded-2xl px-2.5 py-2"
       >
         <div className="flex items-end gap-2">
           {/* attach affordance — not wired yet, so it says so (docs/product.md §0) */}

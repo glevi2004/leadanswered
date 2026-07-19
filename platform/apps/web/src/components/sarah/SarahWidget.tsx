@@ -7,6 +7,8 @@ import { useSarah, type DockTab } from "./sarah-context";
 import { DashboardIcon } from "@/components/icons/dashboard";
 import { ScheduleIcon } from "@/components/icons/schedule";
 import { ContentIcon, TeamIcon, type IconState } from "@/components/icons/nav-icons";
+import { Toolbar, type ToolbarItem } from "@/components/ds/Toolbar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { SarahThread } from "./SarahThread";
 import { SarahComposer } from "./SarahComposer";
 import { ApprovalCard } from "@/components/app/ApprovalCard";
@@ -37,7 +39,7 @@ function PanelBody() {
     // content is ONE full-width card (same width as the frame) stacked right below it, so the
     // two read as two cards stacked on top of each other (the frame's top + the content card).
     <div className="flex min-h-0 flex-1 flex-col [--bubble-surface:var(--card)]">
-      <div className="flex shrink-0 items-center gap-1.5 px-3 py-3">
+      <div className="flex shrink-0 items-center gap-1 px-3 py-3">
         {/* the small collapse control, left of the tabs — collapses the dock to its icon rail */}
         {!selectedAgent && (
           <button
@@ -45,9 +47,9 @@ function PanelBody() {
             aria-label="Collapse"
             title="Collapse (⌘/)"
             onClick={() => setWidgetOpen(false)}
-            className="press grid size-7 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="press shrink-0 rounded p-0.5 text-muted-foreground/70 transition-colors hover:text-foreground"
           >
-            <ChevronsRight className="size-3.5" />
+            <ChevronsRight className="size-4" />
           </button>
         )}
         {selectedAgent ? (
@@ -161,10 +163,14 @@ function TasksTab() {
       </div>
       <p className="mt-1 text-sm text-muted-foreground">Every task across your departments, and what needs you.</p>
 
-      {tasks.length === 0 ? (
-        <p className="mt-4 text-sm text-muted-foreground">
-          {loaded ? "No tasks yet. Ask Lu to get a department working." : "Loading…"}
-        </p>
+      {!loaded ? (
+        <div className="mt-4 space-y-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 rounded-lg" />
+          ))}
+        </div>
+      ) : tasks.length === 0 ? (
+        <p className="mt-4 text-sm text-muted-foreground">No tasks yet. Ask Lu to get a department working.</p>
       ) : (
         <div className="mt-4 space-y-4">
           {open.length > 0 && (
@@ -218,80 +224,61 @@ const TAB_ICONS: Record<DockTab, React.ComponentType<{ state?: IconState; classN
 };
 
 /**
- * The collapsed dock — a vertical icon rail (like the canvas toolbar, turned vertical): the
- * expand control on top, then each tab's animated icon. Tapping an icon expands to that tab.
+ * The collapsed dock — the reusable `Toolbar`, vertical + `surface` variant (the canvas toolbar,
+ * color-flipped): the expand control on top, then each tab's animated icon. Tapping a tab expands
+ * the dock to it.
  */
 function DockRail() {
   const { dockTab, setDockTab, setWidgetOpen } = useSarah();
-  const [hovered, setHovered] = React.useState<DockTab | null>(null);
-  return (
-    <div className="flex h-full w-[60px] flex-col items-center gap-1 py-3">
-      <button
-        type="button"
-        aria-label="Expand Lu"
-        title="Expand (⌘/)"
-        onClick={() => setWidgetOpen(true)}
-        className="press grid size-9 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-      >
-        <ChevronsLeft className="size-4" />
-      </button>
-      <div className="mt-1 flex flex-col items-center gap-1">
-        {DOCK_TABS.map((t) => {
-          const Icon = TAB_ICONS[t];
-          const active = dockTab === t;
-          return (
-            <button
-              key={t}
-              type="button"
-              aria-label={t}
-              title={t[0].toUpperCase() + t.slice(1)}
-              onMouseEnter={() => setHovered(t)}
-              onMouseLeave={() => setHovered((h) => (h === t ? null : h))}
-              onClick={() => {
-                setDockTab(t);
-                setWidgetOpen(true);
-              }}
-              className={cn(
-                "grid size-9 place-items-center rounded-lg transition-colors [&>svg]:size-[18px]",
-                active ? "gloss text-foreground" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Icon state={active ? "active" : hovered === t ? "hover" : "idle"} />
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
+  const items: ToolbarItem[] = [
+    {
+      key: "expand",
+      label: "Expand (⌘/)",
+      onClick: () => setWidgetOpen(true),
+      render: () => <ChevronsLeft className="size-[17px]" />,
+    },
+    ...DOCK_TABS.map((t): ToolbarItem => {
+      const Icon = TAB_ICONS[t];
+      return {
+        key: t,
+        label: t[0].toUpperCase() + t.slice(1),
+        active: dockTab === t,
+        dividerBefore: t === DOCK_TABS[0],
+        onClick: () => {
+          setDockTab(t);
+          setWidgetOpen(true);
+        },
+        render: ({ active, hovered }) => (
+          <Icon state={active ? "active" : hovered ? "hover" : "idle"} className="size-[17px]" />
+        ),
+      };
+    }),
+  ];
+  return <Toolbar items={items} orientation="vertical" variant="surface" />;
 }
 
 /**
- * THE chat sidebar — a single floating card on the right of the canvas, always present. The «
- * button in its header collapses it SMOOTHLY (width transition) to a vertical icon rail; it
- * never disappears. Desktop only; mobile uses SarahWidget.
+ * THE chat sidebar — a single floating card on the right of the canvas, always present. The »
+ * button in its header collapses it to the icon rail (the canvas-toolbar pill, vertical); it
+ * never disappears, it cross-fades. Desktop only; mobile uses SarahWidget.
  */
 export function SarahDock() {
   const { widgetOpen } = useSarah();
   return (
-    <div
-      className={cn(
-        "elev-4 fixed inset-y-3 right-3 z-40 hidden overflow-hidden rounded-[26px] border bg-background text-foreground transition-[width] duration-300 ease-out md:block",
-        widgetOpen ? "w-[380px]" : "w-[60px]",
-      )}
-    >
-      {/* expanded content — fixed 380 width so it CLIPS (not reflows) as the frame narrows */}
+    <div className="fixed inset-y-3 right-3 z-40 hidden md:block">
+      {/* expanded frame */}
       <div
         className={cn(
-          "absolute inset-0 flex w-[380px] flex-col transition-opacity duration-200",
-          widgetOpen ? "opacity-100" : "pointer-events-none opacity-0",
+          "elev-4 absolute inset-y-0 right-0 flex w-[380px] origin-right flex-col overflow-hidden rounded-[26px] border bg-background text-foreground transition-[opacity,transform] duration-200 ease-out",
+          widgetOpen ? "opacity-100" : "pointer-events-none translate-x-2 scale-95 opacity-0",
         )}
       >
         <PanelBody />
       </div>
-      {/* collapsed icon rail */}
+      {/* collapsed rail — the gloss toolbar pill */}
       <div
         className={cn(
-          "absolute inset-y-0 left-0 transition-opacity duration-200",
+          "absolute right-0 top-0 transition-opacity duration-200",
           widgetOpen ? "pointer-events-none opacity-0" : "opacity-100 delay-100",
         )}
       >
