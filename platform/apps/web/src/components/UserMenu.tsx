@@ -1,9 +1,8 @@
 "use client";
 
-import * as React from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown } from "lucide-react";
-import { SettingsIcon, SignOutIcon, TeamIcon, type IconState } from "@/components/icons/nav-icons";
+import { SettingsIcon, SignOutIcon, TeamIcon } from "@/components/icons/nav-icons";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,13 +26,10 @@ const ITEMS = [
 
 /**
  * The account button — top-left of the app (replaces the old nav sidebar's identity block).
- * Avatar + company name → a dropdown of Settings, Team, Log out, each with the same animated
- * nav icon the old sidebar used (they play on row hover).
+ * Avatar + company name → a dropdown of Settings, Team, Log out with the old nav icons (static).
  */
 export function UserMenu({ companyName }: { companyName: string }) {
   const router = useRouter();
-  const [hovered, setHovered] = React.useState<string | null>(null);
-  const stateFor = (key: string): IconState => (hovered === key ? "hover" : "idle");
 
   return (
     <DropdownMenu>
@@ -49,24 +45,20 @@ export function UserMenu({ companyName }: { companyName: string }) {
           <DropdownMenuItem
             key={it.key}
             className="gap-2.5 [&>svg]:size-[18px]"
-            onMouseEnter={() => setHovered(it.key)}
-            onMouseLeave={() => setHovered((h) => (h === it.key ? null : h))}
             onClick={() => router.push(it.href)}
           >
-            <it.Icon state={stateFor(it.key)} />
+            <it.Icon state="idle" />
             {it.label}
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="gap-2.5 [&>svg]:size-[18px]"
-          onMouseEnter={() => setHovered("signout")}
-          onMouseLeave={() => setHovered((h) => (h === "signout" ? null : h))}
           onClick={() => {
             window.location.href = "/auth/signout";
           }}
         >
-          <SignOutIcon state={stateFor("signout")} />
+          <SignOutIcon state="idle" />
           Log out
         </DropdownMenuItem>
       </DropdownMenuContent>

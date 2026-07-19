@@ -248,31 +248,84 @@ function DockRail() {
           setDockTab(t);
           setWidgetOpen(true);
         },
-        render: ({ active, hovered }) => (
-          <Icon state={active ? "active" : hovered ? "hover" : "idle"} className="size-[17px]" />
-        ),
+        render: () => <Icon state="idle" className="size-[17px]" />,
       };
     }),
   ];
   return <Toolbar items={items} orientation="vertical" variant="surface" />;
 }
 
+// Dock resize bounds.
+const DOCK_MIN = 320;
+const DOCK_MAX = 640;
+const DOCK_DEFAULT = 380;
+
 /**
  * THE chat sidebar — a single floating card on the right of the canvas, always present. The »
  * button in its header collapses it to the icon rail (the canvas-toolbar pill, vertical); it
- * never disappears, it cross-fades. Desktop only; mobile uses SarahWidget.
+ * never disappears, it cross-fades. Drag its left edge to resize (persisted). Desktop only.
  */
 export function SarahDock() {
   const { widgetOpen } = useSarah();
+  const frameRef = React.useRef<HTMLDivElement>(null);
+  const [width, setWidth] = React.useState(DOCK_DEFAULT);
+
+  React.useEffect(() => {
+    const saved = Number(window.localStorage.getItem("lu_dock_width"));
+    if (saved >= DOCK_MIN && saved <= DOCK_MAX) setWidth(saved);
+  }, []);
+
+  const onResizeStart = (e: React.PointerEvent) => {
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    const clamp = (x: number) => Math.min(DOCK_MAX, Math.max(DOCK_MIN, x));
+    const move = (ev: PointerEvent) => {
+      const right = frameRef.current?.getBoundingClientRect().right ?? window.innerWidth;
+      setWidth(clamp(right - ev.clientX));
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      document.body.style.removeProperty("cursor");
+      document.body.style.removeProperty("user-select");
+      setWidth((w) => {
+        window.localStorage.setItem("lu_dock_width", String(Math.round(w)));
+        return w;
+      });
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
   return (
     <div className="fixed inset-y-3 right-3 z-40 hidden md:block">
       {/* expanded frame */}
       <div
+        ref={frameRef}
+        style={{ width }}
         className={cn(
-          "elev-4 absolute inset-y-0 right-0 flex w-[380px] origin-right flex-col overflow-hidden rounded-[26px] border bg-background text-foreground transition-[opacity,transform] duration-200 ease-out",
+          "elev-4 absolute inset-y-0 right-0 flex origin-right flex-col overflow-hidden rounded-[26px] border bg-background text-foreground transition-[opacity,transform] duration-200 ease-out",
           widgetOpen ? "opacity-100" : "pointer-events-none translate-x-2 scale-95 opacity-0",
         )}
       >
+        {/* drag-to-resize handle on the left edge */}
+        {widgetOpen && (
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize Lu"
+            onPointerDown={onResizeStart}
+            onDoubleClick={() => {
+              setWidth(DOCK_DEFAULT);
+              window.localStorage.setItem("lu_dock_width", String(DOCK_DEFAULT));
+            }}
+            className="group absolute inset-y-0 left-0 z-20 w-2 cursor-col-resize"
+          >
+            <div className="mx-auto h-full w-[3px] rounded-full bg-transparent transition-colors duration-150 group-hover:bg-primary/25 group-active:bg-primary/40" />
+          </div>
+        )}
         <PanelBody />
       </div>
       {/* collapsed rail — the gloss toolbar pill */}

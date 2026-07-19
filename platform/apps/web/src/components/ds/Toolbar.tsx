@@ -63,7 +63,7 @@ export function Toolbar({
         style={style}
         className={cn(
           variant === "ink" ? "gloss-ink" : "gloss",
-          "relative flex overflow-hidden rounded-2xl transition-[width,height,padding] duration-200 ease-out",
+          "relative flex overflow-hidden rounded-xl transition-[width,height,padding] duration-200 ease-out",
           vertical ? "w-11 flex-col items-center" : "h-11 flex-row items-center",
           shown ? (vertical ? "py-1.5" : "px-1.5") : "p-0",
         )}
