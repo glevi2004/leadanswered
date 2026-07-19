@@ -3,7 +3,7 @@
 import { motion } from "motion/react";
 
 /**
- * KiwiIcons (app-ui/14-icons.md): Dashboard — lucide's layout-dashboard glyph.
+ * Nav icons (app-ui/14-icons.md): Dashboard — lucide's layout-dashboard glyph.
  * Hover: the whole icon spins a full turn with a springy overshoot and settles.
  */
 export type IconState = "idle" | "hover" | "active";

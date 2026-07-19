@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
  */
 export default async function WelcomePage() {
   const organization = await requireOrganization();
-  const sarah = organization.sarahName || "Lu";
+  const assistant = organization.assistantName || "Lu";
 
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
@@ -20,16 +20,16 @@ export default async function WelcomePage() {
         <CardContent className="flex flex-col gap-5 text-sm text-muted-foreground">
           <p className="text-center">
             You're all set, <strong className="text-foreground">{organization.companyName}</strong>.{" "}
-            {sarah} — your AI cofounder — is ready: tell her a goal and she plans it, gets it built,
+            {assistant} — your AI cofounder — is ready: tell her a goal and she plans it, gets it built,
             and brings you the result to approve.
           </p>
           <ul className="mx-auto flex max-w-sm flex-col gap-2">
             <li>
-              • <strong className="text-foreground">Workspace</strong> — the canvas: {sarah}, your
+              • <strong className="text-foreground">Workspace</strong> — the canvas: {assistant}, your
               agents, and everything they build.
             </li>
             <li>
-              • <strong className="text-foreground">The dock</strong> — talk to {sarah}, approve
+              • <strong className="text-foreground">The dock</strong> — talk to {assistant}, approve
               plans and publishes, watch builds live.
             </li>
             <li>

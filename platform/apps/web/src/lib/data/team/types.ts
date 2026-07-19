@@ -21,7 +21,7 @@ export interface Role {
   name: string; // "Owner" | "Office" | "Crew"
   blurb: string; // one plain-trades sentence
   modules: Record<ModuleKey, ModuleAccess>; // app-side access per module
-  sarah: LuCapabilities; // text-side access
+  assistant: LuCapabilities; // text-side access
 }
 
 /** What Lu has learned about a teammate (mirrors the onboarding "what Lu knows about you"). */
@@ -46,7 +46,7 @@ export interface Member {
   learned?: MemberLearned;
   overrides?: {
     modules?: Partial<Record<ModuleKey, ModuleAccess>>;
-    sarah?: Partial<LuCapabilities>;
+    assistant?: Partial<LuCapabilities>;
   };
   smsStatus: "pending_hello" | "active" | "opted_out"; // Lu's side of the relationship
   appAccess: "none" | "invited" | "active"; // Supabase auth side

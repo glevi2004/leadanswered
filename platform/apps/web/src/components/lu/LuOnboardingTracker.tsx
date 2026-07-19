@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { usePathname } from "next/navigation";
 import { useLu } from "./lu-context";
 import { OnboardingDecisionsCard } from "./OnboardingDecisionsCard";
 import { BusinessPlanCard } from "./BusinessPlanCard";
@@ -27,9 +26,7 @@ import {
  */
 export function LuOnboardingTracker() {
   const { dockOpen } = useLu();
-  const pathname = usePathname();
-  const onSarahPage = pathname?.startsWith("/sarah") ?? false;
-  const surfaceActive = dockOpen || onSarahPage;
+  const surfaceActive = dockOpen;
 
   const onboarding = useOnboardingMode(surfaceActive);
   const dataActive = surfaceActive && onboarding;

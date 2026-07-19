@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { usePathname } from "next/navigation";
 import { ClipboardList, ExternalLink, Hammer } from "lucide-react";
 import { useLu } from "./lu-context";
 import { PlanApprovalCard } from "./PlanApprovalCard";
@@ -20,7 +19,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * The chat↔Engineer wire, rendered INSIDE the thread (cockpit Part B). When Lu creates
- * tasks, sarah-context records the task ids as a BuildBatch; this tracker polls
+ * tasks, lu-context records the task ids as a BuildBatch; this tracker polls
  * /api/dock/tasks + /api/dock/artifacts (and /api/dock/approvals) for those ids and shows the
  * lifecycle unfold in the same conversation:
  *   plan gate (PlanApprovalCard) → (owner approves → backend dispatches) → build progress
@@ -52,14 +51,12 @@ export function StatusDot({ status }: { status: string }) {
 
 export function LuBuildTracker() {
   const { builds, activeChatId, dockOpen, sendMessage } = useLu();
-  const pathname = usePathname();
   const mine = builds.filter((b) => b.chatId === activeChatId);
 
   // Poll while this chat has a build AND its surface is actually on screen: the dock's Lu
   // tab (dockOpen) or the full-page /sarah. Otherwise the thread stays mounted-but-hidden
   // and we'd poll needlessly.
-  const onSarahPage = pathname?.startsWith("/sarah") ?? false;
-  const active = mine.length > 0 && (dockOpen || onSarahPage);
+  const active = mine.length > 0 && (dockOpen);
   const { tasks, artifacts, loaded } = useDockData(active);
   // The plan gate: /api/dock/approvals carries the pending approve_plan approvals Lu staged
   // (propose_plan). `resolve` POSTs the owner's decision → backend dispatches (approved) or

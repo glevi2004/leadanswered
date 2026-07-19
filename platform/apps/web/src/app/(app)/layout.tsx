@@ -14,7 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const organization = await requireOrganization();
 
   const ownerName = (organization.name as string)?.split(" ")[0] ?? "there";
-  const assistantName = (organization.sarahName as string) || "Lu";
+  const assistantName = (organization.assistantName as string) || "Lu";
 
   return (
     <LuProvider

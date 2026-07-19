@@ -7,7 +7,7 @@ import { Toaster } from "@/components/ui/sonner";
  * (department dashboards + agent workplaces) with no sidebar/frame, so the company
  * canvas can render them live in scaled iframes. Mirrors sites/[siteId]/layout.tsx:
  * auth still required; LuProvider mounts because Lu-driven bodies (the Support
- * department = LuPageClient) consume it.
+ * department) consume it.
  */
 export default async function EmbedLayout({ children }: { children: React.ReactNode }) {
   const organization = await requireOrganization();

@@ -10,7 +10,7 @@ import { CAPABILITIES } from "@/lib/workspace/capabilities";
 import type { CapabilityKey } from "@/lib/workspace/capabilities";
 
 /**
- * The one owner conversation, shared by the widget and /sarah (00 §3: three
+ * The one owner conversation, shared by the dock and /sarah (00 §3: three
  * surfaces, one thread). Every org talks to the REAL Lu (/api/lu/chat); the thread
  * starts honest-empty with a greeting.
  *
@@ -242,7 +242,7 @@ export function LuProvider({
       const mapped: LuMessage[] = msgs.map((m) => ({
         id: `srv_${m.id}`,
         at: m.createdAt ?? new Date().toISOString(),
-        role: m.role === "user" ? ("owner" as const) : ("sarah" as const),
+        role: m.role === "user" ? ("owner" as const) : ("lu" as const),
         body: m.content,
         via: "app" as const,
         // Persisted structure (roadmap P1): cards + choice chips survive reload.
@@ -287,7 +287,7 @@ export function LuProvider({
     };
   }, []);
 
-  // ⌘/ toggles the widget; persist open state across pages.
+  // ⌘/ toggles the dock; persist open state across pages.
   React.useEffect(() => {
     // Default expanded; only a previously-collapsed rail ("0") stays collapsed.
     setDockOpen(window.localStorage.getItem("lu_dock_open") !== "0");
@@ -363,7 +363,7 @@ export function LuProvider({
             appendTo("chat_main", {
               id: `srv_${m.id}`,
               at: m.createdAt ?? new Date().toISOString(),
-              role: "sarah",
+              role: "lu",
               body: m.content,
               via: "app",
               ...(m.meta.card === "connect" ? { card: "connect" as const } : {}),
@@ -492,7 +492,7 @@ export function LuProvider({
               appendTo(chatId, {
                 id: nextId(),
                 at: new Date().toISOString(),
-                role: "sarah",
+                role: "lu",
                 body: data.reply.trim(),
                 via: "app",
                 ...(showConnect ? { card: "connect" as const } : {}),
@@ -502,7 +502,7 @@ export function LuProvider({
               appendTo(chatId, {
                 id: nextId(),
                 at: new Date().toISOString(),
-                role: "sarah",
+                role: "lu",
                 body: "Here's the form — paste your tokens and we're set.",
                 via: "app",
                 card: "connect",
@@ -548,7 +548,7 @@ export function LuProvider({
             appendTo(chatId, {
               id: nextId(),
               at: new Date().toISOString(),
-              role: "sarah",
+              role: "lu",
               body: "One sec — I couldn't reach my tools just then. Give me a moment and try that again.",
               via: "app",
             });
@@ -605,13 +605,13 @@ export function LuProvider({
   }, [composerPrefill]);
 
   const surface = surfaceForPath(pathname ?? "");
-  const chips = surface ? MODULES[surface].sarahChips : MODULES.canvas.sarahChips;
+  const chips = surface ? MODULES[surface].chips : MODULES.canvas.chips;
 
   // The open frontier: the ACTIVE chat's last message, when it's a Lu turn carrying
   // choices — an owner reply (typed or tapped) after it closes the offer.
   const lastMsg = messages.at(-1);
   const openChoices =
-    lastMsg && lastMsg.role === "sarah" && lastMsg.choices
+    lastMsg && lastMsg.role === "lu" && lastMsg.choices
       ? { ...lastMsg.choices, messageId: lastMsg.id }
       : null;
 

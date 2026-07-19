@@ -89,7 +89,7 @@ export const useGoogleCalendar = (): boolean =>
 /**
  * Dev/test affordance: let an inbound SMS from an unknown number auto-start a
  * conversation. Off by default (the product flow is lead-initiated). Lets you
- * just text the number and have Sarah answer.
+ * just text the number and have Lu answer.
  */
 export const allowInboundLeads = (): boolean =>
   (process.env.ALLOW_INBOUND_LEADS ?? "").toLowerCase() === "true";

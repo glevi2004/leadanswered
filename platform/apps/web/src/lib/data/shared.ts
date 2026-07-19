@@ -19,7 +19,7 @@ export type ModuleKey =
   | "sites"; // fixed nav
 
 /** Core surfaces are never gated but still need registry entries (chips, routes). */
-export type SurfaceKey = ModuleKey | "home" | "sarah" | "canvas" | "settings";
+export type SurfaceKey = ModuleKey | "canvas" | "settings";
 
 export type ModuleStatus = "live" | "preview" | "coming_soon" | "hidden";
 
@@ -74,7 +74,7 @@ export interface LuChoices {
 export interface LuMessage {
   id: string;
   at: string; // ISO
-  role: "owner" | "sarah";
+  role: "owner" | "lu";
   body: string;
   via: "sms" | "app";
   card?: "connect";

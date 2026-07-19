@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { Check, ExternalLink, FileText, Loader2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLu } from "./lu-context";
@@ -19,9 +18,7 @@ import { useDockData, usePublishApprovals, libraryDocs } from "@/lib/dock/live";
  */
 export function LuDocsTracker() {
   const { dockOpen, sendMessage } = useLu();
-  const pathname = usePathname();
-  const onSarahPage = pathname?.startsWith("/sarah") ?? false;
-  const surfaceActive = dockOpen || onSarahPage;
+  const surfaceActive = dockOpen;
 
   const { approvals, resolve, pending } = usePublishApprovals(surfaceActive);
   const docApproval = approvals.find((a) => a.action === "approve_doc") ?? null;

@@ -364,7 +364,7 @@ export function OnboardingSketch() {
   // for the fields the Lu flow doesn't collect (service area, project types when no trade).
   const buildConfig = (): OrganizationConfigInput => ({
     companyName: ws.name || "Your Company",
-    sarahName: ws.assistantName || "Lu",
+    assistantName: ws.assistantName || "Lu",
     personaNotes: null,
     projectTypes: ws.trade ? [ws.trade] : [],
     serviceArea: { baseLocations: [], includeOverrides: [], excludeOverrides: [] },

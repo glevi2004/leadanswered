@@ -35,12 +35,12 @@ function RowBody({ children }: { children: React.ReactNode }) {
  * summary · wait time — that expand on hover (click pins, covers touch) to
  * reveal the draft and the actions, including INLINE editing of the draft
  * before sending. Shared by Home's "Needs you" card and the /sarah Approvals
- * tab; the widget keeps compact ApprovalCards.
+ * tab; the dock keeps compact ApprovalCards.
  */
 export function ApprovalRows({
   onAnswerEscalation,
 }: {
-  /** Where "Answer via Lu" lands — defaults to the widget; /sarah jumps to its Chat tab. */
+  /** Where "Answer via Lu" lands — defaults to the dock; /sarah jumps to its Chat tab. */
   onAnswerEscalation?: (e: OpenEscalation) => void;
 }) {
   const { approvals, escalations, approve, decline, openDock, beginEscalationAnswer } = useLu();

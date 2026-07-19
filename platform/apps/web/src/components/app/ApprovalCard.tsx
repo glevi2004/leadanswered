@@ -44,7 +44,7 @@ export function KindChip({ kind, className }: { kind: ApprovalKind; className?: 
 }
 
 /**
- * One pending hard-gate draft — the same card in the widget, Home, and /sarah
+ * One pending hard-gate draft — the same card in the dock, Home, and /sarah
  * (00 §8). Approving is the owner's explicit yes; code sends, never the model.
  */
 export function ApprovalCard({ approval, compact }: { approval: Approval; compact?: boolean }) {

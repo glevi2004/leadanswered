@@ -75,7 +75,7 @@ export async function finishSignup(input: {
 
   const config: OrganizationConfigInput = {
     companyName: input.companyName?.trim() || "Your Company",
-    sarahName: "Lu",
+    assistantName: "Lu",
     personaNotes: null,
     projectTypes: [],
     serviceArea: { baseLocations: [], includeOverrides: [], excludeOverrides: [] },

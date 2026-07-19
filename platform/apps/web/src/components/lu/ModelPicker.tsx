@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
  * The Lu model picker — a compact dropdown that sets which model powers the orchestrator
  * this conversation. Each model shows its PROVIDER'S LOGO (Anthropic · OpenAI · Google) so
  * the brand reads at a glance; the trigger shows the active model's logo + label. The choice
- * is held in sarah-context (`selectedModel`) and posted to /api/lu/chat as `modelId`, which
+ * is held in lu-context (`selectedModel`) and posted to /api/lu/chat as `modelId`, which
  * the api resolves via the core gateway's getModel(id).
  */
 export function ModelPicker({ className = "" }: { className?: string }) {

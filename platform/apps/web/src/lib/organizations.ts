@@ -11,6 +11,16 @@ import type { OrganizationConfigInput } from "@/lib/config";
 const nowIso = () => new Date().toISOString();
 const newId = () => crypto.randomUUID();
 
+/**
+ * Map a raw Organization row to the app shape: the DB columns are still `sarahName` /
+ * `sarahPersonaNotes` (kept to avoid a prod column rename), but the app reads them as
+ * `assistantName` / `personaNotes`.
+ */
+function aliasOrg<T extends Record<string, unknown>>(row: T | null): (T & { assistantName?: unknown; personaNotes?: unknown }) | null {
+  if (!row) return row;
+  return { ...row, assistantName: row.sarahName, personaNotes: row.sarahPersonaNotes };
+}
+
 export interface OrganizationListRow {
   id: string;
   companyName: string;
@@ -39,7 +49,7 @@ export async function getOrganizationByOwnerEmail(email: string) {
     .eq("ownerEmail", email.toLowerCase())
     .maybeSingle();
   if (error) throw error;
-  return data;
+  return aliasOrg(data);
 }
 
 /** Full organization row + recipients by id — seeds the admin-run onboarding wizard. */
@@ -51,7 +61,7 @@ export async function getOrganizationConfigById(id: string) {
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
-  return data;
+  return aliasOrg(data);
 }
 
 /**
@@ -200,7 +210,9 @@ export async function setOrganizationConfig(id: string, config: OrganizationConf
     .from("Organization")
     .update({
       companyName: config.companyName,
-      sarahName: config.sarahName,
+      // DB columns are still named sarahName / sarahPersonaNotes (kept to avoid a prod
+      // migration); the app-facing config field is assistantName / personaNotes.
+      sarahName: config.assistantName,
       sarahPersonaNotes: config.personaNotes ?? null,
       projectTypes: config.projectTypes,
       qualificationRules: config.qualificationRules,

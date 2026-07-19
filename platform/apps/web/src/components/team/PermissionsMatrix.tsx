@@ -73,7 +73,7 @@ export function RolesMatrix() {
             <tr key={cap} className="border-b border-border/60">
               <td className="py-1.5">{SARAH_CAP_LABELS[cap]}</td>
               {roles.map((r) => {
-                const v = r.sarah[cap];
+                const v = r.assistant[cap];
                 return (
                   <td key={r.key} className="py-1.5 text-center">
                     {typeof v === "boolean" ? <BoolChip value={v} /> : <AccessChip value={v} muted />}
@@ -103,14 +103,14 @@ export function MemberMatrix({ member, onChanged }: { member: Member; onChanged:
 
   const cycleCap = (cap: keyof LuCapabilities) => {
     if (cap === "approveHardGates") return; // code-locked to Owner (12 §8 Q1)
-    const current = eff.sarah[cap];
+    const current = eff.assistant[cap];
     const next = typeof current === "boolean" ? !current : SCOPE_CYCLE[(SCOPE_CYCLE.indexOf(current) + 1) % SCOPE_CYCLE.length];
-    membersStore.patch(member.id, { overrides: { ...member.overrides, sarah: { ...member.overrides?.sarah, [cap]: next } } });
+    membersStore.patch(member.id, { overrides: { ...member.overrides, assistant: { ...member.overrides?.assistant, [cap]: next } } });
     onChanged();
     toast.success(`Saved — ${SARAH_CAP_LABELS[cap]}: ${String(next)}.`, { description: "Lu follows this immediately." });
   };
 
-  const isOverridden = (kind: "modules" | "sarah", key: string) =>
+  const isOverridden = (kind: "modules" | "assistant", key: string) =>
     member.overrides?.[kind] !== undefined && key in (member.overrides[kind] as object);
 
   return (
@@ -131,14 +131,14 @@ export function MemberMatrix({ member, onChanged }: { member: Member; onChanged:
       ))}
       <p className="pb-1.5 pt-4 text-xs font-medium text-muted-foreground">Texting Lu</p>
       {(Object.keys(SARAH_CAP_LABELS) as Array<keyof LuCapabilities>).map((cap) => {
-        const v = eff.sarah[cap];
+        const v = eff.assistant[cap];
         const locked = cap === "approveHardGates";
         return (
           <div key={cap} className="flex items-center justify-between border-b border-border/60 py-1.5">
             <span>
               {SARAH_CAP_LABELS[cap]}
               {locked && <span className="ml-1.5 text-[10px] text-muted-foreground">🔒 owner only</span>}
-              {!locked && isOverridden("sarah", cap) && <span className="ml-1.5 text-[10px] text-muted-foreground">(custom)</span>}
+              {!locked && isOverridden("assistant", cap) && <span className="ml-1.5 text-[10px] text-muted-foreground">(custom)</span>}
             </span>
             <button
               type="button"

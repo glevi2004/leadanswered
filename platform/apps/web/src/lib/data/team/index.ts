@@ -18,7 +18,7 @@ export const ROLES: Record<RoleKey, Role> = {
     name: "Owner",
     blurb: "Everything, including approvals and this page.",
     modules: allModules("act"),
-    sarah: {
+    assistant: {
       askSchedule: "all",
       moveJobs: "all",
       askCrm: "all",
@@ -41,7 +41,7 @@ export const ROLES: Record<RoleKey, Role> = {
       followups: "act",
       team: "none",
     },
-    sarah: {
+    assistant: {
       askSchedule: "all",
       moveJobs: "all",
       askCrm: "all",
@@ -56,7 +56,7 @@ export const ROLES: Record<RoleKey, Role> = {
     name: "Crew",
     blurb: "Their own jobs: schedule, route, job notes.",
     modules: { ...allModules("none"), schedule: "view" },
-    sarah: {
+    assistant: {
       askSchedule: "own",
       moveJobs: "own",
       askCrm: "own",
@@ -149,10 +149,10 @@ export function addMemberMock(input: { name: string; phone: string; roleKey: Rol
 }
 
 /** Effective access = role preset + per-member overrides. */
-export function effectiveAccess(member: Member): { modules: Record<ModuleKey, ModuleAccess>; sarah: LuCapabilities } {
+export function effectiveAccess(member: Member): { modules: Record<ModuleKey, ModuleAccess>; assistant: LuCapabilities } {
   const role = ROLES[member.roleKey];
   return {
     modules: { ...role.modules, ...member.overrides?.modules },
-    sarah: { ...role.sarah, ...member.overrides?.sarah },
+    assistant: { ...role.assistant, ...member.overrides?.assistant },
   };
 }

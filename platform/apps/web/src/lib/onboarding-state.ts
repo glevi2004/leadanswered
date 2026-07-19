@@ -75,7 +75,7 @@ export type RecipientRow = { name: string; phone: string; email: string; events:
 
 export type OnboardingInitial = {
   companyName: string;
-  sarahName?: string;
+  assistantName?: string;
   personaNotes?: string | null;
   projectTypes?: string[];
   baseLocations?: { zip: string; radiusMiles: number }[];
@@ -90,7 +90,7 @@ export type OnboardingInitial = {
 
 export type OnboardingState = {
   company: string;
-  sarahName: string;
+  assistantName: string;
   persona: string;
   projectTypes: string[]; // verbatim labels (chip picker)
   baseZip: string;
@@ -108,8 +108,8 @@ export type OnboardingState = {
 export function initialFromOrganization(c: Record<string, any>): OnboardingInitial {
   return {
     companyName: c.companyName,
-    sarahName: c.sarahName,
-    personaNotes: c.sarahPersonaNotes,
+    assistantName: c.assistantName,
+    personaNotes: c.personaNotes,
     projectTypes: c.projectTypes ?? [],
     baseLocations: c.baseLocations ?? [],
     includeOverrides: c.includeOverrides ?? [],
@@ -130,7 +130,7 @@ export function initialFromOrganization(c: Record<string, any>): OnboardingIniti
 export function stateFromInitial(initial: OnboardingInitial): OnboardingState {
   return {
     company: initial.companyName,
-    sarahName: initial.sarahName || "Lu",
+    assistantName: initial.assistantName || "Lu",
     persona: initial.personaNotes ?? "",
     projectTypes: initial.projectTypes?.length ? initial.projectTypes : ["Roof repair", "Roof replacement"],
     baseZip: initial.baseLocations?.[0]?.zip ?? "",
@@ -159,7 +159,7 @@ export function stateFromInitial(initial: OnboardingInitial): OnboardingState {
 export function buildConfig(s: OnboardingState) {
   return {
     companyName: s.company,
-    sarahName: s.sarahName,
+    assistantName: s.assistantName,
     personaNotes: s.persona || null,
     projectTypes: s.projectTypes,
     serviceArea: {

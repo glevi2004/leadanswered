@@ -179,7 +179,7 @@ export function AgentDockPanel({ dept }: { dept: string }) {
   const working = deptTasks.find((t) => t.status === "in_progress");
   const openTasks = deptTasks.filter((t) => t.status !== "done");
 
-  // Composer → the real owner thread (sarah-context → /api/lu/chat). Lu decomposes
+  // Composer → the real owner thread (lu-context → /api/lu/chat). Lu decomposes
   // the goal into tasks the dock is already watching; here we just hand off the text.
   const submitAsk = (e: React.FormEvent) => {
     e.preventDefault();
