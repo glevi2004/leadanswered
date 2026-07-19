@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { TransformWrapper, TransformComponent, type ReactZoomPanPinchRef } from "react-zoom-pan-pinch";
 import { ArrowUpRight, Bell, Check, ChevronDown, Grid3x3, Undo2 } from "lucide-react";
-import { SarahIcon } from "@/components/icons/sarah";
+import { LuIcon } from "@/components/icons/lu";
 import { DeptIcon, PixelIcon, type Dept } from "@/components/ds/PixelIcon";
 import {
   AGENTS, PAGES, SHEETS, loadPositions, savePositions, clearPositions,
@@ -24,7 +24,7 @@ import { ResourceNode, nodeCenter, nodeDims, DEFAULT_NODE_DIMS } from "@/compone
 import { DeptCardNode, WorkCardNode } from "@/components/canvas/DepartmentCanvasNode";
 import { DrawLayer, type Stroke } from "@/components/canvas/DrawLayer";
 import { useSites, useAgentEvents } from "@/lib/dock/live";
-import { useSarah } from "@/components/sarah/sarah-context";
+import { useLu } from "@/components/lu/lu-context";
 
 /** Edge line color + human label per capability-grant kind (canvas.md "Edges"). */
 const EDGE_COLOR: Record<EdgeKind, string> = { reads: "#5b9bff", uses: "#f59e0b", produces: "#22c55e" };
@@ -124,7 +124,7 @@ export interface CanvasDepartment {
 }
 
 export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; departments?: CanvasDepartment[] }) {
-  const { setSelectedAgent, openWidget, setWidgetMode } = useSarah();
+  const { setSelectedAgent, openDock } = useLu();
   const router = useRouter();
 
   /* Deep-link fallback ONLY for a non-app department — one with no inline app yet. An APP dept
@@ -610,15 +610,13 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
   const goToAgent = (nodeId: string, selId: string, dept: DeptId, targetZ: number) => {
     setSelection(new Set<string>([selId]));
     setSelectedAgent(dept);
-    setWidgetMode("docked");
-    openWidget();
+    openDock();
     flyToNode(nodeId, targetZ);
   };
   const selectLu = () => {
     setSelection(new Set<string>(["lu"]));
     setSelectedAgent(null);
-    setWidgetMode("docked");
-    openWidget();
+    openDock();
     flyToNode("lu", INIT_Z);
   };
   const nodeClick = (id: string) => {
@@ -1225,7 +1223,7 @@ export function CompanyCanvas({ orgId, departments = [] }: { orgId: string; depa
               {/* task pill — above the frame */}
               <div className="pointer-events-auto absolute bottom-full left-1/2 mb-2 -translate-x-1/2 whitespace-nowrap">
                 <div className="gloss-ink flex items-center gap-1 rounded-lg px-2 py-0.5 text-[10px]">
-                  <SarahIcon className="size-3" />
+                  <LuIcon className="size-3" />
                   <span className="font-semibold">{ag?.agentName ?? "Agent"}</span>
                   <span className="max-w-[120px] truncate text-primary-foreground/60">{selPage.label}</span>
                   <ChevronDown className="size-2.5 text-primary-foreground/55" />

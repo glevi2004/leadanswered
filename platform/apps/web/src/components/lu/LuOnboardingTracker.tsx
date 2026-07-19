@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { usePathname } from "next/navigation";
-import { useSarah } from "./sarah-context";
+import { useLu } from "./lu-context";
 import { OnboardingDecisionsCard } from "./OnboardingDecisionsCard";
 import { BusinessPlanCard } from "./BusinessPlanCard";
 import {
@@ -22,14 +22,14 @@ import {
  * Once the business plan exists the decisions are done, so we hide them; once onboarding-mode
  * goes false (departments activated) this renders nothing at all.
  *
- * Gated on the same surface-active signal LuBuildTracker uses: the dock's Lu tab (widgetOpen)
+ * Gated on the same surface-active signal LuBuildTracker uses: the dock's Lu tab (dockOpen)
  * or the full-page /sarah. Returns null unless onboarding-mode is active.
  */
 export function LuOnboardingTracker() {
-  const { widgetOpen } = useSarah();
+  const { dockOpen } = useLu();
   const pathname = usePathname();
   const onSarahPage = pathname?.startsWith("/sarah") ?? false;
-  const surfaceActive = widgetOpen || onSarahPage;
+  const surfaceActive = dockOpen || onSarahPage;
 
   const onboarding = useOnboardingMode(surfaceActive);
   const dataActive = surfaceActive && onboarding;

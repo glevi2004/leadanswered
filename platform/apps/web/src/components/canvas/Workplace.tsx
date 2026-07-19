@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { CheckCircle2, CircleDashed, FileText, Loader2 } from "lucide-react";
-import { SarahIcon } from "@/components/icons/sarah";
+import { LuIcon } from "@/components/icons/lu";
 import { agentById, type DeptId } from "@/lib/canvas/graph";
 import { useDockData, taskStatusLabel, previewUrl, type DockArtifact } from "@/lib/dock/live";
 
@@ -50,7 +50,7 @@ export function Workplace({ dept }: { dept: DeptId }) {
     <div className="mx-auto flex max-w-2xl flex-col gap-5">
       <header className="flex items-center gap-3">
         <span className="grid size-9 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: `rgba(${agent.accent},0.14)`, color: `rgb(${agent.accent})` }}>
-          <SarahIcon className="size-5" />
+          <LuIcon className="size-5" />
         </span>
         <div className="min-w-0">
           <h1 className="text-lg font-semibold tracking-tight">{agent.agentName}</h1>

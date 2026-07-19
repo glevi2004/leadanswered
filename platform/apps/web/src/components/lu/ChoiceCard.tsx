@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Check, PenLine, Sparkles } from "lucide-react";
-import type { SarahChoices } from "@/lib/data/shared";
+import type { LuChoices } from "@/lib/data/shared";
 import { cn } from "@/lib/utils";
 
 /**
@@ -78,7 +78,7 @@ export function ChoiceCard({
   onOther,
   className,
 }: {
-  choices: SarahChoices;
+  choices: LuChoices;
   live: boolean;
   /** the owner's reply text that answered this turn (older turns) — marks the match */
   chosen?: string;

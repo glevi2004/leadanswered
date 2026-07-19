@@ -1,13 +1,13 @@
 import { requireOrganization } from "@/lib/dashboard-auth";
-import { SarahProvider } from "@/components/sarah/sarah-context";
+import { LuProvider } from "@/components/lu/lu-context";
 import { Toaster } from "@/components/ui/sonner";
 
 /**
  * Chrome-less rendering for canvas nodes — /embed/[node] serves the REAL page bodies
  * (department dashboards + agent workplaces) with no sidebar/frame, so the company
  * canvas can render them live in scaled iframes. Mirrors sites/[siteId]/layout.tsx:
- * auth still required; SarahProvider mounts because Sarah-driven bodies (the Support
- * department = SarahPageClient) consume it.
+ * auth still required; LuProvider mounts because Lu-driven bodies (the Support
+ * department = LuPageClient) consume it.
  */
 export default async function EmbedLayout({ children }: { children: React.ReactNode }) {
   const organization = await requireOrganization();
@@ -17,7 +17,7 @@ export default async function EmbedLayout({ children }: { children: React.ReactN
   // No seeded greeting — same rule as the app shell (the thread is the real conversation;
   // the old template here was pure pre-pivot copy: "leads, schedule, or jobs").
   return (
-    <SarahProvider
+    <LuProvider
       ownerName={ownerName}
       initialMessages={[]}
       initialApprovals={[]}
@@ -27,6 +27,6 @@ export default async function EmbedLayout({ children }: { children: React.ReactN
           <html>) so canvas previews match whichever theme the owner is in. */}
       <div className="min-h-screen bg-background p-6 text-foreground">{children}</div>
       <Toaster position="top-center" />
-    </SarahProvider>
+    </LuProvider>
   );
 }

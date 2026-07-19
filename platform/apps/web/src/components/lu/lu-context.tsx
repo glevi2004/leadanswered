@@ -3,7 +3,7 @@
 import * as React from "react";
 import { usePathname } from "next/navigation";
 import { toast } from "sonner";
-import type { Approval, SarahAction, SarahChoices, SarahMessage } from "@/lib/data/shared";
+import type { Approval, LuAction, LuChoices, LuMessage } from "@/lib/data/shared";
 import { MODULES, surfaceForPath } from "@/lib/data/registry";
 import { DEFAULT_LU_MODEL } from "@/lib/lu-models";
 import { CAPABILITIES } from "@/lib/workspace/capabilities";
@@ -19,10 +19,10 @@ import type { CapabilityKey } from "@/lib/workspace/capabilities";
  * tab, Home "Needs you" — one number, one meaning.
  */
 
-export interface SarahChat {
+export interface LuChat {
   id: string;
   title: string;
-  messages: SarahMessage[];
+  messages: LuMessage[];
 }
 
 export interface OpenEscalation {
@@ -62,31 +62,28 @@ export interface Clarification {
   at: string; // ISO
 }
 
-interface SarahState {
+interface LuState {
   ownerName: string;
   /** the org's chosen name for the assistant (default "Lu") — for conversational copy */
   assistantName: string;
   /** the ACTIVE chat's messages — consumers don't care about the history model */
-  messages: SarahMessage[];
+  messages: LuMessage[];
   /** conversation history for the "New chat ▾" dropdown */
   chats: { id: string; title: string }[];
   activeChatId: string;
   switchChat: (id: string) => void;
   approvals: Approval[];
   escalations: OpenEscalation[];
-  actions: SarahAction[];
+  actions: LuAction[];
   /** builds Lu dispatched this session — the thread watches these unfold live */
   builds: BuildBatch[];
   /** approvals + open escalations — the one "needs you" number, all surfaces */
   pendingCount: number;
   typing: boolean;
-  widgetOpen: boolean;
-  setWidgetOpen: (open: boolean) => void;
-  /** Apollo-style display: full-height docked panel (default) or floating corner card */
-  widgetMode: "docked" | "floating";
-  setWidgetMode: (mode: "docked" | "floating") => void;
-  openWidget: (ctx?: { entity?: string }) => void;
-  /** the record the owner was looking at when they asked ("Ask Sarah about Dana") */
+  dockOpen: boolean;
+  setDockOpen: (open: boolean) => void;
+  openDock: (ctx?: { entity?: string }) => void;
+  /** the record the owner was looking at when they asked ("Ask Lu about Dana") */
   contextEntity: string | null;
   /** the department/agent selected on the company canvas — drives the dock's agent view */
   selectedAgent: string | null;
@@ -102,7 +99,7 @@ interface SarahState {
   dismissClarification: (id: string) => void;
   /** THE OPEN FRONTIER (roadmap P1): the latest Lu message's unanswered choices — the one
    *  source for the thread's chips AND Home's next-moves. Null when nothing is offered. */
-  openChoices: (SarahChoices & { messageId: string }) | null;
+  openChoices: (LuChoices & { messageId: string }) | null;
   sendMessage: (body: string) => void;
   /** Apollo-style "New chat": a fresh conversation; approvals/escalations untouched */
   startNewChat: () => void;
@@ -119,19 +116,19 @@ interface SarahState {
   currentPageLabel: string | null;
 }
 
-const SarahContext = React.createContext<SarahState | null>(null);
+const LuContext = React.createContext<LuState | null>(null);
 
-export function useSarah(): SarahState {
-  const ctx = React.useContext(SarahContext);
-  if (!ctx) throw new Error("useSarah must be used inside <SarahProvider>");
+export function useLu(): LuState {
+  const ctx = React.useContext(LuContext);
+  if (!ctx) throw new Error("useLu must be used inside <LuProvider>");
   return ctx;
 }
 
 let idCounter = 0;
 const nextId = () => `local_${++idCounter}`;
 
-/** Parse a persisted `Message.meta.choices` payload into SarahChoices (defensive), or null. */
-function choicesFromMeta(meta: Record<string, unknown> | null | undefined): SarahChoices | null {
+/** Parse a persisted `Message.meta.choices` payload into LuChoices (defensive), or null. */
+function choicesFromMeta(meta: Record<string, unknown> | null | undefined): LuChoices | null {
   const c = meta?.choices;
   if (!c || typeof c !== "object") return null;
   const cc = c as Record<string, unknown>;
@@ -146,7 +143,7 @@ function choicesFromMeta(meta: Record<string, unknown> | null | undefined): Sara
   };
 }
 
-export function SarahProvider({
+export function LuProvider({
   ownerName,
   assistantName = "Lu",
   initialMessages,
@@ -158,15 +155,15 @@ export function SarahProvider({
 }: {
   ownerName: string;
   assistantName?: string;
-  initialMessages: SarahMessage[];
+  initialMessages: LuMessage[];
   initialApprovals: Approval[];
-  initialActions: SarahAction[];
+  initialActions: LuAction[];
   initialEscalations?: OpenEscalation[];
-  initialPastChats?: SarahChat[];
+  initialPastChats?: LuChat[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const [chats, setChats] = React.useState<SarahChat[]>(() => [
+  const [chats, setChats] = React.useState<LuChat[]>(() => [
     {
       id: "chat_main",
       title: initialMessages.find((m) => m.role === "owner")?.body.slice(0, 24) ?? "New chat",
@@ -189,7 +186,7 @@ export function SarahProvider({
   const messages = (chats.find((c) => c.id === activeChatId) ?? chats[0]).messages;
 
   /** append into a specific chat (timers may land after a switch); first owner message titles a "New chat" */
-  const appendTo = React.useCallback((chatId: string, msg: SarahMessage) => {
+  const appendTo = React.useCallback((chatId: string, msg: LuMessage) => {
     setChats((cs) =>
       cs.map((c) =>
         c.id === chatId
@@ -208,8 +205,7 @@ export function SarahProvider({
   const [builds, setBuilds] = React.useState<BuildBatch[]>([]);
   const [typing, setTyping] = React.useState(false);
   // The dock is the primary surface now — expanded by default; collapsing to a rail persists.
-  const [widgetOpen, setWidgetOpen] = React.useState(true);
-  const [widgetMode, setWidgetMode] = React.useState<"docked" | "floating">("docked");
+  const [dockOpen, setDockOpen] = React.useState(true);
   const [contextEntity, setContextEntity] = React.useState<string | null>(null);
   const [selectedAgent, setSelectedAgent] = React.useState<string | null>(null);
   const [dockTab, setDockTab] = React.useState<DockTab>("lu");
@@ -243,7 +239,7 @@ export function SarahProvider({
     };
     const adopt = (msgs: ServerMsg[]) => {
       for (const m of msgs) seenServerIds.current.add(m.id);
-      const mapped: SarahMessage[] = msgs.map((m) => ({
+      const mapped: LuMessage[] = msgs.map((m) => ({
         id: `srv_${m.id}`,
         at: m.createdAt ?? new Date().toISOString(),
         role: m.role === "user" ? ("owner" as const) : ("sarah" as const),
@@ -294,15 +290,11 @@ export function SarahProvider({
   // ⌘/ toggles the widget; persist open state across pages.
   React.useEffect(() => {
     // Default expanded; only a previously-collapsed rail ("0") stays collapsed.
-    setWidgetOpen(window.localStorage.getItem("sarah_widget_open") !== "0");
-  }, []);
-  const persistMode = React.useCallback((mode: "docked" | "floating") => {
-    setWidgetMode(mode);
-    window.localStorage.setItem("sarah_widget_mode", mode);
+    setDockOpen(window.localStorage.getItem("lu_dock_open") !== "0");
   }, []);
   const persistOpen = React.useCallback((open: boolean) => {
-    setWidgetOpen(open);
-    window.localStorage.setItem("sarah_widget_open", open ? "1" : "0");
+    setDockOpen(open);
+    window.localStorage.setItem("lu_dock_open", open ? "1" : "0");
   }, []);
 
   // Phase-2 auto-open: check onboarding-mode ONCE on mount (a single fetch, NOT a poller — so
@@ -333,19 +325,19 @@ export function SarahProvider({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "/" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        persistOpen(!widgetOpen);
+        persistOpen(!dockOpen);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [widgetOpen, persistOpen]);
+  }, [dockOpen, persistOpen]);
 
   // LIVE REPORT-BACK (docs/system.md §2): while the dock is open, gently poll the persisted
   // thread and append NEW system-authored messages (preview ready, published, build failed —
   // written server-side by the journal) into the visible chat. This is how work "reports back"
   // into the conversation without the owner having to ask.
   React.useEffect(() => {
-    if (!widgetOpen) return;
+    if (!dockOpen) return;
     let alive = true;
     const load = async () => {
       try {
@@ -389,7 +381,7 @@ export function SarahProvider({
       alive = false;
       window.clearInterval(iv);
     };
-  }, [widgetOpen, appendTo]);
+  }, [dockOpen, appendTo]);
 
   // THE HONEST BADGE (docs/product.md §0): the "needs you" number counts SERVER truth —
   // real pending approvals (plan gates, publish gates) polled cheaply even while the dock is
@@ -427,16 +419,16 @@ export function SarahProvider({
       const text = body.trim();
       if (!text) return;
       const chatId = activeChatIdRef.current;
-      const ownerMsg: SarahMessage = { id: nextId(), at: new Date().toISOString(), role: "owner", body: text, via: "app" };
+      const ownerMsg: LuMessage = { id: nextId(), at: new Date().toISOString(), role: "owner", body: text, via: "app" };
       appendTo(chatId, ownerMsg);
 
-      // answering an escalation? resolve it: Sarah relays in her own words.
+      // answering an escalation? resolve it: Lu relays in her own words.
       const esc = answeringEscalation.current;
       if (esc) {
         answeringEscalation.current = null;
         setEscalations((list) => list.filter((x) => x.id !== esc.id));
         setActions((list) => [
-          { id: nextId(), at: new Date().toISOString(), module: "core" as const, summary: `Answered ${esc.contactName}'s question — passed along in Sarah's words`, contactId: esc.contactId },
+          { id: nextId(), at: new Date().toISOString(), module: "core" as const, summary: `Answered ${esc.contactName}'s question — passed along in Lu's words`, contactId: esc.contactId },
           ...list,
         ]);
         return;
@@ -487,7 +479,7 @@ export function SarahProvider({
                     ((a as { options?: unknown[] }).options?.length ?? 0) > 0,
                 ) as { question: string; options: string[]; recommended?: number } | undefined)
               : undefined;
-            const choices: SarahChoices | undefined = askWithOptions
+            const choices: LuChoices | undefined = askWithOptions
               ? {
                   question: askWithOptions.question,
                   options: askWithOptions.options,
@@ -588,7 +580,7 @@ export function SarahProvider({
           description: edited ? editedPreview : target.summary,
         });
       } else {
-        toast("Dropped it", { description: `Sarah won't send: ${target.summary}` });
+        toast("Dropped it", { description: `Lu won't send: ${target.summary}` });
       }
     },
     [approvals],
@@ -623,7 +615,7 @@ export function SarahProvider({
       ? { ...lastMsg.choices, messageId: lastMsg.id }
       : null;
 
-  const value: SarahState = {
+  const value: LuState = {
     ownerName,
     assistantName,
     messages,
@@ -636,11 +628,9 @@ export function SarahProvider({
     builds,
     pendingCount: approvals.length + escalations.length + serverPendingCount,
     typing,
-    widgetOpen,
-    setWidgetOpen: persistOpen,
-    widgetMode,
-    setWidgetMode: persistMode,
-    openWidget: (ctx) => {
+    dockOpen,
+    setDockOpen: persistOpen,
+    openDock: (ctx) => {
       if (ctx?.entity) setContextEntity(ctx.entity);
       persistOpen(true);
     },
@@ -666,5 +656,5 @@ export function SarahProvider({
     currentPageLabel: surface ? MODULES[surface].label : null,
   };
 
-  return <SarahContext.Provider value={value}>{children}</SarahContext.Provider>;
+  return <LuContext.Provider value={value}>{children}</LuContext.Provider>;
 }

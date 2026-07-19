@@ -6,7 +6,7 @@ import { BrowserChrome } from "@/components/canvas/BrowserChrome";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { useSarah } from "@/components/sarah/sarah-context";
+import { useLu } from "@/components/lu/lu-context";
 import {
   useDockData,
   useSites,
@@ -101,11 +101,11 @@ export function DepartmentWorkplace({ dept }: { dept: string }) {
   // §8b (ladder 0b): Request changes is REAL — prefill the Lu composer with this build's
   // context and jump to the chat; changing things IS asking Lu. Retry re-dispatches a failed
   // build. Revert-all stays Soon until a rollback endpoint exists.
-  const { prefillComposer, openWidget, setDockTab } = useSarah();
+  const { prefillComposer, openDock, setDockTab } = useLu();
   const [retrying, setRetrying] = React.useState(false);
   const onRequestChanges = () => {
     prefillComposer(`Request changes on "${selectedTask?.title ?? "the current build"}": `);
-    openWidget();
+    openDock();
     setDockTab("lu");
   };
   const onRetry = async () => {

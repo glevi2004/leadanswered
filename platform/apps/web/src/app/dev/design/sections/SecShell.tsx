@@ -6,7 +6,7 @@ import { Frame, Cap, GalleryHeading } from "../_ui";
 import { DashboardIcon } from "@/components/icons/dashboard";
 import { CrmIcon } from "@/components/icons/crm";
 import { ScheduleIcon } from "@/components/icons/schedule";
-import { SarahIcon } from "@/components/icons/sarah";
+import { LuIcon } from "@/components/icons/lu";
 import {
   ContentIcon, InvoicesIcon, ReviewsIcon, SettingsIcon, SignOutIcon, TeamIcon, WebsiteIcon,
   type IconState,
@@ -16,7 +16,7 @@ import {
 const NAV: { key: string; label: string; Icon: React.ComponentType<{ state?: IconState; className?: string }> }[] = [
   { key: "home", label: "Home", Icon: DashboardIcon },
   { key: "canvas", label: "Canvas", Icon: TeamIcon },
-  { key: "chat", label: "Lu", Icon: SarahIcon },
+  { key: "chat", label: "Lu", Icon: LuIcon },
   { key: "crm", label: "CRM", Icon: CrmIcon },
   { key: "schedule", label: "Schedule", Icon: ScheduleIcon },
   { key: "money", label: "Money", Icon: InvoicesIcon },

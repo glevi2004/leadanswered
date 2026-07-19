@@ -95,7 +95,7 @@ function ChatThread() {
   );
 }
 
-/* SarahActionRow twin — interactive approve/edit. */
+/* LuActionRow twin — interactive approve/edit. */
 function ActionRow({ kind, desc }: { kind: string; desc: string }) {
   const [state, setState] = useState<"open" | "approved" | "dismissed">("open");
   return (
@@ -120,7 +120,7 @@ export default function SecChat() {
   const [voice, setVoice] = useState<"idle" | "listening" | "speaking">("speaking");
   return (
     <div className="flex flex-col gap-8">
-      <GalleryHeading tag="SarahThread · SarahComposer · PixelVoice · SarahActionRow">App components — Lu chat surface</GalleryHeading>
+      <GalleryHeading tag="LuThread · LuComposer · PixelVoice · LuActionRow">App components — Lu chat surface</GalleryHeading>
 
       <Frame title="Lu chat — thread + composer" tag="Claude / cowork style · role blocks (no SMS bubbles) · type &amp; send, Lu replies">
         <div className="mx-auto max-w-xl">

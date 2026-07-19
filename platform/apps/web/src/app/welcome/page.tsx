@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
  */
 export default async function WelcomePage() {
   const organization = await requireOrganization();
-  const sarah = organization.sarahName || "Sarah";
+  const sarah = organization.sarahName || "Lu";
 
   return (
     <main className="flex min-h-screen items-center justify-center p-6">

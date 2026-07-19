@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { PAGES, agentById, type DeptId, type PageNode } from "@/lib/canvas/graph";
 import { PixelIcon, type PixelGlyph } from "@/components/ds/PixelIcon";
-import { useSarah } from "@/components/sarah/sarah-context";
+import { useLu } from "@/components/lu/lu-context";
 import { useDockData, previewUrl, taskStatusLabel, type DockArtifact, type DockTask } from "@/lib/dock/live";
 import { cn } from "@/lib/utils";
 
@@ -163,8 +163,8 @@ function ArtifactRow({ artifact }: { artifact: DockArtifact }) {
 
 export function AgentDockPanel({ dept }: { dept: string }) {
   const agent = agentById(dept);
-  const { widgetOpen, sendMessage } = useSarah();
-  const { tasks, artifacts, loaded } = useDockData(widgetOpen);
+  const { dockOpen, sendMessage } = useLu();
+  const { tasks, artifacts, loaded } = useDockData(dockOpen);
   const [ask, setAsk] = React.useState("");
   if (!agent) return null;
 

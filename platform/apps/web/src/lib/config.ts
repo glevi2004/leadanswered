@@ -58,7 +58,7 @@ const recipientSchema = z
 
 export const organizationConfigSchema = z.object({
   companyName: z.string().min(1, "company name is required"),
-  sarahName: z.string().min(1).default("Sarah"),
+  sarahName: z.string().min(1).default("Lu"),
   personaNotes: z.string().nullish(),
   projectTypes: z.array(z.string().min(1)).min(1, "add at least one project type"),
   serviceArea: z.object({

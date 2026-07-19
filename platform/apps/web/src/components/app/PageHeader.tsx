@@ -1,6 +1,6 @@
 /**
  * Standard page header (00 §8): title + actions slot. No preview badges anywhere —
- * the whole app is pre-launch (00 §4). No Ask-Sarah button here either — the global
+ * the whole app is pre-launch (00 §4). No Ask-Lu button here either — the global
  * widget launcher is the one entry point.
  */
 export function PageHeader({

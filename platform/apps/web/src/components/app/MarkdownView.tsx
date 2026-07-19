@@ -2,7 +2,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Minimal markdown renderer for Sarah-authored bodies (04-content §6):
+ * Minimal markdown renderer for Lu-authored bodies (04-content §6):
  * paragraphs, ## headings, - lists, **bold**. Fixture-controlled input only —
  * a real markdown dependency arrives with the CMS, not before.
  */

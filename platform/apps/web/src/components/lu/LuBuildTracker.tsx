@@ -3,7 +3,7 @@
 import * as React from "react";
 import { usePathname } from "next/navigation";
 import { ClipboardList, ExternalLink, Hammer } from "lucide-react";
-import { useSarah } from "./sarah-context";
+import { useLu } from "./lu-context";
 import { PlanApprovalCard } from "./PlanApprovalCard";
 import { ConnectCard } from "./ConnectCard";
 import { useConnectStatus } from "./dock-data";
@@ -27,7 +27,7 @@ import { cn } from "@/lib/utils";
  *   (queued → building → preview link) → publish gate (PublishApprovals card, kept as-is).
  * The PLAN GATE comes first: when Lu calls propose_plan she stages a pending `approve_plan`
  * approval + a `doc` plan artifact WITHOUT building; this tracker renders that plan for the
- * owner to Approve/Reject before any build runs. Lives in SarahThread so it appears on every
+ * owner to Approve/Reject before any build runs. Lives in LuThread so it appears on every
  * surface that renders the thread (the dock's Lu tab and the full-page /sarah), right after
  * Lu's reply.
  */
@@ -51,15 +51,15 @@ export function StatusDot({ status }: { status: string }) {
 }
 
 export function LuBuildTracker() {
-  const { builds, activeChatId, widgetOpen, sendMessage } = useSarah();
+  const { builds, activeChatId, dockOpen, sendMessage } = useLu();
   const pathname = usePathname();
   const mine = builds.filter((b) => b.chatId === activeChatId);
 
   // Poll while this chat has a build AND its surface is actually on screen: the dock's Lu
-  // tab (widgetOpen) or the full-page /sarah. Otherwise the thread stays mounted-but-hidden
+  // tab (dockOpen) or the full-page /sarah. Otherwise the thread stays mounted-but-hidden
   // and we'd poll needlessly.
   const onSarahPage = pathname?.startsWith("/sarah") ?? false;
-  const active = mine.length > 0 && (widgetOpen || onSarahPage);
+  const active = mine.length > 0 && (dockOpen || onSarahPage);
   const { tasks, artifacts, loaded } = useDockData(active);
   // The plan gate: /api/dock/approvals carries the pending approve_plan approvals Lu staged
   // (propose_plan). `resolve` POSTs the owner's decision → backend dispatches (approved) or

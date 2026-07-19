@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import type { Approval, ApprovalKind } from "@/lib/data/shared";
-import { useSarah } from "@/components/sarah/sarah-context";
+import { useLu } from "@/components/lu/lu-context";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
@@ -48,7 +48,7 @@ export function KindChip({ kind, className }: { kind: ApprovalKind; className?: 
  * (00 §8). Approving is the owner's explicit yes; code sends, never the model.
  */
 export function ApprovalCard({ approval, compact }: { approval: Approval; compact?: boolean }) {
-  const { approve, decline } = useSarah();
+  const { approve, decline } = useLu();
   const [editing, setEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(approval.preview);
 

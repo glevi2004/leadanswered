@@ -5,7 +5,7 @@ import {
   Check, CreditCard, ExternalLink, Globe, Mail, Plus, Server, Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useSarah } from "./sarah-context";
+import { useLu } from "./lu-context";
 import { useDockData, useSites } from "@/lib/dock/live";
 import { deriveAgents, importantLinks, useConnectStatus } from "./dock-data";
 import { ConnectionsPanel } from "@/components/settings/ConnectionsPanel";
@@ -19,10 +19,10 @@ import { cn } from "@/lib/utils";
  * source yet). Agents are the departments with a real footprint; clicking one opens its panel.
  */
 export function DockCompany() {
-  const { widgetOpen, setSelectedAgent } = useSarah();
-  const { tasks } = useDockData(widgetOpen);
-  const { sites } = useSites(widgetOpen);
-  const connect = useConnectStatus(widgetOpen);
+  const { dockOpen, setSelectedAgent } = useLu();
+  const { tasks } = useDockData(dockOpen);
+  const { sites } = useSites(dockOpen);
+  const connect = useConnectStatus(dockOpen);
 
   const hostingConnected = connect.github && connect.vercel;
   const links = importantLinks(sites);
@@ -56,7 +56,7 @@ export function DockCompany() {
       <div className="rounded-xl border bg-card p-4 elev-1">
         <p className="font-medium text-foreground">Documents</p>
         <p className="mt-0.5 text-xs text-muted-foreground">What Lu has written for the company.</p>
-        <OrgDocsList active={widgetOpen} variant="rows" className="mt-3" />
+        <OrgDocsList active={dockOpen} variant="rows" className="mt-3" />
       </div>
 
       {/* Important links */}

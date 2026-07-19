@@ -9,7 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useSarah } from "./sarah-context";
+import { useLu } from "./lu-context";
 import { cn } from "@/lib/utils";
 
 /**
@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
  * the api resolves via the core gateway's getModel(id).
  */
 export function ModelPicker({ className = "" }: { className?: string }) {
-  const { selectedModel, setSelectedModel } = useSarah();
+  const { selectedModel, setSelectedModel } = useLu();
   const active = LU_MODELS.find((m) => m.id === selectedModel) ?? LU_MODELS[0];
 
   return (

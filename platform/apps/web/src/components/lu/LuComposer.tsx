@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { ArrowUp, Plus } from "lucide-react";
-import { useSarah } from "./sarah-context";
+import { useLu } from "./lu-context";
 import { ModelPicker } from "./ModelPicker";
 import { UsageMeter } from "./UsageMeter";
 import { cn } from "@/lib/utils";
@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
  * `chips`/`placeholder` let a scoped surface (the Website site chat, 03 §3)
  * reuse this exact composer against its own thread — never a fork.
  */
-export function SarahComposer({
+export function LuComposer({
   showContext,
   className,
   onSend,
@@ -27,7 +27,7 @@ export function SarahComposer({
   chips?: string[];
   placeholder?: string;
 }) {
-  const { sendMessage, chipsForCurrentPage, currentPageLabel, contextEntity, messages, composerPrefill, consumePrefill, assistantName } = useSarah();
+  const { sendMessage, chipsForCurrentPage, currentPageLabel, contextEntity, messages, composerPrefill, consumePrefill, assistantName } = useLu();
   const [text, setText] = React.useState("");
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
 
@@ -66,7 +66,7 @@ export function SarahComposer({
 
   const showChips = chipList.length > 0 && messages.length < 12; // keep chips while the thread is young
   const contextLabel =
-    showContext && currentPageLabel && currentPageLabel !== "Sarah"
+    showContext && currentPageLabel && currentPageLabel !== "Lu"
       ? `${currentPageLabel}${contextEntity ? ` · ${contextEntity}` : ""}`
       : null;
   // The model picker + usage meter live only on the main dock chat (never a scoped `onSend`

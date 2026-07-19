@@ -4,7 +4,7 @@ import * as React from "react";
 import { ArrowRight, Loader2 } from "lucide-react";
 import type { Member } from "@/lib/data/team/types";
 import { TeamGraph } from "@/components/team/TeamGraph";
-import { SarahIcon } from "@/components/icons/sarah";
+import { LuIcon } from "@/components/icons/lu";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -171,7 +171,7 @@ export function TeamSetup({
       {/* left — Lu */}
       <div className="flex w-full max-w-sm shrink-0 flex-col overflow-hidden rounded-3xl border bg-card">
         <header className="flex items-center gap-2 border-b px-4 py-3">
-          <SarahIcon className="size-5" />
+          <LuIcon className="size-5" />
           <span className="text-sm font-semibold">Lu</span>
           <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
             <span className="size-1.5 rounded-full bg-emerald-500" /> building your team

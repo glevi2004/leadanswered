@@ -1,10 +1,10 @@
 import { makePatchStore } from "../patchStore";
-import type { Member, ModuleAccess, Role, RoleKey, SarahCapabilities } from "./types";
+import type { Member, ModuleAccess, Role, RoleKey, LuCapabilities } from "./types";
 import type { ModuleKey } from "../shared";
 
 /**
  * Team mock provider (12 §4/§5). Roles are the three trades-simple presets;
- * the matrix is Sarah's briefing — the engine consults it per inbound text.
+ * the matrix is Lu's briefing — the engine consults it per inbound text.
  */
 
 const MODULE_KEYS: ModuleKey[] = ["crm", "schedule", "quotes", "invoices", "followups", "website", "content", "reviews", "analytics", "team"];
@@ -68,11 +68,11 @@ export const ROLES: Record<RoleKey, Role> = {
   },
 };
 
-export const SARAH_CAP_LABELS: Record<keyof SarahCapabilities, string> = {
+export const SARAH_CAP_LABELS: Record<keyof LuCapabilities, string> = {
   askSchedule: "Ask about the schedule",
   moveJobs: "Move or cancel jobs",
   askCrm: "Look up customers",
-  requestQuotes: "Ask Sarah to draft quotes",
+  requestQuotes: "Ask Lu to draft quotes",
   sendInvoices: "Send & track invoices",
   changePricing: "Change pricing",
   approveHardGates: "Approve sends to customers",
@@ -121,7 +121,7 @@ const APEX_MEMBERS: Member[] = [
     smsStatus: "active",
     appAccess: "none",
     notifications: [],
-    lastActiveAt: ago(45), // asked Sarah for his Thursday route
+    lastActiveAt: ago(45), // asked Lu for his Thursday route
     createdAt: ago(60 * 24 * 30),
   },
 ];
@@ -139,7 +139,7 @@ export function addMemberMock(input: { name: string; phone: string; roleKey: Rol
     phone: input.phone,
     email: input.email || undefined,
     roleKey: input.roleKey,
-    smsStatus: "pending_hello", // Sarah's hello is on its way
+    smsStatus: "pending_hello", // Lu's hello is on its way
     appAccess: input.email ? "invited" : "none",
     notifications: [],
     createdAt: new Date().toISOString(),
@@ -149,7 +149,7 @@ export function addMemberMock(input: { name: string; phone: string; roleKey: Rol
 }
 
 /** Effective access = role preset + per-member overrides. */
-export function effectiveAccess(member: Member): { modules: Record<ModuleKey, ModuleAccess>; sarah: SarahCapabilities } {
+export function effectiveAccess(member: Member): { modules: Record<ModuleKey, ModuleAccess>; sarah: LuCapabilities } {
   const role = ROLES[member.roleKey];
   return {
     modules: { ...role.modules, ...member.overrides?.modules },

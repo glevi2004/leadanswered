@@ -3,14 +3,14 @@
 import * as React from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronsLeft, ChevronsRight } from "lucide-react";
-import { useSarah, type DockTab } from "./sarah-context";
+import { useLu, type DockTab } from "./lu-context";
 import { DashboardIcon } from "@/components/icons/dashboard";
 import { ScheduleIcon } from "@/components/icons/schedule";
 import { ContentIcon, TeamIcon, type IconState } from "@/components/icons/nav-icons";
 import { Toolbar, type ToolbarItem } from "@/components/ds/Toolbar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SarahThread } from "./SarahThread";
-import { SarahComposer } from "./SarahComposer";
+import { LuThread } from "./LuThread";
+import { LuComposer } from "./LuComposer";
 import { ApprovalCard } from "@/components/app/ApprovalCard";
 import { PublishApprovals } from "./PublishApprovals";
 import { StatusDot } from "./LuBuildTracker";
@@ -19,7 +19,7 @@ import { DockCompany } from "./DockCompany";
 import { DockLibrary } from "./DockLibrary";
 import { AgentDockPanel } from "@/components/canvas/AgentDockPanel";
 import { SegmentedTabs } from "@/components/ds/SegmentedTabs";
-import { SarahIcon } from "@/components/icons/sarah";
+import { LuIcon } from "@/components/icons/lu";
 import { useDockData, useOnboardingMode, taskStatusLabel, type DockTask } from "@/lib/dock/live";
 import { cn } from "@/lib/utils";
 
@@ -32,7 +32,7 @@ const DOCK_TABS: DockTab[] = ["home", "lu", "company", "tasks", "library"];
  * a Home clarification → Lu); default "lu" so today's chat is the out-of-the-box behavior.
  */
 function PanelBody() {
-  const { selectedAgent, setSelectedAgent, dockTab, setDockTab, setWidgetOpen } = useSarah();
+  const { selectedAgent, setSelectedAgent, dockTab, setDockTab, setDockOpen } = useLu();
 
   return (
     // The header is NOT a card — it's the segmented tab bar sitting directly on the frame. The
@@ -46,7 +46,7 @@ function PanelBody() {
             type="button"
             aria-label="Collapse"
             title="Collapse (⌘/)"
-            onClick={() => setWidgetOpen(false)}
+            onClick={() => setDockOpen(false)}
             className="press shrink-0 rounded p-0.5 text-muted-foreground/70 transition-colors hover:text-foreground"
           >
             <ChevronsRight className="size-4" />
@@ -89,10 +89,10 @@ function PanelBody() {
 
 /** The Lu chat — the existing thread (escalations + approvals + thread + composer). */
 function ChatTab() {
-  const { approvals, escalations, beginEscalationAnswer, messages, typing, widgetOpen } = useSarah();
+  const { approvals, escalations, beginEscalationAnswer, messages, typing, dockOpen } = useLu();
   // Lu speaks first (roadmap Ch.0): during onboarding her kickoff opener is already in the
   // thread, so there's no onboarding empty-state — the composer just gets a matching placeholder.
-  const onboarding = useOnboardingMode(widgetOpen);
+  const onboarding = useOnboardingMode(dockOpen);
   // Post-onboarding empty thread: an honest prompt instead of a seeded template "Lu message".
   const buildIntro = !onboarding && messages.length === 0;
   return (
@@ -108,7 +108,7 @@ function ChatTab() {
           </div>
         )}
         {/* Real publish gates from the Engineer (polled while the dock is open). */}
-        <PublishApprovals active={widgetOpen} />
+        <PublishApprovals active={dockOpen} />
         {escalations.length > 0 && (
           <div className="mb-3 flex flex-col gap-2">
             {escalations.map((e) => (
@@ -122,7 +122,7 @@ function ChatTab() {
                   onClick={() => beginEscalationAnswer(e)}
                   className="mt-2 rounded-full border px-2.5 py-1 text-xs font-medium hover:bg-muted"
                 >
-                  Answer — Sarah passes it along
+                  Answer — Lu passes it along
                 </button>
               </div>
             ))}
@@ -135,10 +135,10 @@ function ChatTab() {
             ))}
           </div>
         )}
-        <SarahThread messages={messages} typing={typing} />
+        <LuThread messages={messages} typing={typing} />
       </div>
       <div className="shrink-0 px-3 pb-3 pt-1">
-        <SarahComposer showContext placeholder={onboarding ? "Share what you're building…" : undefined} />
+        <LuComposer showContext placeholder={onboarding ? "Share what you're building…" : undefined} />
       </div>
     </>
   );
@@ -146,8 +146,8 @@ function ChatTab() {
 
 /** The real, live task list across every department — polled while the dock is open. */
 function TasksTab() {
-  const { widgetOpen } = useSarah();
-  const { tasks, loaded } = useDockData(widgetOpen);
+  const { dockOpen } = useLu();
+  const { tasks, loaded } = useDockData(dockOpen);
   const open = tasks.filter((t) => t.status !== "done" && t.status !== "failed");
   const closed = tasks.filter((t) => t.status === "done" || t.status === "failed");
 
@@ -217,7 +217,7 @@ function TaskRow({ task }: { task: DockTask }) {
 /** Each tab's animated nav icon (the old sidebar's), shown on the collapsed rail. */
 const TAB_ICONS: Record<DockTab, React.ComponentType<{ state?: IconState; className?: string }>> = {
   home: DashboardIcon,
-  lu: SarahIcon,
+  lu: LuIcon,
   company: TeamIcon,
   tasks: ScheduleIcon,
   library: ContentIcon,
@@ -229,12 +229,12 @@ const TAB_ICONS: Record<DockTab, React.ComponentType<{ state?: IconState; classN
  * the dock to it.
  */
 function DockRail() {
-  const { dockTab, setDockTab, setWidgetOpen } = useSarah();
+  const { dockTab, setDockTab, setDockOpen } = useLu();
   const items: ToolbarItem[] = [
     {
       key: "expand",
       label: "Expand (⌘/)",
-      onClick: () => setWidgetOpen(true),
+      onClick: () => setDockOpen(true),
       render: () => <ChevronsLeft className="size-[17px]" />,
     },
     ...DOCK_TABS.map((t): ToolbarItem => {
@@ -246,7 +246,7 @@ function DockRail() {
         dividerBefore: t === DOCK_TABS[0],
         onClick: () => {
           setDockTab(t);
-          setWidgetOpen(true);
+          setDockOpen(true);
         },
         render: () => <Icon state="idle" className="size-[17px]" />,
       };
@@ -265,8 +265,8 @@ const DOCK_DEFAULT = 380;
  * button in its header collapses it to the icon rail (the canvas-toolbar pill, vertical); it
  * never disappears, it cross-fades. Drag its left edge to resize (persisted). Desktop only.
  */
-export function SarahDock() {
-  const { widgetOpen } = useSarah();
+export function LuDock() {
+  const { dockOpen } = useLu();
   const frameRef = React.useRef<HTMLDivElement>(null);
   const [width, setWidth] = React.useState(DOCK_DEFAULT);
 
@@ -307,11 +307,11 @@ export function SarahDock() {
         style={{ width }}
         className={cn(
           "elev-4 absolute inset-y-0 right-0 flex origin-right flex-col overflow-hidden rounded-[26px] border bg-background text-foreground transition-[opacity,transform] duration-200 ease-out",
-          widgetOpen ? "opacity-100" : "pointer-events-none translate-x-2 scale-95 opacity-0",
+          dockOpen ? "opacity-100" : "pointer-events-none translate-x-2 scale-95 opacity-0",
         )}
       >
         {/* drag-to-resize handle on the left edge */}
-        {widgetOpen && (
+        {dockOpen && (
           <div
             role="separator"
             aria-orientation="vertical"
@@ -332,7 +332,7 @@ export function SarahDock() {
       <div
         className={cn(
           "absolute right-0 top-0 transition-opacity duration-200",
-          widgetOpen ? "pointer-events-none opacity-0" : "opacity-100 delay-100",
+          dockOpen ? "pointer-events-none opacity-0" : "opacity-100 delay-100",
         )}
       >
         <DockRail />
@@ -342,29 +342,29 @@ export function SarahDock() {
 }
 
 /** Mobile: the same sidebar card as a bottom sheet, with a FAB to reopen when collapsed. */
-export function SarahWidget() {
-  const { widgetOpen, setWidgetOpen } = useSarah();
+export function LuDockMobile() {
+  const { dockOpen, setDockOpen } = useLu();
 
-  if (!widgetOpen) {
+  if (!dockOpen) {
     return (
       <button
         type="button"
         aria-label="Open Lu"
-        onClick={() => setWidgetOpen(true)}
+        onClick={() => setDockOpen(true)}
         className="gloss-ink press fixed bottom-4 right-4 z-50 grid size-11 place-items-center rounded-full text-white md:hidden"
       >
-        <SarahIcon className="size-5" />
+        <LuIcon className="size-5" />
       </button>
     );
   }
 
   return (
-    <div className="widget-in elev-4 fixed inset-x-3 bottom-4 top-16 z-50 flex flex-col overflow-hidden rounded-[26px] border bg-background text-foreground md:hidden">
+    <div className="dock-in elev-4 fixed inset-x-3 bottom-4 top-16 z-50 flex flex-col overflow-hidden rounded-[26px] border bg-background text-foreground md:hidden">
       {/* collapse (mobile) */}
       <button
         type="button"
         aria-label="Collapse Lu"
-        onClick={() => setWidgetOpen(false)}
+        onClick={() => setDockOpen(false)}
         className="absolute right-3 top-3 z-10 grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
       >
         <ChevronsRight className="size-4" />

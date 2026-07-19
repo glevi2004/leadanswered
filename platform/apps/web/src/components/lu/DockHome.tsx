@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { ArrowRight, ChevronRight, Circle, MessageCircleQuestion, RotateCw, X } from "lucide-react";
-import { useSarah } from "./sarah-context";
+import { useLu } from "./lu-context";
 import { useDockData, useSites } from "@/lib/dock/live";
 import { useConnectStatus, suggestNext, taskBadge, shortAge } from "./dock-data";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,12 +26,12 @@ function timeGreeting(): string {
  */
 export function DockHome() {
   const {
-    ownerName, widgetOpen, clarifications, dismissClarification, openChoices,
-    setDockTab, sendMessage, openWidget,
-  } = useSarah();
-  const { tasks, loaded, refresh } = useDockData(widgetOpen);
-  const { sites } = useSites(widgetOpen);
-  const { github, vercel, supabase, loaded: connectLoaded } = useConnectStatus(widgetOpen);
+    ownerName, dockOpen, clarifications, dismissClarification, openChoices,
+    setDockTab, sendMessage, openDock,
+  } = useLu();
+  const { tasks, loaded, refresh } = useDockData(dockOpen);
+  const { sites } = useSites(dockOpen);
+  const { github, vercel, supabase, loaded: connectLoaded } = useConnectStatus(dockOpen);
 
   // Greeting is time-of-day, resolved after mount so the server/client hour can't mismatch.
   const [greeting, setGreeting] = React.useState("Welcome");
@@ -55,10 +55,10 @@ export function DockHome() {
   const fireIntent = React.useCallback(
     (intent: string) => {
       sendMessage(intent);
-      openWidget();
+      openDock();
       setDockTab("lu");
     },
-    [sendMessage, openWidget, setDockTab],
+    [sendMessage, openDock, setDockTab],
   );
 
   return (

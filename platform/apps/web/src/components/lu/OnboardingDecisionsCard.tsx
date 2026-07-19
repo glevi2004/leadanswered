@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Check, ChevronLeft, ChevronRight, Sparkles, X } from "lucide-react";
 import { ChoiceOptionRow } from "./ChoiceCard";
-import { useSarah } from "./sarah-context";
+import { useLu } from "./lu-context";
 import type { OnboardingDecision } from "@/lib/dock/live";
 
 /**
@@ -29,7 +29,7 @@ export function OnboardingDecisionsCard({
   decisions: OnboardingDecision[];
   onDismiss?: () => void;
 }) {
-  const { sendMessage, prefillComposer } = useSarah();
+  const { sendMessage, prefillComposer } = useLu();
   const [page, setPage] = React.useState(0);
   // chosen option index per decision index (CUSTOM = answered in chat); absent = undecided
   const [answers, setAnswers] = React.useState<Record<number, number>>({});

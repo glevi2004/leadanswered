@@ -7,7 +7,7 @@ export default function AppError({ reset }: { error: Error & { digest?: string }
     <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-center">
       <h2 className="text-lg font-semibold">Something hiccuped.</h2>
       <p className="max-w-sm text-sm text-muted-foreground">
-        Your data is fine and Sarah is still answering. Try again — if it keeps happening, we're on it.
+        Your data is fine and Lu is still answering. Try again — if it keeps happening, we're on it.
       </p>
       <Button variant="outline" size="sm" onClick={reset}>
         Try again

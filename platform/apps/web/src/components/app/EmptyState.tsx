@@ -1,11 +1,11 @@
 "use client";
 
-import { useSarah } from "@/components/sarah/sarah-context";
+import { useLu } from "@/components/lu/lu-context";
 import { Button } from "@/components/ui/button";
-import { SarahIcon } from "@/components/icons/sarah";
+import { LuIcon } from "@/components/icons/lu";
 
 /**
- * Empty state in the product voice (00 §4): what Sarah/we will do —
+ * Empty state in the product voice (00 §4): what Lu/we will do —
  * never "create your first X".
  */
 export function EmptyState({
@@ -22,7 +22,7 @@ export function EmptyState({
   /** "mono" = a centered terminal-style empty state (IBM Plex Mono via `font-mono`). */
   variant?: "default" | "mono";
 }) {
-  const { openWidget } = useSarah();
+  const { openDock } = useLu();
 
   // Terminal empty state (dept Inbox / "All caught up") — monospace, centered, quiet.
   if (variant === "mono") {
@@ -41,8 +41,8 @@ export function EmptyState({
       <p className="text-sm font-medium">{title}</p>
       {body && <p className="max-w-sm text-sm text-muted-foreground">{body}</p>}
       {askSarah && (
-        <Button variant="outline" size="sm" className="mt-2 gap-1.5" onClick={() => openWidget()}>
-          <SarahIcon className="size-3.5 text-primary" /> Ask Sarah
+        <Button variant="outline" size="sm" className="mt-2 gap-1.5" onClick={() => openDock()}>
+          <LuIcon className="size-3.5 text-primary" /> Ask Lu
         </Button>
       )}
     </div>

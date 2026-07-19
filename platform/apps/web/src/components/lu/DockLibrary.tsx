@@ -3,7 +3,7 @@
 import * as React from "react";
 import { toast } from "sonner";
 import { ClipboardCopy, File, FileText, Folder, LayoutGrid, List, Search } from "lucide-react";
-import { useSarah } from "./sarah-context";
+import { useLu } from "./lu-context";
 import { useCanvasGraph, type CanvasNode } from "@/lib/canvas/api";
 import { OrgDocsList } from "@/components/library/OrgDocs";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,8 +40,8 @@ function nodeTitle(n: CanvasNode): string {
 }
 
 export function DockLibrary() {
-  const { widgetOpen } = useSarah();
-  const { nodes, collections, loaded } = useCanvasGraph(widgetOpen);
+  const { dockOpen } = useLu();
+  const { nodes, collections, loaded } = useCanvasGraph(dockOpen);
   const [view, setView] = React.useState<"grid" | "list">("list");
   const [query, setQuery] = React.useState("");
 
@@ -81,7 +81,7 @@ export function DockLibrary() {
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4">
       {/* DOCUMENTS — the company docs, preview cards → the /doc viewer */}
       <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Documents</p>
-      <OrgDocsList active={widgetOpen} variant="cards" className="mt-2" />
+      <OrgDocsList active={dockOpen} variant="cards" className="mt-2" />
 
       {/* FILES — the canvas library */}
       <p className="mt-5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Files</p>

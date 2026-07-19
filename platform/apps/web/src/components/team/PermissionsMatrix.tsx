@@ -2,14 +2,14 @@
 
 import * as React from "react";
 import { toast } from "sonner";
-import type { Member, ModuleAccess, SarahCapabilities } from "@/lib/data/team/types";
+import type { Member, ModuleAccess, LuCapabilities } from "@/lib/data/team/types";
 import { ROLES, SARAH_CAP_LABELS, effectiveAccess, membersStore } from "@/lib/data/team";
 import type { ModuleKey } from "@/lib/data/shared";
 import { MODULES } from "@/lib/data/registry";
 import { cn } from "@/lib/utils";
 
 /**
- * The permissions matrix (12 §6) — Sarah's briefing, drawn. Two modes:
+ * The permissions matrix (12 §6) — Lu's briefing, drawn. Two modes:
  * roles view (columns = the three presets, read-only) and member view
  * (one column, click a cell to cycle its value — mock-saves instantly).
  * approveHardGates is code-locked to Owner and never editable.
@@ -66,10 +66,10 @@ export function RolesMatrix() {
           ))}
           <tr>
             <td colSpan={4} className="pb-1.5 pt-4 text-xs font-medium text-muted-foreground">
-              Texting Sarah
+              Texting Lu
             </td>
           </tr>
-          {(Object.keys(SARAH_CAP_LABELS) as Array<keyof SarahCapabilities>).map((cap) => (
+          {(Object.keys(SARAH_CAP_LABELS) as Array<keyof LuCapabilities>).map((cap) => (
             <tr key={cap} className="border-b border-border/60">
               <td className="py-1.5">{SARAH_CAP_LABELS[cap]}</td>
               {roles.map((r) => {
@@ -97,17 +97,17 @@ export function MemberMatrix({ member, onChanged }: { member: Member; onChanged:
     membersStore.patch(member.id, { overrides: { ...member.overrides, modules: { ...member.overrides?.modules, [key]: next } } });
     onChanged();
     toast.success(`Saved — ${member.name}: ${MODULES[key].label} → ${next === "none" ? "no access" : next}.`, {
-      description: "Sarah follows this immediately.",
+      description: "Lu follows this immediately.",
     });
   };
 
-  const cycleCap = (cap: keyof SarahCapabilities) => {
+  const cycleCap = (cap: keyof LuCapabilities) => {
     if (cap === "approveHardGates") return; // code-locked to Owner (12 §8 Q1)
     const current = eff.sarah[cap];
     const next = typeof current === "boolean" ? !current : SCOPE_CYCLE[(SCOPE_CYCLE.indexOf(current) + 1) % SCOPE_CYCLE.length];
     membersStore.patch(member.id, { overrides: { ...member.overrides, sarah: { ...member.overrides?.sarah, [cap]: next } } });
     onChanged();
-    toast.success(`Saved — ${SARAH_CAP_LABELS[cap]}: ${String(next)}.`, { description: "Sarah follows this immediately." });
+    toast.success(`Saved — ${SARAH_CAP_LABELS[cap]}: ${String(next)}.`, { description: "Lu follows this immediately." });
   };
 
   const isOverridden = (kind: "modules" | "sarah", key: string) =>
@@ -129,8 +129,8 @@ export function MemberMatrix({ member, onChanged }: { member: Member; onChanged:
           </button>
         </div>
       ))}
-      <p className="pb-1.5 pt-4 text-xs font-medium text-muted-foreground">Texting Sarah</p>
-      {(Object.keys(SARAH_CAP_LABELS) as Array<keyof SarahCapabilities>).map((cap) => {
+      <p className="pb-1.5 pt-4 text-xs font-medium text-muted-foreground">Texting Lu</p>
+      {(Object.keys(SARAH_CAP_LABELS) as Array<keyof LuCapabilities>).map((cap) => {
         const v = eff.sarah[cap];
         const locked = cap === "approveHardGates";
         return (

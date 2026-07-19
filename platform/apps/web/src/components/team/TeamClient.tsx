@@ -33,7 +33,7 @@ import { MemberMatrix, RolesMatrix } from "./PermissionsMatrix";
 import { TeamGraph } from "./TeamGraph";
 import { cn } from "@/lib/utils";
 
-/** 12-team: who Sarah knows, what each person can ask her, what they see in the app. */
+/** 12-team: who Lu knows, what each person can ask her, what they see in the app. */
 
 const ROLE_ITEMS = { owner: "Owner", office: "Office", crew: "Crew" } as const;
 
@@ -81,7 +81,7 @@ export function TeamClient({ members }: { members?: Member[] } = {}) {
     setAddEmail("");
     setAddRole("crew");
     bump();
-    toast.success(`Sarah's texting ${m.name} a hello.`, {
+    toast.success(`Lu's texting ${m.name} a hello.`, {
       description: m.email
         ? "They can text her the moment they reply — app invite is on its way too."
         : "They can text her the moment they reply. No app setup needed.",
@@ -179,7 +179,7 @@ export function TeamClient({ members }: { members?: Member[] } = {}) {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-muted-foreground">
-        {roster.length} people · {canText} can text Sarah · {haveApp} {haveApp === 1 ? "has" : "have"} app logins
+        {roster.length} people · {canText} can text Lu · {haveApp} {haveApp === 1 ? "has" : "have"} app logins
       </p>
 
       <Tabs defaultValue="members" className="flex flex-col gap-4">
@@ -208,7 +208,7 @@ export function TeamClient({ members }: { members?: Member[] } = {}) {
               </Button>
             }
           />
-          <p className="mt-1.5 text-xs text-muted-foreground">The phone number is how Sarah knows them.</p>
+          <p className="mt-1.5 text-xs text-muted-foreground">The phone number is how Lu knows them.</p>
         </TabsContent>
 
         <TabsContent value="roles">
@@ -223,7 +223,7 @@ export function TeamClient({ members }: { members?: Member[] } = {}) {
           <div className="mt-4 rounded-2xl border bg-card p-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">The full matrix</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              This is Sarah's briefing — she checks it on every text and every question in the app.
+              This is Lu's briefing — she checks it on every text and every question in the app.
             </p>
             <div className="mt-3">
               <RolesMatrix />
@@ -243,11 +243,11 @@ export function TeamClient({ members }: { members?: Member[] } = {}) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add someone</DialogTitle>
-            <DialogDescription>Sarah texts them a hello — they can text her back the moment they reply.</DialogDescription>
+            <DialogDescription>Lu texts them a hello — they can text her back the moment they reply.</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3">
             <Input value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="Name" aria-label="Name" autoFocus />
-            <Input value={addPhone} onChange={(e) => setAddPhone(e.target.value)} placeholder="Phone — the number Sarah will know them by" aria-label="Phone" inputMode="tel" />
+            <Input value={addPhone} onChange={(e) => setAddPhone(e.target.value)} placeholder="Phone — the number Lu will know them by" aria-label="Phone" inputMode="tel" />
             <Select items={ROLE_ITEMS} value={addRole} onValueChange={(v) => v && setAddRole(v as RoleKey)}>
               <SelectTrigger aria-label="Role">
                 <SelectValue />
@@ -262,7 +262,7 @@ export function TeamClient({ members }: { members?: Member[] } = {}) {
             </Select>
             <div>
               <Input value={addEmail} onChange={(e) => setAddEmail(e.target.value)} placeholder="Email (optional)" aria-label="Email" inputMode="email" />
-              <p className="mt-1 text-xs text-muted-foreground">Add an email to give them the app too — otherwise they just text Sarah.</p>
+              <p className="mt-1 text-xs text-muted-foreground">Add an email to give them the app too — otherwise they just text Lu.</p>
             </div>
           </div>
           <DialogFooter>
@@ -282,7 +282,7 @@ export function TeamClient({ members }: { members?: Member[] } = {}) {
           <DialogHeader>
             <DialogTitle>Remove {removeTarget?.name}?</DialogTitle>
             <DialogDescription>
-              Sarah stops recognizing their number and any app login is revoked. Their history on jobs stays.
+              Lu stops recognizing their number and any app login is revoked. Their history on jobs stays.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -295,7 +295,7 @@ export function TeamClient({ members }: { members?: Member[] } = {}) {
               onClick={() => {
                 if (removeTarget) {
                   removedIds.add(removeTarget.id);
-                  toast(`${removeTarget.name} removed — Sarah won't answer that number anymore.`);
+                  toast(`${removeTarget.name} removed — Lu won't answer that number anymore.`);
                 }
                 setRemoveTarget(null);
                 bump();
@@ -335,7 +335,7 @@ export function TeamClient({ members }: { members?: Member[] } = {}) {
                       membersStore.patch(sheetMember.id, { roleKey: v as RoleKey, overrides: undefined });
                       bump();
                       toast.success(`${sheetMember.name} is now ${ROLE_ITEMS[v as RoleKey]}.`, {
-                        description: "Sarah answers their next text with the new role.",
+                        description: "Lu answers their next text with the new role.",
                       });
                     }}
                   >
@@ -367,7 +367,7 @@ export function TeamClient({ members }: { members?: Member[] } = {}) {
                 <div>
                   <p className="mb-1.5 text-xs font-medium text-muted-foreground">Notifications</p>
                   {sheetMember.notifications.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No alerts — they only hear from Sarah when they text her.</p>
+                    <p className="text-sm text-muted-foreground">No alerts — they only hear from Lu when they text her.</p>
                   ) : (
                     <div className="flex flex-col gap-1">
                       {sheetMember.notifications.map((n) => (

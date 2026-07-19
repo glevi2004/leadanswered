@@ -4,7 +4,7 @@ import * as React from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Check } from "lucide-react";
 import type { AgentIconKey, AgentPreset } from "@/lib/workspace/agent-presets";
-import { SarahIcon } from "@/components/icons/sarah";
+import { LuIcon } from "@/components/icons/lu";
 import { FollowupsIcon, ContentIcon, ReviewsIcon } from "@/components/icons/nav-icons";
 import { cn } from "@/lib/utils";
 
@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 type IconComponent = React.ComponentType<{ className?: string }>;
 
 export const AGENT_ICON: Record<AgentIconKey, IconComponent> = {
-  receptionist: SarahIcon,
+  receptionist: LuIcon,
   reviews: ReviewsIcon,
   content: ContentIcon,
   followups: FollowupsIcon,

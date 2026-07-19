@@ -2,11 +2,11 @@
 
 import * as React from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { useSarah } from "@/components/sarah/sarah-context";
+import { useLu } from "@/components/lu/lu-context";
 import { KindChip } from "@/components/app/ApprovalCard";
-import { SarahIcon } from "@/components/icons/sarah";
+import { LuIcon } from "@/components/icons/lu";
 import { Textarea } from "@/components/ui/textarea";
-import type { OpenEscalation } from "@/components/sarah/sarah-context";
+import type { OpenEscalation } from "@/components/lu/lu-context";
 
 function waited(iso: string): string {
   const mins = Math.max(1, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
@@ -40,15 +40,15 @@ function RowBody({ children }: { children: React.ReactNode }) {
 export function ApprovalRows({
   onAnswerEscalation,
 }: {
-  /** Where "Answer via Sarah" lands — defaults to the widget; /sarah jumps to its Chat tab. */
+  /** Where "Answer via Lu" lands — defaults to the widget; /sarah jumps to its Chat tab. */
   onAnswerEscalation?: (e: OpenEscalation) => void;
 }) {
-  const { approvals, escalations, approve, decline, openWidget, beginEscalationAnswer } = useSarah();
+  const { approvals, escalations, approve, decline, openDock, beginEscalationAnswer } = useLu();
   const answer =
     onAnswerEscalation ??
     ((e: OpenEscalation) => {
       beginEscalationAnswer(e);
-      openWidget();
+      openDock();
     });
   const [hoverId, setHoverId] = React.useState<string | null>(null);
   const [pinnedId, setPinnedId] = React.useState<string | null>(null);
@@ -136,7 +136,7 @@ export function ApprovalRows({
                     className="gloss press inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-medium text-foreground"
                     onClick={() => answer(e)}
                   >
-                    <SarahIcon className="size-3.5" /> Answer via Sarah
+                    <LuIcon className="size-3.5" /> Answer via Lu
                   </button>
                 </div>
               </RowBody>

@@ -1,7 +1,7 @@
 import type { ModuleStatus, NavGroup, SurfaceKey } from "./shared";
 
 /**
- * The one registry behind nav, gating, and the Sarah widget (00-foundation §5).
+ * The one registry behind nav, gating, and the Lu widget (00-foundation §5).
  * `group` is INTERNAL — it orders the unlabeled sidebar clusters and is never
  * rendered as text (the sales pillars are landing-page copy only).
  */
@@ -9,7 +9,7 @@ export interface SurfaceEntry {
   label: string;
   route: string;
   /** lucide icon name, resolved in AppSidebar (registry stays server-safe). */
-  group?: NavGroup; // absent = core surface (Home, Sarah, Settings)
+  group?: NavGroup; // absent = core surface (Home, Lu, Settings)
   defaultStatus?: ModuleStatus; // absent = always live (core surfaces)
   /** Widget suggestion chips for this surface. */
   sarahChips: string[];
@@ -94,7 +94,7 @@ export const MODULES: Record<SurfaceKey, SurfaceEntry> = {
     group: "marketing",
     defaultStatus: "coming_soon",
     sarahChips: ["Add a page", "Change the hours", "How do I look on Google?"],
-    promise: "A fast, modern site, built fresh. Every lead flows straight to Sarah.",
+    promise: "A fast, modern site, built fresh. Every lead flows straight to Lu.",
   },
   content: {
     label: "Content",
@@ -102,7 +102,7 @@ export const MODULES: Record<SurfaceKey, SurfaceEntry> = {
     group: "marketing",
     defaultStatus: "coming_soon",
     sarahChips: ["Draft a post from my last job's photos", "What's going out this week?", "Change something in the Miller draft"],
-    promise: "Finished a job? Text Sarah the photos and she writes a post about it.",
+    promise: "Finished a job? Text Lu the photos and she writes a post about it.",
   },
   reviews: {
     label: "Reviews",
@@ -110,7 +110,7 @@ export const MODULES: Record<SurfaceKey, SurfaceEntry> = {
     group: "marketing",
     defaultStatus: "coming_soon",
     sarahChips: ["How's the review campaign going?", "Ask the Millers for a review"],
-    promise: "Sarah texts every past customer who never left one. Your first win, day one.",
+    promise: "Lu texts every past customer who never left one. Your first win, day one.",
   },
   analytics: {
     label: "Analytics",
@@ -128,7 +128,7 @@ export const MODULES: Record<SurfaceKey, SurfaceEntry> = {
     // rather than gated, now that the demoProfile:"new" override that forced this is gone.
     defaultStatus: "live",
     sarahChips: ["Add someone to the team", "What can Danny ask you?", "Who gets booking texts?"],
-    promise: "Your crew can text Sarah too, with the permissions you set.",
+    promise: "Your crew can text Lu too, with the permissions you set.",
   },
   settings: {
     label: "Settings",

@@ -12,8 +12,8 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useSarah } from "@/components/sarah/sarah-context";
-import { StatusDot } from "@/components/sarah/LuBuildTracker";
+import { useLu } from "@/components/lu/lu-context";
+import { StatusDot } from "@/components/lu/LuBuildTracker";
 import {
   useDockData,
   usePublishApprovals,
@@ -48,7 +48,7 @@ function verdictFromArtifacts(artifacts: DockArtifact[]): { pass: boolean; unmet
 }
 
 export function TaskDetail({ taskId }: { taskId: string }) {
-  const { prefillComposer, openWidget, setDockTab } = useSarah();
+  const { prefillComposer, openDock, setDockTab } = useLu();
   const { tasks, artifacts, loaded } = useDockData(true);
   const { approvals, resolve, pending } = usePublishApprovals(true);
   const events = useAgentEvents(true);
@@ -72,7 +72,7 @@ export function TaskDetail({ taskId }: { taskId: string }) {
 
   const requestChanges = () => {
     prefillComposer(`Request changes on "${task?.title ?? "this build"}": `);
-    openWidget();
+    openDock();
     setDockTab("lu");
   };
 

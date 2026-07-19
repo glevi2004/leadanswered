@@ -27,7 +27,7 @@ import {
   TrendingUp,
   Wallet,
 } from "lucide-react";
-import { SarahIcon } from "@/components/icons/sarah";
+import { LuIcon } from "@/components/icons/lu";
 import type { AvailabilityWindow } from "@/lib/onboarding-state";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -447,7 +447,7 @@ export function OnboardingSketch() {
       {/* LEFT — Lu's conversation */}
       <div className="flex w-full max-w-md shrink-0 flex-col overflow-hidden rounded-3xl border bg-card">
         <header className="flex items-center gap-2 border-b px-4 py-3">
-          <SarahIcon className="size-5" />
+          <LuIcon className="size-5" />
           <span className="text-sm font-semibold">Lu</span>
           <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
             <span className="size-1.5 rounded-full bg-emerald-500" /> setting you up
@@ -577,7 +577,7 @@ function IntroStage() {
     <div className="flex h-full items-center justify-center p-8 text-center">
       <div className="max-w-xs">
         <div className="mx-auto flex size-14 items-center justify-center rounded-2xl border bg-card">
-          <SarahIcon className="size-7" />
+          <LuIcon className="size-7" />
         </div>
         <h2 className="mt-4 text-lg font-semibold">Let's get to know your business</h2>
         <p className="mt-2 text-sm text-muted-foreground">Tell Lu what you do, in your own words — she sets up your workspace around it and keeps learning as you work together.</p>
@@ -592,7 +592,7 @@ function AssistantStage({ ws }: { ws: Workspace }) {
     <div className="flex h-full items-center justify-center p-8 text-center">
       <div className="max-w-xs">
         <div className="relative mx-auto flex size-16 items-center justify-center rounded-2xl border bg-card">
-          <SarahIcon className="size-8" />
+          <LuIcon className="size-8" />
           <span className="absolute -bottom-1.5 -right-1.5 flex size-6 items-center justify-center rounded-full border bg-background">
             <Sparkles className="size-3.5 text-muted-foreground" />
           </span>
@@ -787,7 +787,7 @@ function EmailStage({ ws, onGet, onContinue }: { ws: Workspace; onGet: () => voi
         {ws.emailSent ? (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex-1 overflow-y-auto p-5">
             <div className="flex items-center gap-3">
-              <span className="flex size-9 items-center justify-center rounded-full bg-muted"><SarahIcon className="size-4.5" /></span>
+              <span className="flex size-9 items-center justify-center rounded-full bg-muted"><LuIcon className="size-4.5" /></span>
               <div>
                 <p className="text-sm font-semibold">Lu</p>
                 <p className="text-xs text-muted-foreground">{ws.handle}@lu.computer · just now</p>
@@ -1041,7 +1041,7 @@ function Welcome({ onStart }: { onStart: () => void }) {
   return (
     <div className="flex h-svh flex-col items-center justify-center gap-5 px-6 text-center">
       <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex size-16 items-center justify-center rounded-2xl border bg-card">
-        <SarahIcon className="size-8" />
+        <LuIcon className="size-8" />
       </motion.div>
       <div>
         <h1 className="text-3xl font-semibold tracking-tight">You're in.</h1>

@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Building2, Check, Pencil, Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useSarah } from "./sarah-context";
+import { useLu } from "./lu-context";
 import type { BusinessPlan } from "@/lib/dock/live";
 
 /**
@@ -26,7 +26,7 @@ export function BusinessPlanCard({
   busy: boolean;
   onActivate: () => void;
 }) {
-  const { sendMessage } = useSarah();
+  const { sendMessage } = useLu();
   const [editing, setEditing] = React.useState(false);
   const [feedback, setFeedback] = React.useState("");
   const { classification, values, summary } = plan;

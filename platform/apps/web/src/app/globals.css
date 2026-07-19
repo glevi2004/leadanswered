@@ -570,7 +570,7 @@
 }
 
 /* Widget panel entrance */
-@keyframes widget-in {
+@keyframes dock-in {
   from {
     opacity: 0;
     transform: translateY(10px) scale(0.98);
@@ -580,8 +580,8 @@
     transform: translateY(0) scale(1);
   }
 }
-.widget-in {
-  animation: widget-in 0.18s ease-out;
+.dock-in {
+  animation: dock-in 0.18s ease-out;
 }
 
 /* While drag-resizing the sidebar, suspend its collapse transitions so the

@@ -25,8 +25,8 @@ export type ModuleStatus = "live" | "preview" | "coming_soon" | "hidden";
 
 export type NavGroup = "pipeline" | "marketing" | "business";
 
-/** One row of "what Sarah did" — emitted on tool success (mock-only until the api emits them). */
-export interface SarahAction {
+/** One row of "what Lu did" — emitted on tool success (mock-only until the api emits them). */
+export interface LuAction {
   id: string;
   at: string; // ISO
   module: ModuleKey | "core";
@@ -60,7 +60,7 @@ export interface Approval {
  * one optionally Recommended. Persisted server-side in `Message.meta.choices`, so chips
  * survive reload; the LATEST Lu message renders them interactive, older turns show the
  * chosen option. */
-export interface SarahChoices {
+export interface LuChoices {
   question?: string;
   options: string[];
   /** 0-based index of the option Lu recommends (rendered as the primary chip). */
@@ -71,13 +71,13 @@ export interface SarahChoices {
  * `card` attaches a structured UI card to a Lu turn (docs/product.md — Lu→UI actions):
  * "connect" renders the inline connect form under her message; `choices` renders the
  * tappable move chips. */
-export interface SarahMessage {
+export interface LuMessage {
   id: string;
   at: string; // ISO
   role: "owner" | "sarah";
   body: string;
   via: "sms" | "app";
   card?: "connect";
-  choices?: SarahChoices;
+  choices?: LuChoices;
 }
 

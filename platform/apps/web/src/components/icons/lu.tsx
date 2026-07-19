@@ -3,7 +3,7 @@
 import { motion } from "motion/react";
 
 /**
- * Sarah's mark — the aperture (Levi's pick, 2026-07-11), lucide geometry.
+ * Lu's mark — the aperture (Levi's pick, 2026-07-11), lucide geometry.
  * strokeWidth 1.7: the glyph is denser than its siblings, so full 2px reads
  * optically heavier. Hover (nav): a slow half-turn — the blades twist and
  * settle (180° on a 6-blade glyph lands on an identical pose, so the exit
@@ -11,7 +11,7 @@ import { motion } from "motion/react";
  */
 export type IconState = "idle" | "hover" | "active";
 
-export function SarahIcon({ state = "idle", className }: { state?: IconState; className?: string }) {
+export function LuIcon({ state = "idle", className }: { state?: IconState; className?: string }) {
   return (
     <motion.svg
       viewBox="0 0 24 24"

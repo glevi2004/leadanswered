@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Check, ExternalLink, FileText, Loader2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useSarah } from "./sarah-context";
+import { useLu } from "./lu-context";
 import { renderMarkdown } from "@/components/canvas/MarkdownNote";
 import { DOC_PREVIEW_CSS } from "@/components/library/OrgDocs";
 import { useDockData, usePublishApprovals, libraryDocs } from "@/lib/dock/live";
@@ -18,10 +18,10 @@ import { useDockData, usePublishApprovals, libraryDocs } from "@/lib/dock/live";
  * Renders nothing when no doc is awaiting the owner (the Library keeps the history).
  */
 export function LuDocsTracker() {
-  const { widgetOpen, sendMessage } = useSarah();
+  const { dockOpen, sendMessage } = useLu();
   const pathname = usePathname();
   const onSarahPage = pathname?.startsWith("/sarah") ?? false;
-  const surfaceActive = widgetOpen || onSarahPage;
+  const surfaceActive = dockOpen || onSarahPage;
 
   const { approvals, resolve, pending } = usePublishApprovals(surfaceActive);
   const docApproval = approvals.find((a) => a.action === "approve_doc") ?? null;

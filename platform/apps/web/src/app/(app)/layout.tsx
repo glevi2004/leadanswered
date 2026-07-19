@@ -1,7 +1,7 @@
 import { requireOrganization } from "@/lib/dashboard-auth";
 import { Toaster } from "@/components/ui/sonner";
-import { SarahProvider } from "@/components/sarah/sarah-context";
-import { SarahDock, SarahWidget } from "@/components/sarah/SarahWidget";
+import { LuProvider } from "@/components/lu/lu-context";
+import { LuDock, LuDockMobile } from "@/components/lu/LuDock";
 import { UserMenu } from "@/components/UserMenu";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -17,7 +17,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const assistantName = (organization.sarahName as string) || "Lu";
 
   return (
-    <SarahProvider
+    <LuProvider
       ownerName={ownerName}
       assistantName={assistantName}
       initialMessages={[]}
@@ -40,10 +40,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </main>
 
         {/* The one chat sidebar — desktop rail-collapsible dock + mobile bottom sheet. */}
-        <SarahDock />
-        <SarahWidget />
+        <LuDock />
+        <LuDockMobile />
         <Toaster position="top-center" />
       </div>
-    </SarahProvider>
+    </LuProvider>
   );
 }

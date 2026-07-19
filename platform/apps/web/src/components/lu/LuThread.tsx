@@ -1,13 +1,13 @@
 "use client";
 
 import * as React from "react";
-import type { SarahMessage } from "@/lib/data/shared";
+import type { LuMessage } from "@/lib/data/shared";
 import { LuBuildTracker } from "./LuBuildTracker";
 import { LuOnboardingTracker } from "./LuOnboardingTracker";
 import { LuDocsTracker } from "./LuDocsTracker";
 import { ConnectCard } from "./ConnectCard";
 import { ChoiceCard } from "./ChoiceCard";
-import { useSarah } from "./sarah-context";
+import { useLu } from "./lu-context";
 import { cn } from "@/lib/utils";
 
 /** Lu's mark — the small pixel-glyph badge (NOT the big neu circle). One per Lu turn. */
@@ -37,16 +37,16 @@ function ownerInitials(name: string): string {
  * no bubble — and only the OWNER'S turns sit in a rounded block. (The old version wrapped
  * the whole thread in a `neu-card`, which made every Lu message read as a boxed card.)
  */
-export function SarahThread({
+export function LuThread({
   messages,
   typing,
   className,
 }: {
-  messages: SarahMessage[];
+  messages: LuMessage[];
   typing: boolean;
   className?: string;
 }) {
-  const { assistantName, ownerName, sendMessage, prefillComposer } = useSarah();
+  const { assistantName, ownerName, sendMessage, prefillComposer } = useLu();
   const endRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });

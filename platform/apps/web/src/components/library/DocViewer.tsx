@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { ArrowLeft, Check, List, Loader2, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useSarah } from "@/components/sarah/sarah-context";
+import { useLu } from "@/components/lu/lu-context";
 import { renderMarkdown } from "@/components/canvas/MarkdownNote";
 import { useDockData, usePublishApprovals, libraryDocs, type LibraryDoc } from "@/lib/dock/live";
 
@@ -63,7 +63,7 @@ function lastUpdated(doc: LibraryDoc): string {
 }
 
 export function DocViewer({ docId }: { docId: string }) {
-  const { prefillComposer, openWidget, setDockTab } = useSarah();
+  const { prefillComposer, openDock, setDockTab } = useLu();
   const { artifacts, loaded } = useDockData(true);
   const { approvals, resolve, pending } = usePublishApprovals(true);
 
@@ -86,7 +86,7 @@ export function DocViewer({ docId }: { docId: string }) {
   const askToRevise = () => {
     if (!doc) return;
     prefillComposer(`Revise the "${doc.title}" document: `);
-    openWidget();
+    openDock();
     setDockTab("lu");
   };
 
