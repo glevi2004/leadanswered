@@ -3,7 +3,6 @@ import { usePostgres } from "./env.js";
 import type { Store } from "./store/types.js";
 import { MemoryStore } from "./store/memoryStore.js";
 import {
-  createProvisionRoute,
   createListDepartmentsRoute,
   createSeedContextRoute,
   createOnboardingStatusRoute,
@@ -112,8 +111,7 @@ export async function createApp(overrides: BuildDeps = {}): Promise<Express> {
     console.warn("[api] API_PROXY_SECRET not set — /api/* is unauthenticated (dev mode)");
   }
 
-  // Lu Computer — onboarding provisioning + department reads.
-  app.post("/api/onboarding/provision", createProvisionRoute(deps));
+  // Lu Computer — onboarding context seed + department reads.
   app.post("/api/onboarding/context", createSeedContextRoute(deps));
   app.get("/api/onboarding/status", createOnboardingStatusRoute(deps));
   app.get("/api/departments", createListDepartmentsRoute(deps));

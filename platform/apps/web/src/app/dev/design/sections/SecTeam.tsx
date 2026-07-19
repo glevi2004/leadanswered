@@ -259,7 +259,7 @@ function AppSetup() {
 export default function SecTeam() {
   return (
     <div className="flex flex-col gap-8">
-      <GalleryHeading tag="TeamRoster · TeamGraph · PermissionsMatrix · OnboardingSketch · AppSetup">
+      <GalleryHeading tag="TeamRoster · TeamGraph · PermissionsMatrix · AppSetup">
         App components — team, onboarding &amp; setup
       </GalleryHeading>
 

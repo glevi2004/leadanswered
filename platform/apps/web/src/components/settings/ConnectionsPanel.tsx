@@ -39,7 +39,7 @@ interface SupabaseProject {
   status: string;
 }
 
-/** GitHub octocat mark — lucide dropped brand icons (see FacebookMark in OnboardingSketch). */
+/** GitHub octocat mark — lucide dropped brand icons. */
 function GithubMark({ className = "size-4" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden>
