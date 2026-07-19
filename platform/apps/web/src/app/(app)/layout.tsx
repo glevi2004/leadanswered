@@ -31,9 +31,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const assistantName = (organization.sarahName as string) || "Lu";
 
   // NO seeded greeting (docs/product.md §0): the thread is the REAL persisted conversation
-  // (rehydrated client-side); an empty thread shows the honest empty state — onboarding's
-  // "Tell me more about your company", or the build prompt. A template message pretending to
-  // be Lu contradicted onboarding-mode and rendered stale copy.
+  // (rehydrated client-side). During onboarding Lu speaks first (her kickoff opener), so there's
+  // no onboarding empty state; a post-onboarding empty thread shows the honest build prompt.
+  // A template message pretending to be Lu contradicted onboarding-mode and rendered stale copy.
   return (
     <SarahProvider
       ownerName={ownerName}

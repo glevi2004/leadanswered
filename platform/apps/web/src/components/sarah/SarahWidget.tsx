@@ -184,24 +184,14 @@ function PanelBody() {
 /** The Lu chat — the existing thread (escalations + approvals + thread + composer). */
 function ChatTab() {
   const { approvals, escalations, beginEscalationAnswer, messages, typing, widgetOpen } = useSarah();
-  // Phase-2 onboarding empty state: while the org is mid-onboarding and the owner hasn't
-  // said anything yet, front the chat with Lu's ask + a matching composer placeholder.
+  // Lu speaks first (roadmap Ch.0): during onboarding her kickoff opener is already in the
+  // thread, so there's no onboarding empty-state — the composer just gets a matching placeholder.
   const onboarding = useOnboardingMode(widgetOpen);
-  const hasOwnerMessages = messages.some((m) => m.role === "owner");
-  const onboardingIntro = onboarding && !hasOwnerMessages;
   // Post-onboarding empty thread: an honest prompt instead of a seeded template "Lu message".
   const buildIntro = !onboarding && messages.length === 0;
   return (
     <>
       <div className="flex-1 overflow-y-auto px-4 py-3">
-        {onboardingIntro && (
-          <div className="px-2 py-6 text-center">
-            <h2 className="text-lg font-semibold text-foreground">Tell me more about your company</h2>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              A little context and I&apos;ll set your departments up.
-            </p>
-          </div>
-        )}
         {buildIntro && (
           <div className="px-2 py-6 text-center">
             <h2 className="text-lg font-semibold text-foreground">What should we build?</h2>
@@ -242,7 +232,7 @@ function ChatTab() {
         <SarahThread messages={messages} typing={typing} />
       </div>
       <div className="shrink-0 px-3 pb-3 pt-1">
-        <SarahComposer showContext placeholder={onboardingIntro ? "Share what you're building…" : undefined} />
+        <SarahComposer showContext placeholder={onboarding ? "Share what you're building…" : undefined} />
       </div>
     </>
   );
