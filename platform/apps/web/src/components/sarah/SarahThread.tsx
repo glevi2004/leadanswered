@@ -1,75 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { Sparkles } from "lucide-react";
-import type { SarahChoices, SarahMessage } from "@/lib/data/shared";
+import type { SarahMessage } from "@/lib/data/shared";
 import { LuBuildTracker } from "./LuBuildTracker";
 import { LuOnboardingTracker } from "./LuOnboardingTracker";
 import { LuDocsTracker } from "./LuDocsTracker";
 import { ConnectCard } from "./ConnectCard";
+import { ChoiceCard } from "./ChoiceCard";
 import { useSarah } from "./sarah-context";
 import { cn } from "@/lib/utils";
-
-/**
- * THE CHOICE BAR (roadmap P1 — moves live on the message). Under the LATEST Lu turn the
- * chips are tappable — one primary (Recommended) — and a tap sends that option as the
- * owner's message; the composer stays live (chips are an offer, not a cage). On OLDER
- * turns the chips render muted, with the option the owner actually picked highlighted —
- * the dialogue-history feel. Persisted in `Message.meta.choices`, so all of this is
- * reload-safe.
- */
-function ChoiceBar({
-  choices,
-  live,
-  chosen,
-  onPick,
-}: {
-  choices: SarahChoices;
-  live: boolean;
-  /** the owner's reply text that answered this turn (older turns) — highlights a match */
-  chosen?: string;
-  onPick: (option: string) => void;
-}) {
-  return (
-    <div className="mt-2 flex flex-wrap gap-1.5">
-      {choices.options.map((o, i) => {
-        const isRec = choices.recommended === i;
-        const isChosen = !live && chosen !== undefined && chosen.trim() === o.trim();
-        if (live) {
-          return (
-            <button
-              key={o}
-              type="button"
-              onClick={() => onPick(o)}
-              className={cn(
-                "flex items-center gap-1 rounded-full border px-3 py-1.5 text-[12.5px] font-medium transition-colors",
-                isRec
-                  ? "btn-glow border-transparent bg-primary text-primary-foreground"
-                  : "bg-background text-foreground hover:bg-muted",
-              )}
-            >
-              {isRec && <Sparkles className="size-3" />}
-              {o}
-            </button>
-          );
-        }
-        return (
-          <span
-            key={o}
-            className={cn(
-              "rounded-full border px-3 py-1 text-[11.5px]",
-              isChosen
-                ? "border-primary/40 bg-primary/10 font-medium text-primary"
-                : "text-muted-foreground/60",
-            )}
-          >
-            {o}
-          </span>
-        );
-      })}
-    </div>
-  );
-}
 
 /** Lu's mark — the small pixel-glyph badge (NOT the big neu circle). One per Lu turn. */
 function LuMark({ label, className }: { label: string; className?: string }) {
@@ -107,7 +46,7 @@ export function SarahThread({
   typing: boolean;
   className?: string;
 }) {
-  const { assistantName, ownerName, sendMessage } = useSarah();
+  const { assistantName, ownerName, sendMessage, prefillComposer } = useSarah();
   const endRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
@@ -137,9 +76,13 @@ export function SarahThread({
             <LuMark label={assistantName} />
             <div className="min-w-0 flex-1">
               <div className="mb-0.5 text-[11px] font-semibold text-muted-foreground">{assistantName}</div>
-              <div className="t-body whitespace-pre-wrap break-words text-[13.5px] text-foreground">
-                {m.body}
-              </div>
+              {/* When the deterministic fallback made the question the body, the card already
+                  shows it — don't render the same question twice. */}
+              {!(m.choices?.question && m.body.trim() === m.choices.question.trim()) && (
+                <div className="t-body whitespace-pre-wrap break-words text-[13.5px] text-foreground">
+                  {m.body}
+                </div>
+              )}
               {/* Structured card attached to this Lu turn — her reply IS the form. */}
               {m.card === "connect" && (
                 <ConnectCard
@@ -148,13 +91,15 @@ export function SarahThread({
                   subtitle="Builds land in your own GitHub and Vercel; Supabase is optional, for apps with a database."
                 />
               )}
-              {/* The moves — tappable on the latest turn, history on older ones. */}
+              {/* The moves — the question card: live on the latest turn, history on older ones. */}
               {m.choices && (
-                <ChoiceBar
+                <ChoiceCard
+                  className="mt-2.5"
                   choices={m.choices}
                   live={m.id === lastId && !typing}
                   chosen={messages[idx + 1]?.role === "owner" ? messages[idx + 1].body : undefined}
                   onPick={sendMessage}
+                  onOther={() => prefillComposer("")}
                 />
               )}
             </div>

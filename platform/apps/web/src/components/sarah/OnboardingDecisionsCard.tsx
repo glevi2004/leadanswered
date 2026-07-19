@@ -1,23 +1,27 @@
 "use client";
 
 import * as React from "react";
-import { ArrowRight, Check, ChevronLeft, ChevronRight, Sparkles, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Check, ChevronLeft, ChevronRight, Sparkles, X } from "lucide-react";
+import { ChoiceOptionRow } from "./ChoiceCard";
 import { useSarah } from "./sarah-context";
 import type { OnboardingDecision } from "@/lib/dock/live";
-import { cn } from "@/lib/utils";
 
 /**
  * ONBOARDING DECISIONS (Phase 2). While Lu sets the company up she drafts a batch of
- * choices — company type, how to reach customers, what to build first — as one
+ * choices — the wedge, the first-user moment, the launch surface — as one
  * `onboarding_decisions` doc. This card renders that doc ONE decision at a time
- * (a 2/5-style pager): each decision's question, its options as a selectable list with
- * Lu's pick badged "Recommended", and two ways to move: "Decide this one" records the
- * current choice and advances, "Decide all" fills the rest with Lu's recommendations.
- * When every decision is made it sends Lu one summary line per decision and settles into
- * a "Sent to Lu" state — she takes it from there (drafts the business plan). Local state
- * only; the tracker owns which doc is shown.
+ * (a 1/3-style pager) through the same rows every question uses (ChoiceCard):
+ * TAPPING AN OPTION IS THE DECISION — it records the choice and advances to the next
+ * undecided one; no separate confirm buttons. "Other" hands the decision to the
+ * composer (prefilled with the question) so the owner answers in their own words.
+ * When every decision is settled it sends Lu one summary line per tapped decision
+ * (typed answers already reached her as messages) and settles into "Sent to Lu".
+ * Local state only; the tracker owns which doc is shown.
  */
+
+/** Sentinel for a decision the owner chose to answer in the composer instead. */
+const CUSTOM = -1;
+
 export function OnboardingDecisionsCard({
   decisions,
   onDismiss,
@@ -25,9 +29,9 @@ export function OnboardingDecisionsCard({
   decisions: OnboardingDecision[];
   onDismiss?: () => void;
 }) {
-  const { sendMessage } = useSarah();
+  const { sendMessage, prefillComposer } = useSarah();
   const [page, setPage] = React.useState(0);
-  // chosen option index per decision index; absent = not decided yet (defaults to recommended)
+  // chosen option index per decision index (CUSTOM = answered in chat); absent = undecided
   const [answers, setAnswers] = React.useState<Record<number, number>>({});
   const [sent, setSent] = React.useState(false);
   const [dismissed, setDismissed] = React.useState(false);
@@ -35,54 +39,50 @@ export function OnboardingDecisionsCard({
 
   const total = decisions.length;
   const current = decisions[Math.min(page, total - 1)];
-  const selected = answers[page] ?? current.recommended;
+  const selected = answers[page];
 
-  // Send Lu one line per decision — "<question> → <chosen label>" — exactly once.
+  // Send Lu one line per tapped decision — "<question> → <chosen label>" — exactly once.
+  // Decisions answered via Other arrived as the owner's own messages, so they're skipped.
   const finish = React.useCallback(
     (finalAnswers: Record<number, number>) => {
       if (sentRef.current) return;
       sentRef.current = true;
       const summary = decisions
         .map((d, i) => {
-          const idx = finalAnswers[i] ?? d.recommended;
-          const label = d.options[idx]?.label ?? d.options[d.recommended]?.label ?? "";
-          return `${d.question} → ${label}`;
+          const idx = finalAnswers[i];
+          if (idx === undefined || idx === CUSTOM) return null;
+          const label = d.options[idx]?.label;
+          return label ? `${d.question} → ${label}` : null;
         })
+        .filter(Boolean)
         .join("\n");
-      sendMessage(summary);
+      if (summary) sendMessage(summary);
       setSent(true);
     },
     [decisions, sendMessage],
   );
 
-  const choose = (optionIndex: number) => setAnswers((a) => ({ ...a, [page]: optionIndex }));
-
-  const decideThisOne = () => {
-    const next = { ...answers, [page]: selected };
+  /** Record an answer for the current decision, then advance to the next undecided one
+   * (wrapping past the end); when none remain, send the summary. */
+  const decide = (optionIndex: number) => {
+    const next = { ...answers, [page]: optionIndex };
     setAnswers(next);
     if (decisions.every((_, i) => i in next)) {
       finish(next);
       return;
     }
-    // advance to the next still-undecided decision (wraps past the end)
-    let step = page;
     for (let k = 1; k <= total; k++) {
       const cand = (page + k) % total;
       if (!(cand in next)) {
-        step = cand;
-        break;
+        setPage(cand);
+        return;
       }
     }
-    setPage(step);
   };
 
-  const decideAll = () => {
-    const next = { ...answers };
-    decisions.forEach((d, i) => {
-      if (!(i in next)) next[i] = d.recommended;
-    });
-    setAnswers(next);
-    finish(next);
+  const answerInChat = () => {
+    prefillComposer(`${current.question} — `);
+    decide(CUSTOM);
   };
 
   if (dismissed) return null;
@@ -95,7 +95,7 @@ export function OnboardingDecisionsCard({
           <p className="text-sm font-semibold">Sent to Lu</p>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
-          Got your decisions — I&apos;m drafting your business plan now.
+          Got your decisions — I&apos;m pulling the final doc together now.
         </p>
       </div>
     );
@@ -147,54 +147,22 @@ export function OnboardingDecisionsCard({
       <p className="mt-2.5 text-sm font-medium text-foreground">{current.question}</p>
 
       <div className="mt-2 flex flex-col gap-1.5">
-        {current.options.map((opt, i) => {
-          const isSelected = selected === i;
-          const isRecommended = i === current.recommended;
-          return (
-            <button
-              key={i}
-              type="button"
-              onClick={() => choose(i)}
-              className={cn(
-                "flex w-full items-start gap-2.5 rounded-xl border p-2.5 text-left transition-colors",
-                isSelected
-                  ? "border-primary/50 bg-primary/5"
-                  : "border-border bg-background hover:bg-muted/50",
-              )}
-            >
-              <span
-                className={cn(
-                  "mt-0.5 grid size-4 shrink-0 place-items-center rounded-full border",
-                  isSelected
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-muted-foreground/40",
-                )}
-              >
-                {isSelected && <Check className="size-2.5" />}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-sm font-medium text-foreground">{opt.label}</span>
-                  {isRecommended && (
-                    <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300">
-                      Recommended
-                    </span>
-                  )}
-                </span>
-                {opt.detail && <span className="mt-0.5 block text-xs text-muted-foreground">{opt.detail}</span>}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="mt-3 flex items-center gap-2">
-        <Button size="sm" className="btn-glow h-7 gap-1 px-3" onClick={decideThisOne}>
-          Decide this one <ArrowRight className="size-3.5" />
-        </Button>
-        <Button size="sm" variant="outline" className="h-7 gap-1 px-2.5" onClick={decideAll}>
-          <Check className="size-3.5" /> Decide all
-        </Button>
+        {current.options.map((opt, i) => (
+          <ChoiceOptionRow
+            key={i}
+            label={opt.label}
+            detail={opt.detail}
+            selected={selected === i}
+            recommended={i === current.recommended}
+            onSelect={() => decide(i)}
+          />
+        ))}
+        <ChoiceOptionRow
+          label="Other"
+          detail="Answer this one in your own words"
+          selected={selected === CUSTOM}
+          onSelect={answerInChat}
+        />
       </div>
     </div>
   );

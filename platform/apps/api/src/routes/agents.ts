@@ -36,6 +36,33 @@ function metaFromActions(actions: OrchestratorAction[]): Record<string, unknown>
   return Object.keys(meta).length > 0 ? meta : undefined;
 }
 
+/**
+ * The model-visible transcript line for a persisted turn. An assistant turn that carried
+ * choices shows the owner its question ON the card (rendered from `meta.choices`), while
+ * `content` is often just the warm lead-in — so replaying content alone would strip the
+ * question out of Lu's own history and leave the owner's tapped answer ("Solo founders")
+ * dangling with no question it answers. Re-attach the question + options here, for the
+ * model only; the persisted row is untouched.
+ */
+function modelContent(m: { role: "user" | "assistant"; content: string; meta?: Record<string, unknown> | null }): string {
+  if (m.role !== "assistant") return m.content;
+  const c = m.meta?.choices as
+    | { question?: unknown; options?: unknown; recommended?: unknown }
+    | undefined;
+  if (!c || typeof c !== "object") return m.content;
+  const question = typeof c.question === "string" ? c.question.trim() : "";
+  const options = Array.isArray(c.options)
+    ? c.options.filter((o): o is string => typeof o === "string" && o.trim() !== "")
+    : [];
+  if (!question && options.length === 0) return m.content;
+  const rec = typeof c.recommended === "number" ? options[c.recommended] : undefined;
+  const parts = [m.content];
+  if (question && !m.content.includes(question)) parts.push(`[you asked: ${question}]`);
+  if (options.length > 0)
+    parts.push(`[options offered: ${options.join(" · ")}${rec ? ` — you recommended: ${rec}` : ""}]`);
+  return parts.join("\n");
+}
+
 /** A short Task title from the owner's message (first line, trimmed to a sane length). */
 function titleFromMessage(message: string): string {
   const firstLine = (message.split("\n")[0] ?? "").trim();
@@ -72,7 +99,7 @@ export function createLuRoute(deps: OrchestratorDeps) {
         const thread = await deps.store.getOrCreateMainThread(orgId);
         threadId = thread.id;
         const prior = await deps.store.listRecentMessages(thread.id, 20);
-        if (prior.length) history = prior.map((m) => ({ role: m.role, content: m.content }));
+        if (prior.length) history = prior.map((m) => ({ role: m.role, content: modelContent(m) }));
         await deps.store.appendMessage({ threadId: thread.id, orgId, role: "user", content: message });
       } catch (memErr) {
         console.error("[/api/lu] thread memory unavailable, using client history:", memErr);

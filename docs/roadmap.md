@@ -654,7 +654,8 @@ owner · direction · trend — at mode-appropriate depth.
 
 The agreed 90-day outcome (the loop's OUTCOME step — never a generic "what's your goal": always the
 wing-and-archetype-specific menu) → the **decision batch** (3-5 framing decisions, only for genuinely
-open calls — cards with a recommended option + "decide all") → **the Business Context doc**, filed
+open calls — cards with a recommended option; tapping an option IS the decision, "Other" answers it
+free-text) → **the Business Context doc**, filed
 Library → General, the context every downstream agent reads. Its sections FLEX by wing:
 
 - **New venture:** Company Name · Product · ICP (+ JTBD) · Mission · Classification · Values ·
@@ -744,8 +745,9 @@ No roadmap screen, no progress bar. Three behaviors only:
 
 - **Lu speaks first** — the thread is never empty.
 - **She asks the authored questions** — the scoping scripts, the connects, the gates.
-- **Her turns end with moves** — tappable chips living *on the message* (persisted, reload-safe),
-  one recommended. The same frontier feeds Home's next-list and her proactive nudges.
+- **Her turns end with moves** — ONE question card living *on the message* (persisted, reload-safe):
+  the question + tappable option rows, one recommended, plus an automatic "Other" (free text). The
+  same frontier feeds Home's next-list and her proactive nudges.
 
 ---
 

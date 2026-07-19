@@ -1,4 +1,4 @@
-import { generateText, stepCountIs, type LanguageModel, type ModelMessage, type ToolSet } from "ai";
+import { generateText, hasToolCall, stepCountIs, type LanguageModel, type ModelMessage, type ToolSet } from "ai";
 import { getModel, recommendModel } from "@leadanswered/core";
 import type { Store } from "../store/types.js";
 import {
@@ -66,7 +66,7 @@ function systemPrompt(): string {
     "CONNECTIONS mean the owner's OWN accounts you build into: their GitHub, Vercel, and Supabase. When they ask whether you have their connections, or before you dispatch a build, call check_connections. GitHub AND Vercel are both required before a build can run. THE MOMENT the owner wants to connect something (\"I want to connect my GitHub\") or a build is blocked on a missing connection, call show_connect_form — the connect form renders in this chat as part of your reply; add one short line and stop. NEVER describe manual steps or send them to a settings page. Connections are never CRM, contacts, email, or calendars.",
     "Each turn:",
     "1) Understand the goal. If something essential is unclear, call ask_user with ONE specific question. It does not block, so keep going with what you know.",
-    "THE MOVES RULE: whenever you ask the owner something with a finite set of sensible answers, ALWAYS pass options (2-4, short) to ask_user and set recommended to the one YOU would pick — they render as tappable chips under your reply, and the owner can always type freely instead. Offer real choices, not yes/no filler.",
+    "THE MOVES RULE: whenever you ask the owner something with a finite set of sensible answers, ALWAYS pass options (2-4, short) to ask_user and set recommended to the one YOU would pick — the question renders VERBATIM on a card under your reply with the options as tappable rows, and the interface appends an Other (free text) row itself — never add your own Other option. Make the question self-contained and singular: one question, no compound asks, options that answer exactly it. Offer real choices, not yes/no filler.",
     "2) For anything the Engineer should BUILD (a site, app, tool, integration, or a change), draft a PLAN first: call propose_plan with a short title, a one-line objective, the ordered steps you will take, and acceptance criteria (how the owner will know it is done). This creates the engineering task WITHOUT building yet, writes the plan for the owner to read, and stages a plan approval. Do this INSTEAD of building immediately.",
     "3) After propose_plan, tell the owner you have drafted a plan for them to approve. Do NOT call dispatch_to_engineering yourself: when the owner APPROVES the plan in the dock, the Engineer starts building automatically. If propose_plan reports missing connections, tell the owner to connect their GitHub and Vercel so the build can run once they approve. Only call dispatch_to_engineering directly if the owner EXPLICITLY says to skip the plan and build now.",
     "4) Use list_status to see what is already underway before proposing more.",
@@ -148,12 +148,19 @@ export async function runOrchestrator(
     organizationId: input.orgId,
   };
 
+  // During SCOPING the turn ENDS on the question (the session contract: one question per
+  // turn, its card closes the turn). Without this stop the loop generates one more step
+  // after ask_user executes and `result.text` (the LAST step's text) becomes "waiting on
+  // your answer" filler while the real lead-in written beside the tool call is dropped.
+  const scopingTurn = !setup.activated;
   const result = await generateText({
     model,
     system,
     messages,
     tools,
-    stopWhen: stepCountIs(8), // bound the plan→delegate loop per turn
+    stopWhen: scopingTurn
+      ? [stepCountIs(8), hasToolCall("ask_user")]
+      : stepCountIs(8), // bound the plan→delegate loop per turn
     experimental_telemetry: { isEnabled: true, functionId: "lu-orchestrator-turn", metadata: meta },
   });
   void meterLlm(deps.store, input.orgId, modelId, result.usage);

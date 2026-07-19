@@ -43,7 +43,7 @@ export function onboardingTools(deps: OnboardingToolDeps, ctx: OnboardingToolCon
   return {
     propose_decisions: tool({
       description:
-        "Put a small batch of multiple-choice decisions in front of the founder as cards, each with one Recommended option. Use this ONCE, early in onboarding, for the 3-5 choices that actually change how you'd frame the company (the core problem to solve first, the primary user, the wedge, the business model). Give each decision 3-4 concrete options and mark the single best one as `recommended` (its 0-based index). The founder answers the cards in the dock and their choices come back to you as a normal message; you do NOT wait here.",
+        "Put a small batch of multiple-choice decisions in front of the founder as cards, each with one Recommended option. Use this ONCE, early in onboarding, for the 3-5 choices that actually change how you'd frame the company (the core problem to solve first, the primary user, the wedge, the business model). Give each decision 3-4 concrete options and mark the single best one as `recommended` (its 0-based index). The founder taps an option per card (or picks Other and types their own answer); tapped choices come back as one summary message, typed answers arrive as their own messages. You do NOT wait here.",
       inputSchema: z.object({
         decisions: z
           .array(

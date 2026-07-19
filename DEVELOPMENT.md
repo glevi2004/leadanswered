@@ -55,10 +55,15 @@ chosen chip survives reload; Home shows the same moves.
 
 **Status (2026-07-18): BUILT — verifies with the P2 fresh-org pass.** `meta.choices` persisted on
 assistant turns (`metaFromActions` in routes/agents.ts; `ask_user` gained `recommended`); hydration +
-live-merge map meta → chips/cards; `SarahThread`'s ChoiceBar (tappable on the latest turn, chosen-
-highlight history on older ones); Home renders the same `openChoices` frontier; `POST /api/lu/kickoff`
+live-merge map meta → cards; Home renders the same `openChoices` frontier; `POST /api/lu/kickoff`
 (thread-empty idempotent, real personalized turn, `meta.source=system kind=kickoff`) fired from
 finishSignup + the dock's empty-thread fallback; the MOVES RULE added to Lu's prompt.
+**Rework (2026-07-18, live-QA):** the chip bar was a second component AND never showed the question
+— replaced by ONE question card (`ChoiceCard`: question + option rows + automatic "Other") used by
+both `ask_user` turns and the decisions batch (`OnboardingDecisionsCard` now composes the same rows;
+tap = decide, Decide-this-one/Decide-all removed). Flow fix: an asked question lives only in
+`meta.choices`, so history hydration now re-attaches it to the model transcript (`modelContent` in
+routes/agents.ts) — Lu no longer loses her own questions between turns.
 
 ## NEXT (the P-pipeline + the standing unblock)
 

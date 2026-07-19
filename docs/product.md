@@ -40,12 +40,12 @@ Lu's turns are plain text; structured turns attach a card (`Message.card` / doc 
 | Card | When | Does |
 |---|---|---|
 | **connect** | Lu needs an account linked (`show_connect_form`) | provider rows with real install buttons (GitHub App · Vercel Integration · Supabase OAuth), paste-a-token as fallback |
-| **decisions** | onboarding (`propose_decisions`) | multiple-choice cards, one option Recommended, "Decide all" |
+| **decisions** | onboarding (`propose_decisions`) | one decision at a time (pager); tapping an option IS the decision, "Other" answers it in your own words — no confirm buttons |
 | **business plan** | onboarding (`draft_business_plan`) | the plan doc + **Accept & activate departments** |
 | **plan** | `propose_plan` | objective · steps · acceptance + Approve / Request changes / Reject |
 | **doc** | `draft_doc` staged a gated doc (architecture) | preview + Approve / Ask for changes + open in the Library |
 | **build tracker** | a build is running | the Card size of the Build (§1) |
-| **question** | `ask_user` | options as real buttons; clicking sends that option as your message |
+| **question** | `ask_user` | the question card ON the message: the question + option rows (one Recommended) + "Other"; tapping an option sends it as your message — same rows as the decisions card |
 
 Approvals surface where you are: in the chat card, on the task page, and (when registered) as Slack
 buttons — same resolve endpoint.
