@@ -215,59 +215,6 @@ export function useAgentEvents(active: boolean): DockEvent[] {
 
 /* --------------------------- onboarding artifacts --------------------------- */
 
-/** One option in an onboarding decision — a choice Lu offers with an optional one-liner. */
-export interface DecisionOption {
-  label: string;
-  detail?: string;
-}
-
-/** A single decision Lu wants the owner to make while setting the company up. */
-export interface OnboardingDecision {
-  question: string;
-  options: DecisionOption[];
-  /** index into `options` Lu recommends (clamped in range). */
-  recommended: number;
-}
-
-/** The `onboarding_decisions` doc payload — the ordered decisions Lu drafted. */
-export interface OnboardingDecisions {
-  decisions: OnboardingDecision[];
-}
-
-/**
- * Read the decisions out of a `doc` artifact payload
- * (`{ type: "onboarding_decisions", decisions: [...] }`), or null when the payload isn't one.
- * Defensive (mirrors planFromArtifact): drops malformed options/decisions and clamps
- * `recommended` into range so the card never indexes off the end.
- */
-export function decisionsFromArtifact(payload: Record<string, unknown> | null): OnboardingDecisions | null {
-  if (!payload || payload.type !== "onboarding_decisions") return null;
-  const rawDecisions = Array.isArray(payload.decisions) ? payload.decisions : [];
-  const decisions: OnboardingDecision[] = [];
-  for (const d of rawDecisions) {
-    if (!d || typeof d !== "object") continue;
-    const dd = d as Record<string, unknown>;
-    const rawOptions = Array.isArray(dd.options) ? dd.options : [];
-    const options: DecisionOption[] = [];
-    for (const o of rawOptions) {
-      if (!o || typeof o !== "object") continue;
-      const oo = o as Record<string, unknown>;
-      if (typeof oo.label !== "string") continue;
-      options.push({ label: oo.label, detail: typeof oo.detail === "string" ? oo.detail : undefined });
-    }
-    if (options.length === 0) continue;
-    const rawRec = typeof dd.recommended === "number" ? Math.trunc(dd.recommended) : 0;
-    const recommended = Math.min(Math.max(0, rawRec), options.length - 1);
-    decisions.push({
-      question: typeof dd.question === "string" ? dd.question : "",
-      options,
-      recommended,
-    });
-  }
-  if (decisions.length === 0) return null;
-  return { decisions };
-}
-
 /** How Lu classified the company from the onboarding conversation. */
 export interface BusinessClassification {
   companyType: string;
@@ -275,8 +222,8 @@ export interface BusinessClassification {
   userType: string;
 }
 
-/** The accept-gate payload parsed from the FINAL Business Context doc. */
-export interface BusinessPlan {
+/** The accept-gate payload parsed from the FINAL Business Context doc — the company profile. */
+export interface CompanyProfile {
   classification: BusinessClassification;
   values: string[];
   summary?: string;
@@ -288,7 +235,7 @@ export interface BusinessPlan {
  * Returns null for drafts (the growing doc renders in the Library, not as the accept card) and
  * for any other type. Defensive like the other parsers.
  */
-export function businessPlanFromArtifact(payload: Record<string, unknown> | null): BusinessPlan | null {
+export function companyProfileFromArtifact(payload: Record<string, unknown> | null): CompanyProfile | null {
   if (!payload) return null;
   if (payload.type !== "business_context") return null;
   if (payload.draft === true || !payload.classification) return null;
@@ -323,7 +270,7 @@ export function businessPlanFromArtifact(payload: Record<string, unknown> | null
 export interface LibraryDoc {
   id: string;
   title: string;
-  /** business_context | onboarding_decisions | architecture | strategy | spec | note | migration */
+  /** business_context | architecture | strategy | spec | note | migration */
   type: string;
   /** Human label for the type chip. */
   typeLabel: string;
@@ -348,8 +295,6 @@ function docTypeLabel(type: string): string {
   switch (type) {
     case "business_context":
       return "Business Context";
-    case "onboarding_decisions":
-      return "Decisions";
     case "architecture":
       return "Architecture";
     case "migration":
@@ -413,19 +358,6 @@ export function libraryDocFromArtifact(a: DockArtifact): LibraryDoc | null {
       createdAt: a.createdAt,
     };
   }
-  if (type === "onboarding_decisions") {
-    const d = decisionsFromArtifact(p);
-    if (!d) return null;
-    const md = d.decisions
-      .map((dec, i) => {
-        const opts = dec.options
-          .map((o, j) => `- ${o.label}${j === dec.recommended ? " **(recommended)**" : ""}${o.detail ? ` — ${o.detail}` : ""}`)
-          .join("\n");
-        return `## ${i + 1}. ${dec.question}\n\n${opts}`;
-      })
-      .join("\n\n");
-    return { id: a.id, title: a.title || "Decisions", type, typeLabel: docTypeLabel(type), folder: docFolder(type), markdown: md, gated: false, createdAt: a.createdAt };
-  }
   if (type === "migration") {
     const sql = typeof p?.sql === "string" ? p.sql : "";
     if (!sql) return null;
@@ -443,7 +375,7 @@ export function libraryDocFromArtifact(a: DockArtifact): LibraryDoc | null {
 
 /**
  * The org's Library documents, newest first, deduped so revisions REPLACE older versions:
- * one Business Context, one Decisions doc, one generic doc per type+title; every migration kept.
+ * one Business Context, one generic doc per type+title; every migration kept.
  */
 export function libraryDocs(artifacts: DockArtifact[]): LibraryDoc[] {
   const all = artifacts.map(libraryDocFromArtifact).filter((d): d is LibraryDoc => d !== null);
@@ -452,7 +384,7 @@ export function libraryDocs(artifacts: DockArtifact[]): LibraryDoc[] {
   // artifacts arrive append-ordered → walk newest-first and keep the first of each identity.
   for (const d of [...all].reverse()) {
     const key =
-      d.type === "business_context" || d.type === "onboarding_decisions"
+      d.type === "business_context"
         ? d.type
         : d.type === "migration"
           ? `migration:${d.id}`

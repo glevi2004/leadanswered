@@ -3,7 +3,7 @@
 import * as React from "react";
 import type { LuMessage } from "@/lib/data/shared";
 import { LuBuildTracker } from "./LuBuildTracker";
-import { LuOnboardingTracker } from "./LuOnboardingTracker";
+import { ActivationGate } from "./ActivationGate";
 import { LuDocsTracker } from "./LuDocsTracker";
 import { ConnectCard } from "./ConnectCard";
 import { ChoiceCard } from "./ChoiceCard";
@@ -116,9 +116,9 @@ export function LuThread({
           </div>
         </div>
       )}
-      {/* The onboarding wire + the doc gate + the chat↔Engineer wire: all unfold in the thread. */}
+      {/* The activation gate + the doc gate + the chat↔Engineer wire: all unfold in the thread. */}
       <div className="pb-1">
-        <LuOnboardingTracker />
+        <ActivationGate />
         <LuDocsTracker />
         <LuBuildTracker />
       </div>
