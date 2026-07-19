@@ -1,14 +1,18 @@
 # DEVELOPMENT — the TODO
 
 > The one file that answers **"what are we doing next?"** Everything else: [paper.md](./paper.md) (theory)
-> · [COMPANY.md](./COMPANY.md) (why/what/money) · [docs/system.md](./docs/system.md) (the machine) ·
-> [docs/product.md](./docs/product.md) (the experience) · [docs/design-system.md](./docs/design-system.md)
-> (the look).
+> · [COMPANY.md](./COMPANY.md) (why/what/money) · [docs/framework.md](./docs/framework.md) (the
+> concepts: fields/modules/skills/workspaces) · [docs/map.md](./docs/map.md) (the tree, instantiated)
+> · [docs/system.md](./docs/system.md) (the machine) · [docs/product.md](./docs/product.md) (the
+> experience) · [docs/design-system.md](./docs/design-system.md) (the look) ·
+> [docs/critique.md](./docs/critique.md) (the 2026-07-19 audit that produced the framework).
 
 ## How we work
 
 - **NOW holds exactly one task**, defined by the outcomes it must produce — observable results, not
-  intentions — and "done when" checks we verify before touching anything else.
+  intentions — and "done when" checks we verify before touching anything else. Since 2026-07-19 the
+  roadmap of work is a **module list** (framework.md §8, D2): NOW names the module (or substrate
+  piece) it ships.
 - **NEXT holds at most 5**, each with a one-line outcome. **LATER** is a parking lot; no detail allowed.
 - Nothing gets built that isn't the NOW task. Finishing NOW = verify its outcomes, update the docs it
   touched, promote one thing from NEXT.
@@ -88,12 +92,22 @@ routes/agents.ts) — Lu no longer loses her own questions between turns.
    (import path when a repo exists); the architecture doc cites the Business Context; the first-ship
    proposal derives from the agreed outcome; the COMPANY SETUP stage line spans all of it. *Outcome:
    the fresh-org walkthrough runs sign-up → published first build entirely through the script.*
-3. **P4 — the standing loop.** Situation rules become authored data (a `situations` section per
-   field skill): event-class rules keyed to journal kinds (report-backs carry `meta.choices` — moves
-   on every terminal event), and the first time-class beat — **the weekly review**: a scheduled
-   worker turn that opens with the L10-derived agenda (scorecard from real rows → outcome progress →
-   issues → committed moves). *Outcome: publishing a change yields the published-situation moves;
-   Monday brings the weekly review unprompted; a plain question still gets plain prose.*
+3. **P3.5 — the framework substrate** (new 2026-07-19; the code catching up to framework.md).
+   Extract the `delivery` / `database` / `architecture-drafting` skills out of the hardcoded prompts
+   into SKILL.md files (naming what's shipped — zero behavior change) · ONE department/module
+   registry derived from map.md, retiring the `DEPARTMENTS` const and the fictional canvas `AGENTS`
+   (critique §8.3) · the skills-tree loader with attachment metadata (framework §4) · the
+   **obligations calendar** primitive (a due entry opens a turn — the reaper-style sweep) · typed
+   artifact payloads (the doc-type registry, framework §7). *Outcome: `onboarding.md` loads through
+   the new loader unchanged; the canvas renders from the map registry; a seeded due entry opens a Lu
+   turn; one doc type round-trips through its schema.*
+4. **P4 — the standing loop** (now rides P3.5's calendar). Situation rules become authored data per
+   framework §1/§3 (module slot 6 + charter item 5): event-class rules keyed to journal kinds
+   (report-backs carry `meta.choices` — moves on every terminal event), and the first time-class
+   beat — **the weekly review**: the calendar's heartbeat entry opens a turn with the L10-derived
+   agenda (scorecard from real rows → outcome progress → issues → committed moves). *Outcome:
+   publishing a change yields the published-situation moves; Monday brings the weekly review
+   unprompted; a plain question still gets plain prose.*
 4. **P5 — the interface polish that is the moat.** Interview progress feel (chips show n/N on
    modules), decision cards keep the 2/5 batch, read-backs render as mini context-cards, the doc
    viewer live-updates during the interview, voice pass on every authored line in the skills.
@@ -105,13 +119,23 @@ routes/agents.ts) — Lu no longer loses her own questions between turns.
 
 ## LATER
 
-Canvas grants become real (artifact-backed notes) · Slack activation (manifest ready; then the same
-chips render as Slack buttons) · verification screenshots · Railway deploy adapter · re-planning
-(plan v2) · pgvector memory + AST index · `Task.model` threading + registry-driven coding model ·
-usage-bucket enforcement · Flux/Higgsfield · watch-the-build · Revert All rollback · departments
-beyond Engineering (each = authoring a field's seven things) · phone + email channels · presets
-beyond Business · Sarah→Lu rename + landing rewrite · prebuilt e2b template · per-task credential
-scopes · managed hosting tier.
+**The debt purge (scheduled by the 2026-07-19 critique — no longer open-ended "tracked debt"):**
+the Lead Answered excision (124 occurrences/47 files: `@leadanswered` package renames · dead
+`Organization` telephony columns · `team/` roster tree + `agent-presets.ts` · the dead
+`/onboarding` route + `onboardingComplete` gate + `OnboardingFlow.tsx` · landing rewrite) · the
+102 dangling spec-doc references purged (framework/map/system become the only citable docs) ·
+delete both orphan `skills-lock.json` files (D5) · consolidate `department//dept//canvas/`
+component trees into the framework §6 workspace shell (+ retire `ModuleStub.tsx`).
+
+**Capability (each item = a module or port from map.md):** `design/design-system` (the next
+department, per the build order in map.md) · canvas grants become real (artifact-backed notes) ·
+Slack activation (manifest ready; then the same chips render as Slack buttons) · verification
+screenshots · Railway deploy adapter · re-planning (plan v2) · pgvector memory + AST index ·
+`Task.model` threading + registry-driven coding model · usage-bucket enforcement · Flux/Higgsfield ·
+watch-the-build · Revert All rollback · intake ports (email/chat — unlocks `support/triage`) ·
+billing port (promotes `finance/receivables` to actuation) · phone + email channels · worlds beyond
+Business (`studio-dev`, `personal` — map.md has their modules) · prebuilt e2b template · per-task
+credential scopes · managed hosting tier.
 
 ---
 

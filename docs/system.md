@@ -30,7 +30,7 @@
 | **Contract** | identity file — role, duties, boundaries (Always / Ask-first / Never), voice, knowledge; compiles into the system prompt | `Agent.contract` + `ContractRevision`; assembled in `packages/core` |
 | **Model** | reasoning + generation models, per-agent, swappable | `Agent.models` via the gateway |
 | **Tools** | its real actions — deterministic, idempotent, port-backed bodies | `apps/api/src/agent/*Tools.ts` |
-| **Skills** | a markdown playbook for a kind of work, injected when it applies | `apps/api/src/agent/skills/*.md` — real files (frontmatter name/description + procedure), loaded from disk; adding a skill = adding a file. `onboarding.md` is the first |
+| **Skills** | a markdown playbook for a kind of work, injected when it applies | `apps/api/src/agent/skills/*.md` — real files (frontmatter name/description + procedure), loaded from disk; adding a skill = adding a file. `onboarding.md` is the first. The general system this grows into — attachment levels, three injection classes, the SKILL.md format — is [framework.md](./framework.md) §4 |
 | **Department** | the operating area grouping the agent + its work | `Department` row (`key`, `status`) |
 
 A turn: contract → `generateText` with tools → the model calls tools → each body does a real thing through
@@ -175,6 +175,11 @@ run_migration | approve_doc | activate_departments`) · `Thread`/`Message` · `A
 `Collection`.
 
 ## §10 — How to add a new agent (the recipe)
+
+> This recipe adds a **worker** (a runtime). Adding **capability** — a module or a field — is a
+> different act with its own recipe: [framework.md](./framework.md) §8, instantiated across the tree
+> in [map.md](./map.md). Most new departments start there; they come back here only if they need a
+> new department agent (framework §3's executor rule).
 
 1. **Contract** — `CONTRACT.md` (< ~150 lines, three-tier boundaries) → `Agent.contract`.
 2. **Model** — pick in `Agent.models` (routine → Haiku, heavy → Sonnet/Opus).

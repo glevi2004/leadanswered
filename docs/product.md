@@ -2,8 +2,9 @@
 
 > One file for the whole surface: the feel, the chat and its cards, the dock, the canvas, onboarding, and
 > the honesty rules. Verified against the code (2026-07-18). The machine behind it:
-> [system.md](./system.md) · look & tokens: [design-system.md](./design-system.md) · what's next:
-> [DEVELOPMENT.md](../DEVELOPMENT.md).
+> [system.md](./system.md) · which concept surfaces where (the UI contract + the workspace anatomy
+> every department app converges to): [framework.md](./framework.md) §5-§6 · look & tokens:
+> [design-system.md](./design-system.md) · what's next: [DEVELOPMENT.md](../DEVELOPMENT.md).
 
 ## §0 — The feel (the rules)
 
@@ -70,10 +71,12 @@ Tabs: **Home · Lu · Company · Tasks · Library**.
 
 ## §4 — The canvas
 
-One graph: **Lu** centered; **departments = agents** as hubs (each an app: Home / database console /
-workplace); **resources** (terminal · note · file · folder · site) as spokes from the ＋ menu; **edges as
-grants** (`reads` = context, `uses` = tool, `produces` = output). Nodes, positions, and edges persist to
-the DB. v0 provisions Engineering only.
+One graph: **Lu** centered; **departments** as hubs (each an app: Home / database console /
+workplace) — *containing* their agents, which render as worker chips (the "departments = agents"
+identity is retired: framework.md §3/§5, critique.md D6; this section describes the shipped v0, which
+still conflates them); **resources** (terminal · note · file · folder · site) as spokes from the ＋
+menu; **edges as grants** (`reads` = context, `uses` = tool, `produces` = output). Nodes, positions,
+and edges persist to the DB. v0 provisions Engineering only.
 
 Live behavior: agent nodes pulse while `Agent.status = working`, captioned with the latest journal event;
 the agent-updates pill opens the review; site nodes render live previews.
