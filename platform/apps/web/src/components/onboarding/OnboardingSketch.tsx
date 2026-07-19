@@ -385,7 +385,7 @@ export function OnboardingSketch() {
         setSubmitting(false);
         return;
       }
-      window.location.href = "/home";
+      window.location.href = "/canvas";
     } catch {
       setSubmitError("Something went wrong finishing your setup. Please try again.");
       setSubmitting(false);

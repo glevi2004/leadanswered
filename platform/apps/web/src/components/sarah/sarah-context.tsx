@@ -207,7 +207,8 @@ export function SarahProvider({
   const [actions, setActions] = React.useState(initialActions);
   const [builds, setBuilds] = React.useState<BuildBatch[]>([]);
   const [typing, setTyping] = React.useState(false);
-  const [widgetOpen, setWidgetOpen] = React.useState(false);
+  // The dock is the primary surface now — expanded by default; collapsing to a rail persists.
+  const [widgetOpen, setWidgetOpen] = React.useState(true);
   const [widgetMode, setWidgetMode] = React.useState<"docked" | "floating">("docked");
   const [contextEntity, setContextEntity] = React.useState<string | null>(null);
   const [selectedAgent, setSelectedAgent] = React.useState<string | null>(null);
@@ -292,8 +293,8 @@ export function SarahProvider({
 
   // ⌘/ toggles the widget; persist open state across pages.
   React.useEffect(() => {
-    setWidgetOpen(window.localStorage.getItem("sarah_widget_open") === "1");
-    if (window.localStorage.getItem("sarah_widget_mode") === "floating") setWidgetMode("floating");
+    // Default expanded; only a previously-collapsed rail ("0") stays collapsed.
+    setWidgetOpen(window.localStorage.getItem("sarah_widget_open") !== "0");
   }, []);
   const persistMode = React.useCallback((mode: "docked" | "floating") => {
     setWidgetMode(mode);
@@ -612,7 +613,7 @@ export function SarahProvider({
   }, [composerPrefill]);
 
   const surface = surfaceForPath(pathname ?? "");
-  const chips = surface ? MODULES[surface].sarahChips : MODULES.home.sarahChips;
+  const chips = surface ? MODULES[surface].sarahChips : MODULES.canvas.sarahChips;
 
   // The open frontier: the ACTIVE chat's last message, when it's a Lu turn carrying
   // choices — an owner reply (typed or tapped) after it closes the offer.

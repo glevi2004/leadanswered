@@ -136,7 +136,7 @@ export function TeamRoster() {
         description={
           <>
             Your teammates work alongside each department&rsquo;s agent. Each one appears on the{" "}
-            <Link href="/home" className="font-medium text-foreground underline underline-offset-3 hover:text-muted-foreground">
+            <Link href="/canvas" className="font-medium text-foreground underline underline-offset-3 hover:text-muted-foreground">
               Workspace
             </Link>{" "}
             graph as a node next to the department they work with.

@@ -4,7 +4,6 @@ import { EmptyState } from "@/components/app/EmptyState";
 import { AGENTS, agentById, type DeptId } from "@/lib/canvas/graph";
 import { EngineerWorkplace } from "../_components/EngineerWorkplace";
 // The real page bodies, reused verbatim — the canvas shows the SAME pages the app serves.
-import AgentDetailPage from "@/app/(app)/agents/[id]/page";
 
 /**
  * /embed/[node] — the canvas node dispatch. `{dept}-dept` renders that department's
@@ -50,9 +49,9 @@ export default async function EmbedNodePage({ params }: { params: Promise<{ node
 
   // DEPARTMENT dashboard.
   switch (dept) {
-    // Support = the Lu assistant surface (the receptionist agent detail), served verbatim.
+    // Support isn't provisioned in v0 — the Lu assistant lives in the dock now, not here.
     case "support":
-      return <AgentDetailPage params={Promise.resolve({ id: "receptionist" })} searchParams={Promise.resolve({})} />;
+      return <NotSetUp dept={dept} />;
     // Engineering IS provisioned, but its collapsing dept DASHBOARD isn't a built surface
     // yet — its live work lives on the -work embed, so this stays honest-empty (not "unset").
     case "engineering": {

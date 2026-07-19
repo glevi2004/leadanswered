@@ -17,7 +17,7 @@ export default async function OnboardingPage() {
 
   const organization = await getOrganizationByOwnerEmail(user.email ?? "");
   if (!organization) redirect("/"); // no org linked yet → "almost set" card
-  if (organization.onboardingComplete) redirect("/home"); // already set up
+  if (organization.onboardingComplete) redirect("/canvas"); // already set up
 
   return (
     <div className="min-h-svh bg-sidebar">

@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { ChevronLeft, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { useSarah, type DockTab } from "./sarah-context";
 import { SarahThread } from "./SarahThread";
 import { SarahComposer } from "./SarahComposer";
@@ -17,44 +16,6 @@ import { SegmentedTabs } from "@/components/ds/SegmentedTabs";
 import { SarahIcon } from "@/components/icons/sarah";
 import { useDockData, useOnboardingMode, taskStatusLabel, type DockTask } from "@/lib/dock/live";
 import { cn } from "@/lib/utils";
-
-/**
- * The global Sarah surface, Apollo-style (Levi, 2026-07-12): a top-right
- * trigger pill opens a full-height DOCKED lane beside the rounded frame, on
- * the shell background (the frame compresses); a header toggle switches to a
- * FLOATING corner card. Same thread
- * as SMS and /sarah. Hidden on /sarah itself — that page IS the full-screen
- * version. ⌘/ still toggles.
- */
-
-/** The top-right "✦ Sarah" pill — the one entry point (sits with the corner controls). */
-export function SarahTrigger() {
-  const { widgetOpen, setWidgetOpen, pendingCount } = useSarah();
-  const pathname = usePathname();
-  if (pathname?.startsWith("/sarah")) return null;
-
-  return (
-    // Apollo's "AI Assistant" button: a real tonal button, not a skinny pill (Levi 2026-07-13).
-    <button
-      type="button"
-      aria-pressed={widgetOpen}
-      aria-label={widgetOpen ? "Close Sarah" : "Open Sarah (⌘/)"}
-      onClick={() => setWidgetOpen(!widgetOpen)}
-      className={cn(
-        "flex h-8 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium shadow-xs transition-colors",
-        widgetOpen ? "border-foreground/25 bg-muted text-foreground" : "border-border bg-background hover:bg-muted",
-      )}
-    >
-      <SarahIcon className="size-4" />
-      AI Assistant
-      {pendingCount > 0 && !widgetOpen && (
-        <span className="flex size-4 items-center justify-center rounded-full bg-foreground text-[10px] font-bold text-background">
-          {pendingCount}
-        </span>
-      )}
-    </button>
-  );
-}
 
 const DOCK_TABS: DockTab[] = ["home", "lu", "company", "tasks", "library"];
 
@@ -230,33 +191,78 @@ function TaskRow({ task }: { task: DockTask }) {
 }
 
 /**
- * THE chat sidebar — a SINGLE floating card inside the canvas (no docked/floating modes, no
- * maximize/close). It floats with a margin all around, overlaying the canvas on the right; the
- * dark frame holds the tab header, and a lighter body card nested inside reads as the second
- * card. Desktop only; on mobile SarahWidget shows the same card as a bottom sheet.
+ * THE chat sidebar — a single floating card on the right of the canvas, always present and
+ * collapsible to a slim rail via the « button on its left edge (the old nav sidebar's collapse
+ * moved here). Expanded = the full dock; collapsed = a rail with the » expand button. Desktop
+ * only; mobile uses SarahWidget.
  */
 export function SarahDock() {
-  const { widgetOpen } = useSarah();
-  const pathname = usePathname();
-  if (pathname?.startsWith("/sarah")) return null;
-  if (!widgetOpen) return null;
+  const { widgetOpen, setWidgetOpen } = useSarah();
+
+  if (!widgetOpen) {
+    // Collapsed → a slim rail with the expand button.
+    return (
+      <div className="fixed inset-y-3 right-3 z-40 hidden md:block">
+        <button
+          type="button"
+          aria-label="Open Lu"
+          title="Open Lu (⌘/)"
+          onClick={() => setWidgetOpen(true)}
+          className="glass press grid size-9 place-items-center rounded-xl text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ChevronsLeft className="size-4" />
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="widget-in elev-4 fixed inset-y-3 right-3 z-40 hidden w-[380px] flex-col overflow-hidden rounded-[26px] border bg-background text-foreground md:flex">
-      <PanelBody />
+    <div className="fixed inset-y-3 right-3 z-40 hidden w-[380px] md:block">
+      {/* collapse button — on the dock's LEFT edge (moved from the old nav sidebar) */}
+      <button
+        type="button"
+        aria-label="Collapse Lu"
+        title="Collapse (⌘/)"
+        onClick={() => setWidgetOpen(false)}
+        className="glass press absolute right-full top-0 mr-2 grid size-9 place-items-center rounded-xl text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ChevronsRight className="size-4" />
+      </button>
+      <div className="widget-in elev-4 flex h-full flex-col overflow-hidden rounded-[26px] border bg-background text-foreground">
+        <PanelBody />
+      </div>
     </div>
   );
 }
 
-/** Mobile: the same sidebar card as a bottom sheet (desktop uses SarahDock). */
+/** Mobile: the same sidebar card as a bottom sheet, with a FAB to reopen when collapsed. */
 export function SarahWidget() {
-  const { widgetOpen } = useSarah();
-  const pathname = usePathname();
-  if (pathname?.startsWith("/sarah")) return null;
-  if (!widgetOpen) return null;
+  const { widgetOpen, setWidgetOpen } = useSarah();
+
+  if (!widgetOpen) {
+    return (
+      <button
+        type="button"
+        aria-label="Open Lu"
+        onClick={() => setWidgetOpen(true)}
+        className="gloss-ink press fixed bottom-4 right-4 z-50 grid size-11 place-items-center rounded-full text-white md:hidden"
+      >
+        <SarahIcon className="size-5" />
+      </button>
+    );
+  }
 
   return (
-    <div className="widget-in elev-4 fixed inset-x-3 top-16 bottom-4 z-50 flex flex-col overflow-hidden rounded-[26px] border bg-background text-foreground md:hidden">
+    <div className="widget-in elev-4 fixed inset-x-3 bottom-4 top-16 z-50 flex flex-col overflow-hidden rounded-[26px] border bg-background text-foreground md:hidden">
+      {/* collapse (mobile) */}
+      <button
+        type="button"
+        aria-label="Collapse Lu"
+        onClick={() => setWidgetOpen(false)}
+        className="absolute right-3 top-3 z-10 grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+      >
+        <ChevronsRight className="size-4" />
+      </button>
       <PanelBody />
     </div>
   );
