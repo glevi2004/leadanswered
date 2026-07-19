@@ -296,10 +296,10 @@ export function LuProvider({
     window.localStorage.setItem("lu_dock_open", open ? "1" : "0");
   }, []);
 
-  // Phase-2 auto-open: check onboarding-mode ONCE on mount (a single fetch, NOT a poller — so
+  // Onboarding auto-open: check onboarding-mode ONCE on mount (a single fetch, NOT a poller — so
   // onboarded users never poll this in the background) and open the dock if the org is
-  // mid-onboarding, dropping the owner straight into Lu's setup conversation. The open dock's own
-  // pollers (ChatTab / LuOnboardingTracker) take it from there.
+  // mid-onboarding, dropping the owner straight into Lu's interview. The open dock's own pollers
+  // (ChatTab / ActivationGate) take it from there.
   const autoOpenedRef = React.useRef(false);
   React.useEffect(() => {
     if (autoOpenedRef.current) return;

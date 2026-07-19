@@ -64,7 +64,7 @@ truth.
 `spawn_agent` (ordered children via `parentTaskId` + `needs_earlier`), `list_status` (real rows),
 `draft_doc` (a company document → Library; `architecture` stages an `approve_doc` gate), `ask_user`.
 During onboarding-mode (org with no active department) the toolkit swaps to `ask_user` +
-`propose_decisions` + `draft_business_plan` (`onboardingTools.ts`).
+`update_business_context` + `finalize_business_context` (`onboardingTools.ts`).
 
 **The setup playbook** — `skills/onboarding.md` stays injected until the company ships its first build:
 `agent/setup.ts` derives the five-stage COMPANY SETUP progress from live state (departments → connections

@@ -10,7 +10,7 @@ import { PixelIcon, PixelTile } from "@/components/ds/PixelIcon";
 import { finishSignup } from "@/app/onboarding/actions";
 
 /**
- * Phase-1 static sign-up onboarding (pixel/editorial, modeled on cofounder.co).
+ * The static sign-up onboarding (pixel/editorial, modeled on cofounder.co).
  * A five-screen wizard: name → role → idea stage → "create your company" intro →
  * company name. No AI and no backend calls until the very last Continue, which
  * hands the collected answers to the single server action `finishSignup` and,

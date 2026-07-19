@@ -218,8 +218,8 @@ Mapping is step 1 of the loop resolving to a path. The rules, in order:
 
 ## Activation — fields turn on, they don't preexist
 
-A field is **dormant** until its world's script activates it (departments activate at Business Plan
-acceptance; a future Finance department activates when its field is scoped). Activation = its seven
+A field is **dormant** until its world's script activates it (departments activate when the owner
+accepts the activation gate; a future Finance department activates when its field is scoped). Activation = its seven
 things go live: the folder appears, the situations arm, its agents become dispatchable. Dormant
 fields are invisible — no empty shelves, no dead UI. This is why the Library shows General +
 Engineering today and grows folder-by-folder as departments come online.

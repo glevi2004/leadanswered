@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { Store } from "../store/types.js";
 
 /**
- * Onboarding-mode tools (docs/product.md §5 Phase 2). Lu only gets these while a
+ * Onboarding-mode tools (docs/product.md §5). Lu only gets these while a
  * company is being onboarded (no department active yet). They write ORG-LEVEL `doc`
  * artifacts the dock renders as cards, and stage the "Accept & activate departments"
  * gate. Same discipline as the orchestrator toolkit: the model chooses the tool, the

@@ -469,7 +469,6 @@ Legend for **Do**: `gloss`=pressable, `glass`=floating, `neu`=pillow, `socket`=r
 | `team/TeamGraph` | graph | nodes = `neu` pillows; edges in system ink | P2 |
 | `team/PermissionsMatrix` | table | editorial matrix + chips | P2 |
 | `team/TeamSetup` / `TeamSetupPersisted` / `TeamClient` | two-panel | Lu-convo panel + `neu` roster; reuse dock patterns | P2 |
-| `onboarding/OnboardingSketch` | many `btn-glow`/`card-lift` | full pass to `gloss`/`neu` + `PixelLoader` "booting up" | P1 |
 | `workspace/AppSetup` / `AppSetupPanel` | two-panel | same AppSetup convo shell as TeamSetup | P2 |
 
 #### Tranche 8 — Customer-facing / media

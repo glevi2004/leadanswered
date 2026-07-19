@@ -149,7 +149,7 @@ export function usePublishApprovals(active: boolean): {
 }
 
 /**
- * Onboarding-mode signal (Phase 2). GET /api/dock/onboarding → { active } tells us the org
+ * Onboarding-mode signal. GET /api/dock/onboarding → { active } tells us the org
  * is mid-onboarding (Lu hasn't finished booting the company yet). Polls on the same ~3s
  * cadence as the other dock pollers while `active` (the surface is on screen). Returns the
  * current onboarding-mode flag; false once the departments are activated.

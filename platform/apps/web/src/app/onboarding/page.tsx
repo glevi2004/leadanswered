@@ -4,10 +4,10 @@ import { getOrganizationByOwnerEmail } from "@/lib/organizations";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 
 /**
- * Self-serve Lu onboarding (VISION-LU §3). The owner talks to Lu; on finish we persist their
- * config + boot their departments (see `completeOnboarding`) and open the real workspace.
+ * Sign-up (the static screens: name → role → idea stage → company). On finish we persist the
+ * owner's config and hand off to Lu's interview in the workspace (see `finishSignup`).
  * Reachable only by a logged-in owner whose org exists but isn't onboarded yet:
- *   - no user → sign-in, admin → /admin, no linked org → "/", already onboarded → /home.
+ *   - no user → sign-in, admin → /admin, no linked org → "/", already onboarded → /canvas.
  * (The dev preview of this same flow — cookie mock, no real backend — lives at /dev/onboarding.)
  */
 export default async function OnboardingPage() {

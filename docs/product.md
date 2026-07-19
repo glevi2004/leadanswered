@@ -40,12 +40,11 @@ Lu's turns are plain text; structured turns attach a card (`Message.card` / doc 
 | Card | When | Does |
 |---|---|---|
 | **connect** | Lu needs an account linked (`show_connect_form`) | provider rows with real install buttons (GitHub App · Vercel Integration · Supabase OAuth), paste-a-token as fallback |
-| **decisions** | onboarding (`propose_decisions`) | one decision at a time (pager); tapping an option IS the decision, "Other" answers it in your own words — no confirm buttons |
-| **business plan** | onboarding (`draft_business_plan`) | the plan doc + **Accept & activate departments** |
+| **activate** | onboarding converges (`finalize_business_context`) | the finalized Business Context (company profile) + **Accept & activate departments** (the activation gate) |
 | **plan** | `propose_plan` | objective · steps · acceptance + Approve / Request changes / Reject |
 | **doc** | `draft_doc` staged a gated doc (architecture) | preview + Approve / Ask for changes + open in the Library |
 | **build tracker** | a build is running | the Card size of the Build (§1) |
-| **question** | `ask_user` | the question card ON the message: the question + option rows (one Recommended) + "Other"; tapping an option sends it as your message — same rows as the decisions card |
+| **question** | `ask_user` | the general **choice card** ON the message: the question + option rows (one Recommended) + "Other"; tapping an option sends it as your message. The one component for every choice Lu offers, anywhere in the app |
 
 Approvals surface where you are: in the chat card, on the task page, and (when registered) as Slack
 buttons — same resolve endpoint.
@@ -56,8 +55,8 @@ Tabs: **Home · Lu · Company · Tasks · Library**.
 
 - **Home** — Suggested Next only: the next things to do, each firing a Lu intent (clicking "Connect
   GitHub" prompts Lu, who answers with the connect card). No decorative roadmap.
-- **Lu** — the conversation. Empty states: "Tell me more about your company" (onboarding) / "What should
-  we build?" (after). Composer has the model picker + usage meter.
+- **Lu** — the conversation (Lu speaks first on a fresh org — no seeded empty-state copy). Composer has
+  the model picker + usage meter.
 - **Company** — connections panel (install-first), **Projects** (Lu-built sites + imported repos, one
   list; import picker reads the App-granted repos; per-repo setup/test commands), agents.
 - **Tasks** — all tasks as Rows → the task page.
@@ -89,19 +88,21 @@ Supabase (tables · migrations · storage · auth · users · secrets · logs) w
 so `reads`-edges inject nothing for user content. The contract (on the TODO): creating a node creates an
 `Artifact` and sets `refId`; agent outputs appear as nodes automatically.
 
-## §5 — Onboarding (two phases)
+## §5 — Onboarding
 
 1. **Sign-up (static, no AI)** — five screens: your name → role → idea stage → company name →
-   `finishSignup` seeds Lu's memory and lands you on the canvas.
-2. **Lu onboards you (in the workspace)** — onboarding-mode is derived (org with no active department);
-   Lu runs her onboarding **skill** with a swapped toolkit: you describe the company → **decision cards**
-   → the **Business Plan** doc → **Accept & activate departments** boots the company (Engineering active).
+   `finishSignup` seeds Lu's memory, fires her kickoff, and lands you on the canvas.
+2. **Lu interviews you (in the workspace)** — onboarding-mode is derived (org with no active
+   department). Lu runs her onboarding **skill**, restricted to `ask_user` + `update_business_context`
+   + `finalize_business_context`: she asks one question at a time (each a **choice card**), builds your
+   **Business Context** doc in the Library, and at convergence stages **Accept & activate departments**
+   (the activation gate) — accepting boots the company (Engineering active) and ends onboarding-mode.
 
 **The full playbook (built 2026-07-18):** onboarding doesn't end at activation — the skill
-(`skills/onboarding.md`, a real markdown file) runs five stages: learn the company → Business Plan →
-*connect your stack* (Lu drives the connect cards) → *system architecture* (a gated Library doc) →
-*first build*. Lu's prompt carries a COMPANY SETUP stage line derived from live state, so she resumes
-mid-setup after any reload; the playbook stops applying the moment the first build publishes.
+(`skills/onboarding.md`, a real markdown file) runs five stages: interview the company → finalize the
+Business Context → *connect your stack* (Lu drives the connect cards) → *system architecture* (a gated
+Library doc) → *first build*. Lu's prompt carries a COMPANY SETUP stage line derived from live state, so
+she resumes mid-setup after any reload; the playbook stops applying the moment the first build publishes.
 
 Entry remains waitlist-gated self-serve: join → admin accepts → invite email → set password → sign-up.
 
