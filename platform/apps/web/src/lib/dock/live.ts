@@ -275,7 +275,7 @@ export interface BusinessClassification {
   userType: string;
 }
 
-/** The `business_plan` doc payload — Lu's drafted plan the owner accepts to boot the company. */
+/** The accept-gate payload parsed from the FINAL Business Context doc. */
 export interface BusinessPlan {
   classification: BusinessClassification;
   values: string[];
@@ -284,17 +284,14 @@ export interface BusinessPlan {
 
 /**
  * Read the accept-gate doc out of a `doc` artifact payload — the FINAL Business Context
- * (`{ type: "business_context", draft: false, classification, values, summary }`, roadmap
- * Ch.1) or the legacy Business Plan. Returns null for drafts (the growing doc renders in
- * the Library, not as the accept card). Defensive like the other parsers.
+ * (`{ type: "business_context", draft: false, classification, values, summary }`, roadmap Ch.1).
+ * Returns null for drafts (the growing doc renders in the Library, not as the accept card) and
+ * for any other type. Defensive like the other parsers.
  */
 export function businessPlanFromArtifact(payload: Record<string, unknown> | null): BusinessPlan | null {
   if (!payload) return null;
-  if (payload.type === "business_context") {
-    if (payload.draft === true || !payload.classification) return null;
-  } else if (payload.type !== "business_plan") {
-    return null;
-  }
+  if (payload.type !== "business_context") return null;
+  if (payload.draft === true || !payload.classification) return null;
   const str = (v: unknown): string => (typeof v === "string" ? v : "");
   const c =
     payload.classification && typeof payload.classification === "object"
@@ -326,7 +323,7 @@ export function businessPlanFromArtifact(payload: Record<string, unknown> | null
 export interface LibraryDoc {
   id: string;
   title: string;
-  /** business_plan | onboarding_decisions | architecture | strategy | spec | note | migration */
+  /** business_context | onboarding_decisions | architecture | strategy | spec | note | migration */
   type: string;
   /** Human label for the type chip. */
   typeLabel: string;
@@ -349,8 +346,6 @@ function docFolder(type: string): string {
 
 function docTypeLabel(type: string): string {
   switch (type) {
-    case "business_plan":
-      return "Business Plan";
     case "business_context":
       return "Business Context";
     case "onboarding_decisions":
@@ -418,25 +413,6 @@ export function libraryDocFromArtifact(a: DockArtifact): LibraryDoc | null {
       createdAt: a.createdAt,
     };
   }
-  if (type === "business_plan") {
-    const plan = businessPlanFromArtifact(p);
-    if (!plan) return null;
-    const md = [
-      plan.summary ? `## Summary\n\n${plan.summary}` : "",
-      "## Business Classification",
-      [
-        plan.classification.companyType && `- **Company Type** — ${plan.classification.companyType}`,
-        plan.classification.industry && `- **Industry** — ${plan.classification.industry}`,
-        plan.classification.userType && `- **User Type** — ${plan.classification.userType}`,
-      ]
-        .filter(Boolean)
-        .join("\n"),
-      plan.values.length ? `## Company Values\n\n${plan.values.map((v) => `- ${v}`).join("\n")}` : "",
-    ]
-      .filter(Boolean)
-      .join("\n\n");
-    return { id: a.id, title: a.title || "Business Plan", type, typeLabel: docTypeLabel(type), folder: docFolder(type), markdown: md, gated: false, createdAt: a.createdAt };
-  }
   if (type === "onboarding_decisions") {
     const d = decisionsFromArtifact(p);
     if (!d) return null;
@@ -467,7 +443,7 @@ export function libraryDocFromArtifact(a: DockArtifact): LibraryDoc | null {
 
 /**
  * The org's Library documents, newest first, deduped so revisions REPLACE older versions:
- * one Business Plan, one Decisions doc, one generic doc per type+title; every migration kept.
+ * one Business Context, one Decisions doc, one generic doc per type+title; every migration kept.
  */
 export function libraryDocs(artifacts: DockArtifact[]): LibraryDoc[] {
   const all = artifacts.map(libraryDocFromArtifact).filter((d): d is LibraryDoc => d !== null);
@@ -476,7 +452,7 @@ export function libraryDocs(artifacts: DockArtifact[]): LibraryDoc[] {
   // artifacts arrive append-ordered → walk newest-first and keep the first of each identity.
   for (const d of [...all].reverse()) {
     const key =
-      d.type === "business_plan" || d.type === "business_context" || d.type === "onboarding_decisions"
+      d.type === "business_context" || d.type === "onboarding_decisions"
         ? d.type
         : d.type === "migration"
           ? `migration:${d.id}`

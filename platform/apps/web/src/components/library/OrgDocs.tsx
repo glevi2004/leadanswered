@@ -8,8 +8,8 @@ import { useDockData, libraryDocs, type LibraryDoc } from "@/lib/dock/live";
 import { cn } from "@/lib/utils";
 
 /**
- * The org's DOCUMENTS (docs/product.md §3 — the Library's other half): the Business Plan,
- * the Architecture doc, decisions, migrations — everything Lu writes for the company,
+ * The org's DOCUMENTS (docs/product.md §3 — the Library's other half): the Business Context,
+ * the Architecture doc, migrations — everything Lu writes for the company,
  * pulled from the same doc artifacts every other surface reads. Docs file into FOLDERS
  * (cofounder-style): **General** (company docs) + one per live department — Engineering
  * today; sales/marketing/design/support/operations/finance/legal come with their
@@ -134,7 +134,7 @@ function DocFolder({ label, docs, loaded }: { label: string; docs: LibraryDoc[];
  * The documents list. `active` gates the poll (pass the surface-visible signal);
  * `variant`: "cards" (the Library tab — folders of preview cards) | "rows" (the Company
  * tab — a flat compact list). Honest-empty before the company has any docs — the
- * Business Plan is the first one onboarding creates.
+ * Business Context is the first one onboarding creates.
  */
 export function OrgDocsList({
   active,
@@ -152,7 +152,7 @@ export function OrgDocsList({
     if (docs.length === 0) {
       return (
         <p className={cn("text-xs text-muted-foreground", className)}>
-          {loaded ? "No documents yet — the Business Plan lands here when Lu drafts it." : "Loading documents…"}
+          {loaded ? "No documents yet — Lu's docs for the company land here as she works." : "Loading documents…"}
         </p>
       );
     }

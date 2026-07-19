@@ -5,7 +5,7 @@ import { connectionStatus } from "../connect/status.js";
  * COMPANY SETUP progress (the onboarding skill's five stages — skills/onboarding.md).
  * Derived entirely from state that already exists, so Lu resumes mid-setup after any
  * reload and the playbook stops applying the moment the company has shipped:
- *   1-2  interview + Business Plan  → done when a department is ACTIVE
+ *   1-2  interview + activate departments  → done when a department is ACTIVE
  *   3    connect the stack          → done when GitHub + Vercel are connected
  *   4    architecture doc           → done when an `architecture` doc exists and
  *                                     no approve_doc approval is pending
@@ -74,7 +74,7 @@ export async function resolveSetupProgress(store: Store, orgId: string): Promise
       return {
         complete: false,
         activated: false,
-        line: "COMPANY SETUP: stage 1-2 of 5 — interview the founder and draft the Business Plan. Departments are NOT active yet.",
+        line: "COMPANY SETUP: stage 1-2 of 5 — interview the founder and finalize the Business Context. Departments are NOT active yet.",
       };
     }
 

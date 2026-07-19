@@ -19,8 +19,6 @@ export interface OnboardingToolContext {
 
 /** The `doc` payload the dock reads for the decision cards. */
 export const DECISIONS_DOC_TYPE = "onboarding_decisions";
-/** The `doc` payload the dock reads for the Business Plan card (legacy orgs). */
-export const BUSINESS_PLAN_DOC_TYPE = "business_plan";
 /** The Business Context doc (roadmap Ch.1) — grows as a DRAFT during the interview,
  *  finalized at convergence. One artifact, upserted in place. */
 export const BUSINESS_CONTEXT_DOC_TYPE = "business_context";

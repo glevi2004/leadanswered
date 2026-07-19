@@ -229,22 +229,21 @@ export function createResolveApprovalRoute(deps: EngineeringDeps) {
           return;
         }
 
-        // The ACTIVATE gate (docs/product.md §5 Phase 2): "Accept & activate departments" on the
-        // Business Plan. Approving boots the company's departments (Engineering active + agent) and
-        // ends onboarding-mode; rejecting just supersedes the gate.
+        // The ACTIVATE gate: "Accept & activate departments". Approving boots the company's
+        // departments (Engineering active + agent) and ends onboarding-mode; rejecting just
+        // supersedes the gate.
         if (appr?.action === "activate_departments") {
           if (decision === "rejected") {
             const approval = await deps.store.resolveApproval(id, "rejected", decidedBy);
             res.status(200).json({ decision, kind: "activate", approval });
             return;
           }
-          // Seed the business into Lu's memory from the doc the owner accepted — the
-          // Business Context (roadmap Ch.1; final, latest) or the legacy Business Plan.
+          // Seed the business into Lu's memory from the final Business Context the owner accepted.
           const arts = await deps.store.listArtifacts({ orgId });
           const doc = arts
             .filter((a) => {
               const t = (a.payload as { type?: unknown } | null)?.type;
-              return a.kind === "doc" && (t === "business_context" || t === "business_plan");
+              return a.kind === "doc" && t === "business_context";
             })
             .at(-1);
           const plan = doc?.payload as
