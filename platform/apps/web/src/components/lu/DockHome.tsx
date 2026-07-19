@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { ArrowRight, ChevronRight, Circle, MessageCircleQuestion, RotateCw, X } from "lucide-react";
 import { useLu } from "./lu-context";
+import { ChoiceCard } from "./ChoiceCard";
 import { useDockData, useSites } from "@/lib/dock/live";
 import { useConnectStatus, suggestNext, taskBadge, shortAge } from "./dock-data";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,7 +28,7 @@ function timeGreeting(): string {
 export function DockHome() {
   const {
     ownerName, dockOpen, clarifications, dismissClarification, openChoices,
-    setDockTab, sendMessage, openDock,
+    setDockTab, sendMessage, openDock, prefillComposer,
   } = useLu();
   const { tasks, loaded, refresh } = useDockData(dockOpen);
   const { sites } = useSites(dockOpen);
@@ -67,38 +68,26 @@ export function DockHome() {
         {greeting}, {ownerName}
       </h2>
 
-      {/* THE OPEN FRONTIER (roadmap P1): the same moves the chat's chips show — Lu's
-          latest unanswered question, one tap to answer. One frontier, two surfaces. */}
+      {/* THE OPEN FRONTIER (roadmap P1): the same move the chat shows — Lu's latest unanswered
+          question, one tap to answer. One frontier, two surfaces, one ChoiceCard. */}
       {openChoices && (
-        <div className="mt-4 rounded-xl border border-primary/30 bg-primary/[0.05] p-3">
-          <div className="flex items-start gap-2">
-            <MessageCircleQuestion className="mt-0.5 size-4 shrink-0 text-primary" />
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-primary">Lu is asking</p>
-              {openChoices.question && (
-                <p className="mt-0.5 text-sm text-foreground">{openChoices.question}</p>
-              )}
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {openChoices.options.map((o, i) => (
-                  <button
-                    key={o}
-                    type="button"
-                    onClick={() => {
-                      sendMessage(o);
-                      setDockTab("lu");
-                    }}
-                    className={
-                      openChoices.recommended === i
-                        ? "rounded-full border border-transparent bg-primary px-2.5 py-0.5 text-xs font-medium text-primary-foreground"
-                        : "rounded-full border bg-background px-2.5 py-0.5 text-xs text-foreground transition-colors hover:bg-muted"
-                    }
-                  >
-                    {o}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+        <div className="mt-4">
+          <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-primary">
+            <MessageCircleQuestion className="size-3.5" /> Lu is asking
+          </p>
+          <ChoiceCard
+            choices={openChoices}
+            live
+            hint={false}
+            onPick={(o) => {
+              sendMessage(o);
+              setDockTab("lu");
+            }}
+            onOther={() => {
+              prefillComposer("");
+              setDockTab("lu");
+            }}
+          />
         </div>
       )}
 

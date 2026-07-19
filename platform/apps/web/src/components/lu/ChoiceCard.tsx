@@ -6,11 +6,10 @@ import type { LuChoices } from "@/lib/data/shared";
 import { cn } from "@/lib/utils";
 
 /**
- * THE ONE QUESTION LOOK. Every choice Lu offers — an interview question (`ask_user` →
- * `Message.meta.choices`) or a decision in the onboarding batch — renders through these
- * rows: a selectable list with a radio mark, Lu's pick badged Recommended, and an
- * automatic "Other" row that drops the owner into the composer. Tapping an option IS
- * the answer — there are no separate confirm buttons anywhere.
+ * THE ONE QUESTION LOOK. Every choice Lu offers — any `ask_user` question, anywhere in the
+ * app — renders through these rows: a selectable list with a radio mark, Lu's pick badged
+ * Recommended, and an automatic "Other" row that drops the owner into the composer. Tapping
+ * an option IS the answer — there are no separate confirm buttons anywhere.
  */
 export function ChoiceOptionRow({
   label,
@@ -63,12 +62,12 @@ export function ChoiceOptionRow({
 }
 
 /**
- * The question card ON the message (roadmap P1 — moves live on the message, persisted in
- * `Message.meta.choices`, reload-safe). Under the LATEST Lu turn it's live: the question,
- * the options (tap one = send it as the owner's message), and "Other" (focuses the
- * composer — the owner can always type freely). On OLDER turns it renders as history:
- * the option the owner actually picked stays marked; a typed answer that matched no
- * option marks the Other row with what they wrote.
+ * The general choice card — the one component that renders any set of choices Lu offers,
+ * reused wherever a question appears (on a thread message, persisted reload-safe in
+ * `Message.meta.choices`; and Home's "Lu is asking" frontier). When `live` it's interactive:
+ * the question, the options (tap one = `onPick`), and "Other" (`onOther`, focuses the composer).
+ * On OLDER turns it renders as history: the option the owner picked stays marked; a typed
+ * answer that matched no option marks the Other row with what they wrote.
  */
 export function ChoiceCard({
   choices,
@@ -76,6 +75,7 @@ export function ChoiceCard({
   chosen,
   onPick,
   onOther,
+  hint = true,
   className,
 }: {
   choices: LuChoices;
@@ -84,6 +84,8 @@ export function ChoiceCard({
   chosen?: string;
   onPick: (option: string) => void;
   onOther: () => void;
+  /** show the "tap an option to answer, or just type below" footer (default true). */
+  hint?: boolean;
   className?: string;
 }) {
   const chosenIndex = !live && chosen !== undefined
@@ -115,7 +117,7 @@ export function ChoiceCard({
           />
         )}
       </div>
-      {live && (
+      {live && hint && (
         <p className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground">
           <PenLine className="size-3" /> Tap an option to answer, or just type below.
         </p>
