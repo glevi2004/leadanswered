@@ -1,7 +1,9 @@
 "use client";
 
+import * as React from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, LogOut, Settings, Users } from "lucide-react";
+import { ChevronDown } from "lucide-react";
+import { SettingsIcon, SignOutIcon, TeamIcon, type IconState } from "@/components/icons/nav-icons";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,12 +20,21 @@ function initials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+const ITEMS = [
+  { key: "settings", label: "Settings", Icon: SettingsIcon, href: "/settings" },
+  { key: "team", label: "Team", Icon: TeamIcon, href: "/team" },
+] as const;
+
 /**
  * The account button — top-left of the app (replaces the old nav sidebar's identity block).
- * A floating glass pill (avatar + company name) that opens a dropdown: Settings, Team, Log out.
+ * Avatar + company name → a dropdown of Settings, Team, Log out, each with the same animated
+ * nav icon the old sidebar used (they play on row hover).
  */
 export function UserMenu({ companyName }: { companyName: string }) {
   const router = useRouter();
+  const [hovered, setHovered] = React.useState<string | null>(null);
+  const stateFor = (key: string): IconState => (hovered === key ? "hover" : "idle");
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="press flex items-center gap-2 rounded-xl py-1.5 pl-1.5 pr-2.5 text-sm outline-none transition-colors hover:bg-muted/70">
@@ -34,19 +45,29 @@ export function UserMenu({ companyName }: { companyName: string }) {
         <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56">
-        <DropdownMenuItem onClick={() => router.push("/settings")}>
-          <Settings className="size-4" /> Settings
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => router.push("/team")}>
-          <Users className="size-4" /> Team
-        </DropdownMenuItem>
+        {ITEMS.map((it) => (
+          <DropdownMenuItem
+            key={it.key}
+            className="gap-2.5 [&>svg]:size-[18px]"
+            onMouseEnter={() => setHovered(it.key)}
+            onMouseLeave={() => setHovered((h) => (h === it.key ? null : h))}
+            onClick={() => router.push(it.href)}
+          >
+            <it.Icon state={stateFor(it.key)} />
+            {it.label}
+          </DropdownMenuItem>
+        ))}
         <DropdownMenuSeparator />
         <DropdownMenuItem
+          className="gap-2.5 [&>svg]:size-[18px]"
+          onMouseEnter={() => setHovered("signout")}
+          onMouseLeave={() => setHovered((h) => (h === "signout" ? null : h))}
           onClick={() => {
             window.location.href = "/auth/signout";
           }}
         >
-          <LogOut className="size-4" /> Log out
+          <SignOutIcon state={stateFor("signout")} />
+          Log out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

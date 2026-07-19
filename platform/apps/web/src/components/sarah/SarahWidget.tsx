@@ -1,8 +1,12 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { useSarah, type DockTab } from "./sarah-context";
+import { DashboardIcon } from "@/components/icons/dashboard";
+import { ScheduleIcon } from "@/components/icons/schedule";
+import { ContentIcon, TeamIcon, type IconState } from "@/components/icons/nav-icons";
 import { SarahThread } from "./SarahThread";
 import { SarahComposer } from "./SarahComposer";
 import { ApprovalCard } from "@/components/app/ApprovalCard";
@@ -26,14 +30,26 @@ const DOCK_TABS: DockTab[] = ["home", "lu", "company", "tasks", "library"];
  * a Home clarification → Lu); default "lu" so today's chat is the out-of-the-box behavior.
  */
 function PanelBody() {
-  const { selectedAgent, setSelectedAgent, dockTab, setDockTab } = useSarah();
+  const { selectedAgent, setSelectedAgent, dockTab, setDockTab, setWidgetOpen } = useSarah();
 
   return (
     // The header is NOT a card — it's the segmented tab bar sitting directly on the frame. The
     // content is ONE full-width card (same width as the frame) stacked right below it, so the
     // two read as two cards stacked on top of each other (the frame's top + the content card).
     <div className="flex min-h-0 flex-1 flex-col [--bubble-surface:var(--card)]">
-      <div className="shrink-0 px-3 py-3">
+      <div className="flex shrink-0 items-center gap-1.5 px-3 py-3">
+        {/* the small collapse control, left of the tabs — collapses the dock to its icon rail */}
+        {!selectedAgent && (
+          <button
+            type="button"
+            aria-label="Collapse"
+            title="Collapse (⌘/)"
+            onClick={() => setWidgetOpen(false)}
+            className="press grid size-7 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <ChevronsRight className="size-3.5" />
+          </button>
+        )}
         {selectedAgent ? (
           <button
             type="button"
@@ -43,7 +59,9 @@ function PanelBody() {
             <ChevronLeft className="size-4" /> Back
           </button>
         ) : (
-          <SegmentedTabs items={DOCK_TABS} active={dockTab} onChange={setDockTab} fill />
+          <div className="min-w-0 flex-1">
+            <SegmentedTabs items={DOCK_TABS} active={dockTab} onChange={setDockTab} fill />
+          </div>
         )}
       </div>
 
@@ -190,46 +208,94 @@ function TaskRow({ task }: { task: DockTask }) {
   );
 }
 
+/** Each tab's animated nav icon (the old sidebar's), shown on the collapsed rail. */
+const TAB_ICONS: Record<DockTab, React.ComponentType<{ state?: IconState; className?: string }>> = {
+  home: DashboardIcon,
+  lu: SarahIcon,
+  company: TeamIcon,
+  tasks: ScheduleIcon,
+  library: ContentIcon,
+};
+
 /**
- * THE chat sidebar — a single floating card on the right of the canvas, always present and
- * collapsible to a slim rail via the « button on its left edge (the old nav sidebar's collapse
- * moved here). Expanded = the full dock; collapsed = a rail with the » expand button. Desktop
- * only; mobile uses SarahWidget.
+ * The collapsed dock — a vertical icon rail (like the canvas toolbar, turned vertical): the
+ * expand control on top, then each tab's animated icon. Tapping an icon expands to that tab.
  */
-export function SarahDock() {
-  const { widgetOpen, setWidgetOpen } = useSarah();
-
-  if (!widgetOpen) {
-    // Collapsed → a slim rail with the expand button.
-    return (
-      <div className="fixed inset-y-3 right-3 z-40 hidden md:block">
-        <button
-          type="button"
-          aria-label="Open Lu"
-          title="Open Lu (⌘/)"
-          onClick={() => setWidgetOpen(true)}
-          className="glass press grid size-9 place-items-center rounded-xl text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ChevronsLeft className="size-4" />
-        </button>
-      </div>
-    );
-  }
-
+function DockRail() {
+  const { dockTab, setDockTab, setWidgetOpen } = useSarah();
+  const [hovered, setHovered] = React.useState<DockTab | null>(null);
   return (
-    <div className="fixed inset-y-3 right-3 z-40 hidden w-[380px] md:block">
-      {/* collapse button — on the dock's LEFT edge (moved from the old nav sidebar) */}
+    <div className="flex h-full w-[60px] flex-col items-center gap-1 py-3">
       <button
         type="button"
-        aria-label="Collapse Lu"
-        title="Collapse (⌘/)"
-        onClick={() => setWidgetOpen(false)}
-        className="glass press absolute right-full top-0 mr-2 grid size-9 place-items-center rounded-xl text-muted-foreground transition-colors hover:text-foreground"
+        aria-label="Expand Lu"
+        title="Expand (⌘/)"
+        onClick={() => setWidgetOpen(true)}
+        className="press grid size-9 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
-        <ChevronsRight className="size-4" />
+        <ChevronsLeft className="size-4" />
       </button>
-      <div className="widget-in elev-4 flex h-full flex-col overflow-hidden rounded-[26px] border bg-background text-foreground">
+      <div className="mt-1 flex flex-col items-center gap-1">
+        {DOCK_TABS.map((t) => {
+          const Icon = TAB_ICONS[t];
+          const active = dockTab === t;
+          return (
+            <button
+              key={t}
+              type="button"
+              aria-label={t}
+              title={t[0].toUpperCase() + t.slice(1)}
+              onMouseEnter={() => setHovered(t)}
+              onMouseLeave={() => setHovered((h) => (h === t ? null : h))}
+              onClick={() => {
+                setDockTab(t);
+                setWidgetOpen(true);
+              }}
+              className={cn(
+                "grid size-9 place-items-center rounded-lg transition-colors [&>svg]:size-[18px]",
+                active ? "gloss text-foreground" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Icon state={active ? "active" : hovered === t ? "hover" : "idle"} />
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * THE chat sidebar — a single floating card on the right of the canvas, always present. The «
+ * button in its header collapses it SMOOTHLY (width transition) to a vertical icon rail; it
+ * never disappears. Desktop only; mobile uses SarahWidget.
+ */
+export function SarahDock() {
+  const { widgetOpen } = useSarah();
+  return (
+    <div
+      className={cn(
+        "elev-4 fixed inset-y-3 right-3 z-40 hidden overflow-hidden rounded-[26px] border bg-background text-foreground transition-[width] duration-300 ease-out md:block",
+        widgetOpen ? "w-[380px]" : "w-[60px]",
+      )}
+    >
+      {/* expanded content — fixed 380 width so it CLIPS (not reflows) as the frame narrows */}
+      <div
+        className={cn(
+          "absolute inset-0 flex w-[380px] flex-col transition-opacity duration-200",
+          widgetOpen ? "opacity-100" : "pointer-events-none opacity-0",
+        )}
+      >
         <PanelBody />
+      </div>
+      {/* collapsed icon rail */}
+      <div
+        className={cn(
+          "absolute inset-y-0 left-0 transition-opacity duration-200",
+          widgetOpen ? "pointer-events-none opacity-0" : "opacity-100 delay-100",
+        )}
+      >
+        <DockRail />
       </div>
     </div>
   );
